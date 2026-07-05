@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Dominion expansion-box labels as two-colour 3MF files.
+"""Generate board-game expansion-box labels as two-colour 3MF files.
 
 Each label is a chamfered rectangular plate (white) with the expansion
 name, a 3-step staircase logo in the bottom-left corner and a small
@@ -9,9 +9,10 @@ Geometry replicated from the original Onshape design (SideLabel STEP
 export). Font: Orbitron Bold (Google Fonts, OFL licence).
 
 Usage:
-    python3 dominion_labels.py                     # all names x all widths
-    python3 dominion_labels.py --names "Seaside,Renaissance"
-    python3 dominion_labels.py --widths 20,53
+    python3 dominion_labels.py                     # per-label files, Dominion
+    python3 dominion_labels.py --plates            # ONE multi-plate Bambu 3MF
+    python3 dominion_labels.py --game FCM --plates
+    python3 dominion_labels.py --names "Seaside,Renaissance" --widths 32,53
     python3 dominion_labels.py --step              # also export STEP files
 
 Requires: pip install build123d
@@ -19,6 +20,8 @@ Font: put Orbitron-Bold.ttf next to this script.
 """
 
 import argparse
+import json
+import math
 import sys
 import zipfile
 from pathlib import Path
@@ -41,7 +44,19 @@ from build123d import (
 # Parameters (mm) — measured from the original Onshape STEP export
 # --------------------------------------------------------------------------
 LABEL_HEIGHT = 22.2          # overall label height (STEP export measured 22.1)
-WIDTHS = [20.0, 32.0, 53.0, 80.0, 156.4]
+
+# Label widths per game: "widths" for a set's labels, "split_widths" for the
+# "<name> 1"/"<name> 2" labels of sets split across two boxes.
+GAMES = {
+    "Dominion": {
+        "widths": [156.4, 80.0, 53.0, 32.0],
+        "split_widths": [156.4, 53.0, 32.0],
+    },
+    "FCM": {
+        "widths": [45.0, 30.0, 20.0],
+        "split_widths": [45.0, 30.0, 20.0],
+    },
+}
 
 BASE_THICKNESS = 0.6         # white base plate
 RAISE_TEXT = 0.6             # how far the name text stands proud of the base
@@ -61,6 +76,20 @@ NAMES_FILE = "NAMES"         # set list, one name per line (see read_names_file)
 
 BASE_COLOR = Color(1.0, 1.0, 1.0)    # white
 RAISED_COLOR = Color(0.0, 0.0, 0.0)  # black
+
+# Mesh tessellation (mm). 0.01 is invisible at print scale and keeps the
+# combined multi-plate file to a manageable size.
+MESH_LINEAR_DEFLECTION = 0.01
+MESH_ANGULAR_DEFLECTION = 0.2
+
+# --plates mode: Bambu P1S multi-plate project layout
+PLATE_SIZE = 256.0           # P1S bed
+PLATE_MARGIN = 4.0           # keep-out border -> 248mm usable per row
+LABEL_GAP = 2.0              # gap between labels in a row / between rows
+PLATE_ROWS = 8               # label rows per plate; top strip is kept free
+WIPE_TOWER_XY = (210.0, 214.0)   # wipe tower in that free top strip
+PLATE_STRIDE = PLATE_SIZE * 1.2  # BambuStudio LOGICAL_PART_PLATE_GAP = 1/5
+PROJECT_SETTINGS_FILE = "bambu_project_settings.config"
 
 # Fallback set list when there is no NAMES file and no --names
 NAMES = [
@@ -89,32 +118,40 @@ def find_names_file():
     return None
 
 
-def read_names_file(path: Path) -> list:
-    """Parse the NAMES file: one set per line, optionally ',<flags>' where
-    flags is bit-based — bit 1: the plain label, bit 2: '<name> 1' and
-    '<name> 2' labels for split boxes (so 0 skips, 3 makes all three).
-    The special name '(BLANK)' is the blank label (logo + cc, no text).
-    Blank lines and lines starting with '#' are ignored."""
-    names = []
+def read_names_file(path: Path, game: str) -> list:
+    """Parse the NAMES file and return (name, is_split) pairs for `game`.
+
+    Each line is '<game>,<set name>[,<flags>]' where flags is bit-based —
+    bit 1: the plain label, bit 2: '<name> 1' and '<name> 2' labels for
+    split boxes (so 0 skips, 3 makes all three; default 1). The special
+    name '(BLANK)' is the blank label (logo + cc, no text). Blank lines
+    and lines starting with '#' are ignored."""
+    entries = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
+        if "," not in line:
+            sys.exit(f"{path}:{lineno}: missing game name in {raw!r} "
+                     f"(expected '<game>,<set name>[,<flags>]')")
+        line_game, line = (s.strip() for s in line.split(",", 1))
         name, flags = line, 1
         if "," in line:
             head, tail = line.rsplit(",", 1)
             tail = tail.strip()
             if tail.lstrip("+-").isdigit():
                 name, flags = head.strip(), int(tail)
-        if not name or flags < 0:
+        if not line_game or not name or flags < 0:
             sys.exit(f"{path}:{lineno}: cannot parse {raw!r}")
+        if line_game.lower() != game.lower():
+            continue
         if name.upper() == "(BLANK)":
             name = ""
         if flags & 1:
-            names.append(name)
+            entries.append((name, False))
         if flags & 2:
-            names += [f"{name} 1", f"{name} 2"]
-    return names
+            entries += [(f"{name} 1", True), (f"{name} 2", True)]
+    return entries
 
 
 def staircase(size: float, steps: int) -> Polygon:
@@ -207,7 +244,9 @@ def add_mesh_object(mesher: Mesher, shape, part_number: str):
     from build123d.mesher import MeshType
 
     mesh_3mf = mesher.model.AddMeshObject()
-    vertices, triangles = Mesher._mesh_shape(copy_module.deepcopy(shape), 0.001, 0.1)
+    vertices, triangles = Mesher._mesh_shape(
+        copy_module.deepcopy(shape),
+        MESH_LINEAR_DEFLECTION, MESH_ANGULAR_DEFLECTION)
     vertices_3mf, triangles_3mf = Mesher._create_3mf_mesh(vertices, triangles)
     mesh_3mf.SetGeometry(vertices_3mf, triangles_3mf)
     mesh_3mf.SetType(Mesher._map_b3d_mesh_type_3mf[MeshType.MODEL])
@@ -224,60 +263,90 @@ def add_mesh_object(mesher: Mesher, shape, part_number: str):
 IDENTITY_4X4 = "1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"
 
 
-def bambu_model_settings(obj_id: int, obj_name: str, parts) -> str:
-    """Bambu Studio / OrcaSlicer project metadata: assigns each part of the
-    object to a filament slot (`extruder`). This is what makes the file open
-    two-coloured — Bambu ignores standard 3MF material colours entirely.
-    `parts` is a list of (mesh resource id, part name, extruder number)."""
-    part_xml = "".join(
-        f'    <part id="{pid}" subtype="normal_part">\n'
-        f'      <metadata key="name" value="{pname}"/>\n'
-        f'      <metadata key="matrix" value="{IDENTITY_4X4}"/>\n'
-        f'      <metadata key="extruder" value="{extruder}"/>\n'
-        f"    </part>\n"
-        for pid, pname, extruder in parts
-    )
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        "<config>\n"
-        f'  <object id="{obj_id}">\n'
-        f'    <metadata key="name" value="{obj_name}"/>\n'
-        f'    <metadata key="extruder" value="1"/>\n'
-        f"{part_xml}"
-        "  </object>\n"
-        "  <plate>\n"
-        '    <metadata key="plater_id" value="1"/>\n'
-        '    <metadata key="plater_name" value=""/>\n'
-        '    <metadata key="locked" value="false"/>\n'
-        "    <model_instance>\n"
-        f'      <metadata key="object_id" value="{obj_id}"/>\n'
-        '      <metadata key="instance_id" value="0"/>\n'
-        f'      <metadata key="identify_id" value="{100 + obj_id}"/>\n'
-        "    </model_instance>\n"
-        "  </plate>\n"
-        "  <assemble>\n"
-        f'    <assemble_item object_id="{obj_id}" instance_id="0" '
-        f'transform="1 0 0 0 1 0 0 0 1 0 0 0" offset="0 0 0"/>\n'
-        "  </assemble>\n"
-        "</config>\n"
-    )
+def add_assembled_label(mesher: Mesher, stem: str, base, raised):
+    """Add one label to the model as a single object with two component
+    parts. Returns (components object, model_settings object entry)."""
+    base_3mf = add_mesh_object(mesher, base, "base")
+    raised_3mf = add_mesh_object(mesher, raised, "raised")
+    assembly = mesher.model.AddComponentsObject()
+    assembly.AddComponent(base_3mf, mesher.wrapper.GetIdentityTransform())
+    assembly.AddComponent(raised_3mf, mesher.wrapper.GetIdentityTransform())
+    assembly.SetName(stem)
+    return assembly, {
+        "id": assembly.GetResourceID(),
+        "name": stem,
+        "parts": [(base_3mf.GetResourceID(), "base", 2),      # white
+                  (raised_3mf.GetResourceID(), "raised", 1)],  # black
+    }
 
 
-def inject_bambu_metadata(path: Path, obj_id: int, obj_name: str, parts):
-    """Rewrite the 3MF zip: add Metadata/model_settings.config and stamp the
+def bambu_model_settings(objects, plates) -> str:
+    """Bambu Studio / OrcaSlicer project metadata: assigns each part of each
+    object to a filament slot (`extruder`) and each object instance to a
+    plate. This is what makes the file open two-coloured — Bambu ignores
+    standard 3MF material colours entirely. `objects` is a list of entries
+    from add_assembled_label(); `plates` is one (object id, identify id)
+    list per plate."""
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>', "<config>"]
+    for obj in objects:
+        lines += [
+            f'  <object id="{obj["id"]}">',
+            f'    <metadata key="name" value="{obj["name"]}"/>',
+            '    <metadata key="extruder" value="1"/>',
+        ]
+        for pid, pname, extruder in obj["parts"]:
+            lines += [
+                f'    <part id="{pid}" subtype="normal_part">',
+                f'      <metadata key="name" value="{pname}"/>',
+                f'      <metadata key="matrix" value="{IDENTITY_4X4}"/>',
+                f'      <metadata key="extruder" value="{extruder}"/>',
+                "    </part>",
+            ]
+        lines.append("  </object>")
+    for plate_no, instances in enumerate(plates, 1):
+        lines += [
+            "  <plate>",
+            f'    <metadata key="plater_id" value="{plate_no}"/>',
+            '    <metadata key="plater_name" value=""/>',
+            '    <metadata key="locked" value="false"/>',
+        ]
+        for obj_id, identify_id in instances:
+            lines += [
+                "    <model_instance>",
+                f'      <metadata key="object_id" value="{obj_id}"/>',
+                '      <metadata key="instance_id" value="0"/>',
+                f'      <metadata key="identify_id" value="{identify_id}"/>',
+                "    </model_instance>",
+            ]
+        lines.append("  </plate>")
+    lines.append("  <assemble>")
+    for instances in plates:
+        for obj_id, _ in instances:
+            lines.append(
+                f'    <assemble_item object_id="{obj_id}" instance_id="0" '
+                f'transform="1 0 0 0 1 0 0 0 1 0 0 0" offset="0 0 0"/>')
+    lines += ["  </assemble>", "</config>", ""]
+    return "\n".join(lines)
+
+
+def inject_bambu_metadata(path: Path, objects, plates, project_settings=None):
+    """Rewrite the 3MF zip: add Metadata/model_settings.config (and, for
+    multi-plate projects, Metadata/project_settings.config) and stamp the
     model file so Bambu Studio recognises the project metadata."""
     with zipfile.ZipFile(path) as zf:
         entries = {info.filename: zf.read(info.filename) for info in zf.infolist()}
 
     model = entries["3D/3dmodel.model"].decode("utf-8")
     stamp = (
-        '<metadata name="Application">BambuStudio-02.00.03.54</metadata>\n\t'
+        '<metadata name="Application">BambuStudio-02.07.01.62</metadata>\n\t'
         '<metadata name="BambuStudio:3mfVersion">1</metadata>\n\t'
     )
     entries["3D/3dmodel.model"] = model.replace(
         "<resources>", stamp + "<resources>", 1).encode("utf-8")
     entries["Metadata/model_settings.config"] = bambu_model_settings(
-        obj_id, obj_name, parts).encode("utf-8")
+        objects, plates).encode("utf-8")
+    if project_settings is not None:
+        entries["Metadata/project_settings.config"] = project_settings.encode("utf-8")
 
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         for name, data in entries.items():
@@ -288,19 +357,94 @@ def write_3mf(path: Path, name: str, base, raised, bambu: bool):
     """Export base + raised as ONE 3MF object with two component parts,
     optionally with Bambu Studio filament assignments (raised->1, base->2)."""
     m = Mesher()
-    base_3mf = add_mesh_object(m, base, "base")
-    raised_3mf = add_mesh_object(m, raised, "raised")
-    assembly = m.model.AddComponentsObject()
-    assembly.AddComponent(base_3mf, m.wrapper.GetIdentityTransform())
-    assembly.AddComponent(raised_3mf, m.wrapper.GetIdentityTransform())
-    assembly.SetName(name)
+    assembly, entry = add_assembled_label(m, name, base, raised)
     m.model.AddBuildItem(assembly, m.wrapper.GetIdentityTransform())
     m.write(str(path))
     if bambu:
-        inject_bambu_metadata(
-            path, assembly.GetResourceID(), name,
-            [(base_3mf.GetResourceID(), "base", 2),
-             (raised_3mf.GetResourceID(), "raised", 1)])
+        inject_bambu_metadata(path, [entry], [[(entry["id"], 100 + entry["id"])]])
+
+
+# --------------------------------------------------------------------------
+# --plates: one Bambu multi-plate project with every label laid out
+# --------------------------------------------------------------------------
+
+
+def plate_columns(n_plates: int) -> int:
+    """Plate grid column count, replicating BambuStudio compute_colum_count."""
+    value = math.sqrt(n_plates)
+    return round(value) + 1 if value > round(value) else round(value)
+
+
+def translation(mesher: Mesher, x: float, y: float):
+    t = mesher.wrapper.GetIdentityTransform()
+    t.Fields[3][0] = x
+    t.Fields[3][1] = y
+    return t
+
+
+def pack_rows(labels) -> list:
+    """Pack (name, width) labels, in order, into rows of the usable plate
+    width (next-fit: a label that does not fit starts a new row)."""
+    cap = PLATE_SIZE - 2 * PLATE_MARGIN
+    rows, cur, cur_w = [], [], 0.0
+    for name, width in labels:
+        if cur and cur_w + LABEL_GAP + width > cap:
+            rows.append(cur)
+            cur, cur_w = [], 0.0
+        cur_w += width + (LABEL_GAP if cur else 0)
+        cur.append((name, width))
+    if cur:
+        rows.append(cur)
+    return rows
+
+
+def render_project_settings(n_plates: int):
+    """Bambu printer/filament profile for the combined file, with one wipe
+    tower position per plate (the top strip above the label rows)."""
+    template = Path(__file__).resolve().parent / PROJECT_SETTINGS_FILE
+    if not template.is_file():
+        print(f"warning: {PROJECT_SETTINGS_FILE} not found - the combined "
+              "file will open without printer/filament profile")
+        return None
+    settings = json.loads(template.read_text(encoding="utf-8"))
+    settings["wipe_tower_x"] = [str(WIPE_TOWER_XY[0])] * n_plates
+    settings["wipe_tower_y"] = [str(WIPE_TOWER_XY[1])] * n_plates
+    return json.dumps(settings, indent=4)
+
+
+def write_plates_3mf(path: Path, labels, font: LabelFont):
+    """Write every label into one Bambu project 3MF spread across plates:
+    PLATE_ROWS rows of labels per plate, wipe tower in the free top strip,
+    plates arranged in BambuStudio's grid (stride 1.2 x plate size)."""
+    rows = pack_rows(labels)
+    n_plates = math.ceil(len(rows) / PLATE_ROWS)
+    cols = plate_columns(n_plates)
+
+    m = Mesher()
+    objects = []
+    plates = [[] for _ in range(n_plates)]
+    identify_id = 200
+    for row_no, row in enumerate(rows):
+        plate, plate_row = divmod(row_no, PLATE_ROWS)
+        origin_x = (plate % cols) * PLATE_STRIDE
+        origin_y = -(plate // cols) * PLATE_STRIDE
+        y = PLATE_MARGIN + plate_row * (LABEL_HEIGHT + LABEL_GAP)
+        x = PLATE_MARGIN
+        for name, width in row:
+            base, raised = make_label(name, width, font)
+            stem = f"{safe_filename(name)}_{width:g}mm"
+            assembly, entry = add_assembled_label(m, stem, base, raised)
+            m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
+            objects.append(entry)
+            plates[plate].append((entry["id"], identify_id))
+            identify_id += 1
+            x += width + LABEL_GAP
+            print(f"  plate {plate + 1} row {plate_row + 1}: "
+                  f"{name or '(blank)'} {width:g}mm")
+    m.write(str(path))
+    inject_bambu_metadata(path, objects, plates,
+                          project_settings=render_project_settings(n_plates))
+    print(f"{path}: {len(objects)} labels on {n_plates} plates")
 
 
 def safe_filename(name: str) -> str:
@@ -308,39 +452,60 @@ def safe_filename(name: str) -> str:
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Generate Dominion box labels")
-    ap.add_argument("--names", help="comma-separated set names (default: built-in list)")
-    ap.add_argument("--widths", help="comma-separated widths in mm (default: all)")
+    ap = argparse.ArgumentParser(description="Generate board game box labels")
+    ap.add_argument("--game", default="Dominion",
+                    help=f"game to generate labels for ({', '.join(GAMES)})")
+    ap.add_argument("--names", help="comma-separated set names (default: NAMES file)")
+    ap.add_argument("--widths", help="comma-separated widths in mm "
+                                     "(default: the game's width lists)")
     ap.add_argument("--out", default="labels_out", help="output directory")
     ap.add_argument("--step", action="store_true", help="also export STEP files")
     ap.add_argument("--no-blank", action="store_true", help="skip the blank label")
     ap.add_argument("--plain", action="store_true",
                     help="vanilla 3MF without Bambu Studio filament metadata")
+    ap.add_argument("--plates", action="store_true",
+                    help="write one multi-plate Bambu project 3MF "
+                         "instead of individual label files")
     args = ap.parse_args()
 
+    game = next((g for g in GAMES if g.lower() == args.game.lower()), None)
+    if game is None:
+        sys.exit(f"unknown game {args.game!r} (known: {', '.join(GAMES)})")
+    cfg = GAMES[game]
+
     if args.names:
-        names = [n.strip() for n in args.names.split(",")]
+        entries = [(n.strip(), False) for n in args.names.split(",")]
     else:
         names_file = find_names_file()
-        names = read_names_file(names_file) if names_file else list(NAMES)
-    if not args.no_blank and "" not in names:
-        names.append("")                    # blank label: logo + cc, no name
-    widths = [float(w) for w in args.widths.split(",")] if args.widths else WIDTHS
+        entries = (read_names_file(names_file, game) if names_file
+                   else [(n, False) for n in NAMES])
+    if not args.no_blank and ("", False) not in entries:
+        entries.append(("", False))         # blank label: logo + cc, no name
+
+    override = [float(w) for w in args.widths.split(",")] if args.widths else None
+    labels = [(name, width)
+              for name, is_split in entries
+              for width in (override
+                            or cfg["split_widths" if is_split else "widths"])]
 
     font = LabelFont(find_font())
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    for name in names:
-        for width in widths:
-            base, raised = make_label(name, width, font)
-            stem = f"{safe_filename(name)}_{width:g}mm"
-            path = outdir / f"{stem}.3mf"
-            write_3mf(path, stem, base, raised, bambu=not args.plain)
-            if args.step:
-                export_step(Compound(children=[base, raised]),
-                            str(outdir / f"{stem}.step"))
-            print(f"  {path}")
+    if args.plates:
+        write_plates_3mf(outdir / f"{safe_filename(game)}_plates.3mf",
+                         labels, font)
+        return
+
+    for name, width in labels:
+        base, raised = make_label(name, width, font)
+        stem = f"{safe_filename(name)}_{width:g}mm"
+        path = outdir / f"{stem}.3mf"
+        write_3mf(path, stem, base, raised, bambu=not args.plain)
+        if args.step:
+            export_step(Compound(children=[base, raised]),
+                        str(outdir / f"{stem}.step"))
+        print(f"  {path}")
     print("done")
 
 
