@@ -2,9 +2,24 @@
 #   1 = the plain label (default if no flags given)
 #   2 = "<name> 1" and "<name> 2" labels, for sets split across two boxes
 #   3 = both, 0 = skip this line
-Base Set 1
-Intrigue
-Seaside,1
+# The special name "(BLANK)" is the blank label (logo + cc, no text).
+Base Set,3
+Intrigue,3
+Seaside,3
+Alchemy,1
+Prosperity,3
+Cornucopia,1
+Hinterlands,3
 Dark Ages,3
-Prosperity,2
-Renaissance,0
+Guilds,1
+Adventures,3
+Empires,3
+Nocturne,3
+Renaissance,3
+Menagerie,3
+Allies,3
+Plunder,3
+Rising Sun,3
+FCM,3
+FCM Milestones,1
+(BLANK),1

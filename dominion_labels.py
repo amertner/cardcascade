@@ -93,6 +93,7 @@ def read_names_file(path: Path) -> list:
     """Parse the NAMES file: one set per line, optionally ',<flags>' where
     flags is bit-based — bit 1: the plain label, bit 2: '<name> 1' and
     '<name> 2' labels for split boxes (so 0 skips, 3 makes all three).
+    The special name '(BLANK)' is the blank label (logo + cc, no text).
     Blank lines and lines starting with '#' are ignored."""
     names = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -107,6 +108,8 @@ def read_names_file(path: Path) -> list:
                 name, flags = head.strip(), int(tail)
         if not name or flags < 0:
             sys.exit(f"{path}:{lineno}: cannot parse {raw!r}")
+        if name.upper() == "(BLANK)":
+            name = ""
         if flags & 1:
             names.append(name)
         if flags & 2:
@@ -320,7 +323,7 @@ def main():
     else:
         names_file = find_names_file()
         names = read_names_file(names_file) if names_file else list(NAMES)
-    if not args.no_blank:
+    if not args.no_blank and "" not in names:
         names.append("")                    # blank label: logo + cc, no name
     widths = [float(w) for w in args.widths.split(",")] if args.widths else WIDTHS
 

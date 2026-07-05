@@ -53,7 +53,8 @@ flags is bit-based:
 | `3` | all three |
 | `0` | none — line is skipped |
 
-Blank lines and lines starting with `#` are ignored:
+The special name `(BLANK)` stands for the blank label (logo + "cc",
+no text). Blank lines and lines starting with `#` are ignored:
 
 ```
 Base Set 1
