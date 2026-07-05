@@ -47,9 +47,11 @@ Output lands in `labels_out/` as `<Name>_<width>mm.3mf`, or as
 `<game>_plates.3mf` with `--plates`.
 
 Each game in the `GAMES` dict at the top of the script defines the
-label widths for a set (`widths`) and for split-box `<name> 1/2`
-labels (`split_widths`). Dominion: 156.4 (front), 80, 53, 32 for sets;
-splits skip the 80. FCM: 45, 30, 20 for everything.
+label widths for a set (`widths`), for split-box `<name> 1/2` labels
+(`split_widths`), and the standard text size per width (`caps`,
+capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
+(splits skip the 80) at 6.5/5.0/4.5/3.5 mm caps; FCM: 45, 30, 20 at
+4.5/3.5/2.8 mm.
 
 ## The NAMES file
 
@@ -129,8 +131,9 @@ Values were measured from the original Onshape STEP export (which is
 22.1 mm tall; the script uses the specified 22.2).
 
 The name text is set in Orbitron **Bold** (weight 700 matches the
-original's stroke widths exactly) and auto-sizes to be as large as
-possible inside its box: flush with the logo's left edge and the "cc"'s
-right edge, 2 mm above the logo, and at least 3 mm below the top edge.
-Long names span the full box width; short names fill it vertically and
-are centred horizontally.
+original's stroke widths exactly) at the game's standard capital
+height for the label's width (`caps`), so same-width labels look
+uniform. Names too long for their box — flush with the logo's left
+edge and the "cc"'s right edge, 2 mm above the logo, at least 3 mm
+below the top edge — shrink to fit. Text is centred horizontally and
+bottom-anchored.
