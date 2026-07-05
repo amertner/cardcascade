@@ -60,25 +60,29 @@ capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
 
 When `--names` is not given, the script reads the set list from a
 `NAMES` file (looked up in the current directory, then next to the
-script). One set per line as `<game>,<set name>[,box=W][,split=W[/W2]]`
-— only lines matching `--game` are used:
+script). One set per line as `<game>,<set name>[,<key>=U[/S]]...`,
+where every value is an `<unsleeved>[/<sleeved>]` label-width pair
+(one value = both) — only lines matching `--game` are used:
 
 | Field | Meaning |
 |---|---|
-| `box=W` | recommended side-label width for the whole set's box; presence means the set gets whole-box labels |
-| `split=W[/W2]` | recommended side widths for split boxes 1 and 2 (one value = both); presence means the set gets `<name> 1/2` labels |
-| neither | line is skipped |
+| `box=U[/S]` | side-label widths for the whole set's box; presence means the set gets whole-box labels |
+| `split=U[/S]` | side widths for both split half-boxes; presence means the set gets `<name> 1/2` labels |
+| `split1=U[/S]`, `split2=U[/S]` | like `split=` but for half-boxes of different sizes (must appear together) |
+| none | line is skipped |
 
 Widths are validated against the game's standard width lists — a
-non-standard width is an error. The special name `(BLANK)` stands for
-the blank label (logo + "cc", no text). Blank lines and lines starting
+non-standard width is an error. (Rule of thumb: the label must be at
+least 14 mm narrower than the box lid's depth; pick the largest
+standard width that fits.) The special name `(BLANK)` stands for the
+blank label (logo + "cc", no text). Blank lines and lines starting
 with `#` are ignored:
 
 ```
-Dominion,Base Set,box=80,split=53
-Dominion,Seaside,box=53,split=53/32
+Dominion,Base Set,box=53/80,split=53
 Dominion,Alchemy,box=32
-FCM,FCM Milestones,box=20
+FCM,Occupations,split1=30/45,split2=20/20
+FCM,Milestones,box=20/30
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top
@@ -87,15 +91,19 @@ of `dominion_labels.py` is used.
 ## Per-set project files (`--sets`)
 
 `--sets` writes one Bambu project per set into `<out>/sets/`, using
-the recommendations from the NAMES file. Each file has up to three
-plates:
+the recommendations from the NAMES file. Labels are stacked one above
+the other, centred on the plate. Each file has up to five plates:
 
-1. **the set's name** — the default labels for one cascade: the box
-   front (156.4 for Dominion) plus the `box=` side label
-2. **"... split boxes"** — front + side labels for `<name> 1` and
-   `<name> 2` at their `split=` widths, if the set has them
-3. **"... spares"** — every other label from the full width matrix,
-   for users whose boxes differ from the recommendation
+1. **single cascade (unsleeved)** — box front (156.4 for Dominion)
+   plus the unsleeved `box=` side label
+2. **single cascade (sleeved)** — the same with the sleeved width
+3. **split cascade (unsleeved)** — front + side for `<name> 1` and
+   `<name> 2` (always two fronts and two sides)
+4. **split cascade (sleeved)** — the same with the sleeved widths
+5. **"... spares"** — every other label from the full width matrix
+
+Sleeved/unsleeved plates that would be identical are collapsed into
+one, so a set like Alchemy (`box=32`) has just two plates.
 
 ## The multi-plate project files (`--plates`)
 

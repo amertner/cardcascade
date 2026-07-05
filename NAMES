@@ -1,29 +1,28 @@
-# One set per line: <game>,<set name>[,box=W][,split=W[/W2]]
-#   box=W        recommended side-label width for the whole set's box;
-#                presence means the set gets whole-box labels
-#   split=W[/W2] recommended side widths for split boxes 1 and 2 (one
-#                value = both boxes); presence means the set gets
-#                "<name> 1" / "<name> 2" labels
+# One set per line: <game>,<set name>[,box=U[/S]][,split=U[/S]][,split1=U[/S],split2=U[/S]]
+#   Each value is <unsleeved>[/<sleeved>] label width (one value = both).
+#   box=    the whole set's box; presence means whole-box labels
+#   split=  both split half-boxes; split1=/split2= when the halves differ;
+#           presence means "<name> 1" / "<name> 2" labels
 # Widths must be standard widths for the game (see GAMES in the script).
-# A line with neither key is skipped.
+# A line with neither box= nor split= is skipped.
 # The special name "(BLANK)" is the blank label (logo + cc, no text).
-Dominion,Base Set,box=80,split=53
-Dominion,Intrigue,box=80,split=53
-Dominion,Seaside,box=80,split=53
+Dominion,Base Set,box=53/80,split=53
+Dominion,Intrigue,box=32/53
+Dominion,Seaside,box=32/53
 Dominion,Alchemy,box=32
-Dominion,Prosperity,box=80,split=53
+Dominion,Prosperity,box=32/53
 Dominion,Cornucopia,box=32
-Dominion,Hinterlands,box=80,split=53
-Dominion,Dark Ages,box=80,split=53
+Dominion,Hinterlands,box=32/53
+Dominion,Dark Ages,box=53/80
 Dominion,Guilds,box=32
-Dominion,Adventures,box=80,split=53
-Dominion,Empires,box=80,split=53
-Dominion,Nocturne,box=80,split=53
-Dominion,Renaissance,box=80,split=53
-Dominion,Menagerie,box=80,split=53
-Dominion,Allies,box=80,split=53
-Dominion,Plunder,box=80,split=53
-Dominion,Rising Sun,box=80,split=53
+Dominion,Adventures,box=53/80,split=32
+Dominion,Empires,box=32/53
+Dominion,Nocturne,box=53/80,split=32
+Dominion,Renaissance,box=53/80
+Dominion,Menagerie,box=53/80
+Dominion,Allies,box=53/80
+Dominion,Plunder,box=53/80,split=32
+Dominion,Rising Sun,box=32/53
 Dominion,(BLANK),box=53
-FCM,FCM,box=45,split=30
-FCM,FCM Milestones,box=20
+FCM,Occupations,split1=30/45,split2=20/20
+FCM,Milestones,box=20/30
