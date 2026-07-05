@@ -63,23 +63,21 @@ z = 0.6 mm — all black geometry is above that height.
 | `LABEL_HEIGHT` | 22.2 | overall label height |
 | `WIDTHS` | 20, 32, 53, 80, 156.4 | the five label widths |
 | `BASE_THICKNESS` | 0.6 | white plate thickness |
-| `RAISE_TEXT` / `RAISE_LOGO` | 0.6 | height of the black features above the plate |
+| `RAISE_TEXT` | 0.6 | height of the name text above the plate |
+| `RAISE_LOGO` | 0.4 | height of the logo and "cc" above the plate |
 | `TAPER` | 45° | chamfer around the base |
 | `MARGIN` | 3.6 | logo / "cc" inset from the label edge |
 | `LOGO_SIZE` | 4.5 | staircase bounding square (3 steps) |
-| `CAP_HEIGHT` | 4.175 | name text capital height |
-| `BASELINE_Y` | 10.1 | text baseline, measured from the bottom edge |
-| `TEXT_SIDE_MARGIN` | 2.5 | min side gap; long names shrink to fit |
+| `TEXT_GAP_ABOVE_LOGO` | 2 | gap between the logo top and the text bottom |
+| `TEXT_TOP_MARGIN` | 3 | min gap between the text top and the label top edge |
 | `CC_XHEIGHT` | 2.5 | height of the "cc" mark |
 
-Values were measured from the original Onshape STEP export. Two
-deliberate deviations from that export, chosen per your spec — flip them
-back if the original was intentional:
-
-- The STEP measures **22.1** mm tall; the script uses your stated 22.2.
-- In the STEP the logo and "cc" are raised only **0.4** mm (text 0.6);
-  the script raises everything 0.6 (`RAISE_LOGO = 0.4` restores it).
+Values were measured from the original Onshape STEP export (which is
+22.1 mm tall; the script uses the specified 22.2).
 
 The name text is set in Orbitron **Bold** (weight 700 matches the
-original's stroke widths exactly), horizontally centred, on a fixed
-baseline. Names too wide for a label shrink uniformly to fit.
+original's stroke widths exactly) and auto-sizes to be as large as
+possible inside its box: flush with the logo's left edge and the "cc"'s
+right edge, 2 mm above the logo, and at least 3 mm below the top edge.
+Long names span the full box width; short names fill it vertically and
+are centred horizontally.
