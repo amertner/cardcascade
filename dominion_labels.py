@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""Generate Dominion expansion-box labels as two-colour 3MF files.
+
+Each label is a chamfered rectangular plate (white) with the expansion
+name, a 3-step staircase logo in the bottom-left corner and a small
+"cc" mark in the bottom-right corner raised on top (black).
+
+Geometry replicated from the original Onshape design (SideLabel STEP
+export). Font: Orbitron Bold (Google Fonts, OFL licence).
+
+Usage:
+    python3 dominion_labels.py                     # all names x all widths
+    python3 dominion_labels.py --names "Seaside,Renaissance"
+    python3 dominion_labels.py --widths 20,53
+    python3 dominion_labels.py --step              # also export STEP files
+
+Requires: pip install build123d
+Font: put Orbitron-Bold.ttf next to this script.
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+from build123d import (
+    Align,
+    Color,
+    Compound,
+    Mesher,
+    Polygon,
+    Rectangle,
+    Text,
+    Vector,
+    export_step,
+    extrude,
+    scale,
+)
+
+# --------------------------------------------------------------------------
+# Parameters (mm) — measured from the original Onshape STEP export
+# --------------------------------------------------------------------------
+LABEL_HEIGHT = 22.2          # overall label height (STEP export measured 22.1)
+WIDTHS = [20.0, 32.0, 53.0, 80.0, 156.4]
+
+BASE_THICKNESS = 0.6         # white base plate
+RAISE_TEXT = 0.6             # how far the name text stands proud of the base
+RAISE_LOGO = 0.6             # staircase + "cc" (original STEP had 0.4 here)
+TAPER = 45.0                 # chamfer angle all around the base
+
+MARGIN = 3.6                 # logo/cc inset from the label outline
+LOGO_SIZE = 4.5              # staircase bounding square
+LOGO_STEPS = 3
+
+CAP_HEIGHT = 4.175           # name text capital-letter height
+BASELINE_Y = 10.1            # name text baseline, from label bottom edge
+TEXT_SIDE_MARGIN = 2.5       # min gap outline<->text; text shrinks to fit
+CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
+
+FONT_FILE = "Orbitron-Bold.ttf"
+
+BASE_COLOR = Color(1.0, 1.0, 1.0)    # white
+RAISED_COLOR = Color(0.0, 0.0, 0.0)  # black
+
+# Default set list — replace/extend as needed, or use --names
+NAMES = [
+    "Base Set 1",
+]
+
+# --------------------------------------------------------------------------
+
+
+def find_font() -> str:
+    here = Path(__file__).resolve().parent
+    for cand in (here / FONT_FILE, Path.cwd() / FONT_FILE):
+        if cand.exists():
+            return str(cand)
+    sys.exit(
+        f"Font file '{FONT_FILE}' not found next to the script.\n"
+        "Download Orbitron (Bold) from https://fonts.google.com/specimen/Orbitron"
+    )
+
+
+def staircase(size: float, steps: int) -> Polygon:
+    """3-step staircase logo, outer corner at (0,0), steps descending
+    left-to-right, exactly as in the original label. Points listed
+    counter-clockwise so the face normal is +Z (extrudes upward)."""
+    s = size / steps
+    pts = [(0.0, 0.0), (size, 0.0)]            # bottom edge, left to right
+    for i in range(steps):                     # up the staircase, right to left
+        x, y = size - i * s, i * s
+        pts += [(x, y + s), (x - s, y + s)]    # riser up, then tread left
+    return Polygon(*pts, align=None)
+
+
+class LabelFont:
+    """Wraps Text() with empirical metrics (OCCT's baseline anchoring is
+    font-dependent, so we probe it with reference glyphs)."""
+
+    PROBE_SIZE = 100.0
+
+    def __init__(self, font_path: str):
+        self.font_path = font_path
+        h = self.render("H").bounding_box()
+        self.baseline = h.min.Y             # 'H' sits exactly on the baseline
+        self.cap = h.size.Y                 # capital height at PROBE_SIZE
+        self.xheight = self.render("c").bounding_box().size.Y
+
+    def render(self, txt: str):
+        return Text(txt, font_size=self.PROBE_SIZE, font_path=self.font_path,
+                    align=(Align.MIN, Align.NONE))
+
+
+def make_label(name: str, width: float, font: LabelFont):
+    """Build one label; returns (base Solid (white), raised Compound (black))."""
+    height = LABEL_HEIGHT
+    z_top = Vector(0, 0, BASE_THICKNESS)
+
+    # base plate: rectangle extruded with a 45-degree inward taper (chamfer)
+    base = extrude(Rectangle(width, height, align=(Align.MIN, Align.MIN)),
+                   amount=BASE_THICKNESS, taper=TAPER)
+
+    # staircase logo, bottom-left corner
+    logo = staircase(LOGO_SIZE, LOGO_STEPS).translate(Vector(MARGIN, MARGIN, 0))
+    raised = extrude(logo.translate(z_top), amount=RAISE_LOGO)
+
+    # "cc" mark, bottom-right corner, bottom-aligned with the logo
+    cc = scale(font.render("cc"), by=CC_XHEIGHT / font.xheight)
+    bb = cc.bounding_box()
+    cc = cc.translate(Vector(width - MARGIN - bb.max.X, MARGIN - bb.min.Y, 0))
+    raised += extrude(cc.translate(z_top), amount=RAISE_LOGO)
+
+    # expansion name, centred, baseline fixed, auto-shrunk to fit the width
+    if name:
+        txt = font.render(name)
+        factor = CAP_HEIGHT / font.cap
+        max_w = width - 2 * TEXT_SIDE_MARGIN
+        if txt.bounding_box().size.X * factor > max_w:
+            factor = max_w / txt.bounding_box().size.X
+        txt = scale(txt, by=factor)
+        bb = txt.bounding_box()
+        txt = txt.translate(Vector((width - bb.size.X) / 2 - bb.min.X,
+                                   BASELINE_Y - font.baseline * factor, 0))
+        raised += extrude(txt.translate(z_top), amount=RAISE_TEXT)
+
+    # Normalise for export: a bare Solid for the base, and one Compound
+    # holding every raised solid (letters, logo, cc) for the black body.
+    base_solid = base.solid()
+    base_solid.color = BASE_COLOR
+    base_solid.label = "base"
+    raised_comp = Compound(raised.solids())
+    raised_comp.color = RAISED_COLOR
+    raised_comp.label = "raised"
+    return base_solid, raised_comp
+
+
+def add_shape_merged(mesher: Mesher, shape, part_number: str):
+    """Add `shape` to the 3MF as ONE object.
+
+    Mesher.add_shape() splits a Compound into one 3MF object per solid and
+    loses the per-shape colour while doing so; slicers would then see every
+    letter as a separate part. This replicates its body (build123d 0.11)
+    without the flattening, so all raised solids become a single object.
+    """
+    import copy as copy_module
+
+    from build123d.mesher import MeshType
+
+    mesh_3mf = mesher.model.AddMeshObject()
+    vertices, triangles = Mesher._mesh_shape(copy_module.deepcopy(shape), 0.001, 0.1)
+    vertices_3mf, triangles_3mf = Mesher._create_3mf_mesh(vertices, triangles)
+    mesh_3mf.SetGeometry(vertices_3mf, triangles_3mf)
+    mesh_3mf.SetType(Mesher._map_b3d_mesh_type_3mf[MeshType.MODEL])
+    if shape.label:
+        mesh_3mf.SetName(shape.label)
+    mesh_3mf.SetPartNumber(part_number)
+    mesher._add_color(shape, mesh_3mf)
+    if not mesh_3mf.IsValid():
+        raise RuntimeError("3mf mesh is invalid")
+    mesher.meshes.append(mesh_3mf)
+    mesher.model.AddBuildItem(mesh_3mf, mesher.wrapper.GetIdentityTransform())
+    components = mesher.model.AddComponentsObject()
+    components.AddComponent(mesh_3mf, mesher.wrapper.GetIdentityTransform())
+
+
+def safe_filename(name: str) -> str:
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in name) or "Blank"
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Generate Dominion box labels")
+    ap.add_argument("--names", help="comma-separated set names (default: built-in list)")
+    ap.add_argument("--widths", help="comma-separated widths in mm (default: all)")
+    ap.add_argument("--out", default="labels_out", help="output directory")
+    ap.add_argument("--step", action="store_true", help="also export STEP files")
+    ap.add_argument("--no-blank", action="store_true", help="skip the blank label")
+    args = ap.parse_args()
+
+    names = [n.strip() for n in args.names.split(",")] if args.names else list(NAMES)
+    if not args.no_blank:
+        names.append("")                    # blank label: logo + cc, no name
+    widths = [float(w) for w in args.widths.split(",")] if args.widths else WIDTHS
+
+    font = LabelFont(find_font())
+    outdir = Path(args.out)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    for name in names:
+        for width in widths:
+            base, raised = make_label(name, width, font)
+            stem = f"{safe_filename(name)}_{width:g}mm"
+            path = outdir / f"{stem}.3mf"
+            m = Mesher()
+            m.add_shape(base, part_number="base")
+            add_shape_merged(m, raised, part_number="raised")
+            m.write(str(path))
+            if args.step:
+                export_step(Compound(children=[base, raised]),
+                            str(outdir / f"{stem}.step"))
+            print(f"  {path}")
+    print("done")
+
+
+if __name__ == "__main__":
+    main()
