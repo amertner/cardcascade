@@ -32,6 +32,9 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 
 # skip the blank label
 .venv/bin/python dominion_labels.py --no-blank
+
+# vanilla 3MF without the Bambu Studio filament metadata
+.venv/bin/python dominion_labels.py --plain
 ```
 
 Output lands in `labels_out/` as `<Name>_<width>mm.3mf`.
@@ -41,11 +44,17 @@ expansion list (spaces are fine: `"Base Set 1"`, `"Dark Ages"`, ...).
 
 ## Slicing
 
-Each 3MF contains two named bodies: `base` (white) and `raised` (black).
-In Bambu Studio / OrcaSlicer / PrusaSlicer, open the file and confirm
-"import as single object with multiple parts", then assign a filament to
-each part. On a single-extruder printer you can instead add a filament
-change at z = 0.6 mm — all black geometry is above that height.
+Each 3MF contains one object with two parts: `base` (white) and
+`raised` (black). The file embeds Bambu Studio / OrcaSlicer project
+metadata assigning `base` to filament 1 and `raised` to filament 2, so
+it opens two-coloured — just load white in slot 1 and black in slot 2.
+(Bambu ignores standard 3MF colours; without this metadata everything
+lands on filament 1, which is why the file used to open single-colour.)
+
+For other slicers, `--plain` writes a vanilla 3MF instead: the two
+parts import as one object and you assign a filament to each part by
+hand. On a single-extruder printer, add a filament change at
+z = 0.6 mm — all black geometry is above that height.
 
 ## Parameters (top of the script, all in mm)
 

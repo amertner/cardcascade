@@ -20,6 +20,7 @@ Font: put Orbitron-Bold.ttf next to this script.
 
 import argparse
 import sys
+import zipfile
 from pathlib import Path
 
 from build123d import (
@@ -153,13 +154,14 @@ def make_label(name: str, width: float, font: LabelFont):
     return base_solid, raised_comp
 
 
-def add_shape_merged(mesher: Mesher, shape, part_number: str):
-    """Add `shape` to the 3MF as ONE object.
+def add_mesh_object(mesher: Mesher, shape, part_number: str):
+    """Mesh `shape` into the 3MF as ONE object and return the lib3mf object.
 
     Mesher.add_shape() splits a Compound into one 3MF object per solid and
     loses the per-shape colour while doing so; slicers would then see every
     letter as a separate part. This replicates its body (build123d 0.11)
-    without the flattening, so all raised solids become a single object.
+    without the flattening, and emits no build item — the caller assembles
+    the meshes into a single components object instead.
     """
     import copy as copy_module
 
@@ -177,9 +179,89 @@ def add_shape_merged(mesher: Mesher, shape, part_number: str):
     if not mesh_3mf.IsValid():
         raise RuntimeError("3mf mesh is invalid")
     mesher.meshes.append(mesh_3mf)
-    mesher.model.AddBuildItem(mesh_3mf, mesher.wrapper.GetIdentityTransform())
-    components = mesher.model.AddComponentsObject()
-    components.AddComponent(mesh_3mf, mesher.wrapper.GetIdentityTransform())
+    return mesh_3mf
+
+
+IDENTITY_4X4 = "1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"
+
+
+def bambu_model_settings(obj_id: int, obj_name: str, parts) -> str:
+    """Bambu Studio / OrcaSlicer project metadata: assigns each part of the
+    object to a filament slot (`extruder`). This is what makes the file open
+    two-coloured — Bambu ignores standard 3MF material colours entirely.
+    `parts` is a list of (mesh resource id, part name, extruder number)."""
+    part_xml = "".join(
+        f'    <part id="{pid}" subtype="normal_part">\n'
+        f'      <metadata key="name" value="{pname}"/>\n'
+        f'      <metadata key="matrix" value="{IDENTITY_4X4}"/>\n'
+        f'      <metadata key="extruder" value="{extruder}"/>\n'
+        f"    </part>\n"
+        for pid, pname, extruder in parts
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        "<config>\n"
+        f'  <object id="{obj_id}">\n'
+        f'    <metadata key="name" value="{obj_name}"/>\n'
+        f'    <metadata key="extruder" value="1"/>\n'
+        f"{part_xml}"
+        "  </object>\n"
+        "  <plate>\n"
+        '    <metadata key="plater_id" value="1"/>\n'
+        '    <metadata key="plater_name" value=""/>\n'
+        '    <metadata key="locked" value="false"/>\n'
+        "    <model_instance>\n"
+        f'      <metadata key="object_id" value="{obj_id}"/>\n'
+        '      <metadata key="instance_id" value="0"/>\n'
+        f'      <metadata key="identify_id" value="{100 + obj_id}"/>\n'
+        "    </model_instance>\n"
+        "  </plate>\n"
+        "  <assemble>\n"
+        f'    <assemble_item object_id="{obj_id}" instance_id="0" '
+        f'transform="1 0 0 0 1 0 0 0 1 0 0 0" offset="0 0 0"/>\n'
+        "  </assemble>\n"
+        "</config>\n"
+    )
+
+
+def inject_bambu_metadata(path: Path, obj_id: int, obj_name: str, parts):
+    """Rewrite the 3MF zip: add Metadata/model_settings.config and stamp the
+    model file so Bambu Studio recognises the project metadata."""
+    with zipfile.ZipFile(path) as zf:
+        entries = {info.filename: zf.read(info.filename) for info in zf.infolist()}
+
+    model = entries["3D/3dmodel.model"].decode("utf-8")
+    stamp = (
+        '<metadata name="Application">BambuStudio-02.00.03.54</metadata>\n\t'
+        '<metadata name="BambuStudio:3mfVersion">1</metadata>\n\t'
+    )
+    entries["3D/3dmodel.model"] = model.replace(
+        "<resources>", stamp + "<resources>", 1).encode("utf-8")
+    entries["Metadata/model_settings.config"] = bambu_model_settings(
+        obj_id, obj_name, parts).encode("utf-8")
+
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, data in entries.items():
+            zf.writestr(name, data)
+
+
+def write_3mf(path: Path, name: str, base, raised, bambu: bool):
+    """Export base + raised as ONE 3MF object with two component parts,
+    optionally with Bambu Studio filament assignments (base->1, raised->2)."""
+    m = Mesher()
+    base_3mf = add_mesh_object(m, base, "base")
+    raised_3mf = add_mesh_object(m, raised, "raised")
+    assembly = m.model.AddComponentsObject()
+    assembly.AddComponent(base_3mf, m.wrapper.GetIdentityTransform())
+    assembly.AddComponent(raised_3mf, m.wrapper.GetIdentityTransform())
+    assembly.SetName(name)
+    m.model.AddBuildItem(assembly, m.wrapper.GetIdentityTransform())
+    m.write(str(path))
+    if bambu:
+        inject_bambu_metadata(
+            path, assembly.GetResourceID(), name,
+            [(base_3mf.GetResourceID(), "base", 1),
+             (raised_3mf.GetResourceID(), "raised", 2)])
 
 
 def safe_filename(name: str) -> str:
@@ -193,6 +275,8 @@ def main():
     ap.add_argument("--out", default="labels_out", help="output directory")
     ap.add_argument("--step", action="store_true", help="also export STEP files")
     ap.add_argument("--no-blank", action="store_true", help="skip the blank label")
+    ap.add_argument("--plain", action="store_true",
+                    help="vanilla 3MF without Bambu Studio filament metadata")
     args = ap.parse_args()
 
     names = [n.strip() for n in args.names.split(",")] if args.names else list(NAMES)
@@ -209,10 +293,7 @@ def main():
             base, raised = make_label(name, width, font)
             stem = f"{safe_filename(name)}_{width:g}mm"
             path = outdir / f"{stem}.3mf"
-            m = Mesher()
-            m.add_shape(base, part_number="base")
-            add_shape_merged(m, raised, part_number="raised")
-            m.write(str(path))
+            write_3mf(path, stem, base, raised, bambu=not args.plain)
             if args.step:
                 export_step(Compound(children=[base, raised]),
                             str(outdir / f"{stem}.step"))
