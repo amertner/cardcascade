@@ -60,15 +60,18 @@ capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
 
 When `--names` is not given, the script reads the set list from a
 `NAMES` file (looked up in the current directory, then next to the
-script). One set per line as `<game>,<set name>[,<key>=U[/S]]...`,
-where every value is an `<unsleeved>[/<sleeved>]` label-width pair
-(one value = both) — only lines matching `--game` are used:
+script). One set per line as `<game>,<set name>[,<key>=V]...`, where
+every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<box model>]`
+— label widths per sleeving (one value = both) plus the optional
+recommended-box identity, which appears in the `--sets` plate titles
+(e.g. `Base Set, Sleeved (560 Card, L6.12.40-Sl)`). Only lines
+matching `--game` are used:
 
 | Field | Meaning |
 |---|---|
-| `box=U[/S]` | side-label widths for the whole set's box; presence means the set gets whole-box labels |
-| `split=U[/S]` | side widths for both split half-boxes; presence means the set gets `<name> 1/2` labels |
-| `split1=U[/S]`, `split2=U[/S]` | like `split=` but for half-boxes of different sizes (must appear together) |
+| `box=V` | the whole set's box; presence means the set gets whole-box labels |
+| `split=V` | both split half-boxes; presence means the set gets `<name> 1/2` labels |
+| `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
 | none | line is skipped |
 
 Widths are validated against the game's standard width lists — a
@@ -79,10 +82,10 @@ blank label (logo + "cc", no text). Blank lines and lines starting
 with `#` are ignored:
 
 ```
-Dominion,Base Set,box=53/80,split=53
-Dominion,Alchemy,box=32
-FCM,Occupations,split1=30/45,split2=20/20
-FCM,Milestones,box=20/30
+Dominion,Base Set,box=53/80@560 Card:L6.12.40,split=53@300 Card:S5.12.40
+Dominion,Alchemy,box=32@168 Card:S4.10.16
+FCM,Occupations,split1=30/45@264 Card:M4.12.18,split2=20@180 Card:L3.6.18
+FCM,Milestones,box=20/30@144 Card:M5.6.6
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top

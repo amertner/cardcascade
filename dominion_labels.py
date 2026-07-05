@@ -143,32 +143,44 @@ def parse_width(text: str, allowed, where: str, key: str) -> float:
              f"(allowed: {', '.join(f'{w:g}' for w in allowed)})")
 
 
-def parse_pair(value: str, allowed, where: str, key: str) -> tuple:
-    """'U[/S]' -> (unsleeved, sleeved) widths; one value means both."""
-    values = value.split("/")
+def parse_box(value: str, allowed, where: str, key: str) -> dict:
+    """'U[/S][@<box name>:<box model>]' -> {"widths": (unsleeved, sleeved),
+    "info": (box name, box model) | None}. One width means both sleevings."""
+    width_part, _, info_part = value.partition("@")
+    values = width_part.split("/")
     if len(values) not in (1, 2):
-        sys.exit(f"{where}: {key} takes <unsleeved>[/<sleeved>], got {value!r}")
+        sys.exit(f"{where}: {key} takes <unsleeved>[/<sleeved>], "
+                 f"got {width_part!r}")
     widths = [parse_width(v, allowed, where, key) for v in values]
     if len(widths) == 1:
         widths *= 2
-    return tuple(widths)
+    info = None
+    if info_part:
+        box_name, sep, model = info_part.partition(":")
+        if not sep or not box_name.strip() or not model.strip():
+            sys.exit(f"{where}: {key} box info must be "
+                     f"'@<box name>:<box model>', got {info_part!r}")
+        info = (box_name.strip(), model.strip())
+    return {"widths": tuple(widths), "info": info}
 
 
 def read_names_file(path: Path, game: str) -> list:
     """Parse the NAMES file and return set records for `game`.
 
-    Each line is '<game>,<set name>[,<key>=U[/S]]...' where every value is
-    an <unsleeved>[/<sleeved>] label width pair (one value = both):
-      box=U[/S]    the whole set's box; presence means whole-box labels
-      split=U[/S]  both split half-boxes; presence means '<name> 1' and
-                   '<name> 2' labels
+    Each line is '<game>,<set name>[,<key>=V]...' where every value V is
+    '<unsleeved>[/<sleeved>][@<box name>:<box model>]' — label widths per
+    sleeving (one value = both) plus the optional recommended-box identity
+    shown in plate titles:
+      box=V    the whole set's box; presence means whole-box labels
+      split=V  both split half-boxes; presence means '<name> 1' and
+               '<name> 2' labels
       split1=/split2=  like split= but for halves of different sizes
-                   (must be given together)
+               (must be given together)
     Widths must be standard widths of the game (box= against `widths`,
     split*= against `split_widths`). A line with no keys is skipped.
     The special name '(BLANK)' is the blank label (logo + cc, no text).
     Blank lines and '#' comments are ignored. Returns dicts
-    {"name": str, "box": (U, S) | None, "split": [(U1, S1), (U2, S2)] | None}."""
+    {"name": str, "box": parse_box() | None, "split": [half1, half2] | None}."""
     cfg = GAMES[game]
     records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -192,12 +204,12 @@ def read_names_file(path: Path, game: str) -> list:
             key, sep, value = field.partition("=")
             key = key.strip().lower()
             if key == "box" and sep:
-                box = parse_pair(value, cfg["widths"], where, "box")
+                box = parse_box(value, cfg["widths"], where, "box")
             elif key == "split" and sep:
-                pair = parse_pair(value, cfg["split_widths"], where, "split")
-                split = [pair, pair]
+                half = parse_box(value, cfg["split_widths"], where, "split")
+                split = [half, half]
             elif key in ("split1", "split2") and sep:
-                halves[key] = parse_pair(value, cfg["split_widths"], where, key)
+                halves[key] = parse_box(value, cfg["split_widths"], where, key)
             else:
                 sys.exit(f"{where}: unknown field {field!r} (expected "
                          f"box=U[/S], split=U[/S] or split1=/split2=)")
@@ -519,6 +531,8 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     display = name or "Blank"
     front = cfg.get("front")
     UNSLEEVED, SLEEVED = 0, 1
+    SUFFIX = {UNSLEEVED: "-Un", SLEEVED: "-Sl"}
+    LABEL = {UNSLEEVED: ", Unsleeved", SLEEVED: ", Sleeved"}
 
     def box_labels(label_name, side):
         labels = [(label_name, front)] if front else []
@@ -526,32 +540,45 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             labels.append((label_name, side))
         return labels
 
+    def boxes_title(infos, model_suffix):
+        infos = [i for i in dict.fromkeys(infos) if i]
+        if not infos:
+            return ""
+        return (" (" + "; ".join(f"{box_name}, {model}{model_suffix}"
+                                 for box_name, model in infos) + ")")
+
     specs = []
     if record["box"]:
-        plates = [(f"{display} (unsleeved)", box_labels(name, record["box"][UNSLEEVED])),
-                  (f"{display} (sleeved)", box_labels(name, record["box"][SLEEVED]))]
+        info = record["box"]["info"]
+        plates = [
+            (f"{display}{LABEL[s]}{boxes_title([info], SUFFIX[s])}",
+             box_labels(name, record["box"]["widths"][s]))
+            for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
-            plates = [(display, plates[0][1])]
+            plates = [(f"{display}{boxes_title([info], '')}", plates[0][1])]
         specs += plates
     if record["split"]:
         def split_labels(sleeving):
             labels = []
-            for half, pair in enumerate(record["split"], 1):
-                labels += box_labels(f"{name} {half}", pair[sleeving])
+            for half_no, half in enumerate(record["split"], 1):
+                labels += box_labels(f"{name} {half_no}", half["widths"][sleeving])
             return labels
-        plates = [(f"{display} split (unsleeved)", split_labels(UNSLEEVED)),
-                  (f"{display} split (sleeved)", split_labels(SLEEVED))]
+        infos = [half["info"] for half in record["split"]]
+        plates = [
+            (f"{display} split{LABEL[s]}{boxes_title(infos, SUFFIX[s])}",
+             split_labels(s))
+            for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
-            plates = [(f"{display} split", plates[0][1])]
+            plates = [(f"{display} split{boxes_title(infos, '')}", plates[0][1])]
         specs += plates
     spares = []
     if record["box"]:
-        used = {front, *record["box"]}
+        used = {front, *record["box"]["widths"]}
         spares += [(name, w) for w in cfg["widths"] if w not in used]
     if record["split"]:
-        for half, pair in enumerate(record["split"], 1):
-            used = {front, *pair}
-            spares += [(f"{name} {half}", w) for w in cfg["split_widths"]
+        for half_no, half in enumerate(record["split"], 1):
+            used = {front, *half["widths"]}
+            spares += [(f"{name} {half_no}", w) for w in cfg["split_widths"]
                        if w not in used]
     if spares:
         specs.append((f"{display} spares", spares))
