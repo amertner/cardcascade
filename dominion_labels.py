@@ -533,13 +533,12 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
 
 def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = None):
     """Write a Bambu project with a fixed plate composition: one plate per
-    (plate name, labels) spec, labels packed into rows bottom-up."""
+    (plate name, labels) spec. Labels are stacked one above the other in
+    list order (first label on top), centre-aligned, with the stack
+    roughly centred on the plate."""
     n_plates = len(plate_specs)
     cols = plate_columns(n_plates)
-    indent = max(PLATE_MARGIN, PLATE_EXCLUDE[0] + LABEL_GAP)
-
-    def row_start(y):
-        return indent if y < PLATE_EXCLUDE[1] else PLATE_MARGIN
+    pitch = LABEL_HEIGHT + LABEL_GAP
 
     m = Mesher()
     objects, plates = [], []
@@ -548,12 +547,11 @@ def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = Non
         origin_x = (plate_no % cols) * PLATE_STRIDE
         origin_y = -(plate_no // cols) * PLATE_STRIDE
         plate = {"name": plate_name, "instances": []}
-        y = PLATE_MARGIN
-        x = row_start(y)
-        for label_name, width in labels:
-            if x > row_start(y) and x + width > PLATE_SIZE - PLATE_MARGIN:
-                y += LABEL_HEIGHT + LABEL_GAP
-                x = row_start(y)
+        stack_height = len(labels) * pitch - LABEL_GAP
+        y_bottom = max(PLATE_MARGIN, (PLATE_SIZE - stack_height) / 2)
+        for i, (label_name, width) in enumerate(labels):
+            x = (PLATE_SIZE - width) / 2
+            y = y_bottom + (len(labels) - 1 - i) * pitch
             base, raised = make_label(label_name, width, font, caps)
             stem = f"{safe_filename(label_name)}_{width:g}mm"
             assembly, entry = add_assembled_label(m, stem, base, raised)
@@ -561,7 +559,6 @@ def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = Non
             objects.append(entry)
             plate["instances"].append((entry["id"], identify_id))
             identify_id += 1
-            x += width + LABEL_GAP
         plates.append(plate)
     m.write(str(path))
     inject_bambu_metadata(path, objects, plates,
