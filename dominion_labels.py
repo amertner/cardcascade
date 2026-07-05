@@ -46,15 +46,20 @@ from build123d import (
 LABEL_HEIGHT = 22.2          # overall label height (STEP export measured 22.1)
 
 # Label widths per game: "widths" for a set's labels, "split_widths" for the
-# "<name> 1"/"<name> 2" labels of sets split across two boxes.
+# "<name> 1"/"<name> 2" labels of sets split across two boxes. "caps" is the
+# standard text size (capital height, mm) per label width — labels of the
+# same width all use it, and long names shrink to fit. A width without an
+# entry (e.g. via --widths) sizes its text to fill the label instead.
 GAMES = {
     "Dominion": {
         "widths": [156.4, 80.0, 53.0, 32.0],
         "split_widths": [156.4, 53.0, 32.0],
+        "caps": {156.4: 6.5, 80.0: 5.0, 53.0: 4.5, 32.0: 3.5},
     },
     "FCM": {
         "widths": [45.0, 30.0, 20.0],
         "split_widths": [45.0, 30.0, 20.0],
+        "caps": {45.0: 4.5, 30.0: 3.5, 20.0: 2.8},
     },
 }
 
@@ -176,6 +181,7 @@ class LabelFont:
 
     def __init__(self, font_path: str):
         self.font_path = font_path
+        self.cap = self.render("H").bounding_box().size.Y
         self.xheight = self.render("c").bounding_box().size.Y
 
     def render(self, txt: str):
@@ -183,8 +189,10 @@ class LabelFont:
                     align=(Align.MIN, Align.NONE))
 
 
-def make_label(name: str, width: float, font: LabelFont):
-    """Build one label; returns (base Solid (white), raised Compound (black))."""
+def make_label(name: str, width: float, font: LabelFont, caps: dict = None):
+    """Build one label; returns (base Solid (white), raised Compound (black)).
+    `caps` maps label width -> standard text capital height (mm); without an
+    entry for `width` the text sizes to fill its box."""
     height = LABEL_HEIGHT
     z_top = Vector(0, 0, BASE_THICKNESS)
 
@@ -202,10 +210,10 @@ def make_label(name: str, width: float, font: LabelFont):
     cc = cc.translate(Vector(width - MARGIN - bb.max.X, MARGIN - bb.min.Y, 0))
     raised += extrude(cc.translate(z_top), amount=RAISE_LOGO)
 
-    # expansion name: as large as fits its box — sides aligned with the
-    # logo's left and the cc's right edge, bottom 2 mm above the logo, top
-    # at least 3 mm below the label edge. Width-limited names span the box
-    # exactly; height-limited ones fill it vertically, centred horizontally.
+    # expansion name: standard capital height for this label width (caps),
+    # shrunk to fit its box when the name is too long — the box runs from
+    # the logo's left to the cc's right edge, from 2 mm above the logo to
+    # 3 mm below the top edge. Centred horizontally, bottom-anchored.
     if name:
         box_left, box_right = MARGIN, width - MARGIN
         box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
@@ -214,6 +222,9 @@ def make_label(name: str, width: float, font: LabelFont):
         bb = txt.bounding_box()
         factor = min((box_right - box_left) / bb.size.X,
                      (box_top - box_bottom) / bb.size.Y)
+        cap = (caps or {}).get(width)
+        if cap is not None:
+            factor = min(factor, cap / font.cap)
         txt = scale(txt, by=factor)
         bb = txt.bounding_box()
         txt = txt.translate(Vector(
@@ -447,7 +458,7 @@ def render_project_settings(n_plates: int):
     return json.dumps(settings, indent=4)
 
 
-def write_plates_3mf(path: Path, sets, font: LabelFont):
+def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
     """Write labels into one Bambu project 3MF spread across plates: one
     block of rows per set (same structure for every set), SET_GAP between
     blocks, wipe tower in the free top strip, plates arranged in
@@ -463,7 +474,7 @@ def write_plates_3mf(path: Path, sets, font: LabelFont):
     for plate_no, x, y, name, width in placements:
         origin_x = (plate_no % cols) * PLATE_STRIDE
         origin_y = -(plate_no // cols) * PLATE_STRIDE
-        base, raised = make_label(name, width, font)
+        base, raised = make_label(name, width, font, caps)
         stem = f"{safe_filename(name)}_{width:g}mm"
         assembly, entry = add_assembled_label(m, stem, base, raised)
         m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
@@ -535,14 +546,14 @@ def main():
         main_sets = [(n, widths_for(False)) for n, s in entries if not s]
         split_sets = [(n, widths_for(True)) for n, s in entries if s]
         write_plates_3mf(outdir / f"{safe_filename(game)}_sets_plates.3mf",
-                         main_sets, font)
+                         main_sets, font, cfg["caps"])
         if split_sets:
             write_plates_3mf(outdir / f"{safe_filename(game)}_splits_plates.3mf",
-                             split_sets, font)
+                             split_sets, font, cfg["caps"])
         return
 
     for name, width in labels:
-        base, raised = make_label(name, width, font)
+        base, raised = make_label(name, width, font, cfg["caps"])
         stem = f"{safe_filename(name)}_{width:g}mm"
         path = outdir / f"{stem}.3mf"
         write_3mf(path, stem, base, raised, bambu=not args.plain)
