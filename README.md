@@ -27,6 +27,9 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 # multi-plate Bambu project 3MFs (whole sets + split-box labels)
 .venv/bin/python dominion_labels.py --plates
 
+# one 3MF per set (default / split boxes / spares plates) in labels_out/sets/
+.venv/bin/python dominion_labels.py --sets
+
 # another game (its own NAMES entries and width lists)
 .venv/bin/python dominion_labels.py --game FCM --plates
 
@@ -57,28 +60,42 @@ capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
 
 When `--names` is not given, the script reads the set list from a
 `NAMES` file (looked up in the current directory, then next to the
-script). One set per line as `<game>,<set name>[,<flags>]` — only
-lines matching `--game` are used, and flags are bit-based:
+script). One set per line as `<game>,<set name>[,box=W][,split=W[/W2]]`
+— only lines matching `--game` are used:
 
-| Flags | Labels generated |
+| Field | Meaning |
 |---|---|
-| (none) or `1` | `<name>` |
-| `2` | `<name> 1` and `<name> 2` (for a set split across two boxes) |
-| `3` | all three |
-| `0` | none — line is skipped |
+| `box=W` | recommended side-label width for the whole set's box; presence means the set gets whole-box labels |
+| `split=W[/W2]` | recommended side widths for split boxes 1 and 2 (one value = both); presence means the set gets `<name> 1/2` labels |
+| neither | line is skipped |
 
-The special name `(BLANK)` stands for the blank label (logo + "cc",
-no text). Blank lines and lines starting with `#` are ignored:
+Widths are validated against the game's standard width lists — a
+non-standard width is an error. The special name `(BLANK)` stands for
+the blank label (logo + "cc", no text). Blank lines and lines starting
+with `#` are ignored:
 
 ```
-Dominion,Base Set,3
-Dominion,Alchemy
-Dominion,Renaissance,0
-FCM,FCM Milestones,1
+Dominion,Base Set,box=80,split=53
+Dominion,Seaside,box=53,split=53/32
+Dominion,Alchemy,box=32
+FCM,FCM Milestones,box=20
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top
 of `dominion_labels.py` is used.
+
+## Per-set project files (`--sets`)
+
+`--sets` writes one Bambu project per set into `<out>/sets/`, using
+the recommendations from the NAMES file. Each file has up to three
+plates:
+
+1. **the set's name** — the default labels for one cascade: the box
+   front (156.4 for Dominion) plus the `box=` side label
+2. **"... split boxes"** — front + side labels for `<name> 1` and
+   `<name> 2` at their `split=` widths, if the set has them
+3. **"... spares"** — every other label from the full width matrix,
+   for users whose boxes differ from the recommendation
 
 ## The multi-plate project files (`--plates`)
 

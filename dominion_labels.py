@@ -10,7 +10,8 @@ export). Font: Orbitron Bold (Google Fonts, OFL licence).
 
 Usage:
     python3 dominion_labels.py                     # per-label files, Dominion
-    python3 dominion_labels.py --plates            # multi-plate Bambu 3MFs
+    python3 dominion_labels.py --plates            # bulk multi-plate 3MFs
+    python3 dominion_labels.py --sets              # one 3MF per set
     python3 dominion_labels.py --game FCM --plates
     python3 dominion_labels.py --names "Seaside,Renaissance" --widths 32,53
     python3 dominion_labels.py --step              # also export STEP files
@@ -46,12 +47,15 @@ from build123d import (
 LABEL_HEIGHT = 22.2          # overall label height (STEP export measured 22.1)
 
 # Label widths per game: "widths" for a set's labels, "split_widths" for the
-# "<name> 1"/"<name> 2" labels of sets split across two boxes. "caps" is the
-# standard text size (capital height, mm) per label width — labels of the
-# same width all use it, and long names shrink to fit. A width without an
-# entry (e.g. via --widths) sizes its text to fill the label instead.
+# "<name> 1"/"<name> 2" labels of sets split across two boxes. "front" (if
+# any) is the box-front width, included on every box's default plate in
+# --sets mode. "caps" is the standard text size (capital height, mm) per
+# label width — labels of the same width all use it, and long names shrink
+# to fit. A width without an entry (e.g. via --widths) sizes its text to
+# fill the label instead.
 GAMES = {
     "Dominion": {
+        "front": 156.4,
         "widths": [156.4, 80.0, 53.0, 32.0],
         "split_widths": [156.4, 53.0, 32.0],
         "caps": {156.4: 6.5, 80.0: 5.0, 53.0: 4.5, 32.0: 3.5},
@@ -125,40 +129,73 @@ def find_names_file():
     return None
 
 
-def read_names_file(path: Path, game: str) -> list:
-    """Parse the NAMES file and return (name, is_split) pairs for `game`.
+def parse_width(text: str, allowed, where: str, key: str) -> float:
+    """A width from the NAMES file must be one of the game's standard
+    widths; returns the canonical float."""
+    try:
+        width = float(text)
+    except ValueError:
+        sys.exit(f"{where}: {key}={text!r} is not a number")
+    for std in allowed:
+        if abs(std - width) < 0.01:
+            return std
+    sys.exit(f"{where}: {key}={text} is not a standard width for this game "
+             f"(allowed: {', '.join(f'{w:g}' for w in allowed)})")
 
-    Each line is '<game>,<set name>[,<flags>]' where flags is bit-based —
-    bit 1: the plain label, bit 2: '<name> 1' and '<name> 2' labels for
-    split boxes (so 0 skips, 3 makes all three; default 1). The special
-    name '(BLANK)' is the blank label (logo + cc, no text). Blank lines
-    and lines starting with '#' are ignored."""
-    entries = []
+
+def read_names_file(path: Path, game: str) -> list:
+    """Parse the NAMES file and return set records for `game`.
+
+    Each line is '<game>,<set name>[,box=W][,split=W[/W2]]':
+      box=W        the whole set's recommended box side-label width;
+                   its presence means the set gets whole-box labels
+      split=W[/W2] the recommended side widths of split boxes 1 and 2
+                   (one value = both boxes); its presence means the set
+                   gets '<name> 1' / '<name> 2' labels
+    Widths must be standard widths of the game (box= against `widths`,
+    split= against `split_widths`). A line with neither key is skipped.
+    The special name '(BLANK)' is the blank label (logo + cc, no text).
+    Blank lines and '#' comments are ignored. Returns dicts
+    {"name": str, "box": float | None, "split": [float, float] | None}."""
+    cfg = GAMES[game]
+    records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        if "," not in line:
-            sys.exit(f"{path}:{lineno}: missing game name in {raw!r} "
-                     f"(expected '<game>,<set name>[,<flags>]')")
-        line_game, line = (s.strip() for s in line.split(",", 1))
-        name, flags = line, 1
-        if "," in line:
-            head, tail = line.rsplit(",", 1)
-            tail = tail.strip()
-            if tail.lstrip("+-").isdigit():
-                name, flags = head.strip(), int(tail)
-        if not line_game or not name or flags < 0:
-            sys.exit(f"{path}:{lineno}: cannot parse {raw!r}")
+        where = f"{path.name}:{lineno}"
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 2 or not parts[0] or not parts[1]:
+            sys.exit(f"{where}: cannot parse {raw!r} "
+                     f"(expected '<game>,<set name>[,box=W][,split=W[/W2]]')")
+        line_game, name = parts[0], parts[1]
         if line_game.lower() != game.lower():
             continue
         if name.upper() == "(BLANK)":
             name = ""
-        if flags & 1:
-            entries.append((name, False))
-        if flags & 2:
-            entries += [(f"{name} 1", True), (f"{name} 2", True)]
-    return entries
+        box, split = None, None
+        for field in parts[2:]:
+            if not field:
+                continue
+            key, sep, value = field.partition("=")
+            key = key.strip().lower()
+            if key == "box" and sep:
+                box = parse_width(value, cfg["widths"], where, "box")
+            elif key == "split" and sep:
+                values = value.split("/")
+                if len(values) not in (1, 2):
+                    sys.exit(f"{where}: split takes one or two widths, "
+                             f"got {value!r}")
+                split = [parse_width(v, cfg["split_widths"], where, "split")
+                         for v in values]
+                if len(split) == 1:
+                    split *= 2
+            else:
+                sys.exit(f"{where}: unknown field {field!r} "
+                         f"(expected box=W or split=W[/W2])")
+        if box is not None or split is not None:
+            records.append({"name": name, "box": box, "split": split})
+    return records
 
 
 def staircase(size: float, steps: int) -> Polygon:
@@ -458,6 +495,80 @@ def render_project_settings(n_plates: int):
     return json.dumps(settings, indent=4)
 
 
+def set_plate_specs(record: dict, cfg: dict) -> list:
+    """Plates for one set's own 3MF, from its NAMES record: the default
+    box labels (front + recommended side), the split-box labels if the
+    set has them, and every other label as spares. Returns
+    [(plate name, [(label name, width), ...]), ...]."""
+    name = record["name"]
+    display = name or "Blank"
+    front = cfg.get("front")
+
+    def box_labels(label_name, side):
+        labels = [(label_name, front)] if front else []
+        if side != front:
+            labels.append((label_name, side))
+        return labels
+
+    specs = []
+    if record["box"] is not None:
+        specs.append((display, box_labels(name, record["box"])))
+    if record["split"]:
+        labels = []
+        for half, side in enumerate(record["split"], 1):
+            labels += box_labels(f"{name} {half}", side)
+        specs.append((f"{display} split boxes", labels))
+    spares = []
+    if record["box"] is not None:
+        spares += [(name, w) for w in cfg["widths"]
+                   if w != front and w != record["box"]]
+    if record["split"]:
+        for half, side in enumerate(record["split"], 1):
+            spares += [(f"{name} {half}", w) for w in cfg["split_widths"]
+                       if w != front and w != side]
+    if spares:
+        specs.append((f"{display} spares", spares))
+    return specs
+
+
+def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = None):
+    """Write a Bambu project with a fixed plate composition: one plate per
+    (plate name, labels) spec, labels packed into rows bottom-up."""
+    n_plates = len(plate_specs)
+    cols = plate_columns(n_plates)
+    indent = max(PLATE_MARGIN, PLATE_EXCLUDE[0] + LABEL_GAP)
+
+    def row_start(y):
+        return indent if y < PLATE_EXCLUDE[1] else PLATE_MARGIN
+
+    m = Mesher()
+    objects, plates = [], []
+    identify_id = 200
+    for plate_no, (plate_name, labels) in enumerate(plate_specs):
+        origin_x = (plate_no % cols) * PLATE_STRIDE
+        origin_y = -(plate_no // cols) * PLATE_STRIDE
+        plate = {"name": plate_name, "instances": []}
+        y = PLATE_MARGIN
+        x = row_start(y)
+        for label_name, width in labels:
+            if x > row_start(y) and x + width > PLATE_SIZE - PLATE_MARGIN:
+                y += LABEL_HEIGHT + LABEL_GAP
+                x = row_start(y)
+            base, raised = make_label(label_name, width, font, caps)
+            stem = f"{safe_filename(label_name)}_{width:g}mm"
+            assembly, entry = add_assembled_label(m, stem, base, raised)
+            m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
+            objects.append(entry)
+            plate["instances"].append((entry["id"], identify_id))
+            identify_id += 1
+            x += width + LABEL_GAP
+        plates.append(plate)
+    m.write(str(path))
+    inject_bambu_metadata(path, objects, plates,
+                          project_settings=render_project_settings(n_plates))
+    print(f"  {path}: {len(objects)} labels on {n_plates} plates")
+
+
 def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
     """Write labels into one Bambu project 3MF spread across plates: one
     block of rows per set (same structure for every set), SET_GAP between
@@ -514,6 +625,9 @@ def main():
     ap.add_argument("--plates", action="store_true",
                     help="write one multi-plate Bambu project 3MF "
                          "instead of individual label files")
+    ap.add_argument("--sets", action="store_true",
+                    help="write one 3MF per set (default / split boxes / "
+                         "spares plates) into <out>/sets/")
     args = ap.parse_args()
 
     game = next((g for g in GAMES if g.lower() == args.game.lower()), None)
@@ -521,12 +635,22 @@ def main():
         sys.exit(f"unknown game {args.game!r} (known: {', '.join(GAMES)})")
     cfg = GAMES[game]
 
+    records = None
     if args.names:
         entries = [(n.strip(), False) for n in args.names.split(",")]
     else:
         names_file = find_names_file()
-        entries = (read_names_file(names_file, game) if names_file
-                   else [(n, False) for n in NAMES])
+        if names_file:
+            records = read_names_file(names_file, game)
+            entries = []
+            for rec in records:
+                if rec["box"] is not None:
+                    entries.append((rec["name"], False))
+                if rec["split"]:
+                    entries += [(f"{rec['name']} 1", True),
+                                (f"{rec['name']} 2", True)]
+        else:
+            entries = [(n, False) for n in NAMES]
     if not args.no_blank and ("", False) not in entries:
         entries.append(("", False))         # blank label: logo + cc, no name
 
@@ -540,6 +664,17 @@ def main():
     font = LabelFont(find_font())
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
+
+    if args.sets:
+        if records is None:
+            sys.exit("--sets needs a NAMES file with box=/split= data")
+        setdir = outdir / "sets"
+        setdir.mkdir(parents=True, exist_ok=True)
+        for rec in records:
+            write_project_3mf(setdir / f"{safe_filename(rec['name'])}.3mf",
+                              set_plate_specs(rec, cfg), font, cfg["caps"])
+        print("done")
+        return
 
     if args.plates:
         # whole sets and split-box labels as separate projects for overview
