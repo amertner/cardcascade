@@ -61,9 +61,10 @@ GAMES = {
         "caps": {156.4: 6.5, 80.0: 5.0, 53.0: 4.5, 32.0: 3.5},
     },
     "FCM": {
-        "widths": [45.0, 30.0, 20.0],
-        "split_widths": [45.0, 30.0, 20.0],
-        "caps": {45.0: 4.5, 30.0: 3.5, 20.0: 2.8},
+        "front": 156.4,
+        "widths": [156.4, 45.0, 30.0, 20.0],
+        "split_widths": [156.4, 45.0, 30.0, 20.0],
+        "caps": {156.4: 6.5, 45.0: 4.5, 30.0: 3.5, 20.0: 2.8},
     },
 }
 
@@ -544,8 +545,9 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
         infos = [i for i in dict.fromkeys(infos) if i]
         if not infos:
             return ""
-        return (" (" + "; ".join(f"{box_name}, {model}{model_suffix}"
-                                 for box_name, model in infos) + ")")
+        title = (" (" + "; ".join(f"{box_name}, {model}{model_suffix}"
+                                  for box_name, model in infos) + ")")
+        return title.replace("/", "-")   # Bambu plate names cannot contain /
 
     specs = []
     if record["box"]:

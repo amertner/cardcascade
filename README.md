@@ -53,8 +53,8 @@ Each game in the `GAMES` dict at the top of the script defines the
 label widths for a set (`widths`), for split-box `<name> 1/2` labels
 (`split_widths`), and the standard text size per width (`caps`,
 capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
-(splits skip the 80) at 6.5/5.0/4.5/3.5 mm caps; FCM: 45, 30, 20 at
-4.5/3.5/2.8 mm.
+(splits skip the 80) at 6.5/5.0/4.5/3.5 mm caps; FCM: 156.4 (front),
+45, 30, 20 at 6.5/4.5/3.5/2.8 mm.
 
 ## The NAMES file
 
