@@ -87,8 +87,9 @@ PLATE_SIZE = 256.0           # P1S bed
 PLATE_MARGIN = 5.0           # keep-out border -> 246mm usable per row
 PLATE_EXCLUDE = (18.0, 28.0)     # no-print corner (front-left) on P1 printers
 LABEL_GAP = 2.0              # gap between labels in a row / between rows
-PLATE_ROWS = 8               # label rows per plate; top strip is kept free
-WIPE_TOWER_XY = (210.0, 214.0)   # wipe tower in that free top strip
+SET_GAP = 4.0                # extra vertical gap between set blocks
+WIPE_TOWER_XY = (210.0, 214.0)   # wipe tower in the free strip at the top
+PLATE_TOP_LIMIT = WIPE_TOWER_XY[1] - 5.0     # labels stay below this line
 PLATE_STRIDE = PLATE_SIZE * 1.2  # BambuStudio LOGICAL_PART_PLATE_GAP = 1/5
 PROJECT_SETTINGS_FILE = "bambu_project_settings.config"
 
@@ -384,28 +385,52 @@ def translation(mesher: Mesher, x: float, y: float):
     return t
 
 
-def pack_rows(labels) -> list:
-    """Pack (name, width) labels, in order, into rows (next-fit: a label
-    that does not fit starts a new row). Returns (x_start, items) per row;
-    the bottom row of each plate starts to the right of the P1 printers'
-    no-print corner (PLATE_EXCLUDE)."""
-    def x_start(row_count):
-        if row_count % PLATE_ROWS == 0:      # bottom row of a plate
-            return max(PLATE_MARGIN, PLATE_EXCLUDE[0] + LABEL_GAP)
-        return PLATE_MARGIN
+def row_width(row) -> float:
+    return sum(row) + LABEL_GAP * (len(row) - 1)
 
-    rows, cur, cur_w = [], [], 0.0
-    x0 = x_start(0)
-    for name, width in labels:
-        if cur and x0 + cur_w + LABEL_GAP + width > PLATE_SIZE - PLATE_MARGIN:
-            rows.append((x0, cur))
-            cur, cur_w = [], 0.0
-            x0 = x_start(len(rows))
-        cur_w += width + (LABEL_GAP if cur else 0)
-        cur.append((name, width))
+
+def build_block(widths) -> list:
+    """One set's labels as rows of widths (next-fit), identical for every
+    set of the game. The shortest row goes at the bottom so the block can
+    sit beside the no-print corner."""
+    cap = PLATE_SIZE - 2 * PLATE_MARGIN
+    rows, cur = [], []
+    for width in widths:
+        if cur and row_width(cur + [width]) > cap:
+            rows.append(cur)
+            cur = []
+        cur.append(width)
     if cur:
-        rows.append((x0, cur))
-    return rows
+        rows.append(cur)
+    return sorted(rows, key=row_width)
+
+
+def layout_sets(sets) -> tuple:
+    """Place one block per set, bottom-up, plate by plate. Every block of a
+    game gets identical geometry: the bottom row is indented past the
+    no-print corner when it fits there (so the block may sit at the plate
+    bottom); blocks whose bottom row is too wide for the indent start above
+    the corner instead. `sets` is a list of (set name, widths). Returns
+    (placements, plate count); each placement is (plate, x, y, name, width)."""
+    indent = max(PLATE_MARGIN, PLATE_EXCLUDE[0] + LABEL_GAP)
+    placements = []
+    plate, y = 0, PLATE_MARGIN
+    for set_name, widths in sets:
+        rows = build_block(widths)
+        height = len(rows) * LABEL_HEIGHT + (len(rows) - 1) * LABEL_GAP
+        indent_ok = indent + row_width(rows[0]) <= PLATE_SIZE - PLATE_MARGIN
+        start = y if indent_ok else max(y, PLATE_EXCLUDE[1])
+        if start + height > PLATE_TOP_LIMIT:
+            plate += 1
+            start = PLATE_MARGIN if indent_ok else PLATE_EXCLUDE[1]
+        for i, row in enumerate(rows):
+            row_y = start + i * (LABEL_HEIGHT + LABEL_GAP)
+            x = indent if i == 0 and indent_ok else PLATE_MARGIN
+            for width in row:
+                placements.append((plate, x, row_y, set_name, width))
+                x += width + LABEL_GAP
+        y = start + height + SET_GAP
+    return placements, plate + 1
 
 
 def render_project_settings(n_plates: int):
@@ -422,38 +447,37 @@ def render_project_settings(n_plates: int):
     return json.dumps(settings, indent=4)
 
 
-def write_plates_3mf(path: Path, labels, font: LabelFont):
-    """Write every label into one Bambu project 3MF spread across plates:
-    PLATE_ROWS rows of labels per plate, wipe tower in the free top strip,
-    plates arranged in BambuStudio's grid (stride 1.2 x plate size)."""
-    rows = pack_rows(labels)
-    n_plates = math.ceil(len(rows) / PLATE_ROWS)
+def write_plates_3mf(path: Path, sets, font: LabelFont):
+    """Write labels into one Bambu project 3MF spread across plates: one
+    block of rows per set (same structure for every set), SET_GAP between
+    blocks, wipe tower in the free top strip, plates arranged in
+    BambuStudio's grid (stride 1.2 x plate size). Plates are named after
+    the full list of sets they carry."""
+    placements, n_plates = layout_sets(sets)
     cols = plate_columns(n_plates)
 
     m = Mesher()
     objects = []
     plates = [{"name": "", "instances": [], "sets": []} for _ in range(n_plates)]
     identify_id = 200
-    for row_no, (x, row) in enumerate(rows):
-        plate, plate_row = divmod(row_no, PLATE_ROWS)
-        origin_x = (plate % cols) * PLATE_STRIDE
-        origin_y = -(plate // cols) * PLATE_STRIDE
-        y = PLATE_MARGIN + plate_row * (LABEL_HEIGHT + LABEL_GAP)
-        for name, width in row:
-            base, raised = make_label(name, width, font)
-            stem = f"{safe_filename(name)}_{width:g}mm"
-            assembly, entry = add_assembled_label(m, stem, base, raised)
-            m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
-            objects.append(entry)
-            plates[plate]["instances"].append((entry["id"], identify_id))
-            plates[plate]["sets"].append(name or "Blank")
-            identify_id += 1
-            x += width + LABEL_GAP
-            print(f"  plate {plate + 1} row {plate_row + 1}: "
-                  f"{name or '(blank)'} {width:g}mm")
+    for plate_no, x, y, name, width in placements:
+        origin_x = (plate_no % cols) * PLATE_STRIDE
+        origin_y = -(plate_no // cols) * PLATE_STRIDE
+        base, raised = make_label(name, width, font)
+        stem = f"{safe_filename(name)}_{width:g}mm"
+        assembly, entry = add_assembled_label(m, stem, base, raised)
+        m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
+        objects.append(entry)
+        plate = plates[plate_no]
+        plate["instances"].append((entry["id"], identify_id))
+        identify_id += 1
+        set_name = name or "Blank"
+        if set_name not in plate["sets"]:
+            plate["sets"].append(set_name)
+        print(f"  plate {plate_no + 1}: {name or '(blank)'} {width:g}mm "
+              f"@ ({x:g}, {y:g})")
     for plate in plates:
-        first, last = plate["sets"][0], plate["sets"][-1]
-        plate["name"] = first if first == last else f"{first} .. {last}"
+        plate["name"] = ", ".join(plate["sets"])
     m.write(str(path))
     inject_bambu_metadata(path, objects, plates,
                           project_settings=render_project_settings(n_plates))
@@ -508,13 +532,13 @@ def main():
 
     if args.plates:
         # whole sets and split-box labels as separate projects for overview
-        main_labels = [(n, w) for n, s in entries if not s for w in widths_for(False)]
-        split_labels = [(n, w) for n, s in entries if s for w in widths_for(True)]
+        main_sets = [(n, widths_for(False)) for n, s in entries if not s]
+        split_sets = [(n, widths_for(True)) for n, s in entries if s]
         write_plates_3mf(outdir / f"{safe_filename(game)}_sets_plates.3mf",
-                         main_labels, font)
-        if split_labels:
+                         main_sets, font)
+        if split_sets:
             write_plates_3mf(outdir / f"{safe_filename(game)}_splits_plates.3mf",
-                             split_labels, font)
+                             split_sets, font)
         return
 
     for name, width in labels:

@@ -83,10 +83,12 @@ of `dominion_labels.py` is used.
 `--plates` writes the game's labels into two Bambu Studio projects
 spread across 256x256 P1S plates: `<game>_sets_plates.3mf` with every
 whole-set label, and `<game>_splits_plates.3mf` with the `<name> 1/2`
-split-box labels. Labels flow row by row in NAMES order, 8 rows per
-plate; the bottom row starts right of the P1's no-print corner and the
-top strip of each plate is left free for the wipe tower. Plates are
-named after the sets they carry (e.g. "Base Set .. Seaside"). The
+split-box labels. Every set gets an identical block of label rows
+(widest row on top, e.g. front+80 over 53+32 for Dominion sets), with
+a vertical gap between sets, flowing bottom-up through the plates in
+NAMES order. Blocks avoid the P1's no-print corner and the top strip
+of each plate is left free for the wipe tower. Plates are named after
+the full list of sets they carry. The
 files embed `bambu_project_settings.config` (printer/filament profile,
 prime tower enabled, one wipe tower position per plate), so they open
 ready to slice with black in slot 1 and white in slot 2. To refresh
