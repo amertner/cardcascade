@@ -57,11 +57,12 @@ TEXT_TOP_MARGIN = 3.0        # min gap between text top and label top edge
 CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
 
 FONT_FILE = "Orbitron-Bold.ttf"
+NAMES_FILE = "NAMES"         # set list, one name per line (see read_names_file)
 
 BASE_COLOR = Color(1.0, 1.0, 1.0)    # white
 RAISED_COLOR = Color(0.0, 0.0, 0.0)  # black
 
-# Default set list — replace/extend as needed, or use --names
+# Fallback set list when there is no NAMES file and no --names
 NAMES = [
     "Base Set 1",
 ]
@@ -78,6 +79,39 @@ def find_font() -> str:
         f"Font file '{FONT_FILE}' not found next to the script.\n"
         "Download Orbitron (Bold) from https://fonts.google.com/specimen/Orbitron"
     )
+
+
+def find_names_file():
+    here = Path(__file__).resolve().parent
+    for cand in (Path.cwd() / NAMES_FILE, here / NAMES_FILE):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def read_names_file(path: Path) -> list:
+    """Parse the NAMES file: one set per line, optionally ',<flags>' where
+    flags is bit-based — bit 1: the plain label, bit 2: '<name> 1' and
+    '<name> 2' labels for split boxes (so 0 skips, 3 makes all three).
+    Blank lines and lines starting with '#' are ignored."""
+    names = []
+    for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, flags = line, 1
+        if "," in line:
+            head, tail = line.rsplit(",", 1)
+            tail = tail.strip()
+            if tail.lstrip("+-").isdigit():
+                name, flags = head.strip(), int(tail)
+        if not name or flags < 0:
+            sys.exit(f"{path}:{lineno}: cannot parse {raw!r}")
+        if flags & 1:
+            names.append(name)
+        if flags & 2:
+            names += [f"{name} 1", f"{name} 2"]
+    return names
 
 
 def staircase(size: float, steps: int) -> Polygon:
@@ -281,7 +315,11 @@ def main():
                     help="vanilla 3MF without Bambu Studio filament metadata")
     args = ap.parse_args()
 
-    names = [n.strip() for n in args.names.split(",")] if args.names else list(NAMES)
+    if args.names:
+        names = [n.strip() for n in args.names.split(",")]
+    else:
+        names_file = find_names_file()
+        names = read_names_file(names_file) if names_file else list(NAMES)
     if not args.no_blank:
         names.append("")                    # blank label: logo + cc, no name
     widths = [float(w) for w in args.widths.split(",")] if args.widths else WIDTHS
