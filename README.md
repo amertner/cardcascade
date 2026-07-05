@@ -39,8 +39,32 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 
 Output lands in `labels_out/` as `<Name>_<width>mm.3mf`.
 
-Edit the `NAMES` list at the top of `dominion_labels.py` to set your
-expansion list (spaces are fine: `"Base Set 1"`, `"Dark Ages"`, ...).
+## The NAMES file
+
+When `--names` is not given, the script reads the set list from a
+`NAMES` file (looked up in the current directory, then next to the
+script). One set per line, optionally followed by `,<flags>` where
+flags is bit-based:
+
+| Flags | Labels generated |
+|---|---|
+| (none) or `1` | `<name>` |
+| `2` | `<name> 1` and `<name> 2` (for a set split across two boxes) |
+| `3` | all three |
+| `0` | none — line is skipped |
+
+The special name `(BLANK)` stands for the blank label (logo + "cc",
+no text). Blank lines and lines starting with `#` are ignored:
+
+```
+Base Set 1
+Seaside,1
+Dark Ages,3
+Renaissance,0
+```
+
+If there is no NAMES file either, the built-in `NAMES` list at the top
+of `dominion_labels.py` is used.
 
 ## Slicing
 
