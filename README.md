@@ -21,11 +21,17 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 ## Usage
 
 ```bash
-# everything: all names in NAMES x all 5 widths, plus a blank label
+# individual label files for every NAMES entry of the default game (Dominion)
 .venv/bin/python dominion_labels.py
 
+# ONE multi-plate Bambu project 3MF with every label laid out
+.venv/bin/python dominion_labels.py --plates
+
+# another game (its own NAMES entries and width lists)
+.venv/bin/python dominion_labels.py --game FCM --plates
+
 # specific sets / widths
-.venv/bin/python dominion_labels.py --names "Seaside,Renaissance" --widths 20,53
+.venv/bin/python dominion_labels.py --names "Seaside,Renaissance" --widths 32,53
 
 # also write STEP files (e.g. to re-import into Onshape)
 .venv/bin/python dominion_labels.py --step
@@ -37,14 +43,20 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 .venv/bin/python dominion_labels.py --plain
 ```
 
-Output lands in `labels_out/` as `<Name>_<width>mm.3mf`.
+Output lands in `labels_out/` as `<Name>_<width>mm.3mf`, or as
+`<game>_plates.3mf` with `--plates`.
+
+Each game in the `GAMES` dict at the top of the script defines the
+label widths for a set (`widths`) and for split-box `<name> 1/2`
+labels (`split_widths`). Dominion: 156.4 (front), 80, 53, 32 for sets;
+splits skip the 80. FCM: 45, 30, 20 for everything.
 
 ## The NAMES file
 
 When `--names` is not given, the script reads the set list from a
 `NAMES` file (looked up in the current directory, then next to the
-script). One set per line, optionally followed by `,<flags>` where
-flags is bit-based:
+script). One set per line as `<game>,<set name>[,<flags>]` — only
+lines matching `--game` are used, and flags are bit-based:
 
 | Flags | Labels generated |
 |---|---|
@@ -57,14 +69,27 @@ The special name `(BLANK)` stands for the blank label (logo + "cc",
 no text). Blank lines and lines starting with `#` are ignored:
 
 ```
-Base Set 1
-Seaside,1
-Dark Ages,3
-Renaissance,0
+Dominion,Base Set,3
+Dominion,Alchemy
+Dominion,Renaissance,0
+FCM,FCM Milestones,1
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top
 of `dominion_labels.py` is used.
+
+## The multi-plate project file (`--plates`)
+
+`--plates` writes every label of the selected game into a single Bambu
+Studio project spread across 256x256 P1S plates: labels flow row by
+row in NAMES order (a set's front, side and split labels stay
+together), 8 rows per plate, with the top strip of each plate left
+free for the wipe tower. The file embeds `bambu_project_settings.config`
+(printer/filament profile, prime tower enabled, one wipe tower position
+per plate), so it opens ready to slice with black in slot 1 and white
+in slot 2. To refresh that profile, save any project from your own
+Bambu Studio and copy its `Metadata/project_settings.config` over
+`bambu_project_settings.config`.
 
 ## Slicing
 

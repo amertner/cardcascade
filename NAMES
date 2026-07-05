@@ -1,25 +1,25 @@
-# One set per line, optionally followed by ",<flags>" (bit-based):
+# One set per line: <game>,<set name>[,<flags>]  — flags are bit-based:
 #   1 = the plain label (default if no flags given)
 #   2 = "<name> 1" and "<name> 2" labels, for sets split across two boxes
 #   3 = both, 0 = skip this line
 # The special name "(BLANK)" is the blank label (logo + cc, no text).
-Base Set,3
-Intrigue,3
-Seaside,3
-Alchemy,1
-Prosperity,3
-Cornucopia,1
-Hinterlands,3
-Dark Ages,3
-Guilds,1
-Adventures,3
-Empires,3
-Nocturne,3
-Renaissance,3
-Menagerie,3
-Allies,3
-Plunder,3
-Rising Sun,3
-FCM,3
-FCM Milestones,1
-(BLANK),1
+Dominion,Base Set,3
+Dominion,Intrigue,3
+Dominion,Seaside,3
+Dominion,Alchemy,1
+Dominion,Prosperity,3
+Dominion,Cornucopia,1
+Dominion,Hinterlands,3
+Dominion,Dark Ages,3
+Dominion,Guilds,1
+Dominion,Adventures,3
+Dominion,Empires,3
+Dominion,Nocturne,3
+Dominion,Renaissance,3
+Dominion,Menagerie,3
+Dominion,Allies,3
+Dominion,Plunder,3
+Dominion,Rising Sun,3
+Dominion,(BLANK),1
+FCM,FCM,3
+FCM,FCM Milestones,1
