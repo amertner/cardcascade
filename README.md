@@ -46,8 +46,8 @@ expansion list (spaces are fine: `"Base Set 1"`, `"Dark Ages"`, ...).
 
 Each 3MF contains one object with two parts: `base` (white) and
 `raised` (black). The file embeds Bambu Studio / OrcaSlicer project
-metadata assigning `base` to filament 1 and `raised` to filament 2, so
-it opens two-coloured — just load white in slot 1 and black in slot 2.
+metadata assigning `raised` to filament 1 and `base` to filament 2, so
+it opens two-coloured — just load black in slot 1 and white in slot 2.
 (Bambu ignores standard 3MF colours; without this metadata everything
 lands on filament 1, which is why the file used to open single-colour.)
 

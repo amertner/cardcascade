@@ -247,7 +247,7 @@ def inject_bambu_metadata(path: Path, obj_id: int, obj_name: str, parts):
 
 def write_3mf(path: Path, name: str, base, raised, bambu: bool):
     """Export base + raised as ONE 3MF object with two component parts,
-    optionally with Bambu Studio filament assignments (base->1, raised->2)."""
+    optionally with Bambu Studio filament assignments (raised->1, base->2)."""
     m = Mesher()
     base_3mf = add_mesh_object(m, base, "base")
     raised_3mf = add_mesh_object(m, raised, "raised")
@@ -260,8 +260,8 @@ def write_3mf(path: Path, name: str, base, raised, bambu: bool):
     if bambu:
         inject_bambu_metadata(
             path, assembly.GetResourceID(), name,
-            [(base_3mf.GetResourceID(), "base", 1),
-             (raised_3mf.GetResourceID(), "raised", 2)])
+            [(base_3mf.GetResourceID(), "base", 2),
+             (raised_3mf.GetResourceID(), "raised", 1)])
 
 
 def safe_filename(name: str) -> str:
