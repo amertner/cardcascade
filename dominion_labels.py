@@ -45,16 +45,15 @@ WIDTHS = [20.0, 32.0, 53.0, 80.0, 156.4]
 
 BASE_THICKNESS = 0.6         # white base plate
 RAISE_TEXT = 0.6             # how far the name text stands proud of the base
-RAISE_LOGO = 0.6             # staircase + "cc" (original STEP had 0.4 here)
+RAISE_LOGO = 0.4             # staircase + "cc": lower so the text stands out
 TAPER = 45.0                 # chamfer angle all around the base
 
 MARGIN = 3.6                 # logo/cc inset from the label outline
 LOGO_SIZE = 4.5              # staircase bounding square
 LOGO_STEPS = 3
 
-CAP_HEIGHT = 4.175           # name text capital-letter height
-BASELINE_Y = 10.1            # name text baseline, from label bottom edge
-TEXT_SIDE_MARGIN = 2.5       # min gap outline<->text; text shrinks to fit
+TEXT_GAP_ABOVE_LOGO = 2.0    # gap between logo top and text bottom
+TEXT_TOP_MARGIN = 3.0        # min gap between text top and label top edge
 CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
 
 FONT_FILE = "Orbitron-Bold.ttf"
@@ -95,15 +94,12 @@ def staircase(size: float, steps: int) -> Polygon:
 
 class LabelFont:
     """Wraps Text() with empirical metrics (OCCT's baseline anchoring is
-    font-dependent, so we probe it with reference glyphs)."""
+    font-dependent, so we probe it with a reference glyph)."""
 
     PROBE_SIZE = 100.0
 
     def __init__(self, font_path: str):
         self.font_path = font_path
-        h = self.render("H").bounding_box()
-        self.baseline = h.min.Y             # 'H' sits exactly on the baseline
-        self.cap = h.size.Y                 # capital height at PROBE_SIZE
         self.xheight = self.render("c").bounding_box().size.Y
 
     def render(self, txt: str):
@@ -130,17 +126,23 @@ def make_label(name: str, width: float, font: LabelFont):
     cc = cc.translate(Vector(width - MARGIN - bb.max.X, MARGIN - bb.min.Y, 0))
     raised += extrude(cc.translate(z_top), amount=RAISE_LOGO)
 
-    # expansion name, centred, baseline fixed, auto-shrunk to fit the width
+    # expansion name: as large as fits its box — sides aligned with the
+    # logo's left and the cc's right edge, bottom 2 mm above the logo, top
+    # at least 3 mm below the label edge. Width-limited names span the box
+    # exactly; height-limited ones fill it vertically, centred horizontally.
     if name:
+        box_left, box_right = MARGIN, width - MARGIN
+        box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
+        box_top = height - TEXT_TOP_MARGIN
         txt = font.render(name)
-        factor = CAP_HEIGHT / font.cap
-        max_w = width - 2 * TEXT_SIDE_MARGIN
-        if txt.bounding_box().size.X * factor > max_w:
-            factor = max_w / txt.bounding_box().size.X
+        bb = txt.bounding_box()
+        factor = min((box_right - box_left) / bb.size.X,
+                     (box_top - box_bottom) / bb.size.Y)
         txt = scale(txt, by=factor)
         bb = txt.bounding_box()
-        txt = txt.translate(Vector((width - bb.size.X) / 2 - bb.min.X,
-                                   BASELINE_Y - font.baseline * factor, 0))
+        txt = txt.translate(Vector(
+            box_left + (box_right - box_left - bb.size.X) / 2 - bb.min.X,
+            box_bottom - bb.min.Y, 0))
         raised += extrude(txt.translate(z_top), amount=RAISE_TEXT)
 
     # Normalise for export: a bare Solid for the base, and one Compound
