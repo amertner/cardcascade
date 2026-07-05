@@ -24,7 +24,7 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 # individual label files for every NAMES entry of the default game (Dominion)
 .venv/bin/python dominion_labels.py
 
-# ONE multi-plate Bambu project 3MF with every label laid out
+# multi-plate Bambu project 3MFs (whole sets + split-box labels)
 .venv/bin/python dominion_labels.py --plates
 
 # another game (its own NAMES entries and width lists)
@@ -78,18 +78,22 @@ FCM,FCM Milestones,1
 If there is no NAMES file either, the built-in `NAMES` list at the top
 of `dominion_labels.py` is used.
 
-## The multi-plate project file (`--plates`)
+## The multi-plate project files (`--plates`)
 
-`--plates` writes every label of the selected game into a single Bambu
-Studio project spread across 256x256 P1S plates: labels flow row by
-row in NAMES order (a set's front, side and split labels stay
-together), 8 rows per plate, with the top strip of each plate left
-free for the wipe tower. The file embeds `bambu_project_settings.config`
-(printer/filament profile, prime tower enabled, one wipe tower position
-per plate), so it opens ready to slice with black in slot 1 and white
-in slot 2. To refresh that profile, save any project from your own
-Bambu Studio and copy its `Metadata/project_settings.config` over
-`bambu_project_settings.config`.
+`--plates` writes the game's labels into two Bambu Studio projects
+spread across 256x256 P1S plates: `<game>_sets_plates.3mf` with every
+whole-set label, and `<game>_splits_plates.3mf` with the `<name> 1/2`
+split-box labels. Every set gets an identical block of label rows
+(widest row on top, e.g. front+80 over 53+32 for Dominion sets), with
+a vertical gap between sets, flowing bottom-up through the plates in
+NAMES order. Blocks avoid the P1's no-print corner and the top strip
+of each plate is left free for the wipe tower. Plates are named after
+the full list of sets they carry. The
+files embed `bambu_project_settings.config` (printer/filament profile,
+prime tower enabled, one wipe tower position per plate), so they open
+ready to slice with black in slot 1 and white in slot 2. To refresh
+that profile, save any project from your own Bambu Studio and copy its
+`Metadata/project_settings.config` over `bambu_project_settings.config`.
 
 ## Slicing
 
