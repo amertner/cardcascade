@@ -542,10 +542,11 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
         return labels
 
     def boxes_title(infos, sleeving=None):
-        """' 560 Card/U (L6.12.40-Un)' (/U-/S = sleevedness; omitted on
-        plates that cover both). Slashes in models become dashes."""
+        """' 560 Card-U (L6.12.40-Un)' (-U/-S = sleevedness; omitted on
+        plates that cover both). No slashes: Bambu rejects them in plate
+        names, so models render with dashes too."""
         infos = [i for i in dict.fromkeys(infos) if i]
-        tag = f"/{TAG[sleeving]}" if sleeving is not None else ""
+        tag = f"-{TAG[sleeving]}" if sleeving is not None else ""
         model_suffix = SUFFIX[sleeving] if sleeving is not None else ""
         parts = [f"{box_name}{tag} ({model.replace('/', '-')}{model_suffix})"
                  for box_name, model in infos]

@@ -64,7 +64,7 @@ script). One set per line as `<game>,<set name>[,<key>=V]...`, where
 every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<box model>]`
 — label widths per sleeving (one value = both) plus the optional
 recommended-box identity, which appears in the `--sets` plate titles
-(e.g. `Base Set 560 Card/S (L6.12.40-Sl)` — `/U`/`/S` marks the
+(e.g. `Base Set 560 Card-S (L6.12.40-Sl)` — `-U`/`-S` marks the
 sleevedness and is omitted on plates covering both). Only lines
 matching `--game` are used:
 
