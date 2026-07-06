@@ -64,7 +64,8 @@ script). One set per line as `<game>,<set name>[,<key>=V]...`, where
 every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<box model>]`
 — label widths per sleeving (one value = both) plus the optional
 recommended-box identity, which appears in the `--sets` plate titles
-(e.g. `Base Set, Sleeved (560 Card, L6.12.40-Sl)`). Only lines
+(e.g. `Base Set 560 Card/S (L6.12.40-Sl)` — `/U`/`/S` marks the
+sleevedness and is omitted on plates covering both). Only lines
 matching `--game` are used:
 
 | Field | Meaning |
@@ -93,7 +94,9 @@ of `dominion_labels.py` is used.
 
 ## Per-set project files (`--sets`)
 
-`--sets` writes one Bambu project per set into `<out>/sets/`, using
+`--sets` writes one Bambu project per set into `<out>/sets/`, named
+`<Set> Labels <version>.3mf` (`--version` overrides the default `6_0`),
+using
 the recommendations from the NAMES file. Labels are stacked one above
 the other, centred on the plate. Each file has up to five plates:
 

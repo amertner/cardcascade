@@ -532,8 +532,8 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     display = name or "Blank"
     front = cfg.get("front")
     UNSLEEVED, SLEEVED = 0, 1
+    TAG = {UNSLEEVED: "U", SLEEVED: "S"}
     SUFFIX = {UNSLEEVED: "-Un", SLEEVED: "-Sl"}
-    LABEL = {UNSLEEVED: ", Unsleeved", SLEEVED: ", Sleeved"}
 
     def box_labels(label_name, side):
         labels = [(label_name, front)] if front else []
@@ -541,23 +541,27 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             labels.append((label_name, side))
         return labels
 
-    def boxes_title(infos, model_suffix):
+    def boxes_title(infos, sleeving=None):
+        """' 560 Card/U (L6.12.40-Un)' (/U-/S = sleevedness; omitted on
+        plates that cover both). Slashes in models become dashes."""
         infos = [i for i in dict.fromkeys(infos) if i]
-        if not infos:
-            return ""
-        title = (" (" + "; ".join(f"{box_name}, {model}{model_suffix}"
-                                  for box_name, model in infos) + ")")
-        return title.replace("/", "-")   # Bambu plate names cannot contain /
+        tag = f"/{TAG[sleeving]}" if sleeving is not None else ""
+        model_suffix = SUFFIX[sleeving] if sleeving is not None else ""
+        parts = [f"{box_name}{tag} ({model.replace('/', '-')}{model_suffix})"
+                 for box_name, model in infos]
+        if not parts:
+            return tag
+        return " " + "; ".join(parts)
 
     specs = []
     if record["box"]:
         info = record["box"]["info"]
         plates = [
-            (f"{display}{LABEL[s]}{boxes_title([info], SUFFIX[s])}",
+            (f"{display}{boxes_title([info], s)}",
              box_labels(name, record["box"]["widths"][s]))
             for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
-            plates = [(f"{display}{boxes_title([info], '')}", plates[0][1])]
+            plates = [(f"{display}{boxes_title([info])}", plates[0][1])]
         specs += plates
     if record["split"]:
         def split_labels(sleeving):
@@ -567,11 +571,10 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             return labels
         infos = [half["info"] for half in record["split"]]
         plates = [
-            (f"{display} split{LABEL[s]}{boxes_title(infos, SUFFIX[s])}",
-             split_labels(s))
+            (f"{display} split{boxes_title(infos, s)}", split_labels(s))
             for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
-            plates = [(f"{display} split{boxes_title(infos, '')}", plates[0][1])]
+            plates = [(f"{display} split{boxes_title(infos)}", plates[0][1])]
         specs += plates
     spares = []
     if record["box"]:
@@ -681,6 +684,9 @@ def main():
     ap.add_argument("--sets", action="store_true",
                     help="write one 3MF per set (default / split boxes / "
                          "spares plates) into <out>/sets/")
+    ap.add_argument("--version", default="6_0",
+                    help="version tag in --sets file names "
+                         "('<Set> Labels <version>.3mf', default 6_0)")
     args = ap.parse_args()
 
     game = next((g for g in GAMES if g.lower() == args.game.lower()), None)
@@ -724,7 +730,9 @@ def main():
         setdir = outdir / "sets"
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:
-            write_project_3mf(setdir / f"{safe_filename(rec['name'])}.3mf",
+            fname = f"{rec['name'] or 'Blank'} Labels {args.version}.3mf"
+            fname = "".join(c if c not in '\\/:*?"<>|' else "_" for c in fname)
+            write_project_3mf(setdir / fname,
                               set_plate_specs(rec, cfg), font, cfg["caps"])
         print("done")
         return
