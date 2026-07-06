@@ -180,11 +180,14 @@ def read_names_file(path: Path, game: str) -> list:
                '<name> 2' labels
       split1=/split2=  like split= but for halves of different sizes
                (must be given together)
+      side=<text>  short text used on side labels instead of the set
+               name (front labels keep the full name), e.g. FCM/O
     Widths must be standard widths of the game (box= against `widths`,
     split*= against `split_widths`). A line with no keys is skipped.
     The special name '(BLANK)' is the blank label (logo + cc, no text).
-    Blank lines and '#' comments are ignored. Returns dicts
-    {"name": str, "box": parse_box() | None, "split": [half1, half2] | None}."""
+    Blank lines and '#' comments are ignored. Returns dicts {"name": str,
+    "box": parse_box() | None, "split": [half1, half2] | None,
+    "side": str | None}."""
     cfg = GAMES[game]
     records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -201,7 +204,7 @@ def read_names_file(path: Path, game: str) -> list:
             continue
         if name.upper() == "(BLANK)":
             name = ""
-        box, split, halves = None, None, {}
+        box, split, halves, side = None, None, {}, None
         for field in parts[2:]:
             if not field:
                 continue
@@ -214,16 +217,21 @@ def read_names_file(path: Path, game: str) -> list:
                 split = [half, half]
             elif key in ("split1", "split2") and sep:
                 halves[key] = parse_box(value, cfg["split_widths"], where, key)
+            elif key == "side" and sep:
+                side = value.strip()
+                if not side:
+                    sys.exit(f"{where}: side= needs a text value")
             else:
                 sys.exit(f"{where}: unknown field {field!r} (expected "
-                         f"box=U[/S], split=U[/S] or split1=/split2=)")
+                         f"box=U[/S], split=U[/S], split1=/split2= or side=)")
         if halves:
             if split is not None or set(halves) != {"split1", "split2"}:
                 sys.exit(f"{where}: split1= and split2= must be given "
                          f"together (and not combined with split=)")
             split = [halves["split1"], halves["split2"]]
         if box is not None or split is not None:
-            records.append({"name": name, "box": box, "split": split})
+            records.append({"name": name, "box": box, "split": split,
+                            "side": side})
     return records
 
 
@@ -487,12 +495,15 @@ def layout_sets(sets) -> tuple:
     game gets identical geometry: the bottom row is indented past the
     no-print corner when it fits there (so the block may sit at the plate
     bottom); blocks whose bottom row is too wide for the indent start above
-    the corner instead. `sets` is a list of (set name, widths). Returns
-    (placements, plate count); each placement is (plate, x, y, name, width)."""
+    the corner instead. `sets` is a list of (set display name, labels)
+    with labels = [(label text, width), ...]. Returns (placements, plate
+    count); each placement is (plate, x, y, label text, display, width)."""
     indent = max(PLATE_MARGIN, PLATE_EXCLUDE[0] + LABEL_GAP)
     placements = []
     plate, y = 0, PLATE_MARGIN
-    for set_name, widths in sets:
+    for display, labels in sets:
+        widths = [w for _, w in labels]
+        text_of = {w: t for t, w in labels}   # widths are unique per set
         rows = build_block(widths)
         height = len(rows) * LABEL_HEIGHT + (len(rows) - 1) * LABEL_GAP
         indent_ok = indent + row_width(rows[0]) <= PLATE_SIZE - PLATE_MARGIN
@@ -504,7 +515,7 @@ def layout_sets(sets) -> tuple:
             row_y = start + i * (LABEL_HEIGHT + LABEL_GAP)
             x = indent if i == 0 and indent_ok else PLATE_MARGIN
             for width in row:
-                placements.append((plate, x, row_y, set_name, width))
+                placements.append((plate, x, row_y, text_of[width], display, width))
                 x += width + LABEL_GAP
         y = start + height + SET_GAP
     return placements, plate + 1
@@ -538,10 +549,12 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     TAG = {UNSLEEVED: "U", SLEEVED: "S"}
     SUFFIX = {UNSLEEVED: "-Un", SLEEVED: "-Sl"}
 
-    def box_labels(label_name, side):
-        labels = [(label_name, front)] if front else []
-        if side and side != front:      # width 0 = no side label
-            labels.append((label_name, side))
+    side_base = record.get("side") or name   # short text for side labels
+
+    def box_labels(front_text, side_text, side_width):
+        labels = [(front_text, front)] if front else []
+        if side_width and side_width != front:   # width 0 = no side label
+            labels.append((side_text, side_width))
         return labels
 
     def boxes_title(entries, sleeving=None):
@@ -569,7 +582,7 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
         widths = record["box"]["widths"]
         plates = [
             (f"{display}{boxes_title([(info, widths[s])], s)}",
-             box_labels(name, widths[s]))
+             box_labels(name, side_base, widths[s]))
             for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
             plates = [(f"{display}{boxes_title([(info, widths[UNSLEEVED])])}",
@@ -579,7 +592,8 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
         def split_labels(sleeving):
             labels = []
             for half_no, half in enumerate(record["split"], 1):
-                labels += box_labels(f"{name} {half_no}", half["widths"][sleeving])
+                labels += box_labels(f"{name} {half_no}", f"{side_base} {half_no}",
+                                     half["widths"][sleeving])
             return labels
         def split_entries(sleeving):
             return [(half["info"], half["widths"][sleeving])
@@ -594,11 +608,11 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     spares = []
     if record["box"]:
         used = {front, *record["box"]["widths"]}
-        spares += [(name, w) for w in cfg["widths"] if w not in used]
+        spares += [(side_base, w) for w in cfg["widths"] if w not in used]
     if record["split"]:
         for half_no, half in enumerate(record["split"], 1):
             used = {front, *half["widths"]}
-            spares += [(f"{name} {half_no}", w) for w in cfg["split_widths"]
+            spares += [(f"{side_base} {half_no}", w) for w in cfg["split_widths"]
                        if w not in used]
     if spares:
         specs.append((f"{display} spares", spares))
@@ -653,21 +667,20 @@ def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
     objects = []
     plates = [{"name": "", "instances": [], "sets": []} for _ in range(n_plates)]
     identify_id = 200
-    for plate_no, x, y, name, width in placements:
+    for plate_no, x, y, text, display, width in placements:
         origin_x = (plate_no % cols) * PLATE_STRIDE
         origin_y = -(plate_no // cols) * PLATE_STRIDE
-        base, raised = make_label(name, width, font, caps)
-        stem = f"{safe_filename(name)}_{width:g}mm"
+        base, raised = make_label(text, width, font, caps)
+        stem = f"{safe_filename(text)}_{width:g}mm"
         assembly, entry = add_assembled_label(m, stem, base, raised)
         m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
         objects.append(entry)
         plate = plates[plate_no]
         plate["instances"].append((entry["id"], identify_id))
         identify_id += 1
-        set_name = name or "Blank"
-        if set_name not in plate["sets"]:
-            plate["sets"].append(set_name)
-        print(f"  plate {plate_no + 1}: {name or '(blank)'} {width:g}mm "
+        if display not in plate["sets"]:
+            plate["sets"].append(display)
+        print(f"  plate {plate_no + 1}: {text or '(blank)'} {width:g}mm "
               f"@ ({x:g}, {y:g})")
     for plate in plates:
         plate["name"] = ", ".join(plate["sets"])
@@ -709,31 +722,37 @@ def main():
         sys.exit(f"unknown game {args.game!r} (known: {', '.join(GAMES)})")
     cfg = GAMES[game]
 
+    # entries: (front label text, side label text, is_split)
     records = None
     if args.names:
-        entries = [(n.strip(), False) for n in args.names.split(",")]
+        entries = [(n.strip(), n.strip(), False) for n in args.names.split(",")]
     else:
         names_file = find_names_file()
         if names_file:
             records = read_names_file(names_file, game)
             entries = []
             for rec in records:
+                side_base = rec["side"] or rec["name"]
                 if rec["box"] is not None:
-                    entries.append((rec["name"], False))
+                    entries.append((rec["name"], side_base, False))
                 if rec["split"]:
-                    entries += [(f"{rec['name']} 1", True),
-                                (f"{rec['name']} 2", True)]
+                    entries += [(f"{rec['name']} 1", f"{side_base} 1", True),
+                                (f"{rec['name']} 2", f"{side_base} 2", True)]
         else:
-            entries = [(n, False) for n in NAMES]
-    if not args.no_blank and ("", False) not in entries:
-        entries.append(("", False))         # blank label: logo + cc, no name
+            entries = [(n, n, False) for n in NAMES]
+    if not args.no_blank and not any(f == "" for f, _, _ in entries):
+        entries.append(("", "", False))     # blank label: logo + cc, no name
 
     override = [float(w) for w in args.widths.split(",")] if args.widths else None
+    front = cfg.get("front")
     def widths_for(is_split):
         return override or cfg["split_widths" if is_split else "widths"]
-    labels = [(name, width)
-              for name, is_split in entries
-              for width in widths_for(is_split)]
+    def label_list(front_text, side_text, widths):
+        return [(front_text if w == front else side_text, w) for w in widths]
+    labels = [label
+              for front_text, side_text, is_split in entries
+              for label in label_list(front_text, side_text,
+                                      widths_for(is_split))]
 
     font = LabelFont(find_font())
     outdir = Path(args.out)
@@ -754,8 +773,10 @@ def main():
 
     if args.plates:
         # whole sets and split-box labels as separate projects for overview
-        main_sets = [(n, widths_for(False)) for n, s in entries if not s]
-        split_sets = [(n, widths_for(True)) for n, s in entries if s]
+        main_sets = [(f or "Blank", label_list(f, s, widths_for(False)))
+                     for f, s, is_split in entries if not is_split]
+        split_sets = [(f, label_list(f, s, widths_for(True)))
+                      for f, s, is_split in entries if is_split]
         write_plates_3mf(outdir / f"{safe_filename(game)}_sets_plates.3mf",
                          main_sets, font, cfg["caps"])
         if split_sets:

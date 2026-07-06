@@ -75,6 +75,7 @@ matching `--game` are used:
 | `box=V` | the whole set's box; presence means the set gets whole-box labels |
 | `split=V` | both split half-boxes; presence means the set gets `<name> 1/2` labels |
 | `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
+| `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
 | none | line is skipped |
 
 Widths are validated against the game's standard width lists — a
@@ -87,8 +88,8 @@ with `#` are ignored:
 ```
 Dominion,Base Set,box=45/62@560 Card:L6.40.12,split=45/62@300 Card:S5.40.12
 Dominion,Alchemy,box=32@168 Card:S4.16.10
-FCM,Occupations,split1=32/45@264 Card:M4.18.12,split2=20@180 Card:L3.18.6
-FCM,Milestones,box=20/32@144 Card:M5.6.6
+FCM,Occupations,side=FCM/O,split1=32/45@264 Card:M4.18.12,split2=20@180 Card:L3.18.6
+FCM,Milestones,side=FCM/M,box=20/32@144 Card:M5.6.6
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top
