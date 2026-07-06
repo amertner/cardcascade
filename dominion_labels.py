@@ -182,12 +182,17 @@ def read_names_file(path: Path, game: str) -> list:
                (must be given together)
       side=<text>  short text used on side labels instead of the set
                name (front labels keep the full name), e.g. FCM/O
+      plate=<title>:<w1>+<w2>+...  an extra plate in the set's 3MF with
+               exactly these label widths (free-form, NOT restricted to
+               the game's standard widths - e.g. legacy sizes); may be
+               given multiple times
     Widths must be standard widths of the game (box= against `widths`,
-    split*= against `split_widths`). A line with no keys is skipped.
-    The special name '(BLANK)' is the blank label (logo + cc, no text).
-    Blank lines and '#' comments are ignored. Returns dicts {"name": str,
-    "box": parse_box() | None, "split": [half1, half2] | None,
-    "side": str | None}."""
+    split*= against `split_widths`; plate= widths are free-form). A line
+    with no keys is skipped. The special name '(BLANK)' is the blank
+    label (logo + cc, no text). Blank lines and '#' comments are ignored.
+    Returns dicts {"name": str, "box": parse_box() | None,
+    "split": [half1, half2] | None, "side": str | None,
+    "plates": [(title, [widths]), ...]}."""
     cfg = GAMES[game]
     records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -204,7 +209,7 @@ def read_names_file(path: Path, game: str) -> list:
             continue
         if name.upper() == "(BLANK)":
             name = ""
-        box, split, halves, side = None, None, {}, None
+        box, split, halves, side, plates = None, None, {}, None, []
         for field in parts[2:]:
             if not field:
                 continue
@@ -221,17 +226,30 @@ def read_names_file(path: Path, game: str) -> list:
                 side = value.strip()
                 if not side:
                     sys.exit(f"{where}: side= needs a text value")
+            elif key == "plate" and sep:
+                title, tsep, width_list = value.partition(":")
+                title, width_list = title.strip(), width_list.strip()
+                if not tsep or not title or not width_list:
+                    sys.exit(f"{where}: plate= must be "
+                             f"'<title>:<w1>+<w2>+...', got {value!r}")
+                try:
+                    widths = [float(w) for w in width_list.split("+")]
+                except ValueError:
+                    sys.exit(f"{where}: bad width in plate={value!r}")
+                if not widths or any(w <= 0 for w in widths):
+                    sys.exit(f"{where}: plate= widths must be positive")
+                plates.append((title, widths))
             else:
-                sys.exit(f"{where}: unknown field {field!r} (expected "
-                         f"box=U[/S], split=U[/S], split1=/split2= or side=)")
+                sys.exit(f"{where}: unknown field {field!r} (expected box=U[/S], "
+                         f"split=U[/S], split1=/split2=, side= or plate=)")
         if halves:
             if split is not None or set(halves) != {"split1", "split2"}:
                 sys.exit(f"{where}: split1= and split2= must be given "
                          f"together (and not combined with split=)")
             split = [halves["split1"], halves["split2"]]
-        if box is not None or split is not None:
+        if box is not None or split is not None or plates:
             records.append({"name": name, "box": box, "split": split,
-                            "side": side})
+                            "side": side, "plates": plates})
     return records
 
 
@@ -605,6 +623,9 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             plates = [(f"{display} split{boxes_title(split_entries(UNSLEEVED))}",
                        plates[0][1])]
         specs += plates
+    for title, widths in record.get("plates", []):
+        specs.append((title.replace("/", "-"),
+                      [((name if w == front else side_base), w) for w in widths]))
     spares = []
     if record["box"]:
         used = {front, *record["box"]["widths"]}
@@ -619,34 +640,53 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     return specs
 
 
+PROJECT_PLATE_ROWS = 7    # rows a centred stack can hold below the wipe tower
+
+
 def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = None):
     """Write a Bambu project with a fixed plate composition: one plate per
-    (plate name, labels) spec. Labels are stacked one above the other in
-    list order (first label on top), centre-aligned, with the stack
-    roughly centred on the plate."""
-    n_plates = len(plate_specs)
-    cols = plate_columns(n_plates)
+    (plate name, labels) spec. Labels are stacked one per row in list
+    order (first on top), centre-aligned, with the stack roughly centred
+    on the plate but always below the wipe tower strip. More labels than
+    PROJECT_PLATE_ROWS overflow onto continuation plates — labels are
+    never placed side by side."""
     pitch = LABEL_HEIGHT + LABEL_GAP
+    expanded = []
+    for plate_name, labels in plate_specs:
+        rows = [[label] for label in labels]
+        chunks = [rows[i:i + PROJECT_PLATE_ROWS]
+                  for i in range(0, len(rows), PROJECT_PLATE_ROWS)]
+        for chunk_no, chunk in enumerate(chunks, 1):
+            title = plate_name if chunk_no == 1 else f"{plate_name} ({chunk_no})"
+            expanded.append((title, chunk))
 
+    n_plates = len(expanded)
+    cols = plate_columns(n_plates)
     m = Mesher()
     objects, plates = [], []
     identify_id = 200
-    for plate_no, (plate_name, labels) in enumerate(plate_specs):
+    for plate_no, (plate_name, rows) in enumerate(expanded):
         origin_x = (plate_no % cols) * PLATE_STRIDE
         origin_y = -(plate_no // cols) * PLATE_STRIDE
         plate = {"name": plate_name, "instances": []}
-        stack_height = len(labels) * pitch - LABEL_GAP
-        y_bottom = max(PLATE_MARGIN, (PLATE_SIZE - stack_height) / 2)
-        for i, (label_name, width) in enumerate(labels):
-            x = (PLATE_SIZE - width) / 2
-            y = y_bottom + (len(labels) - 1 - i) * pitch
-            base, raised = make_label(label_name, width, font, caps)
-            stem = f"{safe_filename(label_name)}_{width:g}mm"
-            assembly, entry = add_assembled_label(m, stem, base, raised)
-            m.model.AddBuildItem(assembly, translation(m, origin_x + x, origin_y + y))
-            objects.append(entry)
-            plate["instances"].append((entry["id"], identify_id))
-            identify_id += 1
+        stack_height = len(rows) * pitch - LABEL_GAP
+        y_bottom = min((PLATE_SIZE - stack_height) / 2,
+                       PLATE_TOP_LIMIT - stack_height)
+        y_bottom = max(PLATE_MARGIN, y_bottom)
+        for i, row in enumerate(rows):
+            row_w = sum(w for _, w in row) + LABEL_GAP * (len(row) - 1)
+            x = (PLATE_SIZE - row_w) / 2
+            y = y_bottom + (len(rows) - 1 - i) * pitch
+            for label_name, width in row:
+                base, raised = make_label(label_name, width, font, caps)
+                stem = f"{safe_filename(label_name)}_{width:g}mm"
+                assembly, entry = add_assembled_label(m, stem, base, raised)
+                m.model.AddBuildItem(assembly,
+                                     translation(m, origin_x + x, origin_y + y))
+                objects.append(entry)
+                plate["instances"].append((entry["id"], identify_id))
+                identify_id += 1
+                x += width + LABEL_GAP
         plates.append(plate)
     m.write(str(path))
     inject_bambu_metadata(path, objects, plates,

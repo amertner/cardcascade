@@ -76,6 +76,7 @@ matching `--game` are used:
 | `split=V` | both split half-boxes; presence means the set gets `<name> 1/2` labels |
 | `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
 | `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
+| `plate=<title>:<w1>+<w2>+...` | an extra plate in the set's 3MF with exactly these label widths — free-form, not limited to the standard widths (used for the Blank set's legacy CC 5.1 sizes); repeatable |
 | none | line is skipped |
 
 Widths are validated against the game's standard width lists — a
@@ -112,7 +113,10 @@ the other, centred on the plate. Each file has up to five plates:
 5. **"... spares"** — every other label from the full width matrix
 
 Sleeved/unsleeved plates that would be identical are collapsed into
-one, so a set like Alchemy (`box=32`) has just two plates.
+one, so a set like Alchemy (`box=32`) has just two plates. Extra
+`plate=` plates follow the split plates; labels always sit one per
+row, and plates with more than 7 labels overflow onto continuation
+plates.
 
 ## The multi-plate project files (`--plates`)
 

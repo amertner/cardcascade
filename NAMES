@@ -10,6 +10,9 @@
 #           (must be given together); presence means "<name> 1/2" labels
 #   side=<text>  short text for side labels (fronts keep the set name),
 #           e.g. side=FCM/O prints FCM/O and FCM/O 1 on side labels
+#   plate=<title>:<w1>+<w2>+...  an extra plate with exactly these label
+#           widths (free-form, not limited to the standard widths);
+#           may be given multiple times
 # Widths must be standard widths for the game (see GAMES in the script).
 # A line with no keys is skipped.
 # The special name "(BLANK)" is the blank label (logo + cc, no text).
@@ -31,6 +34,6 @@ Dominion,Allies,box=62@400 Card (Mat):M8.40.10
 Dominion,Plunder,box=62@650 Card:L8.50.10,split=32/45@244 Card:M4.21.10
 Dominion,Rising Sun,box=45/62@324 Card:M6.21.10
 Dominion,Bulky Base Cards,box=0/45@246 Card:S2.40.12/30
-Dominion,(BLANK),box=45
+Dominion,(BLANK),plate=Blank labels:156.4+62+45+32,plate=Side labels for CC 5.1 Small boxes:29.6+31.5+31.9+32.6+33.6+34.66,plate=Side labels for CC 5.1 Medium boxes:43.9+44.9+48.6+52.7+55.6+55.6,plate=Side labels for CC 5.1 Large boxes:61.7+63.5+67.3+70.7+80.3+89.9+95.9
 FCM,Occupations,side=FCM/O,split1=32/45@264 Card:M4.18.12,split2=20@180 Card:L3.18.6
 FCM,Milestones,side=FCM/M,box=20/32@144 Card:M5.6.6
