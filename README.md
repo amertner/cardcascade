@@ -52,19 +52,22 @@ Output lands in `labels_out/` as `<Name>_<width>mm.3mf`, or as
 Each game in the `GAMES` dict at the top of the script defines the
 label widths for a set (`widths`), for split-box `<name> 1/2` labels
 (`split_widths`), and the standard text size per width (`caps`,
-capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
-(splits skip the 80) at 6.5/5.0/4.5/3.5 mm caps; FCM: 156.4 (front),
-45, 30, 20 at 6.5/4.5/3.5/2.8 mm.
+capital height in mm). Dominion: 156.4 (front), 62, 45, 32 at
+6.5/5.0/4.5/3.5 mm caps; FCM: 156.4 (front), 45, 32, 20 at
+6.5/4.5/3.5/2.8 mm.
 
 ## The NAMES file
 
 When `--names` is not given, the script reads the set list from a
 `NAMES` file (looked up in the current directory, then next to the
 script). One set per line as `<game>,<set name>[,<key>=V]...`, where
-every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<box model>]`
-— label widths per sleeving (one value = both) plus the optional
-recommended-box identity, which appears in the `--sets` plate titles
-(e.g. `Base Set, Sleeved (560 Card, L6.12.40-Sl)`). Only lines
+every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<base model>]`
+— side-label widths per sleeving (one value = both; 0 = no side label
+for that sleeving) plus the optional recommended-box identity. Plate
+titles show the full model composed from the base model and the
+plate's width, e.g. `Base Set 560 Card-S (L6.40.12.62-Sl)` — `-U`/`-S`
+marks the sleevedness and is omitted on plates covering both. Only
+lines
 matching `--game` are used:
 
 | Field | Meaning |
@@ -82,10 +85,10 @@ blank label (logo + "cc", no text). Blank lines and lines starting
 with `#` are ignored:
 
 ```
-Dominion,Base Set,box=53/80@560 Card:L6.12.40,split=53@300 Card:S5.12.40
-Dominion,Alchemy,box=32@168 Card:S4.10.16
-FCM,Occupations,split1=30/45@264 Card:M4.12.18,split2=20@180 Card:L3.6.18
-FCM,Milestones,box=20/30@144 Card:M5.6.6
+Dominion,Base Set,box=45/62@560 Card:L6.40.12,split=45/62@300 Card:S5.40.12
+Dominion,Alchemy,box=32@168 Card:S4.16.10
+FCM,Occupations,split1=32/45@264 Card:M4.18.12,split2=20@180 Card:L3.18.6
+FCM,Milestones,box=20/32@144 Card:M5.6.6
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top
@@ -93,7 +96,9 @@ of `dominion_labels.py` is used.
 
 ## Per-set project files (`--sets`)
 
-`--sets` writes one Bambu project per set into `<out>/sets/`, using
+`--sets` writes one Bambu project per set into `<out>/sets/`, named
+`<Set> Labels <version>.3mf` (`--version` overrides the default `6_0`),
+using
 the recommendations from the NAMES file. Labels are stacked one above
 the other, centred on the plate. Each file has up to five plates:
 
