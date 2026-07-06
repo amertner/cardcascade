@@ -1,33 +1,34 @@
 # One set per line:
 #   <game>,<set name>[,box=V][,split=V][,split1=V,split2=V]
-# where V is <unsleeved>[/<sleeved>][@<box name>:<box model>]:
-#   widths are the label widths per sleeving (one value = both);
-#   the optional @<box name>:<box model> identifies the recommended box
-#   and is shown in the plate titles (with -Un/-Sl for the sleeving).
+# where V is <unsleeved>[/<sleeved>][@<box name>:<base model>]:
+#   widths are the side-label widths per sleeving (one value = both);
+#   a width of 0 means that sleeving has no side label (front only).
+#   The optional @<box name>:<base model> identifies the recommended box;
+#   plate titles show the full model: <base model>.<width>-Un/-Sl.
 #   box=    the whole set's box; presence means whole-box labels
 #   split=  both split half-boxes; split1=/split2= when the halves differ
 #           (must be given together); presence means "<name> 1/2" labels
 # Widths must be standard widths for the game (see GAMES in the script).
 # A line with no keys is skipped.
 # The special name "(BLANK)" is the blank label (logo + cc, no text).
-Dominion,Base Set,box=53/80@560 Card:L6.12.40,split=53@300 Card:S5.12.40
-Dominion,Intrigue,box=32/53@324 Card:M6.10.21
-Dominion,Seaside,box=32/53@324 Card:M6.10.21
-Dominion,Alchemy,box=32@168 Card:S4.10.16
-Dominion,Prosperity,box=32/53@324 Card:M6.10.21
-Dominion,Cornucopia,box=32@168 Card:S4.10.16
-Dominion,Hinterlands,box=32/53@324 Card:M6.10.21
-Dominion,Dark Ages,box=53/80@650 Card:L8.10.50
-Dominion,Guilds,box=32@168 Card:S4.10.16
-Dominion,Adventures,box=53/80@400 Card (Mat):M8.10.40,split=32@244 Card:M4.10.21
-Dominion,Empires,box=32/53@324 Card:M6.10.21
-Dominion,Nocturne,box=53/80@650 Card:L8.10.50,split=32@244 Card:M4.10.21
-Dominion,Renaissance,box=53/80@400 Card (Mat):M8.10.40
-Dominion,Menagerie,box=53/80@400 Card (Mat):M8.10.40
-Dominion,Allies,box=53/80@400 Card (Mat):M8.10.40
-Dominion,Plunder,box=53/80@650 Card:L8.10.50,split=32@244 Card:M4.10.21
-Dominion,Rising Sun,box=32/53@324 Card:M6.10.21
-Dominion,Bulky Base Cards,box=53@246 Card:S2.40.12/30
-Dominion,(BLANK),box=53
-FCM,Occupations,split1=30/45@264 Card:M4.12.18,split2=20@180 Card:L3.6.18
-FCM,Milestones,box=20/30@144 Card:M5.6.6
+Dominion,Base Set,box=45/62@560 Card:L6.40.12,split=45/62@300 Card:S5.40.12
+Dominion,Intrigue,box=45/62@324 Card:M6.21.10
+Dominion,Seaside,box=45/62@324 Card:M6.21.10
+Dominion,Alchemy,box=32@168 Card:S4.16.10
+Dominion,Prosperity,box=45/62@324 Card:M6.21.10
+Dominion,Cornucopia,box=32@168 Card:S4.16.10
+Dominion,Hinterlands,box=45/62@324 Card:M6.21.10
+Dominion,Dark Ages,box=62@650 Card:L8.50.10
+Dominion,Guilds,box=32@168 Card:S4.16.10
+Dominion,Adventures,box=62@400 Card (Mat):M8.40.10,split=32/45@244 Card:M4.21.10
+Dominion,Empires,box=45/62@324 Card:M6.21.10
+Dominion,Nocturne,box=62@650 Card:L8.50.10,split=32/45@244 Card:M4.21.10
+Dominion,Renaissance,box=62@400 Card (Mat):M8.40.10
+Dominion,Menagerie,box=62@400 Card (Mat):M8.40.10
+Dominion,Allies,box=62@400 Card (Mat):M8.40.10
+Dominion,Plunder,box=62@650 Card:L8.50.10,split=32/45@244 Card:M4.21.10
+Dominion,Rising Sun,box=45/62@324 Card:M6.21.10
+Dominion,Bulky Base Cards,box=0/45@246 Card:S2.40.12/30
+Dominion,(BLANK),box=45
+FCM,Occupations,split1=32/45@264 Card:M4.18.12,split2=20@180 Card:L3.18.6
+FCM,Milestones,box=20/32@144 Card:M5.6.6

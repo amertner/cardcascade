@@ -56,15 +56,15 @@ LABEL_HEIGHT = 22.2          # overall label height (STEP export measured 22.1)
 GAMES = {
     "Dominion": {
         "front": 156.4,
-        "widths": [156.4, 80.0, 53.0, 32.0],
-        "split_widths": [156.4, 53.0, 32.0],
-        "caps": {156.4: 6.5, 80.0: 5.0, 53.0: 4.5, 32.0: 3.5},
+        "widths": [156.4, 62.0, 45.0, 32.0],
+        "split_widths": [156.4, 62.0, 45.0, 32.0],
+        "caps": {156.4: 6.5, 62.0: 5.0, 45.0: 4.5, 32.0: 3.5},
     },
     "FCM": {
         "front": 156.4,
-        "widths": [156.4, 45.0, 30.0, 20.0],
-        "split_widths": [156.4, 45.0, 30.0, 20.0],
-        "caps": {156.4: 6.5, 45.0: 4.5, 30.0: 3.5, 20.0: 2.8},
+        "widths": [156.4, 45.0, 32.0, 20.0],
+        "split_widths": [156.4, 45.0, 32.0, 20.0],
+        "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
 }
 
@@ -132,11 +132,14 @@ def find_names_file():
 
 def parse_width(text: str, allowed, where: str, key: str) -> float:
     """A width from the NAMES file must be one of the game's standard
-    widths; returns the canonical float."""
+    widths; returns the canonical float. 0 is always allowed and means
+    'no side label for this sleeving'."""
     try:
         width = float(text)
     except ValueError:
         sys.exit(f"{where}: {key}={text!r} is not a number")
+    if width == 0:
+        return 0.0
     for std in allowed:
         if abs(std - width) < 0.01:
             return std
@@ -537,19 +540,25 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
 
     def box_labels(label_name, side):
         labels = [(label_name, front)] if front else []
-        if side != front:
+        if side and side != front:      # width 0 = no side label
             labels.append((label_name, side))
         return labels
 
-    def boxes_title(infos, sleeving=None):
-        """' 560 Card-U (L6.12.40-Un)' (-U/-S = sleevedness; omitted on
-        plates that cover both). No slashes: Bambu rejects them in plate
-        names, so models render with dashes too."""
-        infos = [i for i in dict.fromkeys(infos) if i]
+    def boxes_title(entries, sleeving=None):
+        """' 560 Card-U (L6.40.12.45-Un)': the full model is the base model
+        from NAMES plus the plate's side width, -U/-S marks sleevedness
+        (omitted on plates that cover both). No slashes: Bambu rejects
+        them in plate names, so models render with dashes."""
         tag = f"-{TAG[sleeving]}" if sleeving is not None else ""
         model_suffix = SUFFIX[sleeving] if sleeving is not None else ""
-        parts = [f"{box_name}{tag} ({model.replace('/', '-')}{model_suffix})"
-                 for box_name, model in infos]
+        parts, seen = [], set()
+        for info, width in entries:
+            if not info or (info, width) in seen:
+                continue
+            seen.add((info, width))
+            box_name, base_model = info
+            model = f"{base_model}.{width:g}".replace("/", "-")
+            parts.append(f"{box_name}{tag} ({model}{model_suffix})")
         if not parts:
             return tag
         return " " + "; ".join(parts)
@@ -557,12 +566,14 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     specs = []
     if record["box"]:
         info = record["box"]["info"]
+        widths = record["box"]["widths"]
         plates = [
-            (f"{display}{boxes_title([info], s)}",
-             box_labels(name, record["box"]["widths"][s]))
+            (f"{display}{boxes_title([(info, widths[s])], s)}",
+             box_labels(name, widths[s]))
             for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
-            plates = [(f"{display}{boxes_title([info])}", plates[0][1])]
+            plates = [(f"{display}{boxes_title([(info, widths[UNSLEEVED])])}",
+                       plates[0][1])]
         specs += plates
     if record["split"]:
         def split_labels(sleeving):
@@ -570,12 +581,15 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             for half_no, half in enumerate(record["split"], 1):
                 labels += box_labels(f"{name} {half_no}", half["widths"][sleeving])
             return labels
-        infos = [half["info"] for half in record["split"]]
+        def split_entries(sleeving):
+            return [(half["info"], half["widths"][sleeving])
+                    for half in record["split"]]
         plates = [
-            (f"{display} split{boxes_title(infos, s)}", split_labels(s))
+            (f"{display} split{boxes_title(split_entries(s), s)}", split_labels(s))
             for s in (UNSLEEVED, SLEEVED)]
         if plates[0][1] == plates[1][1]:
-            plates = [(f"{display} split{boxes_title(infos)}", plates[0][1])]
+            plates = [(f"{display} split{boxes_title(split_entries(UNSLEEVED))}",
+                       plates[0][1])]
         specs += plates
     spares = []
     if record["box"]:
