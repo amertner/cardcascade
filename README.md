@@ -27,6 +27,9 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 # multi-plate Bambu project 3MFs (whole sets + split-box labels)
 .venv/bin/python dominion_labels.py --plates
 
+# one 3MF per set (default / split boxes / spares plates) in labels_out/sets/
+.venv/bin/python dominion_labels.py --sets
+
 # another game (its own NAMES entries and width lists)
 .venv/bin/python dominion_labels.py --game FCM --plates
 
@@ -50,35 +53,60 @@ Each game in the `GAMES` dict at the top of the script defines the
 label widths for a set (`widths`), for split-box `<name> 1/2` labels
 (`split_widths`), and the standard text size per width (`caps`,
 capital height in mm). Dominion: 156.4 (front), 80, 53, 32 for sets
-(splits skip the 80) at 6.5/5.0/4.5/3.5 mm caps; FCM: 45, 30, 20 at
-4.5/3.5/2.8 mm.
+(splits skip the 80) at 6.5/5.0/4.5/3.5 mm caps; FCM: 156.4 (front),
+45, 30, 20 at 6.5/4.5/3.5/2.8 mm.
 
 ## The NAMES file
 
 When `--names` is not given, the script reads the set list from a
 `NAMES` file (looked up in the current directory, then next to the
-script). One set per line as `<game>,<set name>[,<flags>]` — only
-lines matching `--game` are used, and flags are bit-based:
+script). One set per line as `<game>,<set name>[,<key>=V]...`, where
+every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<box model>]`
+— label widths per sleeving (one value = both) plus the optional
+recommended-box identity, which appears in the `--sets` plate titles
+(e.g. `Base Set, Sleeved (560 Card, L6.12.40-Sl)`). Only lines
+matching `--game` are used:
 
-| Flags | Labels generated |
+| Field | Meaning |
 |---|---|
-| (none) or `1` | `<name>` |
-| `2` | `<name> 1` and `<name> 2` (for a set split across two boxes) |
-| `3` | all three |
-| `0` | none — line is skipped |
+| `box=V` | the whole set's box; presence means the set gets whole-box labels |
+| `split=V` | both split half-boxes; presence means the set gets `<name> 1/2` labels |
+| `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
+| none | line is skipped |
 
-The special name `(BLANK)` stands for the blank label (logo + "cc",
-no text). Blank lines and lines starting with `#` are ignored:
+Widths are validated against the game's standard width lists — a
+non-standard width is an error. (Rule of thumb: the label must be at
+least 14 mm narrower than the box lid's depth; pick the largest
+standard width that fits.) The special name `(BLANK)` stands for the
+blank label (logo + "cc", no text). Blank lines and lines starting
+with `#` are ignored:
 
 ```
-Dominion,Base Set,3
-Dominion,Alchemy
-Dominion,Renaissance,0
-FCM,FCM Milestones,1
+Dominion,Base Set,box=53/80@560 Card:L6.12.40,split=53@300 Card:S5.12.40
+Dominion,Alchemy,box=32@168 Card:S4.10.16
+FCM,Occupations,split1=30/45@264 Card:M4.12.18,split2=20@180 Card:L3.6.18
+FCM,Milestones,box=20/30@144 Card:M5.6.6
 ```
 
 If there is no NAMES file either, the built-in `NAMES` list at the top
 of `dominion_labels.py` is used.
+
+## Per-set project files (`--sets`)
+
+`--sets` writes one Bambu project per set into `<out>/sets/`, using
+the recommendations from the NAMES file. Labels are stacked one above
+the other, centred on the plate. Each file has up to five plates:
+
+1. **single cascade (unsleeved)** — box front (156.4 for Dominion)
+   plus the unsleeved `box=` side label
+2. **single cascade (sleeved)** — the same with the sleeved width
+3. **split cascade (unsleeved)** — front + side for `<name> 1` and
+   `<name> 2` (always two fronts and two sides)
+4. **split cascade (sleeved)** — the same with the sleeved widths
+5. **"... spares"** — every other label from the full width matrix
+
+Sleeved/unsleeved plates that would be identical are collapsed into
+one, so a set like Alchemy (`box=32`) has just two plates.
 
 ## The multi-plate project files (`--plates`)
 
