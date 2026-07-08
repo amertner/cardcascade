@@ -21,7 +21,7 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 ## Usage
 
 ```bash
-# individual label files for every NAMES entry of the default game (Dominion)
+# individual label files for every cc.cfg entry of the default game (Dominion)
 .venv/bin/python dominion_labels.py
 
 # multi-plate Bambu project 3MFs (whole sets + split-box labels)
@@ -30,7 +30,7 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 # one 3MF per set (default / split boxes / spares plates) in labels_out/sets/
 .venv/bin/python dominion_labels.py --sets
 
-# another game (its own NAMES entries and width lists)
+# another game (its own cc.cfg entries and width lists)
 .venv/bin/python dominion_labels.py --game FCM --plates
 
 # specific sets / widths
@@ -56,10 +56,10 @@ capital height in mm). Dominion: 156.4 (front), 62, 45, 32 at
 6.5/5.0/4.5/3.5 mm caps; FCM: 156.4 (front), 45, 32, 20 at
 6.5/4.5/3.5/2.8 mm.
 
-## The NAMES file
+## The cc.cfg configuration file
 
-When `--names` is not given, the script reads the set list from a
-`NAMES` file (looked up in the current directory, then next to the
+When `--names` is not given, the script reads the configuration from a
+`cc.cfg` file (looked up in the current directory, then next to the
 script). One set per line as `<game>,<set name>[,<key>=V]...`, where
 every value `V` is `<unsleeved>[/<sleeved>][@<box name>:<base model>]`
 — side-label widths per sleeving (one value = both; 0 = no side label
@@ -93,7 +93,7 @@ FCM,Occupations,side=FCM/O,split1=32/45@264 Card:M4.18.12,split2=20@180 Card:L3.
 FCM,Milestones,side=FCM/M,box=20/32@144 Card:M5.6.6
 ```
 
-If there is no NAMES file either, the built-in `NAMES` list at the top
+If there is no `cc.cfg` either, the built-in `NAMES` list at the top
 of `dominion_labels.py` is used.
 
 ## Per-set project files (`--sets`)
@@ -101,7 +101,7 @@ of `dominion_labels.py` is used.
 `--sets` writes one Bambu project per set into `<out>/sets/`, named
 `<Set> Labels <version>.3mf` (`--version` overrides the default `6_0`),
 using
-the recommendations from the NAMES file. Labels are stacked one above
+the recommendations from `cc.cfg`. Labels are stacked one above
 the other, centred on the plate. Each file has up to five plates:
 
 1. **single cascade (unsleeved)** — box front (156.4 for Dominion)
@@ -126,7 +126,7 @@ whole-set label, and `<game>_splits_plates.3mf` with the `<name> 1/2`
 split-box labels. Every set gets an identical block of label rows
 (widest row on top, e.g. front+80 over 53+32 for Dominion sets), with
 a vertical gap between sets, flowing bottom-up through the plates in
-NAMES order. Blocks avoid the P1's no-print corner and the top strip
+cc.cfg order. Blocks avoid the P1's no-print corner and the top strip
 of each plate is left free for the wipe tower. Plates are named after
 the full list of sets they carry. The
 files embed `bambu_project_settings.config` (printer/filament profile,
