@@ -106,6 +106,10 @@ def main():
     ap.add_argument("--replace", action="append", default=[],
                     metavar="NAME=FILE")
     ap.add_argument("--remove-plates", default=None, metavar="TEXT")
+    ap.add_argument("--plate-name", action="append", default=[],
+                    metavar="OLD=NEW", help="rename a plate (exact match)")
+    ap.add_argument("--rename-object", action="append", default=[],
+                    metavar="OLD=NEW", help="rename an object (exact match)")
     ap.add_argument("--allow-resize", action="store_true")
     args = ap.parse_args()
 
@@ -294,7 +298,9 @@ def main():
             if pid != new_no:
                 cfg = re.sub(rf'(plater_id" value=")({pid})(")',
                              rf'\g<1>{new_no}\g<3>', cfg, count=1)
-                for f in (work / "Metadata").glob(f"*_{pid}.*"):
+                renames = set((work / "Metadata").glob(f"*_{pid}.*")) | \
+                          set((work / "Metadata").glob(f"plate_{pid}_*"))
+                for f in renames:
                     f.rename(f.with_name(f.name.replace(f"_{pid}", f"_{new_no}")))
                 cfg = cfg.replace(f"Metadata/plate_{pid}.png",
                                   f"Metadata/plate_{new_no}.png")
@@ -314,6 +320,30 @@ def main():
                     t[9] = f"{float(t[9]) + delta[0]:.9g}"
                     t[10] = f"{float(t[10]) + delta[1]:.9g}"
                     xml = xml[:m.start(2)] + " ".join(t) + xml[m.end(2):]
+
+    # ---------------- renames ----------------
+    def esc(s):
+        return (s.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace('"', "&quot;"))
+    for spec in args.plate_name:
+        old, _, new = spec.partition("=")
+        if not _:
+            fail(f"--plate-name needs OLD=NEW, got {spec!r}")
+        needle = f'plater_name" value="{esc(old)}"'
+        if needle not in cfg:
+            fail(f"no plate named {old!r}")
+        cfg = cfg.replace(needle, f'plater_name" value="{esc(new)}"')
+        print(f"plate renamed: {old!r} -> {new!r}")
+    for spec in args.rename_object:
+        old, _, new = spec.partition("=")
+        if not _:
+            fail(f"--rename-object needs OLD=NEW, got {spec!r}")
+        pattern = (r'(<object id="\d+">\s*<metadata key="name" value=")'
+                   + re.escape(esc(old)) + '(")')
+        cfg, n = re.subn(pattern, rf'\g<1>{esc(new)}\g<2>', cfg)
+        if n != 1:
+            fail(f"object rename {old!r}: matched {n} objects, need exactly 1")
+        print(f"object renamed: {old!r} -> {new!r}")
 
     root_p.write_text(xml)
     cfg_p.write_text(cfg)
