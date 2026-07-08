@@ -82,7 +82,7 @@ TEXT_TOP_MARGIN = 3.0        # min gap between text top and label top edge
 CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
 
 FONT_FILE = "Orbitron-Bold.ttf"
-NAMES_FILE = "NAMES"         # set list, one name per line (see read_names_file)
+CONFIG_FILE = "cc.cfg"       # set/box configuration (see read_config_file)
 
 BASE_COLOR = Color(1.0, 1.0, 1.0)    # white
 RAISED_COLOR = Color(0.0, 0.0, 0.0)  # black
@@ -103,7 +103,7 @@ PLATE_TOP_LIMIT = WIPE_TOWER_XY[1] - 5.0     # labels stay below this line
 PLATE_STRIDE = PLATE_SIZE * 1.2  # BambuStudio LOGICAL_PART_PLATE_GAP = 1/5
 PROJECT_SETTINGS_FILE = "bambu_project_settings.config"
 
-# Fallback set list when there is no NAMES file and no --names
+# Fallback set list when there is no cc.cfg and no --names
 NAMES = [
     "Base Set 1",
 ]
@@ -122,16 +122,16 @@ def find_font() -> str:
     )
 
 
-def find_names_file():
+def find_config_file():
     here = Path(__file__).resolve().parent
-    for cand in (Path.cwd() / NAMES_FILE, here / NAMES_FILE):
+    for cand in (Path.cwd() / CONFIG_FILE, here / CONFIG_FILE):
         if cand.is_file():
             return cand
     return None
 
 
 def parse_width(text: str, allowed, where: str, key: str) -> float:
-    """A width from the NAMES file must be one of the game's standard
+    """A width from cc.cfg must be one of the game's standard
     widths; returns the canonical float. 0 is always allowed and means
     'no side label for this sleeving'."""
     try:
@@ -168,8 +168,8 @@ def parse_box(value: str, allowed, where: str, key: str) -> dict:
     return {"widths": tuple(widths), "info": info}
 
 
-def read_names_file(path: Path, game: str) -> list:
-    """Parse the NAMES file and return set records for `game`.
+def read_config_file(path: Path, game: str) -> list:
+    """Parse the cc.cfg configuration and return set records for `game`.
 
     Each line is '<game>,<set name>[,<key>=V]...' where every value V is
     '<unsleeved>[/<sleeved>][@<box name>:<box model>]' — label widths per
@@ -554,7 +554,7 @@ def render_project_settings(n_plates: int):
 
 
 def set_plate_specs(record: dict, cfg: dict) -> list:
-    """Plates for one set's own 3MF, from its NAMES record: single cascade
+    """Plates for one set's own 3MF, from its cc.cfg record: single cascade
     (unsleeved), single cascade (sleeved), split cascade (unsleeved), split
     cascade (sleeved) — collapsing sleeved/unsleeved pairs that use the
     same widths — plus every other label as spares. Split plates always
@@ -577,7 +577,7 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
 
     def boxes_title(entries, sleeving=None):
         """' 560 Card-U (L6.40.12.45-Un)': the full model is the base model
-        from NAMES plus the plate's side width, -U/-S marks sleevedness
+        from cc.cfg plus the plate's side width, -U/-S marks sleevedness
         (omitted on plates that cover both). No slashes: Bambu rejects
         them in plate names, so models render with dashes."""
         tag = f"-{TAG[sleeving]}" if sleeving is not None else ""
@@ -738,7 +738,7 @@ def main():
     ap = argparse.ArgumentParser(description="Generate board game box labels")
     ap.add_argument("--game", default="Dominion",
                     help=f"game to generate labels for ({', '.join(GAMES)})")
-    ap.add_argument("--names", help="comma-separated set names (default: NAMES file)")
+    ap.add_argument("--names", help="comma-separated set names (default: cc.cfg)")
     ap.add_argument("--widths", help="comma-separated widths in mm "
                                      "(default: the game's width lists)")
     ap.add_argument("--out", default="labels_out", help="output directory")
@@ -767,9 +767,9 @@ def main():
     if args.names:
         entries = [(n.strip(), n.strip(), False) for n in args.names.split(",")]
     else:
-        names_file = find_names_file()
-        if names_file:
-            records = read_names_file(names_file, game)
+        config_file = find_config_file()
+        if config_file:
+            records = read_config_file(config_file, game)
             entries = []
             for rec in records:
                 side_base = rec["side"] or rec["name"]
@@ -800,7 +800,7 @@ def main():
 
     if args.sets:
         if records is None:
-            sys.exit("--sets needs a NAMES file with box=/split= data")
+            sys.exit("--sets needs a cc.cfg with box=/split= data")
         setdir = outdir / "sets"
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:
