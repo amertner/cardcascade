@@ -106,6 +106,10 @@ def main():
     ap.add_argument("--replace", action="append", default=[],
                     metavar="NAME=FILE")
     ap.add_argument("--remove-plates", default=None, metavar="TEXT")
+    ap.add_argument("--remove-objects", action="append", default=[],
+                    metavar="PLATE:NAME1,NAME2",
+                    help="remove objects with these names from the plate "
+                         "whose name contains PLATE (the plate itself stays)")
     ap.add_argument("--plate-name", action="append", default=[],
                     metavar="OLD=NEW", help="rename a plate (exact match)")
     ap.add_argument("--rename-object", action="append", default=[],
@@ -239,7 +243,52 @@ def main():
                       nblk, count=1)
         cfg = cfg.replace(blk, nblk)
 
-    # ---------------- plate removal + regrid ----------------
+    # ---------------- object/plate removal ----------------
+    def purge_object(oid):
+        """Remove an object entirely: meshes (if exclusively owned), root
+        entries, settings, assemble and plate-instance references."""
+        nonlocal xml, cfg
+        for f, _cid in comps.get(oid, []):
+            if sum(1 for c in comps.values() for ff, _ in c if ff == f) == 1:
+                (work / f.lstrip("/")).unlink()
+                rp = work / "3D/_rels/3dmodel.model.rels"
+                rp.write_text(re.sub(
+                    rf'\s*<Relationship Target="{re.escape(f)}"[^>]*/>',
+                    "", rp.read_text()))
+        comps.pop(oid, None)
+        xml = re.sub(rf'\s*<object id="{oid}" .*?</object>', "",
+                     xml, count=1, flags=re.S)
+        xml = re.sub(rf'\s*<item objectid="{oid}" [^>]*/>', "", xml, count=1)
+        cfg = re.sub(rf'\s*<object id="{oid}">.*?</object>', "",
+                     cfg, count=1, flags=re.S)
+        cfg = re.sub(rf'\s*<assemble_item object_id="{oid}" [^>]*/>',
+                     "", cfg, count=1)
+        cfg = re.sub(rf'\s*<model_instance>\s*<metadata key="object_id" '
+                     rf'value="{oid}"/>.*?</model_instance>', "",
+                     cfg, count=1, flags=re.S)
+
+    removed = set()
+    for spec in args.remove_objects:
+        plate_pat, sep, namelist = spec.partition(":")
+        if not sep:
+            fail(f"--remove-objects needs PLATE:NAMES, got {spec!r}")
+        wanted = [n.strip() for n in namelist.split(",")]
+        target = [p for p in plates if plate_pat.lower() in p[1].lower()]
+        if len(target) != 1:
+            fail(f"plate matching {plate_pat!r}: found {len(target)}, need 1")
+        victims = [oid for oid in target[0][2]
+                   if objects[oid][0] in wanted]
+        if not victims:
+            fail(f"no objects named {wanted} on plate {target[0][1]!r}")
+        for oid in victims:
+            purge_object(oid)
+            removed.add(oid)
+        print(f"removed {len(victims)} object(s) {wanted} from "
+              f"plate {target[0][1]!r}")
+    if removed:
+        plates = [(pid, nm, [o for o in objs if o not in removed])
+                  for pid, nm, objs in plates]
+
     if args.remove_plates:
         pat = args.remove_plates.lower()
         doomed = [(pid, nm, objs) for pid, nm, objs in plates
@@ -256,21 +305,7 @@ def main():
         # remove doomed plates' objects everywhere
         for _, _, objs in doomed:
             for oid in objs:
-                for f, _cid in comps.get(oid, []):
-                    if sum(1 for c in comps.values()
-                           for ff, _ in c if ff == f) == 1:
-                        (work / f.lstrip("/")).unlink()
-                        r = (work / "3D/_rels/3dmodel.model.rels").read_text()
-                        r = re.sub(rf'\s*<Relationship Target="{f}"[^>]*/>', "", r)
-                        (work / "3D/_rels/3dmodel.model.rels").write_text(r)
-                xml = re.sub(rf'\s*<object id="{oid}" .*?</object>', "",
-                             xml, count=1, flags=re.S)
-                xml = re.sub(rf'\s*<item objectid="{oid}" [^>]*/>', "",
-                             xml, count=1)
-                cfg = re.sub(rf'\s*<object id="{oid}">.*?</object>', "",
-                             cfg, count=1, flags=re.S)
-                cfg = re.sub(rf'\s*<assemble_item object_id="{oid}" [^>]*/>',
-                             "", cfg, count=1)
+                purge_object(oid)
 
         # drop plate blocks, renumber survivors, move their objects to the
         # origin of their new grid slot
