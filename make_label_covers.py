@@ -7,8 +7,10 @@ stacked UNSLEEVED/SLEEVED corner banners, a size-graded stack of the
 set's actual labels (front, box sides, split-box labels) with type/width
 captions, FULL SET / PARTIAL SETS chips, and a bottom band naming the set.
 
-    python3 make_label_covers.py [--out covers] [--version 6.0]
+    python3 make_label_covers.py [--out labels] [--version 6.0]
                                  [--sets "Renaissance,Base Set"]
+
+Covers are written to <out>/<game>/sets/, next to the per-set .3mf files.
 
 Requires: pillow (pip install pillow). Reads cc.cfg via dominion_labels.
 """
@@ -32,6 +34,7 @@ GREEN   = (74, 124, 90)
 GREEN_D = (56, 100, 70)
 GREEN_L1 = (140, 199, 144)
 GREEN_L2 = (86, 158, 100)
+BAR      = (129, 197, 144)      # #81C590 — wordmark bars
 BLUE    = (63, 107, 178)
 GREY    = (120, 120, 118)
 WHITE   = (255, 255, 255)
@@ -148,15 +151,17 @@ def render_label(text, width_mm, scale, caps):
 def wordmark(d, x, y, s=1.0):
     bs = int(90 * s)
     step = bs / 3
-    for i, c in enumerate([GREEN_L1, GREEN_L2, GREEN]):
+    for i in range(3):
         bh = bs * (0.45 + 0.275 * i)
         bx = x + i * step
         d.rounded_rectangle([bx, y + bs - bh, bx + step * 0.72, y + bs],
-                            radius=int(6 * s), fill=c)
+                            radius=int(6 * s), fill=BAR)
+    # two stacked lines of Orbitron, block ~ as tall as the tallest bar
     tx = x + bs + int(24 * s)
-    f = F(MONO_B, 46 * s)
-    d.text((tx, y - int(6 * s)), "Card", font=f, fill=INK)
-    d.text((tx, y + int(40 * s)), "Cascade", font=f, fill=INK)
+    caph = bs * 0.44
+    f = cap_scale(caph)
+    d.text((tx, y + caph), "Card", font=f, fill=INK, anchor="ls")
+    d.text((tx, y + bs), "Cascade", font=f, fill=INK, anchor="ls")
 
 
 def card_icon(d, x, y, s, colour=WHITE):
@@ -173,8 +178,8 @@ def corner_banners(d):
     f = F(MONO_B, 62)
     for i, (txt, col) in enumerate(
             zip(("UNSLEEVED", "SLEEVED"), (GREEN, BLUE))):
-        y0 = i * (bh + 14)
-        x0 = W - 760 - (0 if i == 0 else 60)
+        y0 = i * bh
+        x0 = W - 760
         d.polygon([(x0 + 90, y0), (W, y0), (W, y0 + bh), (x0, y0 + bh)],
                   fill=col)
         tw = d.textlength(txt, font=f)
@@ -182,27 +187,27 @@ def corner_banners(d):
         card_icon(d, W - 135, y0 + 22, 60)
 
 
-def chips(d, x, y, items):
-    f = F(MONO_B, 44)
-    for i, txt in enumerate(items):
-        tw = d.textlength(txt, font=f)
-        w, h, skew = tw + 70, 84, 26
-        poly = [(x + skew, y), (x + w, y), (x + w - skew, y + h), (x, y + h)]
-        if i == 0:
-            d.polygon(poly, fill=GREEN)
-            d.text((x + (w - tw) / 2, y + h / 2 - 26), txt, font=f, fill=WHITE)
-        else:
-            d.polygon(poly, outline=GREEN_D, width=5)
-            d.text((x + (w - tw) / 2, y + h / 2 - 26), txt, font=f,
-                   fill=GREEN_D)
-        x += w + 36
-
-
-def footer(d):
-    f = F(MONO_R, 34)
-    d.text((60, H - 64), "Free on MakerWorld", font=f, fill=GREEN_D)
+def footer(d, version):
+    # thin grey divider above the bottom line, edge to edge
+    d.rectangle([0, H - 108, W, H - 104], fill=(190, 190, 188))
+    f = F(MONO_R, 30)
+    ty = H - 78
+    d.text((60, ty), "Free on MakerWorld", font=f, fill=GREEN_D)
     t = "© 2026 Allan & Mamta Mertner"
-    d.text(((W - d.textlength(t, font=f)) / 2, H - 64), t, font=f, fill=GREY)
+    d.text(((W - d.textlength(t, font=f)) / 2, ty), t, font=f, fill=GREY)
+    # mini Card Cascade logo + version, right-aligned
+    s = 0.52
+    bs = int(90 * s)
+    caph = bs * 0.44
+    wf = cap_scale(caph)
+    logo_w = bs + int(24 * s) + d.textlength("Cascade", font=wf)
+    ver = f"v{version}"
+    vw = d.textlength(ver, font=f)
+    gap = 22
+    x0 = W - 60 - logo_w - gap - vw
+    y0 = H - 96
+    wordmark(d, x0, y0, s)
+    d.text((x0 + logo_w + gap, y0 + bs / 2 - 15), ver, font=f, fill=GREY)
 
 
 # ---------- per-set label stack ----------
@@ -234,6 +239,30 @@ def stack_rows(rec, game_cfg):
     return rows
 
 
+# right-hand label stack lives in this vertical band on every cover
+STACK_TOP, STACK_BOTTOM = 350, H - 370
+
+
+def row_height(scale):
+    return 44 + int(LABEL_H_MM * scale) + 2 * (int(0.35 * scale) + 6) + 6
+
+
+LABEL_SCALE_MAX = 6.4           # large default; shrinks only if rows overflow
+
+
+def fit_scale(n_rows):
+    """Largest label scale (0.2 steps) that fits n_rows in the stack band.
+
+    Labels stay large by default and only scale down for busier sets; the
+    22.2 mm height and width are always in proportion at whatever scale wins.
+    """
+    avail = STACK_BOTTOM - STACK_TOP
+    scale = LABEL_SCALE_MAX
+    while scale > 3.0 and n_rows * row_height(scale) > avail:
+        scale -= 0.2
+    return round(scale, 1)
+
+
 def make_cover(rec, game, game_cfg, version, out_dir):
     display = rec["name"] or "Blank"
     game_disp = GAME_DISPLAY.get(game, game)
@@ -255,31 +284,17 @@ def make_cover(rec, game, game_cfg, version, out_dir):
         d.text((70, 305), game_disp, font=F(MONO_B, 56), fill=INK)
 
     fb = F(MONO_B, 120)
-    d.text((70, 470), "SLIDE-IN", font=fb, fill=GREEN)
-    d.text((70, 600), "LABELS", font=fb, fill=GREEN)
-    d.text((70, 760), "Two-colour 3D printable", font=F(MONO_R, 46), fill=INK)
-    d.text((70, 820), "for every box size", font=F(MONO_R, 46), fill=INK)
+    d.text((70, 560), "SLIDE-IN", font=fb, fill=GREEN)
+    d.text((70, 690), "LABELS", font=fb, fill=GREEN)
+    d.text((70, 850), "Two-colour 3D printable", font=F(MONO_R, 46), fill=INK)
+    d.text((70, 910), "for every box size", font=F(MONO_R, 46), fill=INK)
 
-    chip_items = []
-    if rec.get("box"):
-        chip_items.append("FULL SET")
-    if rec.get("split"):
-        chip_items.append("PARTIAL SETS")
-    if chip_items:
-        chips(d, 70, 930, chip_items)
-
-    # right-hand stack, scaled to fit between header and band
+    # right-hand stack: large labels by default, shrink to fit if many rows
     rows = stack_rows(rec, game_cfg)
-    top, bottom = 350, H - 280
-    scale = 6.4
-    while scale > 3.0:
-        row_h = [44 + int(LABEL_H_MM * scale) + 2 * (int(0.35 * scale) + 6) + 6
-                 for _ in rows]
-        if sum(row_h) <= bottom - top:
-            break
-        scale -= 0.2
+    scale = fit_scale(len(rows))
+    total_h = sum(row_height(scale) for _ in rows)
     x_right = W - 90
-    y = top
+    y = STACK_TOP + max(0, (STACK_BOTTOM - STACK_TOP - total_h) // 2)
     fcap = F(MONO_B, 34)
     for caption, text, wmm in rows:
         lab = render_label(text, wmm, scale, caps)
@@ -290,16 +305,14 @@ def make_cover(rec, game, game_cfg, version, out_dir):
         y += lab.height + 6
 
     # bottom band
-    d.polygon([(0, H - 260), (W * 0.62, H - 260), (W * 0.56, H - 120),
-               (0, H - 120)], fill=GREEN)
-    band = display if not rec["name"] else f"{game_disp} {display}"
+    d.polygon([(0, H - 340), (W * 0.72, H - 340), (W * 0.66, H - 200),
+               (0, H - 200)], fill=GREEN)
+    band = display if not rec["name"] else f"{game_disp}: {display}"
     fb2 = F(MONO_B, 84)
-    while d.textlength(band, font=fb2) > 1000 and fb2.size > 40:
+    while d.textlength(band, font=fb2) > 1160 and fb2.size > 40:
         fb2 = F(MONO_B, fb2.size - 4)
-    d.text((70, H - 244 + (84 - fb2.size) // 2), band, font=fb2, fill=WHITE)
-    vt = f"Card Cascade v{version}"
-    d.text((W - 640, H - 210), vt, font=F(MONO_R, 36), fill=GREY)
-    footer(d)
+    d.text((70, H - 324 + (84 - fb2.size) // 2), band, font=fb2, fill=WHITE)
+    footer(d, version)
 
     fname = f"{display} Labels {version.replace('.', '_')}.png"
     fname = "".join(c if c not in '\\/:*?"<>|' else "_" for c in fname)
@@ -310,7 +323,8 @@ def make_cover(rec, game, game_cfg, version, out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--out", default=os.path.join(REPO, "covers"))
+    ap.add_argument("--out", default=os.path.join(REPO, "labels"),
+                    help="base labels dir; covers go to <out>/<game>/sets")
     ap.add_argument("--version", default="6.0")
     ap.add_argument("--sets", default=None,
                     help="comma-separated set names (default: all)")
@@ -319,7 +333,6 @@ def main():
     cfg_file = dl.find_config_file()
     if not cfg_file:
         sys.exit("cc.cfg not found")
-    os.makedirs(args.out, exist_ok=True)
     wanted = ([s.strip().lower() for s in args.sets.split(",")]
               if args.sets else None)
 
@@ -328,11 +341,13 @@ def main():
         records = dl.read_config_file(cfg_file, game)
         if not records:
             continue
+        set_dir = os.path.join(args.out, game, "sets")
+        os.makedirs(set_dir, exist_ok=True)
         for rec in records:
             display = rec["name"] or "Blank"
             if wanted and display.lower() not in wanted:
                 continue
-            path = make_cover(rec, game, game_cfg, args.version, args.out)
+            path = make_cover(rec, game, game_cfg, args.version, set_dir)
             print(f"  {path}")
             n += 1
     print(f"done: {n} cover(s)")
