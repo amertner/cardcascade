@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dominion_labels as dl
 
 REPO = os.path.dirname(os.path.abspath(__file__))
+FONTS = os.path.join(REPO, "fonts")
 W, H = 2010, 1500
 
 # ---------- palette sampled from the cascade posters ----------
@@ -37,13 +38,19 @@ WHITE   = (255, 255, 255)
 PLATE   = (250, 250, 247)
 PLATE_E = (216, 214, 208)
 
-ORB = os.path.join(REPO, "Orbitron-Bold.ttf")
+ORB = os.path.join(FONTS, "Orbitron-Bold.ttf")
 MONO_CANDIDATES_B = [
+    os.path.join(FONTS, "DMMono-Medium.ttf"),
+    os.path.expanduser("~/Library/Fonts/DMMono-Medium.ttf"),
+    "/usr/share/fonts/truetype/dm-mono/DMMono-Medium.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
     "/System/Library/Fonts/Supplemental/Courier New Bold.ttf",
     "/Library/Fonts/Courier New Bold.ttf",
 ]
 MONO_CANDIDATES_R = [
+    os.path.join(FONTS, "DMMono-Regular.ttf"),
+    os.path.expanduser("~/Library/Fonts/DMMono-Regular.ttf"),
+    "/usr/share/fonts/truetype/dm-mono/DMMono-Regular.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
     "/System/Library/Fonts/Supplemental/Courier New.ttf",
     "/Library/Fonts/Courier New.ttf",
@@ -52,6 +59,14 @@ MONO_B = next((p for p in MONO_CANDIDATES_B if os.path.exists(p)), None)
 MONO_R = next((p for p in MONO_CANDIDATES_R if os.path.exists(p)), None)
 if not (MONO_B and MONO_R):
     sys.exit("no monospace font found - edit MONO_CANDIDATES_* for this machine")
+
+INTER_CANDIDATES = [
+    os.path.join(FONTS, "Inter-Regular.ttf"),
+    os.path.expanduser("~/Library/Fonts/Inter-VariableFont_opsz,wght.ttf"),
+    "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
+    "/Library/Fonts/Inter-Regular.ttf",
+]
+INTER_R = next((p for p in INTER_CANDIDATES if os.path.exists(p)), MONO_R)
 
 GAME_LOGOS = {
     "Dominion": os.path.join(REPO, "logos", "dominion_logo_v1_0",
@@ -228,7 +243,7 @@ def make_cover(rec, game, game_cfg, version, out_dir):
     d = ImageDraw.Draw(img)
     corner_banners(d)
     wordmark(d, 70, 60, 1.15)
-    d.text((70, 240), "A store-and-play system for", font=F(MONO_R, 40),
+    d.text((70, 240), "A store-and-play system for", font=F(INTER_R, 40),
            fill=GREY)
     logo_path = GAME_LOGOS.get(game)
     if logo_path and os.path.exists(logo_path):
@@ -277,7 +292,7 @@ def make_cover(rec, game, game_cfg, version, out_dir):
     # bottom band
     d.polygon([(0, H - 260), (W * 0.62, H - 260), (W * 0.56, H - 120),
                (0, H - 120)], fill=GREEN)
-    band = f"{game_disp} {display}"
+    band = display if not rec["name"] else f"{game_disp} {display}"
     fb2 = F(MONO_B, 84)
     while d.textlength(band, font=fb2) > 1000 and fb2.size > 40:
         fb2 = F(MONO_B, fb2.size - 4)

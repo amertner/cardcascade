@@ -19,7 +19,7 @@ Usage:
     python3 dominion_labels.py --step              # also export STEP files
 
 Requires: pip install build123d
-Font: put Orbitron-Bold.ttf next to this script.
+Font: Orbitron-Bold.ttf lives in the fonts/ directory.
 """
 
 import argparse
@@ -115,11 +115,12 @@ NAMES = [
 
 def find_font() -> str:
     here = Path(__file__).resolve().parent
-    for cand in (here / FONT_FILE, Path.cwd() / FONT_FILE):
+    for base in (here / "fonts", here, Path.cwd() / "fonts", Path.cwd()):
+        cand = base / FONT_FILE
         if cand.exists():
             return str(cand)
     sys.exit(
-        f"Font file '{FONT_FILE}' not found next to the script.\n"
+        f"Font file '{FONT_FILE}' not found in fonts/ or next to the script.\n"
         "Download Orbitron (Bold) from https://fonts.google.com/specimen/Orbitron"
     )
 
