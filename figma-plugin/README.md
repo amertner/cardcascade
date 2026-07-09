@@ -21,6 +21,10 @@ configure/export/rename loop.
    - `{Box Sizes}` / `{Sleeves}` (any collection name) → the mode's name,
      e.g. `CC {Box Sizes}{Sleeves}` → `CC 202S.png` if the modes are
      named `202` and `S`.
+   - `{Sleeves:Sleeved=S,Unsleeved=U}` → the mode name mapped through
+     the given `name=value` pairs (unmapped modes fall back to their
+     name), so `CC {Box Sizes}{Sleeves:Sleeved=S,Unsleeved=U}` →
+     `CC 202S.png` without renaming any modes.
    - `{text:Model ref}` → the contents of the text layer named
      `Model ref` *after* the modes are applied — useful to put the full
      model number in the filename.

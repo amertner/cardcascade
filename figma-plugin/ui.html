@@ -29,10 +29,11 @@
 
 <fieldset><legend>Output</legend>
   <label>Filename pattern
-    <input type="text" id="pattern" value="CC {Box Sizes}{Sleeves}">
+    <input type="text" id="pattern" value="CC {Box Sizes}{Sleeves:Sleeved=S,Unsleeved=U}">
   </label>
-  <div class="hint">{Collection Name} → mode name &nbsp;·&nbsp; {text:Layer Name} → that
-    text layer's contents (e.g. {text:Model ref})</div>
+  <div class="hint">{Collection Name} → mode name &nbsp;·&nbsp;
+    {Sleeves:Sleeved=S,Unsleeved=U} → mapped mode name &nbsp;·&nbsp;
+    {text:Layer Name} → that text layer's contents (e.g. {text:Model ref})</div>
   <div class="row">
     <div><label>Scale <input type="number" id="scale" value="1" min="0.25" max="4" step="0.25"></label></div>
     <div><label>Settle ms <input type="number" id="settle" value="150" min="0" max="2000" step="50"></label></div>
