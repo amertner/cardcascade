@@ -69,8 +69,22 @@ figma.ui.onmessage = async (msg) => {
       await new Promise((r) => setTimeout(r, msg.settleMs || 150));
 
       let name = msg.pattern;
-      for (const { col, mode } of combo)
-        name = name.split("{" + col.name + "}").join(mode.name);
+      for (const { col, mode } of combo) {
+        // {Sleeves} -> mode name; {Sleeves:Sleeved=S,Unsleeved=U} -> mapped
+        const re = new RegExp(
+          "\\{" + col.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+          "(?::([^}]*))?\\}", "g");
+        name = name.replace(re, (_, mapStr) => {
+          if (mapStr) {
+            for (const pair of mapStr.split(",")) {
+              const i = pair.indexOf("=");
+              if (i > 0 && pair.slice(0, i).trim() === mode.name)
+                return pair.slice(i + 1).trim();
+            }
+          }
+          return mode.name;
+        });
+      }
       // {text:Layer Name} -> contents of that text layer after the flip
       const tm = name.match(/\{text:([^}]+)\}/);
       if (tm) {
