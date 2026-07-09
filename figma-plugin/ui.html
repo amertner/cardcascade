@@ -1,0 +1,126 @@
+<style>
+  body { font: 12px/1.5 Inter, system-ui, sans-serif; margin: 14px; color: #222; }
+  h3 { margin: 0 0 8px; font-size: 13px; }
+  .sel { color: #0a6c3c; font-weight: 600; }
+  .warn { color: #b3261e; }
+  fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 10px; padding: 8px 10px; }
+  legend { font-weight: 600; padding: 0 4px; }
+  label { display: block; margin: 2px 0; }
+  .modes { color: #888; margin-left: 20px; }
+  input[type=text], input[type=number] { width: 100%; box-sizing: border-box; padding: 5px 6px;
+    border: 1px solid #ccc; border-radius: 4px; font: inherit; }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  button { width: 100%; padding: 8px; border: 0; border-radius: 6px; background: #18a058;
+    color: #fff; font: inherit; font-weight: 600; cursor: pointer; margin-top: 6px; }
+  button:disabled { background: #bbb; }
+  #log { margin-top: 8px; max-height: 130px; overflow-y: auto; color: #555;
+    font-family: ui-monospace, monospace; font-size: 11px; white-space: pre-wrap; }
+  a#dl { display: none; margin-top: 8px; text-align: center; padding: 8px; border-radius: 6px;
+    background: #2456a6; color: #fff; text-decoration: none; font-weight: 600; }
+  .hint { color: #888; }
+</style>
+
+<h3>Selected: <span id="selname" class="warn">nothing — select the Card</span></h3>
+
+<fieldset id="cols"><legend>Iterate these variable collections</legend>
+  <div class="hint">loading…</div>
+</fieldset>
+
+<fieldset><legend>Output</legend>
+  <label>Filename pattern
+    <input type="text" id="pattern" value="CC {Box Sizes}{Sleeves}">
+  </label>
+  <div class="hint">{Collection Name} → mode name &nbsp;·&nbsp; {text:Layer Name} → that
+    text layer's contents (e.g. {text:Model ref})</div>
+  <div class="row">
+    <div><label>Scale <input type="number" id="scale" value="1" min="0.25" max="4" step="0.25"></label></div>
+    <div><label>Settle ms <input type="number" id="settle" value="150" min="0" max="2000" step="50"></label></div>
+  </div>
+</fieldset>
+
+<button id="go">Export all combinations</button>
+<a id="dl">Download zip</a>
+<div id="log"></div>
+
+<script>
+const files = [];
+const $ = (id) => document.getElementById(id);
+const log = (t) => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
+
+onmessage = (e) => {
+  const m = e.data.pluginMessage;
+  if (!m) return;
+  if (m.type === "init") {
+    const box = $("cols"); box.innerHTML = "";
+    for (const c of m.collections) {
+      const lab = document.createElement("label");
+      lab.innerHTML = `<input type="checkbox" value="${c.id}" data-name="${c.name}"> ${c.name}` +
+        `<div class="modes">${c.modes.map(x => x.name).join(" · ")}</div>`;
+      box.appendChild(lab);
+    }
+    setSel(m.selection);
+  }
+  if (m.type === "selection") setSel(m.selection);
+  if (m.type === "file") {
+    files.push({ name: m.name, bytes: new Uint8Array(m.bytes) });
+    log(`${m.done}/${m.total}  ${m.name}`);
+  }
+  if (m.type === "done") { buildZip(); $("go").disabled = false; }
+  if (m.type === "error") { log("ERROR: " + m.text); $("go").disabled = false; }
+};
+
+function setSel(name) {
+  const el = $("selname");
+  if (name) { el.textContent = name; el.className = "sel"; }
+  else { el.textContent = "nothing — select the Card"; el.className = "warn"; }
+}
+
+$("go").onclick = () => {
+  const ids = [...document.querySelectorAll("#cols input:checked")].map(i => i.value);
+  files.length = 0; $("dl").style.display = "none"; $("log").textContent = "";
+  $("go").disabled = true;
+  parent.postMessage({ pluginMessage: {
+    type: "export", collectionIds: ids, pattern: $("pattern").value,
+    scale: parseFloat($("scale").value) || 1,
+    settleMs: parseInt($("settle").value) || 150 } }, "*");
+};
+
+// ---- minimal store-only zip ----
+const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return (b) => { let c = 0xFFFFFFFF;
+    for (let i = 0; i < b.length; i++) c = t[(c ^ b[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0; }; })();
+
+function buildZip() {
+  const enc = new TextEncoder(), chunks = [], central = [];
+  let offset = 0;
+  const u16 = (v) => new Uint8Array([v & 255, (v >> 8) & 255]);
+  const u32 = (v) => new Uint8Array([v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255]);
+  for (const f of files) {
+    const name = enc.encode(f.name), crc = CRC(f.bytes);
+    const head = [u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(f.bytes.length), u32(f.bytes.length), u16(name.length), u16(0)];
+    central.push({ name, crc, size: f.bytes.length, offset });
+    for (const p of [...head, name, f.bytes]) { chunks.push(p); offset += p.length; }
+  }
+  const cdStart = offset; let cdLen = 0;
+  for (const c of central) {
+    const rec = [u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(c.crc), u32(c.size), u32(c.size), u16(c.name.length), u16(0), u16(0),
+      u16(0), u16(0), u32(0), u32(c.offset)];
+    for (const p of [...rec, c.name]) { chunks.push(p); cdLen += p.length; }
+  }
+  const end = [u32(0x06054b50), u16(0), u16(0), u16(central.length), u16(central.length),
+    u32(cdLen), u32(cdStart), u16(0)];
+  chunks.push(...end);
+  const blob = new Blob(chunks, { type: "application/zip" });
+  const a = $("dl");
+  a.href = URL.createObjectURL(blob);
+  a.download = "cc-posters.zip";
+  a.style.display = "block";
+  a.textContent = `Download zip (${files.length} files, ${(blob.size / 1e6).toFixed(1)} MB)`;
+  log("zip ready");
+}
+</script>
