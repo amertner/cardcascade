@@ -8,10 +8,12 @@ name, a 3-step staircase logo in the bottom-left corner and a small
 Geometry replicated from the original Onshape design (SideLabel STEP
 export). Font: Orbitron Bold (Google Fonts, OFL licence).
 
+All output goes to labels/<game>/.
+
 Usage:
-    python3 dominion_labels.py                     # per-label files, Dominion
+    python3 dominion_labels.py                     # one 3MF per set (default)
     python3 dominion_labels.py --plates            # bulk multi-plate 3MFs
-    python3 dominion_labels.py --sets              # one 3MF per set
+    python3 dominion_labels.py --individual        # per-label files
     python3 dominion_labels.py --game FCM --plates
     python3 dominion_labels.py --names "Seaside,Renaissance" --widths 32,53
     python3 dominion_labels.py --step              # also export STEP files
@@ -741,19 +743,18 @@ def main():
     ap.add_argument("--names", help="comma-separated set names (default: cc.cfg)")
     ap.add_argument("--widths", help="comma-separated widths in mm "
                                      "(default: the game's width lists)")
-    ap.add_argument("--out", default="labels_out", help="output directory")
     ap.add_argument("--step", action="store_true", help="also export STEP files")
     ap.add_argument("--no-blank", action="store_true", help="skip the blank label")
     ap.add_argument("--plain", action="store_true",
                     help="vanilla 3MF without Bambu Studio filament metadata")
     ap.add_argument("--plates", action="store_true",
                     help="write one multi-plate Bambu project 3MF "
-                         "instead of individual label files")
-    ap.add_argument("--sets", action="store_true",
-                    help="write one 3MF per set (default / split boxes / "
-                         "spares plates) into <out>/sets/")
+                         "instead of the default per-set files")
+    ap.add_argument("--individual", action="store_true",
+                    help="write one 3MF per individual label instead of the "
+                         "default per-set files")
     ap.add_argument("--version", default="6_0",
-                    help="version tag in --sets file names "
+                    help="version tag in per-set file names "
                          "('<Set> Labels <version>.3mf', default 6_0)")
     args = ap.parse_args()
 
@@ -795,12 +796,11 @@ def main():
                                       widths_for(is_split))]
 
     font = LabelFont(find_font())
-    outdir = Path(args.out)
+    outdir = Path("labels") / game
     outdir.mkdir(parents=True, exist_ok=True)
 
-    if args.sets:
-        if records is None:
-            sys.exit("--sets needs a cc.cfg with box=/split= data")
+    if not args.plates and not args.individual and records is not None:
+        # default: one 3MF per set (whole box / split boxes / spares plates)
         setdir = outdir / "sets"
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:

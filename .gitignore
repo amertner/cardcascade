@@ -1,4 +1,4 @@
 .venv/
-labels_out/
+labels/
 __pycache__/
 .DS_Store
