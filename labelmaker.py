@@ -11,12 +11,12 @@ export). Font: Orbitron Bold (Google Fonts, OFL licence).
 All output goes to labels/<game>/.
 
 Usage:
-    python3 dominion_labels.py                     # one 3MF per set (default)
-    python3 dominion_labels.py --plates            # bulk multi-plate 3MFs
-    python3 dominion_labels.py --individual        # per-label files
-    python3 dominion_labels.py --game FCM --plates
-    python3 dominion_labels.py --names "Seaside,Renaissance" --widths 32,53
-    python3 dominion_labels.py --step              # also export STEP files
+    python3 labelmaker.py                     # one 3MF per set (default)
+    python3 labelmaker.py --plates            # bulk multi-plate 3MFs
+    python3 labelmaker.py --individual        # per-label files
+    python3 labelmaker.py --game FCM --plates
+    python3 labelmaker.py --names "Seaside,Renaissance" --widths 32,53
+    python3 labelmaker.py --step              # also export STEP files
 
 Requires: pip install build123d
 Font: Orbitron-Bold.ttf lives in the fonts/ directory.
@@ -66,6 +66,12 @@ GAMES = {
         "front": 156.4,
         "widths": [156.4, 45.0, 32.0, 20.0],
         "split_widths": [156.4, 45.0, 32.0, 20.0],
+        "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
+    },
+    "Compile": {
+        "front": 156.4,
+        "widths": [156.4, 45.0, 20.0],
+        "split_widths": [],
         "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
 }

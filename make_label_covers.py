@@ -12,7 +12,7 @@ captions, FULL SET / PARTIAL SETS chips, and a bottom band naming the set.
 
 Covers are written to <out>/<game>/sets/, next to the per-set .3mf files.
 
-Requires: pillow (pip install pillow). Reads cc.cfg via dominion_labels.
+Requires: pillow (pip install pillow). Reads cc.cfg via labelmaker.
 """
 import argparse
 import os
@@ -21,7 +21,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import dominion_labels as dl
+import labelmaker as dl
 
 REPO = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(REPO, "fonts")

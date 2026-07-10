@@ -22,28 +22,28 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 
 ```bash
 # individual label files for every cc.cfg entry of the default game (Dominion)
-.venv/bin/python dominion_labels.py
+.venv/bin/python labelmaker.py
 
 # multi-plate Bambu project 3MFs (whole sets + split-box labels)
-.venv/bin/python dominion_labels.py --plates
+.venv/bin/python labelmaker.py --plates
 
 # one 3MF per set (default / split boxes / spares plates) in labels_out/sets/
-.venv/bin/python dominion_labels.py --sets
+.venv/bin/python labelmaker.py --sets
 
 # another game (its own cc.cfg entries and width lists)
-.venv/bin/python dominion_labels.py --game FCM --plates
+.venv/bin/python labelmaker.py --game FCM --plates
 
 # specific sets / widths
-.venv/bin/python dominion_labels.py --names "Seaside,Renaissance" --widths 32,53
+.venv/bin/python labelmaker.py --names "Seaside,Renaissance" --widths 32,53
 
 # also write STEP files (e.g. to re-import into Onshape)
-.venv/bin/python dominion_labels.py --step
+.venv/bin/python labelmaker.py --step
 
 # skip the blank label
-.venv/bin/python dominion_labels.py --no-blank
+.venv/bin/python labelmaker.py --no-blank
 
 # vanilla 3MF without the Bambu Studio filament metadata
-.venv/bin/python dominion_labels.py --plain
+.venv/bin/python labelmaker.py --plain
 ```
 
 Output lands in `labels_out/` as `<Name>_<width>mm.3mf`, or as
@@ -94,7 +94,7 @@ FCM,Milestones,side=FCM/M,box=20/32@144 Card:M5.6.6
 ```
 
 If there is no `cc.cfg` either, the built-in `NAMES` list at the top
-of `dominion_labels.py` is used.
+of `labelmaker.py` is used.
 
 ## Per-set project files (`--sets`)
 
