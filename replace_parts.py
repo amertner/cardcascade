@@ -414,6 +414,114 @@ def main():
             fail(f"object rename {old!r}: matched {n} objects, need exactly 1")
         print(f"object renamed: {old!r} -> {new!r}")
 
+    # -------- wipe towers: keep each plate's tower clear of its objects ----
+    final_plates = []
+    for pm in re.finditer(r'<plate>(.*?)</plate>', cfg, re.S):
+        pid = int(re.search(r'plater_id" value="(\d+)"', pm.group(1)).group(1))
+        final_plates.append((pid, re.findall(r'object_id" value="(\d+)"',
+                                             pm.group(1))))
+    cols = plate_columns(len(final_plates))
+    tower_w = float(ps.get("prime_tower_width", 35))
+    margin = 0.0        # detection: only true body overlap counts
+    place_margin = 5.0  # placement: moved towers get real clearance
+    wx = [float(v) for v in ps.get("wipe_tower_x", [])]
+    wy = [float(v) for v in ps.get("wipe_tower_y", [])]
+    while len(wx) < len(final_plates):
+        wx.append(165.0)
+    while len(wy) < len(final_plates):
+        wy.append(bed_d * 0.86)
+    ex = [tuple(map(float, p.split("x")))
+          for p in ps.get("bed_exclude_area", [])]
+    ex_rect = ((min(p[0] for p in ex), min(p[1] for p in ex),
+                max(p[0] for p in ex), max(p[1] for p in ex)) if ex else None)
+
+    items_tf = {m.group(1): [float(v) for v in m.group(2).split()]
+                for m in re.finditer(
+                    r'<item objectid="(\d+)"[^>]*transform="([^"]+)"', xml)}
+    CELL = 2.0
+    gw, gh = int(bed_w / CELL) + 2, int(bed_d / CELL) + 2
+    mesh_cache = {}
+
+    def plate_grid(objs, origin):
+        """cell-bucketed plate-local vertices for exact rectangle tests."""
+        cells = {}
+        for oid in objs:
+            t = items_tf.get(oid)
+            if not t:
+                continue
+            for path, cid in comps.get(oid, []):
+                path = path.lstrip("/")
+                if path not in mesh_cache:
+                    mesh_cache[path] = parse_meshes((work / path).read_text())
+                verts, _ = mesh_cache[path][int(cid)]
+                for x, y, z in verts:
+                    lx = x * t[0] + y * t[3] + z * t[6] + t[9] - origin[0]
+                    ly = x * t[1] + y * t[4] + z * t[7] + t[10] - origin[1]
+                    if -CELL <= lx <= bed_w + CELL and \
+                            -CELL <= ly <= bed_d + CELL:
+                        cells.setdefault(
+                            (int(lx // CELL), int(ly // CELL)),
+                            []).append((lx, ly))
+        return cells
+
+    def rect_free(cells, x0, y0, x1, y1):
+        if ex_rect and not (x1 < ex_rect[0] or x0 > ex_rect[2]
+                            or y1 < ex_rect[1] or y0 > ex_rect[3]):
+            return False
+        for gx in range(int(x0 // CELL) - 1, int(x1 // CELL) + 2):
+            for gy in range(int(y0 // CELL) - 1, int(y1 // CELL) + 2):
+                for px, py in cells.get((gx, gy), ()):
+                    if x0 <= px <= x1 and y0 <= py <= y1:
+                        return False
+        return True
+
+    def tower_ok(pre, x, y, m):
+        # tower body must sit on the bed (Bambu's own default is flush to
+        # the back edge); the clearance margin applies to objects only
+        if x < 0 or y < 0 or x + tower_w > bed_w or y + tower_w > bed_d:
+            return False
+        return rect_free(pre, x - m, y - m,
+                         x + tower_w + m, y + tower_w + m)
+
+    moved = False
+    for idx, (pid, objs) in enumerate(final_plates):
+        if not objs:
+            continue
+        origin = ((pid - 1) % cols * stride_x,
+                  -((pid - 1) // cols) * stride_y)
+        pre = plate_grid(objs, origin)
+        x, y = wx[idx], wy[idx]
+        if tower_ok(pre, x, y, margin):
+            continue
+        best = None
+        for m in (place_margin, margin):
+            step = CELL
+            gx = 0.0
+            while gx + tower_w <= bed_w:
+                gy = 0.0
+                while gy + tower_w <= bed_d:
+                    if tower_ok(pre, gx, gy, m):
+                        d2 = (gx - x) ** 2 + (gy - y) ** 2
+                        if best is None or d2 < best[0]:
+                            best = (d2, gx, gy)
+                    gy += step
+                gx += step
+            if best:
+                break
+        if best is None:
+            print(f"plate {pid}: wipe tower collides but no free spot found "
+                  f"- left at ({x:g},{y:g})")
+            continue
+        wx[idx], wy[idx] = round(best[1], 3), round(best[2], 3)
+        moved = True
+        print(f"plate {pid}: wipe tower ({x:g},{y:g}) collides -> "
+              f"moved to ({wx[idx]:g},{wy[idx]:g})")
+    if moved:
+        ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
+        ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
+        (work / "Metadata/project_settings.config").write_text(
+            json.dumps(ps, ensure_ascii=False, indent=4))
+
     root_p.write_text(xml)
     cfg_p.write_text(cfg)
 
