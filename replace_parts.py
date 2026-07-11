@@ -86,12 +86,46 @@ def mesh_xml(verts, tris):
 
 
 def load_replacement(path):
-    text = zipfile.ZipFile(path).read("3D/3dmodel.model").decode()
+    zf = zipfile.ZipFile(path)
+    text = zf.read("3D/3dmodel.model").decode()
     unit = re.search(r'unit="(\w+)"', text).group(1)
     scale = {"meter": 1000.0, "millimeter": 1.0}.get(unit)
     if scale is None:
         fail(f"{path}: unsupported unit {unit!r}")
-    return parse_meshes(text, scale)
+    meshes = parse_meshes(text, scale)
+    if meshes:
+        return meshes
+    # Bambu Studio re-export: root only references components in sub-model
+    # files; part meshes are centred and the CAD position lives in the
+    # upload's own model_settings source_offset (matching the fingerprint
+    # convention of the published projects).
+    comps = re.findall(r'<component p:path="([^"]+)" objectid="(\d+)"', text)
+    try:
+        ms = zf.read("Metadata/model_settings.config").decode()
+    except KeyError:
+        fail(f"{path}: no meshes in root model and no model_settings")
+    offs = []
+    for pm in re.finditer(r'<part id="\d+"[^>]*>(.*?)</part>', ms, re.S):
+        offs.append(tuple(
+            float(re.search(rf'key="source_offset_{a}" value="([^"]*)"',
+                            pm.group(1)).group(1)) for a in "xyz"))
+    if len(offs) != len(comps):
+        fail(f"{path}: {len(comps)} components but {len(offs)} parts "
+             f"in its model_settings")
+    subs = {}
+    out = {}
+    for i, ((p, oid), off) in enumerate(zip(comps, offs), 1):
+        p = p.lstrip("/")
+        if p not in subs:
+            st = zf.read(p).decode()
+            su = re.search(r'unit="(\w+)"', st)
+            sscale = {"meter": 1000.0, "millimeter": 1.0}.get(
+                su.group(1) if su else "millimeter")
+            subs[p] = parse_meshes(st, sscale)
+        verts, tris = subs[p][int(oid)]
+        out[i] = ([(x + off[0], y + off[1], z + off[2])
+                   for x, y, z in verts], tris)
+    return out
 
 
 def plate_columns(n):
