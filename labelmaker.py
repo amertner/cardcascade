@@ -760,9 +760,9 @@ def main():
     ap.add_argument("--individual", action="store_true",
                     help="write one 3MF per individual label instead of the "
                          "default per-set files")
-    ap.add_argument("--version", default="6_0",
+    ap.add_argument("--version", default="6_2",
                     help="version tag in per-set file names "
-                         "('<Set> Labels <version>.3mf', default 6_0)")
+                         "('<Set> Labels <version>.3mf', default 6_2)")
     args = ap.parse_args()
 
     game = next((g for g in GAMES if g.lower() == args.game.lower()), None)

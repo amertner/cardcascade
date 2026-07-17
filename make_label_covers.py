@@ -7,7 +7,7 @@ stacked UNSLEEVED/SLEEVED corner banners, a size-graded stack of the
 set's actual labels (front, box sides, split-box labels) with type/width
 captions, FULL SET / PARTIAL SETS chips, and a bottom band naming the set.
 
-    python3 make_label_covers.py [--out labels] [--version 6.0]
+    python3 make_label_covers.py [--out labels] [--version 6.2]
                                  [--sets "Renaissance,Base Set"]
 
 Covers are written to <out>/<game>/sets/, next to the per-set .3mf files.
@@ -325,7 +325,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=os.path.join(REPO, "labels"),
                     help="base labels dir; covers go to <out>/<game>/sets")
-    ap.add_argument("--version", default="6.0")
+    ap.add_argument("--version", default="6.2")
     ap.add_argument("--sets", default=None,
                     help="comma-separated set names (default: all)")
     args = ap.parse_args()
