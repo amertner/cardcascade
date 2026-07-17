@@ -282,8 +282,9 @@ def main():
         """Remove an object entirely: meshes (if exclusively owned), root
         entries, settings, assemble and plate-instance references."""
         nonlocal xml, cfg
-        for f, _cid in comps.get(oid, []):
-            if sum(1 for c in comps.values() for ff, _ in c if ff == f) == 1:
+        for f in dict.fromkeys(f for f, _cid in comps.get(oid, [])):
+            if not any(ff == f for other, c in comps.items() if other != oid
+                       for ff, _ in c):
                 (work / f.lstrip("/")).unlink()
                 rp = work / "3D/_rels/3dmodel.model.rels"
                 rp.write_text(re.sub(
