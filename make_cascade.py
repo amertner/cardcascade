@@ -18,7 +18,10 @@ Usage:
   --part NAME=FILE   replace the geometry of the object called NAME with
                      the bodies in FILE (multi-part objects are matched
                      body-to-part by name; single-part objects need a
-                     single-body file).
+                     single-body file). NAME#2=FILE targets only the 2nd
+                     instance (in plate order), giving it its own mesh
+                     file when the template shares one across instances —
+                     use this for models with differently-sized holders.
   --count NAME=N     keep only the first N instances (in plate order) of
                      the objects called NAME.
   --rename OLD=NEW   rename an object (exact match).
@@ -38,6 +41,7 @@ import re
 import shutil
 import sys
 import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -215,10 +219,55 @@ def main():
         name, _, file = spec.partition("=")
         if not _:
             fail(f"--part needs NAME=FILE, got {spec!r}")
-        targets = [oid for oid, n in objects.items() if n == name]
-        if not targets:
+        inst = None
+        im = re.match(r'^(.*)#(\d+)$', name)
+        if im:
+            name, inst = im.group(1), int(im.group(2))
+        in_order = [oid for _, _, objs in sorted(plates) for oid in objs
+                    if objects.get(oid) == name]
+        if not in_order:
             fail(f"no object named {name!r} "
                  f"(names: {sorted(set(objects.values()))})")
+        if inst is not None:
+            if not 1 <= inst <= len(in_order):
+                fail(f"{name}#{inst}: only {len(in_order)} instance(s)")
+            targets = [in_order[inst - 1]]
+        else:
+            targets = in_order
+
+        # targeted instances get their own copy of a mesh file the
+        # template shares with instances not replaced by this spec
+        for t in targets:
+            for pos, (f, cid) in enumerate(list(comps[t])):
+                if not any(ff == f for other, cl in comps.items()
+                           if other not in targets for ff, _ in cl):
+                    continue
+                nums = [int(nm.group(1))
+                        for p in (work / "3D/Objects").glob("object_*.model")
+                        for nm in [re.match(r'object_(\d+)\.model$', p.name)]
+                        if nm]
+                newf = f"/3D/Objects/object_{max(nums) + 1}.model"
+                text = (work / f.lstrip("/")).read_text()
+                text = re.sub(r'(p:UUID=")[^"]+(")',
+                              lambda m: m.group(1) + str(uuid.uuid4())
+                              + m.group(2), text)
+                (work / newf.lstrip("/")).write_text(text)
+                bm = re.search(rf'<object id="{t}"[^>]*>.*?</object>',
+                               xml, re.S)
+                nblk, n = re.subn(
+                    rf'(p:path="){re.escape(f)}("[^>]*objectid="{cid}")',
+                    rf'\g<1>{newf}\g<2>', bm.group(0), count=1)
+                if n != 1:
+                    fail(f"{name}: could not repoint component {cid} "
+                         f"of object {t}")
+                xml = xml[:bm.start()] + nblk + xml[bm.end():]
+                comps[t][pos] = (newf, cid)
+                print(f"  {name}: instance {t} split off into {newf}")
+        for t in targets[1:]:
+            if comps[t] != comps[targets[0]]:
+                fail(f"{name}: instances use different mesh files; "
+                     f"target them individually with {name}#N=FILE")
+
         bodies = load_export(file)
         src_name = re.sub(r'^[0-9a-f]{8}-', '', Path(file).name)
 
@@ -470,6 +519,25 @@ def main():
                  r'[^<]*</metadata>', "", xml)
     xml = re.sub(r'(<metadata name="ModificationDate">)[^<]*(</metadata>)',
                  rf'\g<1>{datetime.date.today().isoformat()}\g<2>', xml)
+
+    # sub-model housekeeping: drop unreferenced mesh files (including the
+    # empty husks Bambu leaves behind) and rebuild the rels from scratch
+    refs = []
+    for cl in comps.values():
+        for f, _ in cl:
+            if f not in refs:
+                refs.append(f)
+    for p in (work / "3D/Objects").glob("*.model"):
+        if f"/3D/Objects/{p.name}" not in refs:
+            p.unlink()
+    (work / "3D/_rels/3dmodel.model.rels").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/'
+        'package/2006/relationships">\n'
+        + "".join(f' <Relationship Target="{f}" Id="rel-{i}" Type='
+                  '"http://schemas.microsoft.com/3dmanufacturing/2013/01/'
+                  '3dmodel"/>\n' for i, f in enumerate(refs, 1))
+        + '</Relationships>')
 
     cut_p = work / "Metadata/cut_information.xml"
     if cut_p.exists():
