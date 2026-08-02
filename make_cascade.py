@@ -152,15 +152,24 @@ def main():
     # ---- template structure ----
     objects = {}        # object id -> name
     parts = {}          # object id -> [(part id, part name)]
+    part_ext = {}       # object id -> {part id: extruder (object default applied)}
     for om in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):
         oid = om.group(1)
         objects[oid] = re.search(r'key="name" value="([^"]*)"',
                                  om.group(2)).group(1)
-        parts[oid] = [
-            (pm.group(1),
-             re.search(r'key="name" value="([^"]*)"', pm.group(2)).group(1))
-            for pm in re.finditer(r'<part id="(\d+)"[^>]*>(.*?)</part>',
-                                  om.group(2), re.S)]
+        head = om.group(2).split("<part", 1)[0]
+        objdef = re.search(r'key="extruder" value="([^"]*)"', head)
+        objdef = objdef.group(1) if objdef else "1"
+        parts[oid] = []
+        part_ext[oid] = {}
+        for pm in re.finditer(r'<part id="(\d+)"[^>]*>(.*?)</part>',
+                              om.group(2), re.S):
+            pid_ = pm.group(1)
+            pname = re.search(r'key="name" value="([^"]*)"',
+                              pm.group(2)).group(1)
+            pex = re.search(r'key="extruder" value="([^"]*)"', pm.group(2))
+            parts[oid].append((pid_, pname))
+            part_ext[oid][pid_] = pex.group(1) if pex else objdef
     comps = {}          # object id -> [(path, component id)]
     for om in re.finditer(
             r'<object id="(\d+)"[^>]*>\s*<components>(.*?)</components>',
@@ -287,11 +296,34 @@ def main():
                     fail(f"{file}: duplicate body name {b[0]!r}")
                 by_name[b[0]] = b
             mapping = {}
+            unmatched_parts = []            # template parts with no same-named body
+            used = set()
             for pid_, pname in plist:
-                if pname not in by_name:
-                    fail(f"{name} part {pname!r}: no body of that name in "
-                         f"{file} (bodies: {sorted(by_name)})")
-                mapping[pid_] = by_name[pname]
+                if pname in by_name:
+                    mapping[pid_] = by_name[pname]
+                    used.add(pname)
+                else:
+                    unmatched_parts.append((pid_, pname))
+            # A revision may rename some bodies while keeping the count (e.g.
+            # sleeved toppers renumber Part 9/10 -> Part 3/4). Pair the
+            # leftovers, but only when every unmatched template part shares one
+            # extruder - then which slot a body lands in cannot change its
+            # colour, so there is nothing to guess. Positions are recomputed
+            # from each body's own geometry below, so slot identity is cosmetic.
+            if unmatched_parts:
+                leftover = sorted((b for n, b in by_name.items()
+                                   if n not in used), key=lambda x: x[0])
+                exs = {part_ext[oid][pid_] for pid_, _ in unmatched_parts}
+                if len(exs) > 1:
+                    fail(f"{name}: {len(unmatched_parts)} template part(s) have "
+                         f"no same-named body in {file} and use mixed extruders "
+                         f"{sorted(exs)} - cannot reconcile unambiguously "
+                         f"(template-only: {sorted(p for _, p in unmatched_parts)}, "
+                         f"body-only: {sorted(b[0] for b in leftover)})")
+                for (pid_, pname), b in zip(sorted(unmatched_parts), leftover):
+                    mapping[pid_] = b
+                    print(f"  {name}: reconciled body {b[0]!r} -> part {pname!r} "
+                          f"(extruder {part_ext[oid][pid_]})")
 
         # object frame = centre of the whole assembly's CAD bbox
         all_verts = [v for _, verts, _ in mapping.values() for v in verts]
@@ -550,6 +582,32 @@ def main():
                 y0 += depth + args.gap
             print(f"plate {pid}: {len(objs)} object(s) in "
                   f"{len(rows)} row(s)")
+
+        # nudge the whole plate off a corner exclude area if centring
+        # clipped it (e.g. a near-bed-width box on a P1P, whose 18x28 mm
+        # bottom-left corner is reserved). Shift in x away from the exclude
+        # by just enough to clear it, provided everything stays on the bed.
+        if ex_obb and placed:
+            ex_x0, ex_y0, ex_x1, ex_y1 = obb_aabb(ex_obb)
+            min_x0 = min(obb_aabb(ob)[0] for _, ob in placed)
+            max_x1 = max(obb_aabb(ob)[2] for _, ob in placed)
+            left = (ex_x0 + ex_x1) / 2 < bed_w / 2   # exclude on the left?
+            dx = 0.0
+            for _, ob in placed:
+                x0, y0, x1, y1 = obb_aabb(ob)
+                if y0 >= ex_y1 + CLEARANCE or y1 <= ex_y0 - CLEARANCE:
+                    continue                          # clears it in y already
+                if left and x0 < ex_x1 + CLEARANCE and x1 > ex_x0:
+                    dx = max(dx, ex_x1 + CLEARANCE - x0 + 0.5)
+                elif not left and x1 > ex_x0 - CLEARANCE and x0 < ex_x1:
+                    dx = min(dx, ex_x0 - CLEARANCE - x1 - 0.5)
+            if dx and 0 <= min_x0 + dx and max_x1 + dx <= bed_w:
+                placed = [(oid, (ob[0] + dx,) + ob[1:]) for oid, ob in placed]
+                for oid, _ in placed:
+                    th, x, y = placements[oid]
+                    placements[oid] = (th, x + dx, y)
+                print(f"plate {pid}: shifted {dx:+.1f} mm in x to clear the "
+                      "bed exclude area")
 
         # validation: bed bounds, exclude area, mutual clearance
         for i, (oid, ob) in enumerate(placed):
