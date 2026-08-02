@@ -17,6 +17,14 @@ Usage:
                         bodies in FILE. Single- and multi-part objects
                         are supported; parts are matched by CAD-centre
                         fingerprint and keep their extruders/matrices.
+  --replace-all NAME=FILE
+                        like --replace, but for a NAME shared by several
+                        identical instances of one mesh (e.g. four copies
+                        of a holder). The shared mesh is swapped once and
+                        every instance keeps its own placement. For a
+                        single-part instance the CAD-centre match is a
+                        no-op, so a deliberately resized part is accepted
+                        with --allow-resize.
   --remove-plates TEXT  remove every plate whose name contains TEXT
                         (case-insensitive), including its objects, and
                         re-position remaining objects for Bambu's
@@ -139,6 +147,13 @@ def main():
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--replace", action="append", default=[],
                     metavar="NAME=FILE")
+    ap.add_argument("--replace-all", action="append", default=[],
+                    metavar="NAME=FILE",
+                    help="replace EVERY object named NAME with the bodies in "
+                         "FILE. The matched objects must be identical "
+                         "instances of one shared mesh (as Bambu stores "
+                         "duplicated parts); the mesh is swapped once and all "
+                         "instances keep their own placement.")
     ap.add_argument("--remove-plates", default=None, metavar="TEXT")
     ap.add_argument("--remove-objects", action="append", default=[],
                     metavar="PLATE:NAME1,NAME2",
@@ -186,24 +201,33 @@ def main():
         plates.append((pid, pname.group(1) if pname else "", objs))
 
     # ---------------- replacements ----------------
-    for spec in args.replace:
-        name, _, file = spec.partition("=")
-        if not _:
-            fail(f"--replace needs NAME=FILE, got {spec!r}")
-        targets = [oid for oid, (n, _) in objects.items() if n == name]
-        if len(targets) != 1:
-            fail(f"object named {name!r}: found {len(targets)}, need exactly 1 "
-                 f"(names: {sorted(set(n for n, _ in objects.values()))})")
-        oid = targets[0]
+    def apply_replacement(target_oids, name, file):
+        """Swap the mesh(es) of one object, or of several identical
+        instances that share one mesh (all of target_oids), keeping every
+        placement. target_oids[0] is the representative used for the mesh
+        rewrite; face counts are patched into every instance's block."""
+        nonlocal cfg, xml
+        rep = target_oids[0]
+        # every extra instance must reference the exact same components,
+        # i.e. be a true duplicate of one mesh - otherwise a single swap
+        # would silently miss some of them.
+        for oid in target_oids[1:]:
+            if comps.get(oid) != comps.get(rep):
+                fail(f"{name!r}: {len(target_oids)} objects share the name "
+                     "but are not instances of one shared mesh; "
+                     "--replace-all cannot swap them in one pass")
         new_meshes = load_replacement(file)
-        part_ids = [int(cid) for _, cid in comps[oid]]
+        part_ids = [int(cid) for _, cid in comps[rep]]
         if len(new_meshes) != len(part_ids):
             fail(f"{name}: original has {len(part_ids)} parts, "
                  f"{file} has {len(new_meshes)} bodies")
+        # a lone part vs a lone body needs no CAD-centre disambiguation, so
+        # the centre gate (which a deliberate resize would trip) is skipped
+        unique = len(part_ids) == 1 and len(new_meshes) == 1
 
         # source offsets = original CAD centres per part
-        blk = re.search(rf'<object id="{oid}">.*?</object>', cfg, re.S).group(0)
-        src, old_stats = {}, {}
+        blk = re.search(rf'<object id="{rep}">.*?</object>', cfg, re.S).group(0)
+        src = {}
         for pm in re.finditer(r'<part id="(\d+)"[^>]*>(.*?)</part>', blk, re.S):
             so = [re.search(rf'key="source_offset_{a}" value="([^"]*)"',
                             pm.group(2)) for a in "xyz"]
@@ -213,7 +237,7 @@ def main():
             src[int(pm.group(1))] = tuple(float(m.group(1)) for m in so)
 
         # old meshes per part (for K and the dimension gate)
-        files = {p for p, _ in comps[oid]}
+        files = {p for p, _ in comps[rep]}
         old_meshes = {}
         for f in files:
             old_meshes.update(parse_meshes((work / f.lstrip("/")).read_text()))
@@ -228,7 +252,7 @@ def main():
                 d = math.dist(centre(verts), src[pid])
                 if d < bd:
                     best, bd = nid, d
-            if bd > MATCH_MM:
+            if bd > MATCH_MM and not unique:
                 fail(f"{name} part {pid}: no new body within {MATCH_MM}mm of "
                      f"CAD centre {src[pid]} (closest: {bd:.2f}mm). Was the "
                      "replacement exported from the same CAD origin?")
@@ -243,12 +267,15 @@ def main():
                      "(--allow-resize to override)")
             mapping[pid] = best
             used.add(best)
+            note = "  [unique part: centre-match skipped]" \
+                if unique and bd > MATCH_MM else ""
             print(f"  {name} part {pid} <- body {best} "
                   f"(centre delta {bd:.3f}mm, size delta {delta:.3f}mm, "
-                  f"{len(new_meshes[best][1])} tris)")
+                  f"{len(new_meshes[best][1])} tris){note}")
 
         # write new meshes in the original file-coordinate convention
         counts = {}
+        new_fverts = {}   # pid -> new mesh vertices in file coordinates
         for f in files:
             fp = work / f.lstrip("/")
             s = fp.read_text()
@@ -260,22 +287,74 @@ def main():
                 k = tuple(s0 - m0 for s0, m0 in
                           zip(src[pid], centre(old_meshes[pid][0])))
                 shifted = [(x - k[0], y - k[1], z - k[2]) for x, y, z in verts]
+                new_fverts[pid] = shifted
                 counts[pid] = len(tris)
                 return m.group(1) + mesh_xml(shifted, tris) + m.group(3)
             s = re.sub(r'(<object id="(\d+)"[^>]*>).*?(</object>)',
                        repl, s, flags=re.S)
             fp.write_text(s)
 
-        # face counts in model_settings
-        nblk = blk
-        for pid, fc in counts.items():
-            nblk = re.sub(
-                rf'(<part id="{pid}".*?mesh_stat face_count=")\d+',
-                rf'\g<1>{fc}', nblk, flags=re.S)
-        nblk = re.sub(r'<metadata face_count="\d+"/>',
-                      f'<metadata face_count="{sum(counts.values())}"/>',
-                      nblk, count=1)
-        cfg = cfg.replace(blk, nblk)
+        # preserve bed seating: a resized body can move the object's lowest
+        # point (the CAD-centre anchor only holds when the size is stable),
+        # so shift each instance's item transform in z to keep its original
+        # world-space bottom exactly where it was. A same-size swap is a
+        # no-op here, so Box/Lid placements are untouched.
+        for oid in target_oids:
+            it = re.search(
+                rf'(<item objectid="{oid}"[^>]*transform=")([^"]+)(")', xml)
+            if not it:
+                continue
+            t = [float(v) for v in it.group(2).split()]
+
+            def world_z(vlist):
+                return min(x * t[2] + y * t[5] + z * t[8] + t[11]
+                           for x, y, z in vlist)
+            old_lo = min(world_z(old_meshes[pid][0]) for pid in mapping)
+            new_lo = min(world_z(new_fverts[pid]) for pid in mapping)
+            dz = old_lo - new_lo
+            if abs(dz) > 1e-6:
+                parts = it.group(2).split()
+                parts[11] = f"{t[11] + dz:.9g}"
+                xml = xml[:it.start(2)] + " ".join(parts) + xml[it.end(2):]
+                print(f"    {name} instance {oid}: re-seated z "
+                      f"{t[11]:.3f} -> {t[11] + dz:.3f} "
+                      f"(kept world bottom at {old_lo:.3f})")
+
+        # face counts in model_settings, for every instance's block
+        for oid in target_oids:
+            oblk = re.search(rf'<object id="{oid}">.*?</object>',
+                             cfg, re.S).group(0)
+            nblk = oblk
+            for pid, fc in counts.items():
+                nblk = re.sub(
+                    rf'(<part id="{pid}".*?mesh_stat face_count=")\d+',
+                    rf'\g<1>{fc}', nblk, flags=re.S)
+            nblk = re.sub(r'<metadata face_count="\d+"/>',
+                          f'<metadata face_count="{sum(counts.values())}"/>',
+                          nblk, count=1)
+            cfg = cfg.replace(oblk, nblk)
+
+    for spec in args.replace:
+        name, _, file = spec.partition("=")
+        if not _:
+            fail(f"--replace needs NAME=FILE, got {spec!r}")
+        targets = [oid for oid, (n, _) in objects.items() if n == name]
+        if len(targets) != 1:
+            fail(f"object named {name!r}: found {len(targets)}, need exactly 1 "
+                 f"(names: {sorted(set(n for n, _ in objects.values()))}). "
+                 "Use --replace-all for identical instances.")
+        apply_replacement(targets, name, file)
+
+    for spec in args.replace_all:
+        name, _, file = spec.partition("=")
+        if not _:
+            fail(f"--replace-all needs NAME=FILE, got {spec!r}")
+        targets = [oid for oid, (n, _) in objects.items() if n == name]
+        if not targets:
+            fail(f"object named {name!r}: none found "
+                 f"(names: {sorted(set(n for n, _ in objects.values()))})")
+        apply_replacement(targets, name, file)
+        print(f"  {name}: {len(targets)} instance(s) updated")
 
     # ---------------- object/plate removal ----------------
     def purge_object(oid):
