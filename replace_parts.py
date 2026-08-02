@@ -236,6 +236,15 @@ def main():
                      "cannot align safely")
             src[int(pm.group(1))] = tuple(float(m.group(1)) for m in so)
 
+        # per-part extruder (object default applied) - guards the reconcile
+        objdef = re.search(r'key="extruder" value="([^"]*)"',
+                           blk.split("<part", 1)[0])
+        objdef = objdef.group(1) if objdef else "1"
+        part_ex = {}
+        for pm in re.finditer(r'<part id="(\d+)"[^>]*>(.*?)</part>', blk, re.S):
+            pe = re.search(r'key="extruder" value="([^"]*)"', pm.group(2))
+            part_ex[int(pm.group(1))] = pe.group(1) if pe else objdef
+
         # old meshes per part (for K and the dimension gate)
         files = {p for p, _ in comps[rep]}
         old_meshes = {}
@@ -243,19 +252,7 @@ def main():
             old_meshes.update(parse_meshes((work / f.lstrip("/")).read_text()))
 
         # match new bodies to parts by CAD centre; dimension gate
-        mapping, used = {}, set()
-        for pid in part_ids:
-            best, bd = None, 1e9
-            for nid, (verts, _) in new_meshes.items():
-                if nid in used:
-                    continue
-                d = math.dist(centre(verts), src[pid])
-                if d < bd:
-                    best, bd = nid, d
-            if bd > MATCH_MM and not unique:
-                fail(f"{name} part {pid}: no new body within {MATCH_MM}mm of "
-                     f"CAD centre {src[pid]} (closest: {bd:.2f}mm). Was the "
-                     "replacement exported from the same CAD origin?")
+        def size_gate(pid, best, bd, extra=""):
             do = dims(old_meshes[pid][0])
             dn = dims(new_meshes[best][0])
             delta = max(abs(a - b) for a, b in zip(do, dn))
@@ -265,13 +262,59 @@ def main():
                      f"{tuple(round(x,2) for x in dn)} (max {delta:.2f}mm). "
                      "Wrong export? Check the embossed model number. "
                      "(--allow-resize to override)")
-            mapping[pid] = best
-            used.add(best)
-            note = "  [unique part: centre-match skipped]" \
-                if unique and bd > MATCH_MM else ""
             print(f"  {name} part {pid} <- body {best} "
                   f"(centre delta {bd:.3f}mm, size delta {delta:.3f}mm, "
-                  f"{len(new_meshes[best][1])} tris){note}")
+                  f"{len(new_meshes[best][1])} tris){extra}")
+
+        mapping, used = {}, set()
+        if unique:
+            # lone part vs lone body: no disambiguation, centre gate skipped
+            pid = part_ids[0]
+            best = next(iter(new_meshes))
+            bd = math.dist(centre(new_meshes[best][0]), src[pid])
+            size_gate(pid, best, bd,
+                      "  [unique part: centre-match skipped]"
+                      if bd > MATCH_MM else "")
+            mapping[pid] = best
+            used.add(best)
+        else:
+            # exact CAD-centre matches first (strict + size gate), then
+            # reconcile any parts a revision moved with the leftover bodies.
+            # Reconciling is safe only when those parts share one extruder,
+            # so which leftover body lands in which slot cannot change a
+            # colour (placement is by each body's own geometry, not the
+            # slot). Comparing a moved part to an unrelated old slot makes
+            # the size gate meaningless, so it is skipped for reconciled ones.
+            unmatched = []
+            for pid in part_ids:
+                best, bd = None, 1e9
+                for nid, (verts, _) in new_meshes.items():
+                    if nid in used:
+                        continue
+                    d = math.dist(centre(verts), src[pid])
+                    if d < bd:
+                        best, bd = nid, d
+                if bd <= MATCH_MM:
+                    size_gate(pid, best, bd)
+                    mapping[pid] = best
+                    used.add(best)
+                else:
+                    unmatched.append(pid)
+            if unmatched:
+                exs = {part_ex[pid] for pid in unmatched}
+                if len(exs) > 1:
+                    fail(f"{name}: parts {unmatched} have no body within "
+                         f"{MATCH_MM}mm of their CAD centre and use mixed "
+                         f"extruders {sorted(exs)} - cannot reconcile "
+                         "unambiguously")
+                leftover = [nid for nid in new_meshes if nid not in used]
+                for pid, nid in zip(sorted(unmatched), sorted(leftover)):
+                    mapping[pid] = nid
+                    used.add(nid)
+                    print(f"  {name} part {pid} <- body {nid} "
+                          f"(reconciled: no CAD-centre match, "
+                          f"extruder {part_ex[pid]}, "
+                          f"{len(new_meshes[nid][1])} tris)")
 
         # write new meshes in the original file-coordinate convention
         counts = {}
