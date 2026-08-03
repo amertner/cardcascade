@@ -1,0 +1,11 @@
+date,time,run_id,reason,method,status,consumed,run_calls,cumulative_total,endpoint
+2026-08-03,00:50:22,20260803-005014,discovery:parts,GET,400,0,0,0,/api/parts/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/35aa82c92603710330ba2207
+2026-08-03,00:57:19,20260803-005716,translate,POST,200,1,1,1,/api/partstudios/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/1f5cc8c63b87dcf62f713af0/translations
+2026-08-03,00:57:27,20260803-005716,poll,GET,200,1,2,2,/api/translations/6a6fd95ecaff22fc7913e455
+2026-08-03,01:01:50,20260803-010148,translate,POST,200,1,1,3,/api/partstudios/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/1f5cc8c63b87dcf62f713af0/translations
+2026-08-03,01:01:58,20260803-010148,poll,GET,200,1,2,4,/api/translations/6a6fda6dcaff22fc7913e4cf
+2026-08-03,01:02:04,20260803-010148,poll,GET,200,1,3,5,/api/translations/6a6fda6dcaff22fc7913e4cf
+2026-08-03,01:02:04,20260803-010148,download,GET,200,1,4,6,/api/documents/d/b6cb17a272a81e2049649d97/externaldata/6a6fda77f876365cda369887
+2026-08-03,01:16:58,20260803-011652,translate,POST,200,1,1,7,/api/partstudios/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/1f5cc8c63b87dcf62f713af0/translations
+2026-08-03,01:17:06,20260803-011652,poll,GET,200,1,2,8,/api/translations/6a6fddfacaff22fc7913e67c
+2026-08-03,01:17:07,20260803-011652,download,GET,200,1,3,9,/api/documents/d/b6cb17a272a81e2049649d97/externaldata/6a6fde019f09f157f86fda99
