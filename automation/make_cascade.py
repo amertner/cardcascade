@@ -128,7 +128,18 @@ def main():
     ap.add_argument("--plate-sub", action="append", default=[],
                     metavar="OLD=NEW")
     ap.add_argument("--gap", type=float, default=GAP_DEFAULT)
+    ap.add_argument("--gap-override", action="append", default=[],
+                    metavar="NAME=MM",
+                    help="gap between adjacent objects whose name starts with "
+                         "NAME (e.g. Topper=2); --gap is used otherwise")
     args = ap.parse_args()
+
+    gap_over = {}
+    for spec in args.gap_override:
+        name, _, mm = spec.partition("=")
+        if not _:
+            fail(f"--gap-override needs NAME=MM, got {spec!r}")
+        gap_over[name] = float(mm)
 
     work = Path(tempfile.mkdtemp(prefix="cascade_"))
     with zipfile.ZipFile(args.template) as zf:
@@ -566,10 +577,21 @@ def main():
                 cur_w += (args.gap if cur_w else 0.0) + w
             if cur:
                 rows.append(cur)
+            def _row_prefix(row):        # the gap-override key common to a row
+                ps = {next((p for p in gap_over
+                            if objects.get(o, "").startswith(p)), None)
+                      for o in row}
+                return ps.pop() if len(ps) == 1 else None
+            # gap between two adjacent rows: the override only when BOTH rows are
+            # the same overridden type (e.g. topper-to-topper), else --gap.
+            rgaps = []
+            for a, b in zip(rows, rows[1:]):
+                pa, pb = _row_prefix(a), _row_prefix(b)
+                rgaps.append(gap_over[pa] if pa and pa == pb else args.gap)
             depths = [max(dims2(o)[1] for o in r) for r in rows]
-            total_d = sum(depths) + args.gap * (len(rows) - 1)
+            total_d = sum(depths) + sum(rgaps)
             y0 = (bed_d - total_d) / 2
-            for row, depth in zip(rows, depths):
+            for j, (row, depth) in enumerate(zip(rows, depths)):
                 widths = [dims2(o)[0] for o in row]
                 total_w = sum(widths) + args.gap * (len(row) - 1)
                 x0 = (bed_w - total_w) / 2
@@ -579,7 +601,7 @@ def main():
                     placements[oid] = (0.0, cx, cy)
                     placed.append((oid, (cx, cy, w / 2, d / 2, 0.0)))
                     x0 += w + args.gap
-                y0 += depth + args.gap
+                y0 += depth + (rgaps[j] if j < len(rgaps) else 0.0)
             print(f"plate {pid}: {len(objs)} object(s) in "
                   f"{len(rows)} row(s)")
 
