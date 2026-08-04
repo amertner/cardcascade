@@ -14,9 +14,21 @@ import zipfile
 MODEL = "3D/3dmodel.model"
 
 
+def unwrap(data):
+    """Return raw 3MF bytes (containing 3D/3dmodel.model). Onshape may deliver a
+    translation as a zip that CONTAINS the .3mf, so unwrap one level if needed."""
+    z = zipfile.ZipFile(io.BytesIO(data))
+    if MODEL in z.namelist():
+        return data
+    inner = [n for n in z.namelist() if n.lower().endswith(".3mf")]
+    if inner:
+        return z.read(inner[0])
+    raise KeyError(f"no {MODEL} or *.3mf in archive: {z.namelist()}")
+
+
 def object_names(data):
     """List the <object> names in a 3MF (order as stored)."""
-    model = zipfile.ZipFile(io.BytesIO(data)).read(MODEL).decode()
+    model = zipfile.ZipFile(io.BytesIO(unwrap(data))).read(MODEL).decode()
     return [m.group(1) for m in re.finditer(r'<object\b[^>]*\bname="([^"]*)"',
                                             model)]
 
@@ -24,7 +36,7 @@ def object_names(data):
 def strip_objects(data, drop_names):
     """Return (new 3MF bytes, dropped names) with every <object> whose name is in
     drop_names removed along with its build item."""
-    zin = zipfile.ZipFile(io.BytesIO(data))
+    zin = zipfile.ZipFile(io.BytesIO(unwrap(data)))
     model = zin.read(MODEL).decode()
     dropped = []
     for m in list(re.finditer(r'<object\b([^>]*)>', model)):

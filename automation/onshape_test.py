@@ -317,9 +317,9 @@ def main():
                 if not _:
                     sys.exit(f"--set needs PARAM=VALUE, got {spec!r}")
                 params.append({"parameterId": k, "parameterValue": v})
-            enc = api(auth, "POST",
-                      f"/api/elements{stem}/configurationencodings", "encode",
-                      json={"parameters": params})
+            enc = api(auth, "POST",              # document+element only, NO /w/
+                      f"/api/elements/d/{did}/e/{eid}/configurationencodings",
+                      "encode", json={"parameters": params})
             configuration = enc.get("encodedId") or enc.get("queryParam", "")
             cache.setdefault(stem, {}).setdefault(
                 "encodings", {})[set_key] = configuration
@@ -347,12 +347,13 @@ def main():
         # Mesh formats must say how finely to tessellate, else Onshape
         # returns "Invalid resolution parameters were specified." The rest
         # mirrors the working UI 3MF export request (minus session cruft):
-        # grouping keeps parts as separate objects, yAxisIsUp=false keeps
+        # grouping=true returns ONE combined 3MF with all parts as named objects
+        # (grouping=false splits into one file per part); yAxisIsUp=false keeps
         # Onshape's Z-up frame (make_cascade lays out in Z-up mm), and
         # excludeHiddenEntities skips suppressed/hidden parts.
         body["resolution"] = args.resolution
         body["units"] = args.units
-        body["grouping"] = False
+        body["grouping"] = True
         body["yAxisIsUp"] = False
         body["flattenAssemblies"] = False
         body["excludeHiddenEntities"] = True
