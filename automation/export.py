@@ -21,6 +21,7 @@ import argparse
 import sys
 
 import components as C
+import onshape_config as OC
 import plan_exports as P
 
 
@@ -93,11 +94,13 @@ def main():
         for i, k in enumerate(keys):
             u = plan.unique[k]
             branch = "└─" if i == len(keys) - 1 else "├─"
+            tag = "" if u["type"] in OC.ELEMENTS else "   ⚠ no element id yet"
             if u["type"] == "Topper":
-                print(f"      {branch} request Toppers  → {len(u['files'])} "
-                      f"files (one whole-studio export)")
+                print(f"      {branch} request Toppers → {len(u['files'])} files "
+                      f"(Topper studio, config per expansion){tag}")
             else:
-                print(f"      {branch} request {sorted(u['files'])[0]}")
+                print(f"      {branch} request {sorted(u['files'])[0]}"
+                      f"   [{u['type']} studio]{tag}")
         print()
 
     if skipped:
@@ -108,17 +111,22 @@ def main():
         print()
 
     per = P.CALLS_PER_EXPORT
+    unknown = sorted({plan.unique[k]["type"] for _, keys in batches for k in keys
+                      if plan.unique[k]["type"] not in OC.ELEMENTS})
     print(f"SET-PARAMETER calls: {n_set}   (one per cascade with new parts)")
-    print(f"Part requests:       {n_parts}")
-    print("Estimated API calls:")
-    print(f"  worst case (one export per part): "
-          f"{n_set} + {n_parts}×~{per} = ~{n_set + n_parts * per}")
-    print(f"  best case  (one whole-studio export per set): "
-          f"{n_set} + {n_set}×~{per} = ~{n_set + n_set * per}")
-    print(f"\nYear-to-date {_ytd()}/2500. The best/worst gap depends on whether "
-          "Box/Lid/Holder/Pusher share one part studio (1 export) or several.")
-    print("Execution not wired yet — needs the Primary variable-studio URL and "
-          "the part-studio URL(s).")
+    print(f"Part requests:       {n_parts}   (each its own part studio → its "
+          f"own export)")
+    print(f"Estimated API calls: {n_set} set + {n_parts}×~{per} export "
+          f"= ~{n_set + n_parts * per}")
+    if unknown:
+        print(f"  ⚠ no element id yet for {unknown} — those can't export until "
+              "mapped in onshape_config.py")
+    print(f"\nYear-to-date {_ytd()}/2500.")
+    print("Notes: components are SEPARATE part studios (onshape_config.py), so "
+          "one export each. Toppers use a Configuration per expansion — a Topper "
+          "request may be 1 whole-studio export or one per expansion (TBD). "
+          "Assemblies with all components exist and could later cut exports.")
+    print("Execution not wired yet.")
 
 
 def _ytd():
