@@ -139,9 +139,12 @@ def main():
     if not rows:
         sys.exit(f"no rows for game {game!r} in {args.csv}")
 
-    cascades, skipped = [], []
+    cascades, skipped, parked = [], [], []
     unique = {}          # dedup key -> {files:set, objects:set, type, cascades:[]}
     for row in rows:
+        if col(row, "Status").strip().lower() == "parked":
+            parked.append(col(row, "Short name"))
+            continue
         missing = [c for c in REQUIRED if not col(row, c)]
         if missing:
             skipped.append((col(row, "Short name"), missing))
@@ -180,7 +183,9 @@ def main():
     # ---- report ----
     print(f"Game: {game}  (individual/{spec['folder']}/)")
     print(f"Rows: {len(rows)}   cascades planned: {len(cascades)}"
-          f"   (skipped incomplete: {len(skipped)})")
+          f"   (skipped incomplete: {len(skipped)}, parked: {len(parked)})")
+    for name in parked:
+        print(f"  skipped (parked): {name}")
     for name, miss in skipped:
         print(f"  skipped (incomplete): {name} — missing {', '.join(miss)}")
     print(f"\nComponent instances across all cascades: {total_slots}")
@@ -217,6 +222,7 @@ def main():
              "status": "export" if k in to_export else "cached"}
             for k, u in unique.items()],
         "skipped": [{"name": n, "missing": m} for n, m in skipped],
+        "parked": parked,
     }
     Path(args.out).write_text(json.dumps(manifest, indent=2))
     print(f"\nwrote {args.out}")

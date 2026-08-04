@@ -105,8 +105,9 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 - **Incomplete rows are skipped and reported** (never silently dropped). A row
   is "ready" only if `Box Height` and the four W/D dimensions are present. The
   Speculation row (`290 Card`) is currently skipped.
-- **Status is informational** — naming a game builds all its rows regardless of
-  `Status` (Innovation is `Drafting` and still builds).
+- **Status is informational, except `Parked`** — naming a game builds all its
+  rows regardless of `Status` (Innovation is `Drafting` and still builds), but
+  rows with `Status = Parked` are skipped and reported.
 
 ## Output: `manifest.json` for `make_cascade.py`
 
