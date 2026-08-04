@@ -18,11 +18,18 @@ Usage:
       --changed  force re-export of these component types
 """
 import argparse
+import datetime
 import sys
 
 import components as C
 import onshape_config as OC
 import plan_exports as P
+import provenance as PROV
+
+
+def comp_config(comp):
+    """Configuration string a component would export with (toppers only)."""
+    return f"Expansion={comp['key'][1]}" if comp["type"] == "Topper" else ""
 
 
 def param_summary(ctx):
@@ -66,9 +73,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("game")
     ap.add_argument("--all", action="store_true",
-                    help="ignore the individual/ cache (plan a full rebuild)")
+                    help="ignore provenance (plan a full rebuild)")
     ap.add_argument("--changed", default="")
     ap.add_argument("--labels", action="store_true")
+    ap.add_argument("--adopt", action="store_true",
+                    help="record present on-disk files as current in provenance "
+                         "(seed state for hand-exported files), then exit")
     args = ap.parse_args()
 
     game, spec = C.game_by_name(args.game)
@@ -77,6 +87,29 @@ def main():
     changed = {c.strip() for c in args.changed.split(",") if c.strip()}
     plan = P.compute_plan(game, spec, str(P.HERE / "parts.csv"),
                           args.labels, changed)
+    prov = PROV.load(game)
+
+    if args.adopt:
+        when = datetime.datetime.now().isoformat(timespec="seconds")
+        seen, n = set(), 0
+        for casc in plan.cascades:
+            for comp in casc["components"]:
+                f = comp["file"]
+                if f in seen:
+                    continue
+                seen.add(f)
+                if f in plan.present and not PROV.is_current(
+                        prov, f, OC.VERSIONS.get(comp["type"])):
+                    prov[f] = PROV.make_row(
+                        f, comp["type"], comp["key"],
+                        OC.ELEMENTS.get(comp["type"], ""), comp_config(comp),
+                        OC.VERSIONS.get(comp["type"], ""), "", when)
+                    n += 1
+        PROV.save(game, prov)
+        print(f"Adopted {n} on-disk file(s) into provenance at current "
+              f"versions → automation/state/{game}.csv")
+        return
+
     to_export_keys = set(plan.unique) if args.all else set(plan.to_export)
 
     batches, skipped = batch(plan, to_export_keys)
@@ -100,14 +133,19 @@ def main():
             branch = "└─" if i == len(rows) - 1 else "├─"
             if kind == "part":
                 u = plan.unique[payload]
-                tag = "" if u["type"] in OC.ELEMENTS else "   ⚠ no element id yet"
-                print(f"      {branch} request {sorted(u['files'])[0]}"
-                      f"   [{u['type']} studio]{tag}")
+                f = sorted(u["files"])[0]
+                st = "new" if f not in plan.present else "stale"
+                tag = "" if u["type"] in OC.ELEMENTS else "  ⚠ no element id"
+                print(f"      {branch} request {f}   [{u['type']} · {st}]{tag}")
             else:                                  # key = ("Topper", exp, size, slv)
                 exps = [k[1] for k in payload]
-                tag = "" if "Topper" in OC.ELEMENTS else "   ⚠ no element id yet"
-                print(f"      {branch} request {len(exps)} toppers via config: "
-                      f"{', '.join(exps)}{tag}")
+                files = [sorted(plan.unique[k]["files"])[0] for k in payload]
+                nnew = sum(1 for f in files if f not in plan.present)
+                st = ("new" if nnew == len(files)
+                      else f"{nnew} new, {len(files) - nnew} stale")
+                tag = "" if "Topper" in OC.ELEMENTS else "  ⚠ no element id"
+                print(f"      {branch} request {len(exps)} toppers via config "
+                      f"[{st}]: {', '.join(exps)}{tag}")
         print()
 
     if skipped:

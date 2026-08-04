@@ -20,6 +20,8 @@ from collections import namedtuple
 from pathlib import Path
 
 import components as C
+import onshape_config as OC
+import provenance as PROV
 
 Plan = namedtuple("Plan", "game spec rows cascades unique to_export skipped "
                           "parked present all_files")
@@ -164,9 +166,16 @@ def compute_plan(game, spec, csv_path, labels=False, changed=frozenset()):
     outdir = ROOT / "individual" / spec["folder"]
     present = {p.name for p in outdir.glob("*.3mf")} if outdir.exists() else set()
     all_files = {f for u in unique.values() for f in u["files"]}
+    prov = PROV.load(game)
 
     def needs_export(u):
-        return u["type"] in changed or not u["files"].issubset(present)
+        # Version-aware: a component is cached only if its file is recorded in
+        # provenance AT THE CURRENT per-studio version. Missing file, no
+        # provenance, or an older version -> re-export.
+        if u["type"] in changed:
+            return True
+        ver = OC.VERSIONS.get(u["type"])
+        return not all(PROV.is_current(prov, f, ver) for f in u["files"])
 
     to_export = {k: u for k, u in unique.items() if needs_export(u)}
     return Plan(game, spec, rows, cascades, unique, to_export, skipped,
@@ -209,8 +218,11 @@ def main():
     for u in p.unique.values():
         by_type[u["type"]] = by_type.get(u["type"], 0) + 1
     print("  by type:", ", ".join(f"{t}×{n}" for t, n in sorted(by_type.items())))
-    print(f"\nAlready present (this naming scheme): "
-          f"{len(p.all_files & p.present)}/{len(p.all_files)} files")
+    prov = PROV.load(game)
+    current = {f for u in p.unique.values() for f in u["files"]
+               if PROV.is_current(prov, f, OC.VERSIONS.get(u["type"]))}
+    print(f"\nOn disk: {len(p.all_files & p.present)}/{len(p.all_files)}   "
+          f"current version (provenance): {len(current)}/{len(p.all_files)}")
     print(f"To export{' (incl --changed ' + ','.join(sorted(changed)) + ')' if changed else ''}: "
           f"{n_export_ops} export op(s)")
     print(f"ESTIMATED API CALLS: ~{est_calls} "

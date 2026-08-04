@@ -18,13 +18,14 @@ WID = "0d5e487a46c4ad6ff8cf268f"          # workspace
 PRIMARY = "8aa4636cbb697a1091437161"
 
 # Component type -> part-studio element id. Each is a separate part studio.
-# TODO: TokenHolder (Dominion) and Label (Compile) element ids still needed.
+# TODO: Label (Compile) element id still needed.
 ELEMENTS = {
-    "Box":    "6a20c041a900d6b2fca960db",
-    "Lid":    "1f5cc8c63b87dcf62f713af0",   # the studio we first test-exported
-    "Holder": "8b9578cb73a2958f625ee53d",
-    "Pusher": "c1fef5b25da6282bcdc20876",
-    "Topper": "46a8affed99afb21fa7202d8",   # configured per Expansion name
+    "Box":         "6a20c041a900d6b2fca960db",
+    "Lid":         "1f5cc8c63b87dcf62f713af0",   # first test-exported studio
+    "Holder":      "8b9578cb73a2958f625ee53d",
+    "Pusher":      "c1fef5b25da6282bcdc20876",
+    "Topper":      "46a8affed99afb21fa7202d8",   # configured per Expansion name
+    "TokenHolder": "2d5e70091942133d994fd989",   # Dominion only
 }
 
 # The Topper studio uses a CONFIGURATION input for the embossed expansion name,
@@ -34,6 +35,16 @@ ELEMENTS = {
 # they dedup and are reused by future Innovation cascades of the same
 # size+sleeving. TODO: confirm the configuration parameter id via /configuration.
 TOPPER_CONFIG_PARAM = None                 # e.g. "Expansion"
+
+
+# Per-studio design version. Bump the entry for a studio you have edited in
+# Onshape; components exported at an older version go stale and are re-exported
+# (see provenance.py). No API calls — you control these. Defaults to the current
+# CC 6.3 design.
+VERSIONS = {
+    "Box": "6.3", "Lid": "6.3", "Holder": "6.3", "Pusher": "6.3",
+    "Topper": "6.3", "TokenHolder": "6.3", "Label": "6.3",
+}
 
 
 def part_url(eid):
