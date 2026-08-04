@@ -74,6 +74,12 @@ GAMES = {
         "split_widths": [],
         "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
+    "Innovation": {
+        "front": 156.4,
+        "widths": [156.4, 62.0, 45.0],
+        "split_widths": [156.4, 62.0, 45.0],
+        "caps": {156.4: 6.5, 62.0: 5.0, 45.0: 4.5},
+    },
 }
 
 BASE_THICKNESS = 0.6         # white base plate
@@ -189,6 +195,12 @@ def read_config_file(path: Path, game: str) -> list:
                '<name> 2' labels
       split1=/split2=  like split= but for halves of different sizes
                (must be given together)
+      parts=<w1>+...@<label1>|<label2>|...  one part per label; emits one
+               plate PER WIDTH, each holding all parts at that width. The
+               front width reads "<name> <label>", narrower widths just
+               "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
+               -> a front, a 45mm and a 62mm plate). Repeatable.
+
       side=<text>  short text used on side labels instead of the set
                name (front labels keep the full name), e.g. FCM/O
       plate=<title>:<w1>+<w2>+...  an extra plate in the set's 3MF with
@@ -201,7 +213,8 @@ def read_config_file(path: Path, game: str) -> list:
     label (logo + cc, no text). Blank lines and '#' comments are ignored.
     Returns dicts {"name": str, "box": parse_box() | None,
     "split": [half1, half2] | None, "side": str | None,
-    "plates": [(title, [widths]), ...]}."""
+    "plates": [(title, [widths]), ...],
+    "nsplits": [([widths], [labels]), ...]}."""
     cfg = GAMES[game]
     records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -219,6 +232,7 @@ def read_config_file(path: Path, game: str) -> list:
         if name.upper() == "(BLANK)":
             name = ""
         box, split, halves, side, plates = None, None, {}, None, []
+        nsplits = []
         for field in parts[2:]:
             if not field:
                 continue
@@ -248,17 +262,32 @@ def read_config_file(path: Path, game: str) -> list:
                 if not widths or any(w <= 0 for w in widths):
                     sys.exit(f"{where}: plate= widths must be positive")
                 plates.append((title, widths))
+            elif key == "parts" and sep:
+                widths_part, at, labels_part = value.partition("@")
+                if not at:
+                    sys.exit(f"{where}: parts= must be "
+                             f"'<w1>+<w2>+...@<label1>|<label2>|...', "
+                             f"got {value!r}")
+                widths = [parse_width(w, cfg["widths"], where, "parts")
+                          for w in widths_part.split("+")]
+                if not widths or any(w == 0 for w in widths):
+                    sys.exit(f"{where}: parts= needs standard widths before '@'")
+                labels = [t.strip() for t in labels_part.split("|")]
+                if len(labels) < 2 or any(not t for t in labels):
+                    sys.exit(f"{where}: parts= needs 2 or more non-empty labels")
+                nsplits.append((widths, labels))
             else:
                 sys.exit(f"{where}: unknown field {field!r} (expected box=U[/S], "
-                         f"split=U[/S], split1=/split2=, side= or plate=)")
+                         f"split=U[/S], split1=/split2=, parts=<w>@<labels>, "
+                         f"side= or plate=)")
         if halves:
             if split is not None or set(halves) != {"split1", "split2"}:
                 sys.exit(f"{where}: split1= and split2= must be given "
                          f"together (and not combined with split=)")
             split = [halves["split1"], halves["split2"]]
-        if box is not None or split is not None or plates:
+        if box is not None or split is not None or plates or nsplits:
             records.append({"name": name, "box": box, "split": split,
-                            "side": side, "plates": plates})
+                            "side": side, "plates": plates, "nsplits": nsplits})
     return records
 
 
@@ -566,8 +595,10 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     """Plates for one set's own 3MF, from its cc.cfg record: single cascade
     (unsleeved), single cascade (sleeved), split cascade (unsleeved), split
     cascade (sleeved) — collapsing sleeved/unsleeved pairs that use the
-    same widths — plus every other label as spares. Split plates always
-    carry one front and one side label per half-box. Returns
+    same widths — plus, for each parts= grouping, one plate per width
+    holding all its parts at that width — and every other label as
+    spares. Split plates carry one front and one side per half-box.
+    Returns
     [(plate name, [(label name, width), ...]), ...]."""
     name = record["name"]
     display = name or "Blank"
@@ -632,6 +663,15 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             plates = [(f"{display} split{boxes_title(split_entries(UNSLEEVED))}",
                        plates[0][1])]
         specs += plates
+    for widths, labels in record.get("nsplits", []):
+        # one plate per width, each holding every part at that width. The
+        # front width prefixes the set name ("Innovation Ages 1-4"); the
+        # narrower side widths carry just the label ("Ages 1-4").
+        for w in widths:
+            tag = "front" if w == front else f"{w:g}mm"
+            rows = [((f"{name} {lab}" if w == front else lab), w)
+                    for lab in labels]
+            specs.append((f"{display} {tag} {len(labels)}-part", rows))
     for title, widths in record.get("plates", []):
         specs.append((title.replace("/", "-"),
                       [((name if w == front else side_base), w) for w in widths]))
@@ -732,7 +772,8 @@ def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
         print(f"  plate {plate_no + 1}: {text or '(blank)'} {width:g}mm "
               f"@ ({x:g}, {y:g})")
     for plate in plates:
-        plate["name"] = ", ".join(plate["sets"])
+        # "/" (e.g. from "Innovation 1/3") is illegal in Bambu plate names.
+        plate["name"] = ", ".join(plate["sets"]).replace("/", "-")
     m.write(str(path))
     inject_bambu_metadata(path, objects, plates,
                           project_settings=render_project_settings(n_plates))
@@ -786,6 +827,9 @@ def main():
                 if rec["split"]:
                     entries += [(f"{rec['name']} 1", f"{side_base} 1", True),
                                 (f"{rec['name']} 2", f"{side_base} 2", True)]
+                for _, labels in rec.get("nsplits", []):
+                    entries += [(f"{rec['name']} {lab}", lab, True)
+                                for lab in labels]
         else:
             entries = [(n, n, False) for n in NAMES]
     if not args.no_blank and not any(f == "" for f, _, _ in entries):
