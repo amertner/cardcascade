@@ -91,16 +91,23 @@ def main():
     for casc, keys in batches:
         print(f"● SET PARAMETERS  [{casc['name']}]   (1 call)")
         print(f"      {param_summary(casc['ctx'])}")
-        for i, k in enumerate(keys):
-            u = plan.unique[k]
-            branch = "└─" if i == len(keys) - 1 else "├─"
-            tag = "" if u["type"] in OC.ELEMENTS else "   ⚠ no element id yet"
-            if u["type"] == "Topper":
-                print(f"      {branch} request Toppers → {len(u['files'])} files "
-                      f"(Topper studio, config per expansion){tag}")
-            else:
+        others = [k for k in keys if plan.unique[k]["type"] != "Topper"]
+        toppers = [k for k in keys if plan.unique[k]["type"] == "Topper"]
+        rows = [("part", k) for k in others]
+        if toppers:
+            rows.append(("toppers", toppers))
+        for i, (kind, payload) in enumerate(rows):
+            branch = "└─" if i == len(rows) - 1 else "├─"
+            if kind == "part":
+                u = plan.unique[payload]
+                tag = "" if u["type"] in OC.ELEMENTS else "   ⚠ no element id yet"
                 print(f"      {branch} request {sorted(u['files'])[0]}"
                       f"   [{u['type']} studio]{tag}")
+            else:                                  # key = ("Topper", exp, size, slv)
+                exps = [k[1] for k in payload]
+                tag = "" if "Topper" in OC.ELEMENTS else "   ⚠ no element id yet"
+                print(f"      {branch} request {len(exps)} toppers via config: "
+                      f"{', '.join(exps)}{tag}")
         print()
 
     if skipped:
@@ -123,9 +130,10 @@ def main():
               "mapped in onshape_config.py")
     print(f"\nYear-to-date {_ytd()}/2500.")
     print("Notes: components are SEPARATE part studios (onshape_config.py), so "
-          "one export each. Toppers use a Configuration per expansion — a Topper "
-          "request may be 1 whole-studio export or one per expansion (TBD). "
-          "Assemblies with all components exist and could later cut exports.")
+          "one export each. Toppers export one-per-expansion (config), varying "
+          "by size+sleeved — exported once, reused by future cascades of the "
+          "same size+sleeving. Assemblies with all components exist and could "
+          "later cut exports.")
     print("Execution not wired yet.")
 
 

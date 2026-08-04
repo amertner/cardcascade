@@ -112,10 +112,14 @@ def compose(ctx, spec, labels):
                       "file": f"TokenHolder {ctx['size']}-{slv}.3mf",
                       "object": "TokenHolder", "count": 1})
     if "Toppers" in spec["extras"]:
-        # One whole-studio export per sleeving -> all topper files share a key.
+        # Each topper is a separate export (Topper studio configured per
+        # expansion). Toppers vary by (expansion, size, sleeved) only, so they
+        # dedup across cascades of the same size+sleeving and future Innovation
+        # cascades reuse them.
         for exp in spec["toppers"]:
-            items.append({"type": "Topper", "key": ("Toppers", slv),
-                          "file": f"Topper {exp} {slv}.3mf",
+            items.append({"type": "Topper",
+                          "key": ("Topper", exp, ctx["size"], slv),
+                          "file": f"Topper {exp} {ctx['size']}-{slv}.3mf",
                           "object": f"Topper {exp}", "count": 1})
     if labels and spec.get("onshape_label"):
         items.append({"type": "Label", "key": ("Label", m),

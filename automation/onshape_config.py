@@ -28,10 +28,11 @@ ELEMENTS = {
 }
 
 # The Topper studio uses a CONFIGURATION input for the embossed expansion name,
-# so toppers export one-per-expansion (via configurationencodings, like
-# onshape_test.py --set), NOT one whole-studio export. This changes the topper
-# cost model in plan_exports/export (currently one shared key per sleeving).
-# TODO: confirm the configuration parameter id via a /configuration GET.
+# so each topper is a separate export (one per expansion, via
+# configurationencodings like onshape_test.py --set). Toppers vary by
+# (expansion, size, sleeved) only — modeled that way in plan_exports/export, so
+# they dedup and are reused by future Innovation cascades of the same
+# size+sleeving. TODO: confirm the configuration parameter id via /configuration.
 TOPPER_CONFIG_PARAM = None                 # e.g. "Expansion"
 
 
