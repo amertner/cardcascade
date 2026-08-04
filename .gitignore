@@ -3,3 +3,4 @@ __pycache__/
 .DS_Store
 .onshape_cache.json
 manifest.json
+tmp/
