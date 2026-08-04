@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stage 1 planner for the Card Cascade Onshape export pipeline (see
-docs/PIPELINE.md). Reads parts.csv + components.py, expands a game's rows into
+PIPELINE.md). Reads parts.csv + components.py, expands a game's rows into
 cascades, composes each cascade's components, DEDUPLICATES them within the game
 (many cascades share holders/pushers/boxes), diffs against individual/<Game>/,
 and prints the unique export worklist with a projected Onshape API-call budget.
@@ -20,7 +20,8 @@ from pathlib import Path
 
 import components as C
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent          # automation/
+ROOT = HERE.parent                    # repo root — data dirs (individual/) live here
 # A row is "ready" only if these geometry fields are present (else skip+report).
 REQUIRED = ["Box Height / mm", "Unsleeved W/mm", "Unsleeved D/mm",
             "Sleeved W/mm", "Sleeved D/mm"]
@@ -165,7 +166,7 @@ def main():
                 u["cascades"].append(name)
 
     # Diff against what's already exported (by the planner's naming scheme).
-    outdir = HERE / "individual" / spec["folder"]
+    outdir = ROOT / "individual" / spec["folder"]
     present = {p.name for p in outdir.glob("*.3mf")} if outdir.exists() else set()
     all_planned_files = {f for u in unique.values() for f in u["files"]}
 
