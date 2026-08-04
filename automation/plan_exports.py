@@ -154,7 +154,7 @@ def compute_plan(game, spec, csv_path, labels=False, changed=frozenset()):
             name = f"{ctx['short_name']} {sleeved} ({ctx['model']})"
             cascades.append({"name": name, "model": ctx["model"],
                              "sleeved": sleeved, "status": col(row, "Status"),
-                             "ctx": ctx, "components": items})
+                             "ctx": ctx, "row": row, "components": items})
             for it in items:
                 u = unique.setdefault(it["key"], {
                     "type": it["type"], "files": set(), "objects": set(),
