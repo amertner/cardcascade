@@ -19,7 +19,7 @@ holders/boxes/pushers must be exported **once**, not per cascade.
 
 ```
 parts.csv ─┐
-           ├─▶ [1 PLAN]  cascade_build.py   → worklist + manifest.json   (0 API calls, offline)
+           ├─▶ [1 PLAN]  plan_exports.py   → worklist + manifest.json   (0 API calls, offline)
 components ─┘        │
   spec (components.py)├─▶ [2 EXPORT] (uses onshape_test.py's recipe) → individual/<Game>/*.3mf  (budget-gated)
                      │
@@ -119,7 +119,7 @@ A thin `assemble.py` (Stage 3) turns the manifest into `make_cascade` calls.
 ## CLI
 
 ```
-cascade_build.py <Game> [--csv parts.csv] [--changed Box,Holder,...]
+plan_exports.py <Game> [--csv parts.csv] [--changed Box,Holder,...]
                         [--labels] [--out manifest.json]
 # dry-run only in Stage 1: prints cascades, the unique export worklist,
 # the projected API-call budget, and skipped rows. Makes 0 API calls.
@@ -166,7 +166,7 @@ either supply a standard per-scheme template or extend the layout code.
 
 1. Refactor `onshape_test.py`'s HTTP/ledger/translate layer into `onshape.py`
    (reusable `export_part(...)`). *(no API)*
-2. **Stage 1 planner** `cascade_build.py` + `components.py` — this document's
+2. **Stage 1 planner** `plan_exports.py` + `components.py` — this document's
    composition + dedup, offline. **← built.**
 3. Stage 2 exporter — consume worklist, fetch misses, write state file.
 4. Stage 3 `assemble.py` — manifest → make_cascade calls.

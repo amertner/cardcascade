@@ -10,7 +10,7 @@ export. `key` is also (will be) the set of Onshape configuration inputs to set,
 so it does double duty. Values marked TODO need confirming against the actual
 Onshape configuration inputs.
 
-A cascade "context" (built in cascade_build.py) exposes these parameters:
+A cascade "context" (built in plan_exports.py) exposes these parameters:
   game, folder, short_name, base_model, model (per-sleeving, e.g.
   S5.15.15.45-Un), size (S/M/L), risers, cards_per_slot, first_riser (or None),
   front_capacity, horizontal, merged (bool), sleeved (Un/Sl), sl (U/S),

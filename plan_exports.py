@@ -9,7 +9,7 @@ Emits manifest.json for the assembly stage.
 MAKES ZERO API CALLS — pure local planning, safe to run freely.
 
 Usage:
-    cascade_build.py <Game> [--csv parts.csv] [--changed Holder,Pusher]
+    plan_exports.py <Game> [--csv parts.csv] [--changed Holder,Pusher]
                             [--labels] [--out manifest.json]
 """
 import argparse
