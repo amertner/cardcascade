@@ -38,8 +38,27 @@ ELEMENTS = {
 # components.py). Each drives a "Text 1" string; Blank has its text suppressed
 # (prints a nameless plate). The API needs the input's internal parameterId
 # (not the display label) — get it once via GET /configuration and set it here.
-TOPPER_CONFIG_PARAM = None                 # parameterId of the Expansion list
+TOPPER_CONFIG_PARAM = "List_xRR7r3rgtnzkvq"   # parameterId of the Expansion list
 TOPPER_OPTIONS = ["Echoes", "Cities", "Unseen", "Artifacts", "Figures", "Blank"]
+
+# A component's part studio can contain three kinds of part:
+#   - the MAIN part, named like the component ("Topper", "Lid", ...);
+#   - "letter" parts (Part 3, Part 4, ...) — the embossed expansion/version text
+#     as SEPARATE solids (letters aren't contiguous). These DO belong in the
+#     export (multi-colour); their count varies per configuration/expansion.
+#   - IMPORTED reference parts named like ANOTHER component (the Topper studio
+#     imports a Holder for positioning). These must be EXCLUDED.
+# So the exporter exports the WHOLE studio, then drops parts that are imports,
+# keeping the main part + all letters — stripping locally rather than fetching
+# partIds per config (the letter set changes per expansion). The Lid studio
+# follows the same pattern (main lid + version letters + an import).
+
+
+def is_imported(part_name, component_type):
+    """A part named after a DIFFERENT component type is an imported reference to
+    exclude from a whole-studio export; the main part (== component_type) and
+    the letter parts (Part N) are kept."""
+    return part_name in ELEMENTS and part_name != component_type
 
 
 # Per-studio design version. Bump the entry for a studio you have edited in
