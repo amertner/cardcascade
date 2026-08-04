@@ -31,10 +31,15 @@ ELEMENTS = {
 # The Topper studio uses a CONFIGURATION input for the embossed expansion name,
 # so each topper is a separate export (one per expansion, via
 # configurationencodings like onshape_test.py --set). Toppers vary by
-# (expansion, size, sleeved) only — modeled that way in plan_exports/export, so
-# they dedup and are reused by future Innovation cascades of the same
-# size+sleeving. TODO: confirm the configuration parameter id via /configuration.
-TOPPER_CONFIG_PARAM = None                 # e.g. "Expansion"
+# (expansion, size, sleeved) only — modeled that way in plan_exports/export.
+#
+# Confirmed from the studio's Configuration table: a single list input with 6
+# options — Echoes, Cities, Unseen, Artifacts, Figures, Blank (matches
+# components.py). Each drives a "Text 1" string; Blank has its text suppressed
+# (prints a nameless plate). The API needs the input's internal parameterId
+# (not the display label) — get it once via GET /configuration and set it here.
+TOPPER_CONFIG_PARAM = None                 # parameterId of the Expansion list
+TOPPER_OPTIONS = ["Echoes", "Cities", "Unseen", "Artifacts", "Figures", "Blank"]
 
 
 # Per-studio design version. Bump the entry for a studio you have edited in
