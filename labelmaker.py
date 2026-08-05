@@ -801,9 +801,9 @@ def main():
     ap.add_argument("--individual", action="store_true",
                     help="write one 3MF per individual label instead of the "
                          "default per-set files")
-    ap.add_argument("--version", default="6_2",
-                    help="version tag in per-set file names "
-                         "('<Set> Labels <version>.3mf', default 6_2)")
+    ap.add_argument("--version", default="6.4",
+                    help="project version (default 6.4); no longer embedded "
+                         "in file names, kept for reference")
     args = ap.parse_args()
 
     game = next((g for g in GAMES if g.lower() == args.game.lower()), None)
@@ -855,7 +855,7 @@ def main():
         setdir = outdir / "sets"
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:
-            fname = f"{rec['name'] or 'Blank'} Labels {args.version}.3mf"
+            fname = f"{rec['name'] or 'Blank'} Labels.3mf"
             fname = "".join(c if c not in '\\/:*?"<>|' else "_" for c in fname)
             write_project_3mf(setdir / fname,
                               set_plate_specs(rec, cfg), font, cfg["caps"])
