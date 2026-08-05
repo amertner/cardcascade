@@ -222,15 +222,12 @@ def stack_rows(rec, game_cfg):
         for wmm in sorted({w for w in (u, s) if w}, reverse=True):
             rows.append((f"SIDE LABEL · {wmm:g} MM", side_text, wmm))
     if rec.get("split"):
-        halves = rec["split"]
-        h1, h2 = halves[0], halves[-1]
-        w1 = max(w for w in h1["widths"] if w) if any(h1["widths"]) else 0
-        lo = [w for w in h2["widths"] if w]
-        w2 = min(lo) if lo else 0
-        if w1:
-            rows.append((f"SPLIT BOX · {w1:g} MM", f"{side_text} 1", w1))
-        if w2:
-            rows.append((f"SPLIT BOX · {w2:g} MM", f"{side_text} 2", w2))
+        # one row per sleeving width of each half (mirrors the box branch),
+        # so a half sleeved/unsleeved at different widths shows both.
+        for half_no, half in enumerate(rec["split"], 1):
+            for wmm in sorted({w for w in half["widths"] if w}, reverse=True):
+                rows.append((f"SPLIT BOX · {wmm:g} MM",
+                             f"{side_text} {half_no}", wmm))
     if not rec.get("box") and not rec.get("split"):
         # blank/spares-style record: show the game's standard side widths
         for wmm in game_cfg["widths"][1:]:
