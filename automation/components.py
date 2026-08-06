@@ -41,6 +41,7 @@ GAMES = {
     },
     "Innovation": {
         "folder": "Innovation",
+        "holder_spans": True,     # holder spans HorizontalSlots (3 wide=S, 4=M)
         "extras": ["Toppers"],
         "onshape_label": False,
         "pushers": {"S": 2, "M": 2, "L": 3},   # Innovation M uses 2, not 3

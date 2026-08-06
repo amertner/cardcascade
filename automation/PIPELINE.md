@@ -81,8 +81,8 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 | Box | `(model, merged)` | merged-slot changes the box, so 202 vs 244 Card (same model) are DIFFERENT boxes |
 | Lid | `model` | same footprint as box (box + 2 mm); merged doesn't change outer size |
 | Pusher | `(risers, cards, sleeved)` | depends only on #risers, #cards, sleeved |
-| Holder (per-slot: Dominion/FCM/Innovation) | `(cards_per_slot, sleeved)` | capacity = Cards/Riser slot; **no size axis** |
-| Holder (spanning: Compile) | `(horizontal, cards_per_slot, sleeved)` | spans `Horizontal` protocols of 7 → S=3×7, L=5×7 |
+| Holder (per-slot: Dominion/FCM) | `(cards_per_slot, sleeved)` | capacity = Cards/Riser slot; no size axis |
+| Holder (spanning: Compile, Innovation) | `(horizontal, cards_per_slot, sleeved)` | spans HorizontalSlots — Compile 3×7/5×7, Innovation 3×15 (S) / 4×15 (M) |
 | Holder (first-riser) | `(Cards/First Riser, sleeved)` | one per cascade when defined; replaces one standard holder |
 | TokenHolder (Dominion) | `(size, sleeved)` | TODO confirm dependency |
 | Toppers (Innovation) | `(sleeved,)` | one export → 6 files; shared across all Innovation cascades of that sleeving |
