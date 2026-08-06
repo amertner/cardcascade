@@ -57,7 +57,7 @@ def build_context(row, sleeved, game, spec):
         "horizontal": col(row, "Horizontal"),
         "merged": col(row, "Merged-slot").upper() == "TRUE",
         "sleeved": sleeved, "sl": "S" if sleeved == "Sl" else "U",
-        "pushers": C.PUSHERS_BY_SIZE.get(size, 3),
+        "pushers": C.pushers_for(spec, size),
     }
 
 

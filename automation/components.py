@@ -43,6 +43,8 @@ GAMES = {
         "folder": "Innovation",
         "extras": ["Toppers"],
         "onshape_label": False,
+        "pushers": {"S": 2, "M": 2, "L": 3},   # Innovation M uses 2, not 3
+
         # 6 toppers: one per expansion + a blank; same dims, different text.
         # ONE whole-studio Onshape export per sleeving yields all of them.
         # TODO confirm the exact expansion labels.
@@ -51,10 +53,14 @@ GAMES = {
     },
 }
 
-# Pusher count: 2 for small boxes, 3 for medium/large. Matches the naming memo
-# (boxes up to ~227 mm get 2 pushers, longer get 3) and every built cascade.
-# TODO confirm this is the real rule and not an explicit column.
+# Pusher count by box size: 2 for S, 3 for M and L. Innovation is the exception
+# — its M box also uses 2. Games override the default via their spec's "pushers"
+# map; use pushers_for(spec, size).
 PUSHERS_BY_SIZE = {"S": 2, "M": 3, "L": 3}
+
+
+def pushers_for(spec, size):
+    return spec.get("pushers", PUSHERS_BY_SIZE).get(size, 3)
 
 
 def game_by_name(name):

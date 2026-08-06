@@ -151,7 +151,8 @@ either supply a standard per-scheme template or extend the layout code.
   queued.**
 - Holder identity = `(game, #cards it holds, sleeved)` for all games; no size
   axis. Compile holders span `Horizontal` protocols.
-- Pusher count = `S→2, M/L→3`.
+- Pusher count = `S→2, M/L→3`, **except Innovation** where M→2 (per-game
+  override `pushers` in components.py).
 - Merged-slot changes the **Box** only.
 
 ## Open questions
