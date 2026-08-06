@@ -115,6 +115,65 @@ def plate_columns(n):
     return round(value) + 1 if value > round(value) else round(value)
 
 
+# ---- auto plate scheme (Stage 3): group objects into the standard plates ----
+# One plate per role group, in this order. Pushers ride with the Box.
+PLATE_SCHEME = [
+    ("Box + pushers", ("Box", "Pusher")),
+    ("Lid", ("Lid",)),
+    ("Holders", ("Holder",)),
+    ("Toppers", ("Topper",)),
+    ("Token holders", ("TokenHolder",)),
+    ("Labels", ("Label",)),
+]
+
+
+def _role(name):
+    for r in ("TokenHolder", "Box", "Lid", "Holder", "Topper", "Pusher",
+              "Label"):
+        if name.startswith(r):
+            return r
+    return "Other"
+
+
+def _xesc(s):
+    return (s.replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def auto_plate_groups(objects, plates, title):
+    """The standard plate scheme: [(plate name, [object ids]), ...] in
+    PLATE_SCHEME order; empty groups skipped."""
+    order = [o for _, _, objs in sorted(plates) for o in objs]
+    groups = []
+    for label, roles in PLATE_SCHEME:
+        oids = [o for o in order if _role(objects[o]) in roles]
+        if oids:
+            groups.append((f"{label} — {title}", oids))
+    return groups
+
+
+def regroup_cfg(cfg, ps, groups):
+    """Rewrite the model_settings <plate> blocks and the project_settings wipe
+    towers to `groups`, moving each object's <model_instance> to its new plate."""
+    inst = {re.search(r'object_id" value="(\d+)"', b).group(1): b
+            for b in re.findall(r'<model_instance>.*?</model_instance>',
+                                cfg, re.S)}
+    hdr = re.search(r'<plate>.*?plater_name"[^>]*/>(.*?)<model_instance>',
+                    cfg, re.S).group(1)          # locked + filament metadata
+    hdr = re.sub(r'\s*<metadata key="(?:thumbnail_file|thumbnail_no_light_file|'
+                 r'top_file|pick_file)"[^>]*/>', '', hdr)
+    blocks = []
+    for i, (name, oids) in enumerate(groups, 1):
+        insts = "".join(inst[o] for o in oids if o in inst)
+        blocks.append(f'<plate>\n<metadata key="plater_id" value="{i}"/>\n'
+                      f'<metadata key="plater_name" value="{_xesc(name)}"/>'
+                      f'{hdr}{insts}</plate>')
+    cfg = re.sub(r'<plate>.*</plate>', "\n".join(blocks), cfg, flags=re.S)
+    ps["wipe_tower_x"] = ["15"] * len(groups)    # layout relocates per plate
+    ps["wipe_tower_y"] = ["200"] * len(groups)
+    return cfg
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("template")
@@ -132,6 +191,10 @@ def main():
                     metavar="NAME=MM",
                     help="gap between adjacent objects whose name starts with "
                          "NAME (e.g. Topper=2); --gap is used otherwise")
+    ap.add_argument("--auto-plates", action="store_true",
+                    help="ignore the template's plate layout; generate the "
+                         "standard scheme (Box+Pushers / Lid / Holders / "
+                         "Toppers / TokenHolders) and lay each out on the bed")
     args = ap.parse_args()
 
     gap_over = {}
@@ -501,6 +564,44 @@ def main():
                        max(p[0] for p in ex), max(p[1] for p in ex))
               if ex else None)
 
+    def obj_gap(oid):                    # per-object gap override, else --gap
+        nm = objects.get(oid, "")
+        return next((g for p, g in gap_over.items() if nm.startswith(p)),
+                    args.gap)
+
+    # ---- auto plate scheme: regroup by role, split thin-strip plates to fit --
+    if args.auto_plates:
+        def _dims(oid):
+            lo, hi = obj_bbox(oid)
+            return hi[0] - lo[0], hi[1] - lo[1]
+        bed = min(bed_w, bed_d)
+        groups = []
+        for name, oids in auto_plate_groups(objects, plates, Path(args.out).stem):
+            longest = max(max(_dims(o)) for o in oids)
+            depth = max(min(_dims(o)) for o in oids)
+            # thin strips (holders/toppers) get rotated 45° and packed in a
+            # diagonal band; if too many for one bed, split across plates.
+            thin = depth < 30 and all(max(_dims(o)) > bed - 20 for o in oids)
+            if thin and len(oids) > 1:
+                g = obj_gap(oids[0])
+                band = (bed - 20) * math.sqrt(2) - longest
+                per = max(1, int((band + g) / (depth + g)))
+            else:
+                per = len(oids)
+            if per >= len(oids):
+                groups.append((name, oids))
+            else:
+                base, _, title = name.partition(" — ")
+                chunks = [oids[i:i + per] for i in range(0, len(oids), per)]
+                for k, ch in enumerate(chunks, 1):
+                    groups.append((f"{base} {k}/{len(chunks)} — {title}", ch))
+        cfg = regroup_cfg(cfg, ps, groups)
+        plates = [(i, nm, oids) for i, (nm, oids) in enumerate(groups, 1)]
+        wx[:] = [15.0] * len(groups)
+        wy[:] = [200.0] * len(groups)
+        print("auto-plates: " + ", ".join(
+            f"{nm.partition(' — ')[0]} ({len(o)})" for nm, o in groups))
+
     ROT = math.pi / 4
     cols = plate_columns(len(plates))
     placements = {}     # object id -> (theta, x, y, z) build transform
@@ -529,13 +630,14 @@ def main():
             # 45-deg strips along the bed diagonal, centred as a band,
             # then everything else grid-searched into the free corners
             n_hat = (-1 / math.sqrt(2), 1 / math.sqrt(2))
-            band = sum(dims2(o)[1] for o in rot_ids) \
-                + args.gap * (len(rot_ids) - 1)
+            _sr = sorted(rot_ids, key=lambda o: -dims2(o)[1])
+            _rg = [obj_gap(o) for o in _sr[:-1]]      # per-strip gaps
+            band = sum(dims2(o)[1] for o in _sr) + sum(_rg)
             off = -band / 2
-            for oid in sorted(rot_ids, key=lambda o: -dims2(o)[1]):
+            for _i, oid in enumerate(_sr):
                 w, d = dims2(oid)
                 cn = off + d / 2
-                off += d + args.gap
+                off += d + (_rg[_i] if _i < len(_rg) else 0.0)
                 cx = bed_w / 2 + n_hat[0] * cn
                 cy = bed_d / 2 + n_hat[1] * cn
                 placements[oid] = (ROT, cx, cy)
