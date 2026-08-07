@@ -140,6 +140,13 @@ def _xesc(s):
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+def _plate_safe(name):
+    r"""Bambu forbids <>:/\|?*" in plate names; replace each with '-'."""
+    for c in '<>:/\\|?*"':
+        name = name.replace(c, "-")
+    return name
+
+
 def auto_plate_groups(objects, plates, title):
     """The standard plate scheme: [(plate name, [object ids]), ...] in
     PLATE_SCHEME order; empty groups skipped."""
@@ -166,7 +173,8 @@ def regroup_cfg(cfg, ps, groups):
     for i, (name, oids) in enumerate(groups, 1):
         insts = "".join(inst[o] for o in oids if o in inst)
         blocks.append(f'<plate>\n<metadata key="plater_id" value="{i}"/>\n'
-                      f'<metadata key="plater_name" value="{_xesc(name)}"/>'
+                      f'<metadata key="plater_name" '
+                      f'value="{_xesc(_plate_safe(name))}"/>'
                       f'{hdr}{insts}</plate>')
     cfg = re.sub(r'<plate>.*</plate>', "\n".join(blocks), cfg, flags=re.S)
     ps["wipe_tower_x"] = ["15"] * len(groups)    # layout relocates per plate
@@ -227,6 +235,7 @@ def main():
     objects = {}        # object id -> name
     parts = {}          # object id -> [(part id, part name)]
     part_ext = {}       # object id -> {part id: extruder (object default applied)}
+    obj_default = {}    # object id -> object's default extruder (added parts use it)
     for om in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):
         oid = om.group(1)
         objects[oid] = re.search(r'key="name" value="([^"]*)"',
@@ -234,6 +243,7 @@ def main():
         head = om.group(2).split("<part", 1)[0]
         objdef = re.search(r'key="extruder" value="([^"]*)"', head)
         objdef = objdef.group(1) if objdef else "1"
+        obj_default[oid] = objdef
         parts[oid] = []
         part_ext[oid] = {}
         for pm in re.finditer(r'<part id="(\d+)"[^>]*>(.*?)</part>',
@@ -299,6 +309,71 @@ def main():
               for pid, nm, objs in plates]
 
     # ---------------- geometry replacement ----------------
+    # Fresh ids for parts a component gained vs the template must be unique
+    # across the main model, the config, and every sub-model mesh file.
+    def _max_id():
+        ids = [int(x) for x in re.findall(r'\bid="(\d+)"', xml + cfg)]
+        ids += [int(x) for x in re.findall(r'objectid="(\d+)"', xml)]
+        for p in (work / "3D/Objects").glob("object_*.model"):
+            ids += [int(x) for x in re.findall(r'<object id="(\d+)"',
+                                               p.read_text())]
+        return max(ids)
+    next_id = _max_id() + 1
+
+    def _esc(s):
+        return (s.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace('"', "&quot;"))
+
+    def add_body_part(oid, targets, body_name):
+        """Append a brand-new part for a body the component GAINED relative to
+        the template (e.g. a v6.4 topper's logo, which renumbered the letters
+        so one body has no template slot). The part is cloned from an existing
+        sibling on the object's default extruder — so it inherits the accent
+        colour — and its mesh/position are filled by the shared replacement
+        pass below. Keeps the template's part-id == component-id invariant.
+        Returns the new (shared) id."""
+        nonlocal xml, cfg, next_id
+        newid = str(next_id)
+        next_id += 1
+        for t in targets:
+            donor = next((pid for pid, _ in parts[t]
+                          if part_ext[t].get(pid) == obj_default[t]), None)
+            if donor is None:
+                fail(f"{objects[t]}: no default-extruder part to model the new "
+                     f"part {body_name!r} on")
+            donor_path = {c: f for f, c in comps[t]}[donor]
+            # 1) sub-model mesh file: an empty object the replacement pass fills
+            smp = work / donor_path.lstrip("/")
+            ph = (f'  <object id="{newid}" p:UUID="{uuid.uuid4()}" '
+                  f'type="model">\n   <mesh>\n    <vertices>\n    </vertices>\n'
+                  f'    <triangles>\n    </triangles>\n   </mesh>\n  </object>\n')
+            smp.write_text(smp.read_text().replace(
+                "</resources>", ph + " </resources>", 1))
+            # 2) main model: a new component at the end of this object's list
+            comp = (f'<component p:path="{donor_path}" objectid="{newid}" '
+                    f'p:UUID="{uuid.uuid4()}" '
+                    f'transform="1 0 0 0 1 0 0 0 1 0 0 0"/>')
+            om = re.search(rf'(<object id="{t}"[^>]*>\s*<components>.*?)'
+                           rf'(\s*</components>)', xml, re.S)
+            xml = (xml[:om.start()] + om.group(1) + "\n    " + comp
+                   + om.group(2) + xml[om.end():])
+            # 3) config: clone the donor <part>, renaming id + name
+            cm = re.search(rf'<object id="{t}">.*?</object>', cfg, re.S)
+            blk = cm.group(0)
+            donor_blk = re.search(rf'<part id="{donor}".*?</part>',
+                                  blk, re.S).group(0)
+            npart = re.sub(r'<part id="\d+"', f'<part id="{newid}"',
+                           donor_blk, count=1)
+            npart = re.sub(r'(key="name" value=")[^"]*(")',
+                           rf'\g<1>{_esc(body_name)}\g<2>', npart, count=1)
+            nblk = blk.replace("</object>", "    " + npart + "\n  </object>", 1)
+            cfg = cfg[:cm.start()] + nblk + cfg[cm.end():]
+            # 4) register so the mapping / replacement passes see the new part
+            comps[t].append((donor_path, newid))
+            parts[t].append((newid, body_name))
+            part_ext[t][newid] = obj_default[t]
+        return newid
+
     for spec in args.part:
         name, _, file = spec.partition("=")
         if not _:
@@ -358,10 +433,10 @@ def main():
         # every instance shares the same mesh file(s); patch via the first
         oid = targets[0]
         plist = parts[oid]
-        if len(bodies) != len(plist):
-            fail(f"{name}: template object has {len(plist)} parts, "
-                 f"{file} has {len(bodies)} bodies")
         if len(plist) == 1:
+            if len(bodies) != 1:
+                fail(f"{name}: {file} has {len(bodies)} bodies but the "
+                     f"single-part template object has one slot")
             mapping = {plist[0][0]: bodies[0]}
         else:
             by_name = {}
@@ -378,15 +453,15 @@ def main():
                     used.add(pname)
                 else:
                     unmatched_parts.append((pid_, pname))
-            # A revision may rename some bodies while keeping the count (e.g.
-            # sleeved toppers renumber Part 9/10 -> Part 3/4). Pair the
-            # leftovers, but only when every unmatched template part shares one
+            leftover = sorted((b for n, b in by_name.items()
+                               if n not in used), key=lambda x: x[0])
+            # A revision may rename some bodies (e.g. a v6.4 topper inserts a
+            # logo body and renumbers the letters). Pair leftover bodies onto
+            # leftover template slots first, but only when those slots share one
             # extruder - then which slot a body lands in cannot change its
             # colour, so there is nothing to guess. Positions are recomputed
             # from each body's own geometry below, so slot identity is cosmetic.
             if unmatched_parts:
-                leftover = sorted((b for n, b in by_name.items()
-                                   if n not in used), key=lambda x: x[0])
                 exs = {part_ext[oid][pid_] for pid_, _ in unmatched_parts}
                 if len(exs) > 1:
                     fail(f"{name}: {len(unmatched_parts)} template part(s) have "
@@ -398,6 +473,52 @@ def main():
                     mapping[pid_] = b
                     print(f"  {name}: reconciled body {b[0]!r} -> part {pname!r} "
                           f"(extruder {part_ext[oid][pid_]})")
+            # Bodies still unplaced were GAINED vs the template — add a part for
+            # each at the object's default extruder (accent). The base body
+            # always name-matches, so a surplus body is never the base colour.
+            for b in leftover[len(unmatched_parts):]:
+                newid = add_body_part(oid, targets, b[0])
+                mapping[newid] = b
+                print(f"  {name}: added part {b[0]!r} "
+                      f"(extruder {obj_default[oid]}) — gained vs template")
+            plist = parts[oid]
+
+        # Component simplified: fewer bodies than the template object has parts.
+        # Drop the excess parts (allowed only if they share one extruder, so
+        # removing them can't change any colour). Kept parts are unaffected.
+        extra = [p for p, _ in plist if p not in mapping]
+        if extra:
+            exs = {part_ext[oid][p] for p in extra}
+            if len(exs) > 1:
+                fail(f"{name}: {len(extra)} excess template part(s) use mixed "
+                     f"extruders {sorted(exs)} - cannot drop unambiguously")
+            drop = set(extra)                    # part id == component id here
+            for t in targets:
+                for f, cid in comps[t]:
+                    if cid in drop:
+                        fp = work / f.lstrip("/")
+                        fp.write_text(re.sub(
+                            rf'\s*<object id="{cid}"[^>]*>.*?</object>', "",
+                            fp.read_text(), count=1, flags=re.S))
+                bm = re.search(rf'<object id="{t}".*?</object>', xml, re.S)
+                nb = bm.group(0)
+                for cid in drop:
+                    nb = re.sub(rf'\s*<component [^>]*objectid="{cid}"[^>]*/>',
+                                "", nb, count=1)
+                xml = xml[:bm.start()] + nb + xml[bm.end():]
+                cb = re.search(rf'<object id="{t}">.*?</object>', cfg, re.S)
+                ncb = cb.group(0)
+                for cid in drop:
+                    ncb = re.sub(rf'\s*<part id="{cid}".*?</part>', "",
+                                 ncb, count=1, flags=re.S)
+                cfg = cfg.replace(cb.group(0), ncb)
+                comps[t] = [(f, c) for f, c in comps[t] if c not in drop]
+            for p in extra:
+                part_ext[oid].pop(p, None)
+            parts[oid] = [(p, n) for p, n in parts[oid] if p not in drop]
+            plist = parts[oid]
+            print(f"  {name}: dropped {len(extra)} excess part(s) "
+                  f"(extruder {next(iter(exs))})")
 
         # object frame = centre of the whole assembly's CAD bbox
         all_verts = [v for _, verts, _ in mapping.values() for v in verts]
@@ -571,6 +692,9 @@ def main():
 
     # ---- auto plate scheme: regroup by role, split thin-strip plates to fit --
     if args.auto_plates:
+        gap_over.setdefault("Holder", 2.0)     # thin strips pack tight so they
+        gap_over.setdefault("Topper", 2.0)     # fit one plate (overridable)
+
         def _dims(oid):
             lo, hi = obj_bbox(oid)
             return hi[0] - lo[0], hi[1] - lo[1]
@@ -594,7 +718,7 @@ def main():
                 base, _, title = name.partition(" — ")
                 chunks = [oids[i:i + per] for i in range(0, len(oids), per)]
                 for k, ch in enumerate(chunks, 1):
-                    groups.append((f"{base} {k}/{len(chunks)} — {title}", ch))
+                    groups.append((f"{base} {k} of {len(chunks)} — {title}", ch))
         cfg = regroup_cfg(cfg, ps, groups)
         plates = [(i, nm, oids) for i, (nm, oids) in enumerate(groups, 1)]
         wx[:] = [15.0] * len(groups)
@@ -758,18 +882,26 @@ def main():
                     return False
                 return not any(sat_overlap(t_obb, ob, gap)
                                for _, ob in placed)
-            if not tower_free(wx[idx], wy[idx], 0.0):
+            WIPE_GAP = 15.0                      # clearance from printed parts
+            if not tower_free(wx[idx], wy[idx], WIPE_GAP):
                 best = None
-                gy = 0.0
-                while gy + tower_w <= bed_d:
-                    gx = 0.0
-                    while gx + tower_w <= bed_w:
-                        if tower_free(gx, gy, 5.0):
-                            d2 = (gx - wx[idx]) ** 2 + (gy - wy[idx]) ** 2
-                            if best is None or d2 < best[0]:
-                                best = (d2, gx, gy)
-                        gx += 4.0
-                    gy += 4.0
+                for gap in (WIPE_GAP, 5.0):      # prefer clearance, then any fit
+                    gy = 0.0
+                    while gy + tower_w <= bed_d:
+                        gx = 0.0
+                        while gx + tower_w <= bed_w:
+                            if tower_free(gx, gy, gap):
+                                # emptiest spot: furthest from centre (parts are
+                                # centred) so the tower sits in a free corner
+                                cx_t = gx + tower_w / 2 - bed_w / 2
+                                cy_t = gy + tower_w / 2 - bed_d / 2
+                                d2 = cx_t * cx_t + cy_t * cy_t
+                                if best is None or d2 > best[0]:
+                                    best = (d2, gx, gy)
+                            gx += 4.0
+                        gy += 4.0
+                    if best is not None:
+                        break
                 if best is None:
                     print(f"plate {pid}: wipe tower collides and no free "
                           f"spot exists - left at ({wx[idx]:g},{wy[idx]:g})")

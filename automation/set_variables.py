@@ -37,9 +37,13 @@ def var(name, vtype, expression, description):
             "description": description}
 
 
-def build_primary(row, sleeved):
+def build_primary(row, sleeved, game_name=None):
     """The full Primary variable set for one cascade (parts.csv row + sleeving).
-    Numbers are unitless expressions; GameName/Version are quoted strings."""
+    Numbers are unitless expressions; GameName/Version are quoted strings.
+
+    game_name overrides the GameName variable sent to Onshape (the model expects
+    the short code, e.g. "FCM", not the parts.csv "Game" full name "Food Chain
+    Magnate"). Defaults to the row's Game column when not given."""
     first = col(row, "Cards/First Riser")
     slot = col(row, "Cards/Riser slot")
     override = 1 if first else 0
@@ -63,7 +67,7 @@ def build_primary(row, sleeved):
             "1, if two front pockets should merge"),
         var("HalfThicknessMat", "NUMBER", "0",          # default — no mat here
             "1, if the pocket slider should be half thickness"),
-        var("GameName", "ANY", f'"{col(row, "Game")}"',
+        var("GameName", "ANY", f'"{game_name or col(row, "Game")}"',
             "Changes logo, height increment and card size"),
         var("Version", "ANY", '"6.3"',                  # sensible default
             "Version number to be printed on box and lid"),

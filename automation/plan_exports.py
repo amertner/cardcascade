@@ -175,6 +175,9 @@ def compute_plan(game, spec, csv_path, labels=False, changed=frozenset()):
         if u["type"] in changed:
             return True
         ver = OC.VERSIONS.get(u["type"])
+        # The Blank topper wasn't upgraded at 6.4 (no expansion logo) -> 6.3.
+        if u["type"] == "Topper" and all("Blank" in f for f in u["files"]):
+            ver = "6.3"
         return not all(PROV.is_current(prov, f, ver) for f in u["files"])
 
     to_export = {k: u for k, u in unique.items() if needs_export(u)}
