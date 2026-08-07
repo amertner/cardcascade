@@ -140,6 +140,13 @@ def _xesc(s):
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+def _plate_safe(name):
+    r"""Bambu forbids <>:/\|?*" in plate names; replace each with '-'."""
+    for c in '<>:/\\|?*"':
+        name = name.replace(c, "-")
+    return name
+
+
 def auto_plate_groups(objects, plates, title):
     """The standard plate scheme: [(plate name, [object ids]), ...] in
     PLATE_SCHEME order; empty groups skipped."""
@@ -166,7 +173,8 @@ def regroup_cfg(cfg, ps, groups):
     for i, (name, oids) in enumerate(groups, 1):
         insts = "".join(inst[o] for o in oids if o in inst)
         blocks.append(f'<plate>\n<metadata key="plater_id" value="{i}"/>\n'
-                      f'<metadata key="plater_name" value="{_xesc(name)}"/>'
+                      f'<metadata key="plater_name" '
+                      f'value="{_xesc(_plate_safe(name))}"/>'
                       f'{hdr}{insts}</plate>')
     cfg = re.sub(r'<plate>.*</plate>', "\n".join(blocks), cfg, flags=re.S)
     ps["wipe_tower_x"] = ["15"] * len(groups)    # layout relocates per plate
@@ -571,6 +579,9 @@ def main():
 
     # ---- auto plate scheme: regroup by role, split thin-strip plates to fit --
     if args.auto_plates:
+        gap_over.setdefault("Holder", 2.0)     # thin strips pack tight so they
+        gap_over.setdefault("Topper", 2.0)     # fit one plate (overridable)
+
         def _dims(oid):
             lo, hi = obj_bbox(oid)
             return hi[0] - lo[0], hi[1] - lo[1]
@@ -594,7 +605,7 @@ def main():
                 base, _, title = name.partition(" — ")
                 chunks = [oids[i:i + per] for i in range(0, len(oids), per)]
                 for k, ch in enumerate(chunks, 1):
-                    groups.append((f"{base} {k}/{len(chunks)} — {title}", ch))
+                    groups.append((f"{base} {k} of {len(chunks)} — {title}", ch))
         cfg = regroup_cfg(cfg, ps, groups)
         plates = [(i, nm, oids) for i, (nm, oids) in enumerate(groups, 1)]
         wx[:] = [15.0] * len(groups)
