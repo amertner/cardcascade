@@ -65,8 +65,11 @@ def is_imported(part_name, component_type):
 # Onshape; components exported at an older version go stale and are re-exported
 # (see provenance.py). No API calls — you control these. Defaults to the current
 # CC 6.3 design.
+# Only the (Innovation) lid changed at 6.4; everything else is unchanged at 6.3.
+# NOTE: this map is global per-type — when another game's lid diverges, this
+# needs a per-game override (only Innovation has lid provenance today).
 VERSIONS = {
-    "Box": "6.3", "Lid": "6.3", "Holder": "6.3", "Pusher": "6.3",
+    "Box": "6.3", "Lid": "6.4", "Holder": "6.3", "Pusher": "6.3",
     "Topper": "6.3", "TokenHolder": "6.3", "Label": "6.3",
 }
 
