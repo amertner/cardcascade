@@ -9,10 +9,12 @@ frugal. Imported by set_variables.py (and, going forward, the exporter).
 import csv
 import datetime
 import json
+import math
 import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import requests
@@ -24,6 +26,17 @@ ANNUAL_LIMIT = 2500
 LOG = Path(__file__).with_name("onshape_api_log.csv")
 LOG_COLUMNS = ["date", "time", "run_id", "reason", "method", "status",
                "consumed", "run_calls", "cumulative_total", "endpoint"]
+
+# Adaptive polling. Each poll of a running translation is a BILLED call, so the
+# aim is to wait long enough before the first poll that the export is already
+# DONE — i.e. exactly one poll. We persist a learned delay per translation kind
+# (part-studio exports are quick; assembly exports are bigger/slower); start at
+# 10s and, whenever a call needed more than one poll, raise the learned delay to
+# the observed completion time (+margin) so the NEXT call lands on one poll.
+POLL_STATE = Path(__file__).with_name("state") / "poll_delay.json"
+DEFAULT_POLL = 10          # first-poll wait before we've learned anything (s)
+POLL_INTERVAL = 5          # wait between re-polls while still ACTIVE (s)
+POLL_MARGIN = 3            # cushion added to a newly learned delay (s)
 
 CALLS = 0          # billed calls this run
 CUMULATIVE = 0     # all-time total (seeded from the ledger by begin())
@@ -130,3 +143,55 @@ def budget_line():
     return (f"API calls used this run: {CALLS}  "
             f"(year-to-date {CUMULATIVE}/{ANNUAL_LIMIT}, "
             f"{ANNUAL_LIMIT - CUMULATIVE} left)")
+
+
+# ------------------------------------------------------------ adaptive polling
+def _load_poll():
+    try:
+        return json.loads(POLL_STATE.read_text())
+    except Exception:
+        return {}
+
+
+def poll_delay(kind):
+    return int(_load_poll().get(kind, DEFAULT_POLL))
+
+
+def _learn_poll(kind, elapsed):
+    """Raise the learned delay for `kind` toward the observed completion time so
+    the next call needs a single poll. Increase-only: never risk an extra poll."""
+    delays = _load_poll()
+    new = int(math.ceil(elapsed)) + POLL_MARGIN
+    if new > delays.get(kind, 0):
+        delays[kind] = new
+        POLL_STATE.parent.mkdir(exist_ok=True)
+        POLL_STATE.write_text(json.dumps(delays, indent=2))
+
+
+def translate(auth, kind, did, path, body, reason=""):
+    """Run one 3MF translation (part studio or assembly) and return
+    (bytes, documentMicroversion). `kind` selects the learned poll delay; `path`
+    is the .../translations endpoint; `did` is the document id for the download.
+
+    Waits the learned delay before the first (billed) poll so one poll is the
+    norm, and re-learns upward if it wasn't."""
+    rp = f"{reason}-" if reason else ""
+    tid = api(auth, "POST", path, f"{rp}translate", json=body)["id"]
+    t0 = time.monotonic()
+    time.sleep(poll_delay(kind))
+    st, polls = {}, 0
+    while polls < 12:
+        st = api(auth, "GET", f"/api/translations/{tid}", f"{rp}poll")
+        polls += 1
+        if st.get("requestState") != "ACTIVE":
+            break
+        time.sleep(POLL_INTERVAL)
+    if st.get("requestState") != "DONE":
+        sys.exit(f"{kind} translation {st.get('requestState')}: "
+                 f"{st.get('failureReason')}")
+    if polls > 1:                       # took longer than we waited — wait more next time
+        _learn_poll(kind, time.monotonic() - t0)
+    fid = st["resultExternalDataIds"][0]
+    data = http(auth, "GET", f"/api/documents/d/{did}/externaldata/{fid}",
+                f"{rp}download").content
+    return data, st.get("documentMicroversion", "")

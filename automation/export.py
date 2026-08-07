@@ -23,8 +23,8 @@ Usage:
 import argparse
 import datetime
 import sys
-import time
 
+import assembly_split as ASM
 import components as C
 import make_cascade as MC
 import mesh
@@ -55,7 +55,7 @@ def api_config(comp):
 
 
 def param_summary(ctx):
-    s = [f"GameName={ctx['game']}", f"HorizontalSlots={ctx['horizontal']}",
+    s = [f"GameName={ctx['folder']}", f"HorizontalSlots={ctx['horizontal']}",
          f"RisingSliders={ctx['risers']}",
          f"CardsPerSlidingSlot={ctx['cards_per_slot']}",
          f"FrontPocket={ctx['front_capacity']}",
@@ -89,48 +89,63 @@ def batch(cascades, to_export_keys):
 
 
 # ----------------------------------------------------------------- execution
-def set_primary(auth, row, sleeved):
+def set_primary(auth, row, sleeved, game_name):
     O.api(auth, "POST",
           f"/api/variables/d/{OC.DID}/w/{OC.WID}/e/{OC.PRIMARY}/variables",
-          "set-primary", json=SV.build_primary(row, sleeved))
+          "set-primary", json=SV.build_primary(row, sleeved, game_name))
 
 
-def translate_studio(auth, eid, configuration=""):
-    """Export a whole part studio as one combined 3MF; return (bytes, microversion)."""
-    body = dict(MESH_BODY)
-    if configuration:
-        body["configuration"] = configuration
-    et = f"/d/{OC.DID}/w/{OC.WID}/e/{eid}"
-    tid = O.api(auth, "POST", f"/api/partstudios{et}/translations",
-                "translate", json=body)["id"]
-    time.sleep(8)
-    st = {}
-    for _ in range(8):
-        st = O.api(auth, "GET", f"/api/translations/{tid}", "poll")
-        if st["requestState"] != "ACTIVE":
-            break
-        time.sleep(5)
-    if st.get("requestState") != "DONE":
-        sys.exit(f"translation {st.get('requestState')}: {st.get('failureReason')}")
-    fid = st["resultExternalDataIds"][0]
-    data = O.http(auth, "GET",
-                  f"/api/documents/d/{OC.DID}/externaldata/{fid}",
-                  "download").content
-    return data, st.get("documentMicroversion", "")
-
-
-def export_component(auth, comp, folder, game, when):
-    """studio -> 3MF -> strip imports -> validate -> write file + provenance."""
-    typ = comp["type"]
-    data, mv = translate_studio(auth, OC.ELEMENTS[typ], api_config(comp))
-    clean, dropped = mesh.strip_objects(data, {t for t in OC.ELEMENTS if t != typ})
-    out = P.ROOT / "individual" / folder / comp["file"]
-    out.write_bytes(clean)
-    bodies = MC.load_export(str(out))            # validate it parses cleanly
+def _record(comp, game, element, mv, when):
     PROV.record(game, PROV.make_row(
-        comp["file"], typ, comp["key"], OC.ELEMENTS[typ], comp_config(comp),
-        OC.VERSIONS.get(typ, ""), mv, when))
-    return len(bodies), dropped
+        comp["file"], comp["type"], comp["key"], element, comp_config(comp),
+        OC.VERSIONS.get(comp["type"], ""), mv, when))
+
+
+def _write(data, comp, folder, game, element, mv, when):
+    """Write export bytes to the component's file, validate, record provenance."""
+    out = P.ROOT / "individual" / folder / comp["file"]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(data)
+    bodies = MC.load_export(str(out))            # validate it parses cleanly
+    _record(comp, game, element, mv, when)
+    return len(bodies)
+
+
+def export_studio(auth, comp, folder, game, when):
+    """One part-studio component (Lid, Topper, Label): translate -> strip imports
+    -> file + provenance."""
+    typ = comp["type"]
+    body = dict(MESH_BODY)
+    cfg = api_config(comp)
+    if cfg:
+        body["configuration"] = cfg
+    data, mv = O.translate(
+        auth, "partstudio", OC.DID,
+        f"/api/partstudios/d/{OC.DID}/w/{OC.WID}/e/{OC.ELEMENTS[typ]}/translations",
+        body, reason=typ.lower())
+    clean, dropped = mesh.strip_objects(data, {t for t in OC.ELEMENTS if t != typ})
+    n = _write(clean, comp, folder, game, OC.ELEMENTS[typ], mv, when)
+    return n, dropped
+
+
+def assembly_role(comp):
+    """Which split role a cascade component maps to inside the assembly export."""
+    if comp["type"] == "Holder" and comp.get("instance") == "first":
+        return "Holder_first"
+    return comp["type"]
+
+
+def export_assembly(auth, ctx):
+    """One assembly translation -> {role: clean 3mf bytes} (split locally),
+    plus the shared documentMicroversion."""
+    data, mv = O.translate(
+        auth, "assembly", OC.DID,
+        f"/api/assemblies/d/{OC.DID}/w/{OC.WID}/e/{OC.ASSEMBLY}/translations",
+        dict(MESH_BODY), reason="assembly")
+    card_mm = 0.64 if ctx["sleeved"] == "Sl" else 0.34
+    parts = ASM.split(mesh.unwrap(data), cards_first=ctx.get("first_riser"),
+                      cards_slot=ctx["cards_per_slot"], card_mm=card_mm)
+    return parts, mv
 
 
 def run_export(game, spec, plan, batches, limit):
@@ -142,18 +157,38 @@ def run_export(game, spec, plan, batches, limit):
     for casc, keys in batches:
         if limit and done >= limit:
             break
-        set_primary(auth, casc["row"], casc["sleeved"] == "Sl")
+        bykey = {}
+        for c in casc["components"]:
+            bykey.setdefault(c["key"], c)
+        needed = [bykey[k] for k in keys if k in bykey]
+        asm = [c for c in needed if c["type"] in OC.ASSEMBLY_SOURCED]
+        studio = [c for c in needed if c["type"] in OC.STUDIO_SOURCED]
+        set_primary(auth, casc["row"], casc["sleeved"] == "Sl",
+                    spec.get("onshape_name", spec["folder"]))
         print(f"● SET PARAMETERS  [{casc['name']}]")
-        for k in keys:
+        # ONE assembly export supplies every monochrome component of this cascade
+        if asm and not (limit and done >= limit):
+            parts, mv = export_assembly(auth, casc["ctx"])
+            for comp in asm:
+                if limit and done >= limit:
+                    break
+                role = assembly_role(comp)
+                data = parts.get(role)
+                if data is None:
+                    print(f"    ⚠ {comp['file']} — role {role!r} absent from assembly")
+                    continue
+                n = _write(data, comp, folder, game, OC.ASSEMBLY, mv, when)
+                print(f"    ✓ {comp['file']}  ({n} body, assembly)")
+                done += 1
+        # Lid / toppers / labels stay on the per-part-studio path
+        for comp in studio:
             if limit and done >= limit:
                 break
-            u = plan.unique[k]
-            comp = {"type": u["type"], "file": sorted(u["files"])[0], "key": k}
             if comp["type"] not in OC.ELEMENTS:
                 print(f"    ⚠ skip {comp['file']} — no element id"); continue
-            n, dropped = export_component(auth, comp, folder, game, when)
+            n, dropped = export_studio(auth, comp, folder, game, when)
             extra = f", stripped {dropped}" if dropped else ""
-            print(f"    ✓ {comp['file']}  ({n} bodies{extra})")
+            print(f"    ✓ {comp['file']}  ({n} bodies, studio{extra})")
             done += 1
     print(f"\nexported {done} component(s).\n{O.budget_line()}")
 
@@ -215,47 +250,64 @@ def main():
         cascades = [c for c in cascades if c["ctx"]["short_name"] == args.name]
     batches, skipped = batch(cascades, to_export_keys)
 
+    def classify(keys):
+        """(assembly-sourced keys, studio-sourced keys) for one cascade."""
+        asm = [k for k in keys if plan.unique[k]["type"] in OC.ASSEMBLY_SOURCED]
+        studio = [k for k in keys if plan.unique[k]["type"] in OC.STUDIO_SOURCED]
+        return asm, studio
+
+    # translate operations per cascade: ONE assembly export covers all its
+    # monochrome parts; each lid/topper/label is its own studio export.
+    def translate_ops(keys):
+        asm, studio = classify(keys)
+        return (1 if asm else 0) + len(studio)
+
+    PER = 3          # per translate op with adaptive polling: translate + 1 poll + download
+    sets = len(batches)
+    ops = sum(translate_ops(keys) for _, keys in batches)
+    est = sets + ops * PER
+
     if args.execute:
-        n_parts = sum(len(k) for _, k in batches)
         scope = f" [{args.sleeving}]" if args.sleeving else ""
         lim = f", limit {args.limit}" if args.limit else ""
-        print(f"EXECUTE — {game}{scope}: {len(batches)} parameter set(s), "
-              f"{n_parts} component(s){lim}\n")
+        print(f"EXECUTE — {game}{scope}: {sets} parameter set(s), "
+              f"{ops} translate op(s) ≈ {est} calls{lim}\n")
         run_export(game, spec, plan, batches, args.limit)
         return
 
     # ---- dry run ----
-    n_set, n_parts = len(batches), sum(len(k) for _, k in batches)
     cache = ("IGNORING cache (--all)" if args.all
              else f"{len(plan.all_files & plan.present)}/{len(plan.all_files)} "
                   "components already cached")
     scope = f", {args.sleeving} only" if args.sleeving else ""
     print(f"EXPORT PLAN — {game}   (dry run, 0 API calls; {cache}{scope})\n")
     for casc, keys in batches:
-        print(f"● SET PARAMETERS  [{casc['name']}]   (1 call)")
+        asm, studio = classify(keys)
+        ncalls = 1 + translate_ops(keys)
+        print(f"● SET PARAMETERS  [{casc['name']}]   (~{1 + translate_ops(keys) * PER} calls)")
         print(f"      {param_summary(casc['ctx'])}")
-        others = [k for k in keys if plan.unique[k]["type"] != "Topper"]
-        toppers = [k for k in keys if plan.unique[k]["type"] == "Topper"]
-        rows = [("part", k) for k in others]
+        if asm:
+            files = sorted(sorted(plan.unique[k]["files"])[0] for k in asm)
+            nnew = sum(1 for f in files if f not in plan.present)
+            st = "new" if nnew == len(files) else f"{nnew} new, {len(files) - nnew} stale"
+            print(f"      ├─ 1 ASSEMBLY export → {len(asm)} monochrome part(s) "
+                  f"[{st}]: {', '.join(files)}")
+        toppers = [k for k in studio if plan.unique[k]["type"] == "Topper"]
+        other = [k for k in studio if plan.unique[k]["type"] != "Topper"]
+        for k in other:
+            u = plan.unique[k]
+            f = sorted(u["files"])[0]
+            state = "new" if f not in plan.present else "stale"
+            tag = "" if u["type"] in OC.ELEMENTS else "  ⚠ no element id"
+            print(f"      ├─ studio export {f}   [{u['type']} · {state}]{tag}")
         if toppers:
-            rows.append(("toppers", toppers))
-        for i, (kind, payload) in enumerate(rows):
-            branch = "└─" if i == len(rows) - 1 else "├─"
-            if kind == "part":
-                u = plan.unique[payload]
-                f = sorted(u["files"])[0]
-                st = "new" if f not in plan.present else "stale"
-                tag = "" if u["type"] in OC.ELEMENTS else "  ⚠ no element id"
-                print(f"      {branch} request {f}   [{u['type']} · {st}]{tag}")
-            else:
-                exps = [k[1] for k in payload]
-                files = [sorted(plan.unique[k]["files"])[0] for k in payload]
-                nnew = sum(1 for f in files if f not in plan.present)
-                st = ("new" if nnew == len(files)
-                      else f"{nnew} new, {len(files) - nnew} stale")
-                tag = "" if "Topper" in OC.ELEMENTS else "  ⚠ no element id"
-                print(f"      {branch} request {len(exps)} toppers via config "
-                      f"[{st}]: {', '.join(exps)}{tag}")
+            exps = [k[1] for k in toppers]
+            files = [sorted(plan.unique[k]["files"])[0] for k in toppers]
+            nnew = sum(1 for f in files if f not in plan.present)
+            st = ("new" if nnew == len(files)
+                  else f"{nnew} new, {len(files) - nnew} stale")
+            print(f"      └─ {len(exps)} studio topper export(s) [{st}]: "
+                  f"{', '.join(exps)}")
         print()
 
     if skipped:
@@ -265,12 +317,12 @@ def main():
             print(f"  · {casc['name']}")
         print()
 
-    per = P.CALLS_PER_EXPORT
     unknown = sorted({plan.unique[k]["type"] for _, keys in batches for k in keys
-                      if plan.unique[k]["type"] not in OC.ELEMENTS})
-    print(f"SET-PARAMETER calls: {n_set}   Part requests: {n_parts}")
-    print(f"Estimated API calls: {n_set} set + {n_parts}×~{per} export "
-          f"= ~{n_set + n_parts * per}")
+                      if plan.unique[k]["type"] in OC.STUDIO_SOURCED
+                      and plan.unique[k]["type"] not in OC.ELEMENTS})
+    print(f"Parameter sets: {sets}   Translate ops: {ops}   "
+          f"(1 assembly export replaces all of a cascade's monochrome parts)")
+    print(f"Estimated API calls: {sets} set + {ops}×~{PER} = ~{est}")
     if unknown:
         print(f"  ⚠ no element id yet for {unknown}")
     print(f"\nYear-to-date {_ytd()}/2500.  Re-run with --execute to perform it.")

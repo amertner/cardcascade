@@ -28,6 +28,27 @@ ELEMENTS = {
     "TokenHolder": "2d5e70091942133d994fd989",   # Dominion only
 }
 
+# Assembly holding all the MONOCHROME components (Box, Pusher, TokenHolder, and
+# the first + default Holder instances), driven by the same Primary variable
+# studio. Exporting this ONE element in one translation returns every monochrome
+# component at once (see assembly_split.py) — far fewer API calls than one
+# part-studio export per component.
+#
+# The Lid and Toppers are NOT in this assembly: the Lid can't be reconfigured
+# per-game reliably, and toppers are Innovation-only + would collide with lid
+# lettering names. Both stay on the per-part-studio path.
+ASSEMBLY = "f27edbc7a0f89c28092f18d4"
+
+# Which component types come from the ONE assembly export vs a per-part-studio
+# export. Membership decides how plan_exports/export route each component.
+ASSEMBLY_SOURCED = frozenset({"Box", "Pusher", "Holder", "TokenHolder"})
+STUDIO_SOURCED = frozenset({"Lid", "Topper", "Label"})
+
+# Object names inside the assembly export map 1:1 to component types (the two
+# Holder instances share the name "Holder" and are told apart by height — see
+# assembly_split.py).
+ASSEMBLY_ROLE_NAMES = {"Box", "Pusher", "Holder", "TokenHolder"}
+
 # The Topper studio uses a CONFIGURATION input for the embossed expansion name,
 # so each topper is a separate export (one per expansion, via
 # configurationencodings like onshape_test.py --set). Toppers vary by
