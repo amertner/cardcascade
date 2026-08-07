@@ -7,10 +7,10 @@ stacked UNSLEEVED/SLEEVED corner banners, a size-graded stack of the
 set's actual labels (front, box sides, split-box labels) with type/width
 captions, FULL SET / PARTIAL SETS chips, and a bottom band naming the set.
 
-    python3 make_label_covers.py [--out labels] [--version 6.4]
+    python3 make_label_covers.py [--out cascades] [--version 6.4]
                                  [--sets "Renaissance,Base Set"]
 
-Covers are written to <out>/<game>/sets/, next to the per-set .3mf files.
+Covers are written to <out>/<game>/labels/, next to the per-set .3mf files.
 
 Requires: pillow (pip install pillow). Reads cc.cfg via labelmaker.
 """
@@ -320,8 +320,8 @@ def make_cover(rec, game, game_cfg, version, out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--out", default=os.path.join(REPO, "labels"),
-                    help="base labels dir; covers go to <out>/<game>/sets")
+    ap.add_argument("--out", default=os.path.join(REPO, "cascades"),
+                    help="base dir; covers go to <out>/<game>/labels")
     ap.add_argument("--version", default="6.4")
     ap.add_argument("--sets", default=None,
                     help="comma-separated set names (default: all)")
@@ -338,7 +338,7 @@ def main():
         records = dl.read_config_file(cfg_file, game)
         if not records:
             continue
-        set_dir = os.path.join(args.out, game, "sets")
+        set_dir = os.path.join(args.out, game, "labels")
         os.makedirs(set_dir, exist_ok=True)
         for rec in records:
             display = rec["name"] or "Blank"

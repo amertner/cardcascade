@@ -8,7 +8,7 @@ name, a 3-step staircase logo in the bottom-left corner and a small
 Geometry replicated from the original Onshape design (SideLabel STEP
 export). Font: Orbitron Bold (Google Fonts, OFL licence).
 
-All output goes to labels/<game>/.
+All output goes to cascades/<game>/labels/.
 
 Usage:
     python3 labelmaker.py                     # one 3MF per set (default)
@@ -847,12 +847,12 @@ def main():
                                       widths_for(is_split))]
 
     font = LabelFont(find_font())
-    outdir = Path("labels") / game
+    outdir = Path("cascades") / game / "labels"
     outdir.mkdir(parents=True, exist_ok=True)
 
     if not args.plates and not args.individual and records is not None:
         # default: one 3MF per set (whole box / split boxes / spares plates)
-        setdir = outdir / "sets"
+        setdir = outdir
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:
             fname = f"{rec['name'] or 'Blank'} Labels.3mf"
