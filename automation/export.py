@@ -172,6 +172,8 @@ def main():
                     help="actually export (default is a 0-call dry run)")
     ap.add_argument("--sleeving", choices=["un", "sl"],
                     help="restrict to unsleeved or sleeved cascades")
+    ap.add_argument("--name", help="restrict to one cascade (Short name, "
+                                   "e.g. '360 Card')")
     ap.add_argument("--limit", type=int, default=0,
                     help="export at most N components")
     args = ap.parse_args()
@@ -209,6 +211,8 @@ def main():
     cascades = plan.cascades
     if args.sleeving:
         cascades = [c for c in cascades if c["sleeved"] == args.sleeving.capitalize()]
+    if args.name:
+        cascades = [c for c in cascades if c["ctx"]["short_name"] == args.name]
     batches, skipped = batch(cascades, to_export_keys)
 
     if args.execute:

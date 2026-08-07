@@ -235,6 +235,7 @@ def main():
     objects = {}        # object id -> name
     parts = {}          # object id -> [(part id, part name)]
     part_ext = {}       # object id -> {part id: extruder (object default applied)}
+    obj_default = {}    # object id -> object's default extruder (added parts use it)
     for om in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):
         oid = om.group(1)
         objects[oid] = re.search(r'key="name" value="([^"]*)"',
@@ -242,6 +243,7 @@ def main():
         head = om.group(2).split("<part", 1)[0]
         objdef = re.search(r'key="extruder" value="([^"]*)"', head)
         objdef = objdef.group(1) if objdef else "1"
+        obj_default[oid] = objdef
         parts[oid] = []
         part_ext[oid] = {}
         for pm in re.finditer(r'<part id="(\d+)"[^>]*>(.*?)</part>',
@@ -307,6 +309,71 @@ def main():
               for pid, nm, objs in plates]
 
     # ---------------- geometry replacement ----------------
+    # Fresh ids for parts a component gained vs the template must be unique
+    # across the main model, the config, and every sub-model mesh file.
+    def _max_id():
+        ids = [int(x) for x in re.findall(r'\bid="(\d+)"', xml + cfg)]
+        ids += [int(x) for x in re.findall(r'objectid="(\d+)"', xml)]
+        for p in (work / "3D/Objects").glob("object_*.model"):
+            ids += [int(x) for x in re.findall(r'<object id="(\d+)"',
+                                               p.read_text())]
+        return max(ids)
+    next_id = _max_id() + 1
+
+    def _esc(s):
+        return (s.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace('"', "&quot;"))
+
+    def add_body_part(oid, targets, body_name):
+        """Append a brand-new part for a body the component GAINED relative to
+        the template (e.g. a v6.4 topper's logo, which renumbered the letters
+        so one body has no template slot). The part is cloned from an existing
+        sibling on the object's default extruder — so it inherits the accent
+        colour — and its mesh/position are filled by the shared replacement
+        pass below. Keeps the template's part-id == component-id invariant.
+        Returns the new (shared) id."""
+        nonlocal xml, cfg, next_id
+        newid = str(next_id)
+        next_id += 1
+        for t in targets:
+            donor = next((pid for pid, _ in parts[t]
+                          if part_ext[t].get(pid) == obj_default[t]), None)
+            if donor is None:
+                fail(f"{objects[t]}: no default-extruder part to model the new "
+                     f"part {body_name!r} on")
+            donor_path = {c: f for f, c in comps[t]}[donor]
+            # 1) sub-model mesh file: an empty object the replacement pass fills
+            smp = work / donor_path.lstrip("/")
+            ph = (f'  <object id="{newid}" p:UUID="{uuid.uuid4()}" '
+                  f'type="model">\n   <mesh>\n    <vertices>\n    </vertices>\n'
+                  f'    <triangles>\n    </triangles>\n   </mesh>\n  </object>\n')
+            smp.write_text(smp.read_text().replace(
+                "</resources>", ph + " </resources>", 1))
+            # 2) main model: a new component at the end of this object's list
+            comp = (f'<component p:path="{donor_path}" objectid="{newid}" '
+                    f'p:UUID="{uuid.uuid4()}" '
+                    f'transform="1 0 0 0 1 0 0 0 1 0 0 0"/>')
+            om = re.search(rf'(<object id="{t}"[^>]*>\s*<components>.*?)'
+                           rf'(\s*</components>)', xml, re.S)
+            xml = (xml[:om.start()] + om.group(1) + "\n    " + comp
+                   + om.group(2) + xml[om.end():])
+            # 3) config: clone the donor <part>, renaming id + name
+            cm = re.search(rf'<object id="{t}">.*?</object>', cfg, re.S)
+            blk = cm.group(0)
+            donor_blk = re.search(rf'<part id="{donor}".*?</part>',
+                                  blk, re.S).group(0)
+            npart = re.sub(r'<part id="\d+"', f'<part id="{newid}"',
+                           donor_blk, count=1)
+            npart = re.sub(r'(key="name" value=")[^"]*(")',
+                           rf'\g<1>{_esc(body_name)}\g<2>', npart, count=1)
+            nblk = blk.replace("</object>", "    " + npart + "\n  </object>", 1)
+            cfg = cfg[:cm.start()] + nblk + cfg[cm.end():]
+            # 4) register so the mapping / replacement passes see the new part
+            comps[t].append((donor_path, newid))
+            parts[t].append((newid, body_name))
+            part_ext[t][newid] = obj_default[t]
+        return newid
+
     for spec in args.part:
         name, _, file = spec.partition("=")
         if not _:
@@ -366,10 +433,10 @@ def main():
         # every instance shares the same mesh file(s); patch via the first
         oid = targets[0]
         plist = parts[oid]
-        if len(bodies) > len(plist):
-            fail(f"{name}: {file} has {len(bodies)} bodies but the template "
-                 f"object has only {len(plist)} parts (cannot add parts)")
         if len(plist) == 1:
+            if len(bodies) != 1:
+                fail(f"{name}: {file} has {len(bodies)} bodies but the "
+                     f"single-part template object has one slot")
             mapping = {plist[0][0]: bodies[0]}
         else:
             by_name = {}
@@ -386,15 +453,15 @@ def main():
                     used.add(pname)
                 else:
                     unmatched_parts.append((pid_, pname))
-            # A revision may rename some bodies while keeping the count (e.g.
-            # sleeved toppers renumber Part 9/10 -> Part 3/4). Pair the
-            # leftovers, but only when every unmatched template part shares one
+            leftover = sorted((b for n, b in by_name.items()
+                               if n not in used), key=lambda x: x[0])
+            # A revision may rename some bodies (e.g. a v6.4 topper inserts a
+            # logo body and renumbers the letters). Pair leftover bodies onto
+            # leftover template slots first, but only when those slots share one
             # extruder - then which slot a body lands in cannot change its
             # colour, so there is nothing to guess. Positions are recomputed
             # from each body's own geometry below, so slot identity is cosmetic.
             if unmatched_parts:
-                leftover = sorted((b for n, b in by_name.items()
-                                   if n not in used), key=lambda x: x[0])
                 exs = {part_ext[oid][pid_] for pid_, _ in unmatched_parts}
                 if len(exs) > 1:
                     fail(f"{name}: {len(unmatched_parts)} template part(s) have "
@@ -406,6 +473,15 @@ def main():
                     mapping[pid_] = b
                     print(f"  {name}: reconciled body {b[0]!r} -> part {pname!r} "
                           f"(extruder {part_ext[oid][pid_]})")
+            # Bodies still unplaced were GAINED vs the template — add a part for
+            # each at the object's default extruder (accent). The base body
+            # always name-matches, so a surplus body is never the base colour.
+            for b in leftover[len(unmatched_parts):]:
+                newid = add_body_part(oid, targets, b[0])
+                mapping[newid] = b
+                print(f"  {name}: added part {b[0]!r} "
+                      f"(extruder {obj_default[oid]}) — gained vs template")
+            plist = parts[oid]
 
         # Component simplified: fewer bodies than the template object has parts.
         # Drop the excess parts (allowed only if they share one extruder, so

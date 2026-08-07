@@ -70,8 +70,10 @@ def is_imported(part_name, component_type):
 # needs a per-game override (only Innovation has lid provenance today).
 VERSIONS = {
     "Box": "6.3", "Lid": "6.4", "Holder": "6.3", "Pusher": "6.3",
-    "Topper": "6.3", "TokenHolder": "6.3", "Label": "6.3",
+    "Topper": "6.4", "TokenHolder": "6.3", "Label": "6.3",
 }
+# Innovation lid + toppers changed at 6.4; the Blank topper is exempt (no logo)
+# and stays 6.3 — handled in plan_exports.needs_export.
 
 
 def part_url(eid):
