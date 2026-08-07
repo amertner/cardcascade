@@ -366,9 +366,9 @@ def main():
         # every instance shares the same mesh file(s); patch via the first
         oid = targets[0]
         plist = parts[oid]
-        if len(bodies) != len(plist):
-            fail(f"{name}: template object has {len(plist)} parts, "
-                 f"{file} has {len(bodies)} bodies")
+        if len(bodies) > len(plist):
+            fail(f"{name}: {file} has {len(bodies)} bodies but the template "
+                 f"object has only {len(plist)} parts (cannot add parts)")
         if len(plist) == 1:
             mapping = {plist[0][0]: bodies[0]}
         else:
@@ -406,6 +406,43 @@ def main():
                     mapping[pid_] = b
                     print(f"  {name}: reconciled body {b[0]!r} -> part {pname!r} "
                           f"(extruder {part_ext[oid][pid_]})")
+
+        # Component simplified: fewer bodies than the template object has parts.
+        # Drop the excess parts (allowed only if they share one extruder, so
+        # removing them can't change any colour). Kept parts are unaffected.
+        extra = [p for p, _ in plist if p not in mapping]
+        if extra:
+            exs = {part_ext[oid][p] for p in extra}
+            if len(exs) > 1:
+                fail(f"{name}: {len(extra)} excess template part(s) use mixed "
+                     f"extruders {sorted(exs)} - cannot drop unambiguously")
+            drop = set(extra)                    # part id == component id here
+            for t in targets:
+                for f, cid in comps[t]:
+                    if cid in drop:
+                        fp = work / f.lstrip("/")
+                        fp.write_text(re.sub(
+                            rf'\s*<object id="{cid}"[^>]*>.*?</object>', "",
+                            fp.read_text(), count=1, flags=re.S))
+                bm = re.search(rf'<object id="{t}".*?</object>', xml, re.S)
+                nb = bm.group(0)
+                for cid in drop:
+                    nb = re.sub(rf'\s*<component [^>]*objectid="{cid}"[^>]*/>',
+                                "", nb, count=1)
+                xml = xml[:bm.start()] + nb + xml[bm.end():]
+                cb = re.search(rf'<object id="{t}">.*?</object>', cfg, re.S)
+                ncb = cb.group(0)
+                for cid in drop:
+                    ncb = re.sub(rf'\s*<part id="{cid}".*?</part>', "",
+                                 ncb, count=1, flags=re.S)
+                cfg = cfg.replace(cb.group(0), ncb)
+                comps[t] = [(f, c) for f, c in comps[t] if c not in drop]
+            for p in extra:
+                part_ext[oid].pop(p, None)
+            parts[oid] = [(p, n) for p, n in parts[oid] if p not in drop]
+            plist = parts[oid]
+            print(f"  {name}: dropped {len(extra)} excess part(s) "
+                  f"(extruder {next(iter(exs))})")
 
         # object frame = centre of the whole assembly's CAD bbox
         all_verts = [v for _, verts, _ in mapping.values() for v in verts]
@@ -769,18 +806,26 @@ def main():
                     return False
                 return not any(sat_overlap(t_obb, ob, gap)
                                for _, ob in placed)
-            if not tower_free(wx[idx], wy[idx], 0.0):
+            WIPE_GAP = 15.0                      # clearance from printed parts
+            if not tower_free(wx[idx], wy[idx], WIPE_GAP):
                 best = None
-                gy = 0.0
-                while gy + tower_w <= bed_d:
-                    gx = 0.0
-                    while gx + tower_w <= bed_w:
-                        if tower_free(gx, gy, 5.0):
-                            d2 = (gx - wx[idx]) ** 2 + (gy - wy[idx]) ** 2
-                            if best is None or d2 < best[0]:
-                                best = (d2, gx, gy)
-                        gx += 4.0
-                    gy += 4.0
+                for gap in (WIPE_GAP, 5.0):      # prefer clearance, then any fit
+                    gy = 0.0
+                    while gy + tower_w <= bed_d:
+                        gx = 0.0
+                        while gx + tower_w <= bed_w:
+                            if tower_free(gx, gy, gap):
+                                # emptiest spot: furthest from centre (parts are
+                                # centred) so the tower sits in a free corner
+                                cx_t = gx + tower_w / 2 - bed_w / 2
+                                cy_t = gy + tower_w / 2 - bed_d / 2
+                                d2 = cx_t * cx_t + cy_t * cy_t
+                                if best is None or d2 > best[0]:
+                                    best = (d2, gx, gy)
+                            gx += 4.0
+                        gy += 4.0
+                    if best is not None:
+                        break
                 if best is None:
                     print(f"plate {pid}: wipe tower collides and no free "
                           f"spot exists - left at ({wx[idx]:g},{wy[idx]:g})")
