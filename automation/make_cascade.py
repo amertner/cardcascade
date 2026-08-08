@@ -203,7 +203,14 @@ def main():
                     help="ignore the template's plate layout; generate the "
                          "standard scheme (Box+Pushers / Lid / Holders / "
                          "Toppers / TokenHolders) and lay each out on the bed")
+    ap.add_argument("--keep-layout", action="store_true",
+                    help="in-place swap: replace meshes but KEEP the template's "
+                         "object positions, plates and wipe towers (for updating "
+                         "a hand-crafted layout with same-design components); "
+                         "refuses a swapped mesh that outgrew its slot")
     args = ap.parse_args()
+    if args.keep_layout and args.auto_plates:
+        fail("--keep-layout and --auto-plates are mutually exclusive")
 
     gap_over = {}
     for spec in args.gap_override:
@@ -373,6 +380,32 @@ def main():
             parts[t].append((newid, body_name))
             part_ext[t][newid] = obj_default[t]
         return newid
+
+    # --keep-layout guard: an object's world-space XY bounding box AT ITS KEPT
+    # template position (item ∘ component ∘ mesh, using real transformed verts so
+    # rotation is handled exactly). Used to refuse a swapped mesh that outgrew
+    # its slot enough to overhang the bed.
+    def _world_xy_aabb(oid):
+        it = re.search(rf'<item objectid="{oid}" [^>]*transform="([^"]+)"', xml)
+        if not it:
+            return None
+        v = [float(x) for x in it.group(1).split()]
+        xs, ys = [], []
+        for f, cid in comps.get(oid, []):
+            got = parse_meshes((work / f.lstrip("/")).read_text()).get(int(cid))
+            if not got:
+                continue
+            _, verts, _ = got
+            cm = re.search(rf'<object id="{oid}"[^>]*>\s*<components>.*?'
+                           rf'objectid="{cid}"[^>]*transform="([^"]+)"', xml, re.S)
+            c = [float(x) for x in cm.group(1).split()]
+            for x, y, z in verts:
+                px = x*c[0] + y*c[3] + z*c[6] + c[9]
+                py = x*c[1] + y*c[4] + z*c[7] + c[10]
+                pz = x*c[2] + y*c[5] + z*c[8] + c[11]
+                xs.append(px*v[0] + py*v[3] + pz*v[6] + v[9])
+                ys.append(px*v[1] + py*v[4] + pz*v[7] + v[10])
+        return (min(xs), min(ys), max(xs), max(ys)) if xs else None
 
     for spec in args.part:
         name, _, file = spec.partition("=")
@@ -629,329 +662,344 @@ def main():
         print(f"plate names: {old!r} -> {new!r} ({len(hits)} plates)")
 
     # ---------------- layout ----------------
-    # object-frame bounding boxes from the final meshes
-    mesh_cache = {}
-    def obj_bbox(oid):
-        lo = [1e9] * 3
-        hi = [-1e9] * 3
-        for f, cid in comps[oid]:
-            fp = f.lstrip("/")
-            if fp not in mesh_cache:
-                mesh_cache[fp] = parse_meshes((work / fp).read_text())
-            _, verts, _ = mesh_cache[fp][int(cid)]
-            m = re.search(
-                rf'<object id="{oid}"[^>]*>\s*<components>.*?'
-                rf'objectid="{cid}"[^>]*transform="([^"]+)"',
-                xml, re.S)
-            t = [float(v) for v in m.group(1).split()]
-            (l0, l1, l2), (h0, h1, h2) = bbox(verts)
-            for i, (l, h) in enumerate(((l0, h0), (l1, h1), (l2, h2))):
-                lo[i] = min(lo[i], l + t[9 + i])
-                hi[i] = max(hi[i], h + t[9 + i])
-        return tuple(lo), tuple(hi)
+    if args.keep_layout:
+        # In-place update: keep the template's item transforms, plate groups and
+        # wipe towers untouched (only the meshes were swapped). Guard that every
+        # object still sits on the bed at its kept position — a mesh that outgrew
+        # its slot would overhang — then skip the re-layout entirely.
+        for oid in comps:
+            bb = _world_xy_aabb(oid)
+            if bb and (bb[0] < -0.5 or bb[1] < -0.5
+                       or bb[2] > bed_w + 0.5 or bb[3] > bed_d + 0.5):
+                fail(f"keep-layout: {objects.get(oid, oid)} at its kept position "
+                     f"spans ({bb[0]:.0f},{bb[1]:.0f})-({bb[2]:.0f},{bb[3]:.0f}), "
+                     f"off the {bed_w:g}x{bed_d:g} bed — swapped mesh outgrew its "
+                     f"slot; drop --keep-layout to re-pack")
+        print("keep-layout: template positions kept; meshes swapped in place")
+    else:
+        # object-frame bounding boxes from the final meshes
+        mesh_cache = {}
+        def obj_bbox(oid):
+            lo = [1e9] * 3
+            hi = [-1e9] * 3
+            for f, cid in comps[oid]:
+                fp = f.lstrip("/")
+                if fp not in mesh_cache:
+                    mesh_cache[fp] = parse_meshes((work / fp).read_text())
+                _, verts, _ = mesh_cache[fp][int(cid)]
+                m = re.search(
+                    rf'<object id="{oid}"[^>]*>\s*<components>.*?'
+                    rf'objectid="{cid}"[^>]*transform="([^"]+)"',
+                    xml, re.S)
+                t = [float(v) for v in m.group(1).split()]
+                (l0, l1, l2), (h0, h1, h2) = bbox(verts)
+                for i, (l, h) in enumerate(((l0, h0), (l1, h1), (l2, h2))):
+                    lo[i] = min(lo[i], l + t[9 + i])
+                    hi[i] = max(hi[i], h + t[9 + i])
+            return tuple(lo), tuple(hi)
 
-    # oriented-box collision tests (rotated placements need more than AABBs)
-    def _proj(o, ax):
-        c, s = math.cos(o[4]), math.sin(o[4])
-        mid = o[0] * ax[0] + o[1] * ax[1]
-        r = o[2] * abs(c * ax[0] + s * ax[1]) \
-            + o[3] * abs(-s * ax[0] + c * ax[1])
-        return mid - r, mid + r
-
-    def sat_overlap(a, b, gap=0.0):
-        """a, b: (cx, cy, hx, hy, theta) oriented boxes."""
-        for o in (a, b):
+        # oriented-box collision tests (rotated placements need more than AABBs)
+        def _proj(o, ax):
             c, s = math.cos(o[4]), math.sin(o[4])
-            for ax in ((c, s), (-s, c)):
-                a0, a1 = _proj(a, ax)
-                b0, b1 = _proj(b, ax)
-                if a1 + gap <= b0 or b1 + gap <= a0:
-                    return False
-        return True
+            mid = o[0] * ax[0] + o[1] * ax[1]
+            r = o[2] * abs(c * ax[0] + s * ax[1]) \
+                + o[3] * abs(-s * ax[0] + c * ax[1])
+            return mid - r, mid + r
 
-    def rect_obb(x0, y0, x1, y1):
-        return ((x0 + x1) / 2, (y0 + y1) / 2,
-                (x1 - x0) / 2, (y1 - y0) / 2, 0.0)
+        def sat_overlap(a, b, gap=0.0):
+            """a, b: (cx, cy, hx, hy, theta) oriented boxes."""
+            for o in (a, b):
+                c, s = math.cos(o[4]), math.sin(o[4])
+                for ax in ((c, s), (-s, c)):
+                    a0, a1 = _proj(a, ax)
+                    b0, b1 = _proj(b, ax)
+                    if a1 + gap <= b0 or b1 + gap <= a0:
+                        return False
+            return True
 
-    def obb_aabb(o):
-        c, s = math.cos(o[4]), math.sin(o[4])
-        rx = o[2] * abs(c) + o[3] * abs(s)
-        ry = o[2] * abs(s) + o[3] * abs(c)
-        return o[0] - rx, o[1] - ry, o[0] + rx, o[1] + ry
+        def rect_obb(x0, y0, x1, y1):
+            return ((x0 + x1) / 2, (y0 + y1) / 2,
+                    (x1 - x0) / 2, (y1 - y0) / 2, 0.0)
 
-    ex = [tuple(map(float, p.split("x")))
-          for p in ps.get("bed_exclude_area", [])]
-    ex_obb = (rect_obb(min(p[0] for p in ex), min(p[1] for p in ex),
-                       max(p[0] for p in ex), max(p[1] for p in ex))
-              if ex else None)
+        def obb_aabb(o):
+            c, s = math.cos(o[4]), math.sin(o[4])
+            rx = o[2] * abs(c) + o[3] * abs(s)
+            ry = o[2] * abs(s) + o[3] * abs(c)
+            return o[0] - rx, o[1] - ry, o[0] + rx, o[1] + ry
 
-    def obj_gap(oid):                    # per-object gap override, else --gap
-        nm = objects.get(oid, "")
-        return next((g for p, g in gap_over.items() if nm.startswith(p)),
-                    args.gap)
+        ex = [tuple(map(float, p.split("x")))
+              for p in ps.get("bed_exclude_area", [])]
+        ex_obb = (rect_obb(min(p[0] for p in ex), min(p[1] for p in ex),
+                           max(p[0] for p in ex), max(p[1] for p in ex))
+                  if ex else None)
 
-    # ---- auto plate scheme: regroup by role, split thin-strip plates to fit --
-    if args.auto_plates:
-        gap_over.setdefault("Holder", 2.0)     # thin strips pack tight so they
-        gap_over.setdefault("Topper", 2.0)     # fit one plate (overridable)
+        def obj_gap(oid):                    # per-object gap override, else --gap
+            nm = objects.get(oid, "")
+            return next((g for p, g in gap_over.items() if nm.startswith(p)),
+                        args.gap)
 
-        def _dims(oid):
-            lo, hi = obj_bbox(oid)
-            return hi[0] - lo[0], hi[1] - lo[1]
-        bed = min(bed_w, bed_d)
-        groups = []
-        for name, oids in auto_plate_groups(objects, plates, Path(args.out).stem):
-            longest = max(max(_dims(o)) for o in oids)
-            depth = max(min(_dims(o)) for o in oids)
-            # thin strips (holders/toppers) get rotated 45° and packed in a
-            # diagonal band; if too many for one bed, split across plates.
-            thin = depth < 30 and all(max(_dims(o)) > bed - 20 for o in oids)
-            if thin and len(oids) > 1:
-                g = obj_gap(oids[0])
-                band = (bed - 20) * math.sqrt(2) - longest
-                per = max(1, int((band + g) / (depth + g)))
-            else:
-                per = len(oids)
-            if per >= len(oids):
-                groups.append((name, oids))
-            else:
-                base, _, title = name.partition(" — ")
-                chunks = [oids[i:i + per] for i in range(0, len(oids), per)]
-                for k, ch in enumerate(chunks, 1):
-                    groups.append((f"{base} {k} of {len(chunks)} — {title}", ch))
-        cfg = regroup_cfg(cfg, ps, groups)
-        plates = [(i, nm, oids) for i, (nm, oids) in enumerate(groups, 1)]
-        wx[:] = [15.0] * len(groups)
-        wy[:] = [200.0] * len(groups)
-        print("auto-plates: " + ", ".join(
-            f"{nm.partition(' — ')[0]} ({len(o)})" for nm, o in groups))
+        # ---- auto plate scheme: regroup by role, split thin-strip plates to fit --
+        if args.auto_plates:
+            gap_over.setdefault("Holder", 2.0)     # thin strips pack tight so they
+            gap_over.setdefault("Topper", 2.0)     # fit one plate (overridable)
 
-    ROT = math.pi / 4
-    cols = plate_columns(len(plates))
-    placements = {}     # object id -> (theta, x, y, z) build transform
-    towers_moved = False
-    for idx, (pid, pname, objs) in enumerate(sorted(plates)):
-        if not objs:
-            continue
-        org = ((pid - 1) % cols * stride_x,
-               -((pid - 1) // cols) * stride_y)
-        boxes = {oid: obj_bbox(oid) for oid in objs}
-
-        def dims2(oid):
-            lo, hi = boxes[oid]
-            return hi[0] - lo[0], hi[1] - lo[1]
-
-        rot_ids = [oid for oid in objs
-                   if max(dims2(oid)) > min(bed_w, bed_d) - 20]
-        for oid in rot_ids:
-            need = sum(dims2(oid)) / math.sqrt(2)
-            if need > min(bed_w, bed_d):
-                fail(f"plate {pid}: {objects[oid]} cannot fit the "
-                     f"{bed_w:g}x{bed_d:g} bed even rotated 45 deg "
-                     f"(diagonal bounding box {need:.1f} mm)")
-        placed = []     # (object id, obb)
-        if rot_ids:
-            # 45-deg strips along the bed diagonal, centred as a band,
-            # then everything else grid-searched into the free corners
-            n_hat = (-1 / math.sqrt(2), 1 / math.sqrt(2))
-            _sr = sorted(rot_ids, key=lambda o: -dims2(o)[1])
-            _rg = [obj_gap(o) for o in _sr[:-1]]      # per-strip gaps
-            band = sum(dims2(o)[1] for o in _sr) + sum(_rg)
-            off = -band / 2
-            for _i, oid in enumerate(_sr):
-                w, d = dims2(oid)
-                cn = off + d / 2
-                off += d + (_rg[_i] if _i < len(_rg) else 0.0)
-                cx = bed_w / 2 + n_hat[0] * cn
-                cy = bed_d / 2 + n_hat[1] * cn
-                placements[oid] = (ROT, cx, cy)
-                placed.append((oid, (cx, cy, w / 2, d / 2, ROT)))
-            flat = sorted((o for o in objs if o not in rot_ids),
-                          key=lambda o: -dims2(o)[0] * dims2(o)[1])
-            for oid in flat:
-                w, d = dims2(oid)
-                spot = None
-                cy = bed_d - 10 - d / 2
-                while spot is None and cy >= 10 + d / 2:
-                    cx = 10 + w / 2
-                    while cx <= bed_w - 10 - w / 2:
-                        cand = (cx, cy, w / 2, d / 2, 0.0)
-                        if not (ex_obb and sat_overlap(cand, ex_obb,
-                                                       args.gap)) \
-                           and not any(sat_overlap(cand, ob, args.gap)
-                                       for _, ob in placed):
-                            spot = cand
-                            break
-                        cx += 4.0
-                    cy -= 4.0
-                if spot is None:
-                    fail(f"plate {pid}: no room left for {objects[oid]}")
-                placements[oid] = (0.0, spot[0], spot[1])
-                placed.append((oid, spot))
-            print(f"plate {pid}: {len(rot_ids)} object(s) rotated 45 deg, "
-                  f"{len(flat)} flat")
-        else:
-            # shelf rows, widest-first
-            order = sorted(objs, key=lambda o: -dims2(o)[0] * dims2(o)[1])
-            rows, cur, cur_w = [], [], 0.0
-            for oid in order:
-                w = dims2(oid)[0]
-                if cur and cur_w + args.gap + w > bed_w - 20:
-                    rows.append(cur)
-                    cur, cur_w = [], 0.0
-                cur.append(oid)
-                cur_w += (args.gap if cur_w else 0.0) + w
-            if cur:
-                rows.append(cur)
-            def _row_prefix(row):        # the gap-override key common to a row
-                ps = {next((p for p in gap_over
-                            if objects.get(o, "").startswith(p)), None)
-                      for o in row}
-                return ps.pop() if len(ps) == 1 else None
-            # gap between two adjacent rows: the override only when BOTH rows are
-            # the same overridden type (e.g. topper-to-topper), else --gap.
-            rgaps = []
-            for a, b in zip(rows, rows[1:]):
-                pa, pb = _row_prefix(a), _row_prefix(b)
-                rgaps.append(gap_over[pa] if pa and pa == pb else args.gap)
-            depths = [max(dims2(o)[1] for o in r) for r in rows]
-            total_d = sum(depths) + sum(rgaps)
-            y0 = (bed_d - total_d) / 2
-            for j, (row, depth) in enumerate(zip(rows, depths)):
-                widths = [dims2(o)[0] for o in row]
-                total_w = sum(widths) + args.gap * (len(row) - 1)
-                x0 = (bed_w - total_w) / 2
-                for oid, w in zip(row, widths):
-                    d = dims2(oid)[1]
-                    cx, cy = x0 + w / 2, y0 + depth / 2
-                    placements[oid] = (0.0, cx, cy)
-                    placed.append((oid, (cx, cy, w / 2, d / 2, 0.0)))
-                    x0 += w + args.gap
-                y0 += depth + (rgaps[j] if j < len(rgaps) else 0.0)
-            print(f"plate {pid}: {len(objs)} object(s) in "
-                  f"{len(rows)} row(s)")
-
-        # nudge the whole plate off a corner exclude area if centring
-        # clipped it (e.g. a near-bed-width box on a P1P, whose 18x28 mm
-        # bottom-left corner is reserved). Shift in x away from the exclude
-        # by just enough to clear it, provided everything stays on the bed.
-        if ex_obb and placed:
-            ex_x0, ex_y0, ex_x1, ex_y1 = obb_aabb(ex_obb)
-            min_x0 = min(obb_aabb(ob)[0] for _, ob in placed)
-            max_x1 = max(obb_aabb(ob)[2] for _, ob in placed)
-            left = (ex_x0 + ex_x1) / 2 < bed_w / 2   # exclude on the left?
-            dx = 0.0
-            for _, ob in placed:
-                x0, y0, x1, y1 = obb_aabb(ob)
-                if y0 >= ex_y1 + CLEARANCE or y1 <= ex_y0 - CLEARANCE:
-                    continue                          # clears it in y already
-                if left and x0 < ex_x1 + CLEARANCE and x1 > ex_x0:
-                    dx = max(dx, ex_x1 + CLEARANCE - x0 + 0.5)
-                elif not left and x1 > ex_x0 - CLEARANCE and x0 < ex_x1:
-                    dx = min(dx, ex_x0 - CLEARANCE - x1 - 0.5)
-            if dx and 0 <= min_x0 + dx and max_x1 + dx <= bed_w:
-                placed = [(oid, (ob[0] + dx,) + ob[1:]) for oid, ob in placed]
-                for oid, _ in placed:
-                    th, x, y = placements[oid]
-                    placements[oid] = (th, x + dx, y)
-                print(f"plate {pid}: shifted {dx:+.1f} mm in x to clear the "
-                      "bed exclude area")
-
-        # validation: bed bounds, exclude area, mutual clearance
-        for i, (oid, ob) in enumerate(placed):
-            x0, y0, x1, y1 = obb_aabb(ob)
-            if x0 < 0 or y0 < 0 or x1 > bed_w or y1 > bed_d:
-                fail(f"plate {pid}: {objects[oid]} does not fit the bed "
-                     f"({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
-            if ex_obb and sat_overlap(ob, ex_obb, CLEARANCE):
-                fail(f"plate {pid}: {objects[oid]} enters the bed's "
-                     f"exclude area")
-            for oid2, ob2 in placed[:i]:
-                if sat_overlap(ob, ob2, CLEARANCE):
-                    fail(f"plate {pid}: {objects[oid]} overlaps "
-                         f"{objects[oid2]}")
-
-        # wipe tower: relocate to the nearest free spot if it collides
-        if idx < len(wx):
-            def tower_free(x, y, gap):
-                if x < 0 or y < 0 or x + tower_w > bed_w \
-                        or y + tower_w > bed_d:
-                    return False
-                t_obb = rect_obb(x, y, x + tower_w, y + tower_w)
-                if ex_obb and sat_overlap(t_obb, ex_obb, gap):
-                    return False
-                return not any(sat_overlap(t_obb, ob, gap)
-                               for _, ob in placed)
-            WIPE_GAP = 15.0                      # clearance from printed parts
-            if not tower_free(wx[idx], wy[idx], WIPE_GAP):
-                best = None
-                for gap in (WIPE_GAP, 5.0):      # prefer clearance, then any fit
-                    gy = 0.0
-                    while gy + tower_w <= bed_d:
-                        gx = 0.0
-                        while gx + tower_w <= bed_w:
-                            if tower_free(gx, gy, gap):
-                                # emptiest spot: furthest from centre (parts are
-                                # centred) so the tower sits in a free corner
-                                cx_t = gx + tower_w / 2 - bed_w / 2
-                                cy_t = gy + tower_w / 2 - bed_d / 2
-                                d2 = cx_t * cx_t + cy_t * cy_t
-                                if best is None or d2 > best[0]:
-                                    best = (d2, gx, gy)
-                            gx += 4.0
-                        gy += 4.0
-                    if best is not None:
-                        break
-                if best is None:
-                    print(f"plate {pid}: wipe tower collides and no free "
-                          f"spot exists - left at ({wx[idx]:g},{wy[idx]:g})")
+            def _dims(oid):
+                lo, hi = obj_bbox(oid)
+                return hi[0] - lo[0], hi[1] - lo[1]
+            bed = min(bed_w, bed_d)
+            groups = []
+            for name, oids in auto_plate_groups(objects, plates, Path(args.out).stem):
+                longest = max(max(_dims(o)) for o in oids)
+                depth = max(min(_dims(o)) for o in oids)
+                # thin strips (holders/toppers) get rotated 45° and packed in a
+                # diagonal band; if too many for one bed, split across plates.
+                thin = depth < 30 and all(max(_dims(o)) > bed - 20 for o in oids)
+                if thin and len(oids) > 1:
+                    g = obj_gap(oids[0])
+                    band = (bed - 20) * math.sqrt(2) - longest
+                    per = max(1, int((band + g) / (depth + g)))
                 else:
-                    print(f"plate {pid}: wipe tower moved "
-                          f"({wx[idx]:g},{wy[idx]:g}) -> "
-                          f"({best[1]:g},{best[2]:g})")
-                    wx[idx], wy[idx] = best[1], best[2]
-                    towers_moved = True
+                    per = len(oids)
+                if per >= len(oids):
+                    groups.append((name, oids))
+                else:
+                    base, _, title = name.partition(" — ")
+                    chunks = [oids[i:i + per] for i in range(0, len(oids), per)]
+                    for k, ch in enumerate(chunks, 1):
+                        groups.append((f"{base} {k} of {len(chunks)} — {title}", ch))
+            cfg = regroup_cfg(cfg, ps, groups)
+            plates = [(i, nm, oids) for i, (nm, oids) in enumerate(groups, 1)]
+            wx[:] = [15.0] * len(groups)
+            wy[:] = [200.0] * len(groups)
+            print("auto-plates: " + ", ".join(
+                f"{nm.partition(' — ')[0]} ({len(o)})" for nm, o in groups))
 
-        # to world coordinates: rotate about z, then translate
-        for oid, ob in placed:
-            th, cx, cy = placements[oid][0], ob[0], ob[1]
-            lo, hi = boxes[oid]
+        ROT = math.pi / 4
+        cols = plate_columns(len(plates))
+        placements = {}     # object id -> (theta, x, y, z) build transform
+        towers_moved = False
+        for idx, (pid, pname, objs) in enumerate(sorted(plates)):
+            if not objs:
+                continue
+            org = ((pid - 1) % cols * stride_x,
+                   -((pid - 1) // cols) * stride_y)
+            boxes = {oid: obj_bbox(oid) for oid in objs}
+
+            def dims2(oid):
+                lo, hi = boxes[oid]
+                return hi[0] - lo[0], hi[1] - lo[1]
+
+            rot_ids = [oid for oid in objs
+                       if max(dims2(oid)) > min(bed_w, bed_d) - 20]
+            for oid in rot_ids:
+                need = sum(dims2(oid)) / math.sqrt(2)
+                if need > min(bed_w, bed_d):
+                    fail(f"plate {pid}: {objects[oid]} cannot fit the "
+                         f"{bed_w:g}x{bed_d:g} bed even rotated 45 deg "
+                         f"(diagonal bounding box {need:.1f} mm)")
+            placed = []     # (object id, obb)
+            if rot_ids:
+                # 45-deg strips along the bed diagonal, centred as a band,
+                # then everything else grid-searched into the free corners
+                n_hat = (-1 / math.sqrt(2), 1 / math.sqrt(2))
+                _sr = sorted(rot_ids, key=lambda o: -dims2(o)[1])
+                _rg = [obj_gap(o) for o in _sr[:-1]]      # per-strip gaps
+                band = sum(dims2(o)[1] for o in _sr) + sum(_rg)
+                off = -band / 2
+                for _i, oid in enumerate(_sr):
+                    w, d = dims2(oid)
+                    cn = off + d / 2
+                    off += d + (_rg[_i] if _i < len(_rg) else 0.0)
+                    cx = bed_w / 2 + n_hat[0] * cn
+                    cy = bed_d / 2 + n_hat[1] * cn
+                    placements[oid] = (ROT, cx, cy)
+                    placed.append((oid, (cx, cy, w / 2, d / 2, ROT)))
+                flat = sorted((o for o in objs if o not in rot_ids),
+                              key=lambda o: -dims2(o)[0] * dims2(o)[1])
+                for oid in flat:
+                    w, d = dims2(oid)
+                    spot = None
+                    cy = bed_d - 10 - d / 2
+                    while spot is None and cy >= 10 + d / 2:
+                        cx = 10 + w / 2
+                        while cx <= bed_w - 10 - w / 2:
+                            cand = (cx, cy, w / 2, d / 2, 0.0)
+                            if not (ex_obb and sat_overlap(cand, ex_obb,
+                                                           args.gap)) \
+                               and not any(sat_overlap(cand, ob, args.gap)
+                                           for _, ob in placed):
+                                spot = cand
+                                break
+                            cx += 4.0
+                        cy -= 4.0
+                    if spot is None:
+                        fail(f"plate {pid}: no room left for {objects[oid]}")
+                    placements[oid] = (0.0, spot[0], spot[1])
+                    placed.append((oid, spot))
+                print(f"plate {pid}: {len(rot_ids)} object(s) rotated 45 deg, "
+                      f"{len(flat)} flat")
+            else:
+                # shelf rows, widest-first
+                order = sorted(objs, key=lambda o: -dims2(o)[0] * dims2(o)[1])
+                rows, cur, cur_w = [], [], 0.0
+                for oid in order:
+                    w = dims2(oid)[0]
+                    if cur and cur_w + args.gap + w > bed_w - 20:
+                        rows.append(cur)
+                        cur, cur_w = [], 0.0
+                    cur.append(oid)
+                    cur_w += (args.gap if cur_w else 0.0) + w
+                if cur:
+                    rows.append(cur)
+                def _row_prefix(row):        # the gap-override key common to a row
+                    ps = {next((p for p in gap_over
+                                if objects.get(o, "").startswith(p)), None)
+                          for o in row}
+                    return ps.pop() if len(ps) == 1 else None
+                # gap between two adjacent rows: the override only when BOTH rows are
+                # the same overridden type (e.g. topper-to-topper), else --gap.
+                rgaps = []
+                for a, b in zip(rows, rows[1:]):
+                    pa, pb = _row_prefix(a), _row_prefix(b)
+                    rgaps.append(gap_over[pa] if pa and pa == pb else args.gap)
+                depths = [max(dims2(o)[1] for o in r) for r in rows]
+                total_d = sum(depths) + sum(rgaps)
+                y0 = (bed_d - total_d) / 2
+                for j, (row, depth) in enumerate(zip(rows, depths)):
+                    widths = [dims2(o)[0] for o in row]
+                    total_w = sum(widths) + args.gap * (len(row) - 1)
+                    x0 = (bed_w - total_w) / 2
+                    for oid, w in zip(row, widths):
+                        d = dims2(oid)[1]
+                        cx, cy = x0 + w / 2, y0 + depth / 2
+                        placements[oid] = (0.0, cx, cy)
+                        placed.append((oid, (cx, cy, w / 2, d / 2, 0.0)))
+                        x0 += w + args.gap
+                    y0 += depth + (rgaps[j] if j < len(rgaps) else 0.0)
+                print(f"plate {pid}: {len(objs)} object(s) in "
+                      f"{len(rows)} row(s)")
+
+            # nudge the whole plate off a corner exclude area if centring
+            # clipped it (e.g. a near-bed-width box on a P1P, whose 18x28 mm
+            # bottom-left corner is reserved). Shift in x away from the exclude
+            # by just enough to clear it, provided everything stays on the bed.
+            if ex_obb and placed:
+                ex_x0, ex_y0, ex_x1, ex_y1 = obb_aabb(ex_obb)
+                min_x0 = min(obb_aabb(ob)[0] for _, ob in placed)
+                max_x1 = max(obb_aabb(ob)[2] for _, ob in placed)
+                left = (ex_x0 + ex_x1) / 2 < bed_w / 2   # exclude on the left?
+                dx = 0.0
+                for _, ob in placed:
+                    x0, y0, x1, y1 = obb_aabb(ob)
+                    if y0 >= ex_y1 + CLEARANCE or y1 <= ex_y0 - CLEARANCE:
+                        continue                          # clears it in y already
+                    if left and x0 < ex_x1 + CLEARANCE and x1 > ex_x0:
+                        dx = max(dx, ex_x1 + CLEARANCE - x0 + 0.5)
+                    elif not left and x1 > ex_x0 - CLEARANCE and x0 < ex_x1:
+                        dx = min(dx, ex_x0 - CLEARANCE - x1 - 0.5)
+                if dx and 0 <= min_x0 + dx and max_x1 + dx <= bed_w:
+                    placed = [(oid, (ob[0] + dx,) + ob[1:]) for oid, ob in placed]
+                    for oid, _ in placed:
+                        th, x, y = placements[oid]
+                        placements[oid] = (th, x + dx, y)
+                    print(f"plate {pid}: shifted {dx:+.1f} mm in x to clear the "
+                          "bed exclude area")
+
+            # validation: bed bounds, exclude area, mutual clearance
+            for i, (oid, ob) in enumerate(placed):
+                x0, y0, x1, y1 = obb_aabb(ob)
+                if x0 < 0 or y0 < 0 or x1 > bed_w or y1 > bed_d:
+                    fail(f"plate {pid}: {objects[oid]} does not fit the bed "
+                         f"({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
+                if ex_obb and sat_overlap(ob, ex_obb, CLEARANCE):
+                    fail(f"plate {pid}: {objects[oid]} enters the bed's "
+                         f"exclude area")
+                for oid2, ob2 in placed[:i]:
+                    if sat_overlap(ob, ob2, CLEARANCE):
+                        fail(f"plate {pid}: {objects[oid]} overlaps "
+                             f"{objects[oid2]}")
+
+            # wipe tower: relocate to the nearest free spot if it collides
+            if idx < len(wx):
+                def tower_free(x, y, gap):
+                    if x < 0 or y < 0 or x + tower_w > bed_w \
+                            or y + tower_w > bed_d:
+                        return False
+                    t_obb = rect_obb(x, y, x + tower_w, y + tower_w)
+                    if ex_obb and sat_overlap(t_obb, ex_obb, gap):
+                        return False
+                    return not any(sat_overlap(t_obb, ob, gap)
+                                   for _, ob in placed)
+                WIPE_GAP = 15.0                      # clearance from printed parts
+                if not tower_free(wx[idx], wy[idx], WIPE_GAP):
+                    best = None
+                    for gap in (WIPE_GAP, 5.0):      # prefer clearance, then any fit
+                        gy = 0.0
+                        while gy + tower_w <= bed_d:
+                            gx = 0.0
+                            while gx + tower_w <= bed_w:
+                                if tower_free(gx, gy, gap):
+                                    # emptiest spot: furthest from centre (parts are
+                                    # centred) so the tower sits in a free corner
+                                    cx_t = gx + tower_w / 2 - bed_w / 2
+                                    cy_t = gy + tower_w / 2 - bed_d / 2
+                                    d2 = cx_t * cx_t + cy_t * cy_t
+                                    if best is None or d2 > best[0]:
+                                        best = (d2, gx, gy)
+                                gx += 4.0
+                            gy += 4.0
+                        if best is not None:
+                            break
+                    if best is None:
+                        print(f"plate {pid}: wipe tower collides and no free "
+                              f"spot exists - left at ({wx[idx]:g},{wy[idx]:g})")
+                    else:
+                        print(f"plate {pid}: wipe tower moved "
+                              f"({wx[idx]:g},{wy[idx]:g}) -> "
+                              f"({best[1]:g},{best[2]:g})")
+                        wx[idx], wy[idx] = best[1], best[2]
+                        towers_moved = True
+
+            # to world coordinates: rotate about z, then translate
+            for oid, ob in placed:
+                th, cx, cy = placements[oid][0], ob[0], ob[1]
+                lo, hi = boxes[oid]
+                c, s = math.cos(th), math.sin(th)
+                bcx, bcy = (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2
+                placements[oid] = (th,
+                                   org[0] + cx - (bcx * c - bcy * s),
+                                   org[1] + cy - (bcx * s + bcy * c),
+                                   -lo[2])
+
+        if towers_moved:
+            ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
+            ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
+            (work / "Metadata/project_settings.config").write_text(
+                json.dumps(ps, ensure_ascii=False, indent=4))
+
+        for oid, (th, tx, ty, tz) in placements.items():
             c, s = math.cos(th), math.sin(th)
-            bcx, bcy = (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2
-            placements[oid] = (th,
-                               org[0] + cx - (bcx * c - bcy * s),
-                               org[1] + cy - (bcx * s + bcy * c),
-                               -lo[2])
+            xml, n = re.subn(
+                rf'(<item objectid="{oid}" [^>]*transform=")[^"]+(")',
+                lambda m: m.group(1)
+                + f"{c:.9g} {s:.9g} 0 {-s:.9g} {c:.9g} 0 0 0 1 "
+                  f"{tx:.9g} {ty:.9g} {tz:.9g}"
+                + m.group(2), xml, count=1)
+            if n != 1:
+                fail(f"object {oid}: no build item found")
 
-    if towers_moved:
-        ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
-        ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
-        (work / "Metadata/project_settings.config").write_text(
-            json.dumps(ps, ensure_ascii=False, indent=4))
-
-    for oid, (th, tx, ty, tz) in placements.items():
-        c, s = math.cos(th), math.sin(th)
-        xml, n = re.subn(
-            rf'(<item objectid="{oid}" [^>]*transform=")[^"]+(")',
-            lambda m: m.group(1)
-            + f"{c:.9g} {s:.9g} 0 {-s:.9g} {c:.9g} 0 0 0 1 "
-              f"{tx:.9g} {ty:.9g} {tz:.9g}"
-            + m.group(2), xml, count=1)
-        if n != 1:
-            fail(f"object {oid}: no build item found")
-
-    # assemble view: keep template x/y, rest the object on z=0
-    for m in list(re.finditer(
-            r'<assemble_item object_id="(\d+)"[^>]*transform="([^"]+)"',
-            cfg)):
-        oid = m.group(1)
-        if oid not in objects:
-            continue
-        t = [float(v) for v in m.group(2).split()]
-        lo, hi = obj_bbox(oid)
-        new = (f"1 0 0 0 1 0 0 0 1 {t[9]:.9g} {t[10]:.9g} {-lo[2]:.9g}")
-        cfg = cfg.replace(m.group(0),
-                          m.group(0).replace(m.group(2), new), 1)
+        # assemble view: keep template x/y, rest the object on z=0
+        for m in list(re.finditer(
+                r'<assemble_item object_id="(\d+)"[^>]*transform="([^"]+)"',
+                cfg)):
+            oid = m.group(1)
+            if oid not in objects:
+                continue
+            t = [float(v) for v in m.group(2).split()]
+            lo, hi = obj_bbox(oid)
+            new = (f"1 0 0 0 1 0 0 0 1 {t[9]:.9g} {t[10]:.9g} {-lo[2]:.9g}")
+            cfg = cfg.replace(m.group(0),
+                              m.group(0).replace(m.group(2), new), 1)
 
     # ---------------- thumbnails & bookkeeping ----------------
     for f in {*(work / "Metadata").glob("plate_*.png"),
