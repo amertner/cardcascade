@@ -69,7 +69,7 @@ def build_primary(row, sleeved, game_name=None):
             "1, if the pocket slider should be half thickness"),
         var("GameName", "ANY", f'"{game_name or col(row, "Game")}"',
             "Changes logo, height increment and card size"),
-        var("Version", "ANY", '"6.3"',                  # sensible default
+        var("Version", "ANY", '"6.4"',                  # current CC design
             "Version number to be printed on box and lid"),
     ]
 
