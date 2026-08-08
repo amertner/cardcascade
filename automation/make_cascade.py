@@ -664,17 +664,27 @@ def main():
     # ---------------- layout ----------------
     if args.keep_layout:
         # In-place update: keep the template's item transforms, plate groups and
-        # wipe towers untouched (only the meshes were swapped). Guard that every
-        # object still sits on the bed at its kept position — a mesh that outgrew
-        # its slot would overhang — then skip the re-layout entirely.
-        for oid in comps:
-            bb = _world_xy_aabb(oid)
-            if bb and (bb[0] < -0.5 or bb[1] < -0.5
-                       or bb[2] > bed_w + 0.5 or bb[3] > bed_d + 0.5):
-                fail(f"keep-layout: {objects.get(oid, oid)} at its kept position "
-                     f"spans ({bb[0]:.0f},{bb[1]:.0f})-({bb[2]:.0f},{bb[3]:.0f}), "
-                     f"off the {bed_w:g}x{bed_d:g} bed — swapped mesh outgrew its "
-                     f"slot; drop --keep-layout to re-pack")
+        # wipe towers untouched (only the meshes were swapped). Guard per plate
+        # that its objects' combined footprint still fits a bed — a swapped mesh
+        # that outgrew its slot pushes the plate's span past the bed. This is
+        # measured as an extent (max-min), so it is independent of where the
+        # plate sits in Bambu's multi-plate grid. Then skip the re-layout.
+        for pm in re.finditer(r'<plate>(.*?)</plate>', cfg, re.S):
+            oids = re.findall(r'object_id" value="(\d+)"', pm.group(1))
+            xs, ys = [], []
+            for oid in oids:
+                bb = _world_xy_aabb(oid)
+                if bb:
+                    xs += [bb[0], bb[2]]; ys += [bb[1], bb[3]]
+            if not xs:
+                continue
+            dx, dy = max(xs) - min(xs), max(ys) - min(ys)
+            if dx > bed_w + 0.5 or dy > bed_d + 0.5:
+                nm = re.search(r'plater_name" value="([^"]*)"', pm.group(1))
+                fail(f"keep-layout: plate {nm.group(1) if nm else '?'!r} content "
+                     f"spans {dx:.0f}x{dy:.0f} mm, over the {bed_w:g}x{bed_d:g} "
+                     f"bed — a swapped mesh outgrew its slot; drop --keep-layout "
+                     f"to re-pack")
         print("keep-layout: template positions kept; meshes swapped in place")
     else:
         # object-frame bounding boxes from the final meshes
