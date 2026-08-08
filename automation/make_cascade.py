@@ -685,7 +685,35 @@ def main():
                      f"spans {dx:.0f}x{dy:.0f} mm, over the {bed_w:g}x{bed_d:g} "
                      f"bed — a swapped mesh outgrew its slot; drop --keep-layout "
                      f"to re-pack")
-        print("keep-layout: template positions kept; meshes swapped in place")
+        # Re-rest each object on z=0: keep the template's x/y and rotation, but
+        # set the item transform's Z so the object sits on the plate. A swapped
+        # mesh of a different height would otherwise sink through or float, since
+        # the template's Z was chosen for the old mesh.
+        def _frame_zmin(oid):
+            zs = []
+            for f, cid in comps.get(oid, []):
+                got = parse_meshes((work / f.lstrip("/")).read_text()).get(int(cid))
+                if not got:
+                    continue
+                _, verts, _ = got
+                cm = re.search(rf'<object id="{oid}"[^>]*>\s*<components>.*?'
+                               rf'objectid="{cid}"[^>]*transform="([^"]+)"', xml, re.S)
+                c = [float(x) for x in cm.group(1).split()]
+                zs += [x*c[2] + y*c[5] + z*c[8] + c[11] for x, y, z in verts]
+            return min(zs) if zs else 0.0
+
+        def _set_tz(m, zmin):
+            v = m.group(2).split()
+            v[11] = f"{-zmin:.9g}"
+            return m.group(1) + " ".join(v) + m.group(3)
+
+        for oid in comps:
+            zmin = _frame_zmin(oid)
+            xml = re.sub(rf'(<item objectid="{oid}" [^>]*transform=")([^"]+)(")',
+                         lambda m: _set_tz(m, zmin), xml, count=1)
+            cfg = re.sub(rf'(<assemble_item object_id="{oid}"[^>]*transform=")'
+                         r'([^"]+)(")', lambda m: _set_tz(m, zmin), cfg, count=1)
+        print("keep-layout: kept x/y + rotation, re-rested every object on z=0")
     else:
         # object-frame bounding boxes from the final meshes
         mesh_cache = {}
