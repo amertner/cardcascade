@@ -171,17 +171,20 @@ def run_exports(selection, auto):
 
 
 # ------------------------------------------------------------- assemble step
-def object_names(template_path):
-    """The template's top-level OBJECT names (the --part swap targets), in
-    document order — the name that sits directly under each <object>, before its
-    <part> children. Repeated names (multiple Holder/Pusher instances) are kept."""
+def object_specs(template_path):
+    """[(object name, source_file)] for each top-level object in the template,
+    in document order. `source_file` is the imported component mesh recorded on
+    the object's first part (or "" if none) — the reliable role signal when the
+    object name is uninformative (Dominion token holders are often left named
+    'Part 1', or the half one named 'TokenHolder' like the full one)."""
     cfg = zipfile.ZipFile(template_path).read(
         "Metadata/model_settings.config").decode()
     out = []
     for om in re.finditer(r'<object id="\d+">(.*?)</object>', cfg, re.S):
         head = om.group(1).split("<part", 1)[0]
-        m = re.search(r'key="name" value="([^"]*)"', head)
-        out.append(m.group(1) if m else "")
+        nm = re.search(r'key="name" value="([^"]*)"', head)
+        sf = re.search(r'key="source_file" value="([^"]*)"', om.group(1))
+        out.append((nm.group(1) if nm else "", sf.group(1) if sf else ""))
     return out
 
 
@@ -207,24 +210,46 @@ def role_key(name):
     return ("Other", name)
 
 
+def object_role(name, src):
+    """Role key for one template object. Token holders are identified by their
+    source mesh first — their object names are unreliable (`Part 1`, or the half
+    one named `TokenHolder`); everything else keys off the object name."""
+    base = src.rsplit("/", 1)[-1]
+    if "HalfTokenHolder" in base:
+        return ("HalfTokenHolder", None)
+    if "HalfTokenHolder" not in name and "TokenHolder" in base:
+        return ("TokenHolder", None)
+    return role_key(name)
+
+
 def build_swap(template_path, components):
-    """Pair each distinct template object with a component file by role.
-    Returns (swap, unmatched, unused): swap = {template object name -> file};
-    unmatched = template objects with no component; unused = components with no
-    slot in the template. A clean refresh has both empty."""
+    """Pair each distinct template object NAME with a component file by role,
+    using the object's name as the --part target. Returns
+    (swap, unmatched, unused, conflicts): swap = {object name -> file};
+    unmatched = template objects with no component (left as-is, non-fatal);
+    unused = components with no slot (fatal — can't refresh them); conflicts =
+    one object name carrying two different roles, so --part can't target them
+    apart (needs a template rename). A clean refresh has all three empty."""
     comp_by_key = {}
     for c in components:
         comp_by_key.setdefault(role_key(c["object"]), c)
-    swap, unmatched, used = {}, [], set()
-    for name in dict.fromkeys(object_names(template_path)):        # distinct
-        c = comp_by_key.get(role_key(name))
+    name_roles = {}                       # object name -> set of role keys seen
+    for name, src in object_specs(template_path):
+        name_roles.setdefault(name, set()).add(object_role(name, src))
+    swap, unmatched, conflicts, used = {}, [], [], set()
+    for name, roles in name_roles.items():
+        if len(roles) > 1:
+            conflicts.append(name)
+            continue
+        (role,) = tuple(roles)
+        c = comp_by_key.get(role)
         if c:
             swap[name] = c["file"]
-            used.add(role_key(name))
+            used.add(role)
         else:
             unmatched.append(name)
     unused = [c["object"] for k, c in comp_by_key.items() if k not in used]
-    return swap, unmatched, unused
+    return swap, unmatched, unused, conflicts
 
 
 def assemble_one(game, spec, casc, dry):
@@ -239,14 +264,12 @@ def assemble_one(game, spec, casc, dry):
     if any(comp.get("instance") == "first" for comp in casc["components"]):
         return "skip", "first-riser holder — assemble by hand (needs Holder#N)"
 
-    swap, unmatched, unused = build_swap(template, casc["components"])
-    if unmatched or unused:
-        bits = []
-        if unmatched:
-            bits.append(f"template objects with no component: {unmatched}")
-        if unused:
-            bits.append(f"components with no template slot: {unused}")
-        return "skip", "; ".join(bits)
+    swap, unmatched, unused, conflicts = build_swap(template, casc["components"])
+    if conflicts:
+        return "skip", (f"template object(s) {conflicts} carry two roles — "
+                        "rename one in the template so --part can target them")
+    if unused:
+        return "skip", f"components with no template slot: {unused}"
 
     missing = [f for f in swap.values()
                if not (ROOT / "individual" / folder / f).exists()]
@@ -257,14 +280,15 @@ def assemble_one(game, spec, casc, dry):
            "-o", str(template), "--keep-layout"]
     for obj, file in swap.items():
         cmd += ["--part", f"{obj}={ROOT / 'individual' / folder / file}"]
+    note = f"  (left untouched: {unmatched})" if unmatched else ""
     if dry:
         return "ok", "would run: " + " ".join(
-            f'"{a}"' if " " in a else a for a in cmd)
+            f'"{a}"' if " " in a else a for a in cmd) + note
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
         tail = (res.stderr or res.stdout).strip().splitlines()[-1:] or [""]
         return "fail", tail[0]
-    return "ok", canon
+    return "ok", canon + note
 
 
 def run_assemble(selection, auto, dry):
