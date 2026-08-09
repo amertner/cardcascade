@@ -44,6 +44,10 @@ def build_context(row, sleeved, game, spec):
     model = col(row, "Sleeved model" if sleeved == "Sl" else "Unsl Model")
     first = col(row, "Cards/First Riser")
     size = base[0] if base else "?"
+    # Expected box footprint, so the exporter can check that what Onshape
+    # returned is actually THIS cascade's box (verify.check_box).
+    wcol, dcol = (("Sleeved W/mm", "Sleeved D/mm") if sleeved == "Sl"
+                  else ("Unsleeved W/mm", "Unsleeved D/mm"))
     return {
         "game": game, "folder": spec["folder"],
         "short_name": col(row, "Short name"),
@@ -59,7 +63,15 @@ def build_context(row, sleeved, game, spec):
         "tokens": col(row, "TokenHolder").lower(),   # ''/none/full/full+half
         "sleeved": sleeved, "sl": "S" if sleeved == "Sl" else "U",
         "pushers": C.pushers_for(spec, size),
+        "box_w": _mm(col(row, wcol)), "box_d": _mm(col(row, dcol)),
     }
+
+
+def _mm(text):
+    try:
+        return float(text)
+    except ValueError:
+        return None
 
 
 def holder(ctx, capacity, first=False, spans=False):

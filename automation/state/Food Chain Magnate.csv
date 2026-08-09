@@ -1,17 +1,17 @@
-file,type,key,element,configuration,version,microversion,exported_at
-Box L3.18.6.20-Un.3mf,Box,Box|L3.18.6.20-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-08T12:20:26
-Box L3.18.6.32-Sl.3mf,Box,Box|L3.18.6.32-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-08T12:20:26
-Box M4.18.12.32-Un.3mf,Box,Box|M4.18.12.32-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-08T12:20:26
-Box M4.18.12.45-Sl.3mf,Box,Box|M4.18.12.45-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-08T12:20:26
-Holder 12-Sl.3mf,Holder,Holder|12|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Holder 12-Un.3mf,Holder,Holder|12|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Holder 6-Sl.3mf,Holder,Holder|6|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Holder 6-Un.3mf,Holder,Holder|6|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Lid L3.18.6.20-Un.3mf,Lid,Lid|L3.18.6.20-Un,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-08T12:20:26
-Lid L3.18.6.32-Sl.3mf,Lid,Lid|L3.18.6.32-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-08T12:20:26
-Lid M4.18.12.32-Un.3mf,Lid,Lid|M4.18.12.32-Un,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-08T12:20:26
-Lid M4.18.12.45-Sl.3mf,Lid,Lid|M4.18.12.45-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-08T12:20:26
-Pusher 3x6-Sl.3mf,Pusher,Pusher|3|6|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Pusher 3x6-Un.3mf,Pusher,Pusher|3|6|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Pusher 4x12-Sl.3mf,Pusher,Pusher|4|12|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
-Pusher 4x12-Un.3mf,Pusher,Pusher|4|12|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-08T12:20:26
+file,type,key,element,configuration,version,microversion,sha,exported_at
+Box L3.18.6.20-Un.3mf,Box,Box|L3.18.6.20-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,1f5df48ae0a98833,2026-08-08T12:20:26
+Box L3.18.6.32-Sl.3mf,Box,Box|L3.18.6.32-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,d0c73d085f32bd05,2026-08-08T12:20:26
+Box M4.18.12.32-Un.3mf,Box,Box|M4.18.12.32-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,2d523c8e62b62d6b,2026-08-08T12:20:26
+Box M4.18.12.45-Sl.3mf,Box,Box|M4.18.12.45-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,6e7ca56e66c0af3d,2026-08-08T12:20:26
+Holder 12-Sl.3mf,Holder,Holder|12|Sl,f27edbc7a0f89c28092f18d4,,6.3,,d52291551a1d0f94,2026-08-08T12:20:26
+Holder 12-Un.3mf,Holder,Holder|12|Un,f27edbc7a0f89c28092f18d4,,6.3,,57596206392c7606,2026-08-08T12:20:26
+Holder 6-Sl.3mf,Holder,Holder|6|Sl,f27edbc7a0f89c28092f18d4,,6.3,,a7e8b04644df5a87,2026-08-08T12:20:26
+Holder 6-Un.3mf,Holder,Holder|6|Un,f27edbc7a0f89c28092f18d4,,6.3,,e3fa99cc968a6a4c,2026-08-08T12:20:26
+Lid L3.18.6.20-Un.3mf,Lid,Lid|L3.18.6.20-Un,1f5cc8c63b87dcf62f713af0,,6.4,,3939a565a6d5233c,2026-08-08T12:20:26
+Lid L3.18.6.32-Sl.3mf,Lid,Lid|L3.18.6.32-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,cbc09868e900d561,2026-08-08T12:20:26
+Lid M4.18.12.32-Un.3mf,Lid,Lid|M4.18.12.32-Un,1f5cc8c63b87dcf62f713af0,,6.4,,616c54a929c81673,2026-08-08T12:20:26
+Lid M4.18.12.45-Sl.3mf,Lid,Lid|M4.18.12.45-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,79021806f29ed9f3,2026-08-08T12:20:26
+Pusher 3x6-Sl.3mf,Pusher,Pusher|3|6|Sl,f27edbc7a0f89c28092f18d4,,6.3,,1abd99b2ef4fb8f5,2026-08-08T12:20:26
+Pusher 3x6-Un.3mf,Pusher,Pusher|3|6|Un,f27edbc7a0f89c28092f18d4,,6.3,,ad75ac579172ec3b,2026-08-08T12:20:26
+Pusher 4x12-Sl.3mf,Pusher,Pusher|4|12|Sl,f27edbc7a0f89c28092f18d4,,6.3,,d46588fcd4e274f1,2026-08-08T12:20:26
+Pusher 4x12-Un.3mf,Pusher,Pusher|4|12|Un,f27edbc7a0f89c28092f18d4,,6.3,,450be8c6f393d9e1,2026-08-08T12:20:26

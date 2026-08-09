@@ -38,9 +38,27 @@ DEFAULT_POLL = 10          # first-poll wait before we've learned anything (s)
 POLL_INTERVAL = 5          # wait between re-polls while still ACTIVE (s)
 POLL_MARGIN = 3            # cushion added to a newly learned delay (s)
 
+# Variable-change settle. POST /variables returns 204 as soon as the variable
+# studio is written, but the change is NOT guaranteed to be visible to a
+# translation requested immediately after: Onshape resolves the translation
+# against the microversion it can see, and if that is still the pre-change one it
+# serves a CACHED result computed for the PREVIOUS parameter set. That is a
+# silently wrong export — right filename, previous cascade's geometry (this bit
+# us on 2026-08-10; Compile 126 Un came back as Dominion 650 Sl, byte-identical).
+# So wait after setting variables, before the batch's first translation. Sleeping
+# costs 0 API calls, which is the whole point at ~2500/year; polling Onshape for
+# readiness would not be free. The wait is learned/tunable in poll_delay.json.
+SETTLE_KEY = "variable-settle"
+DEFAULT_SETTLE = 20        # seconds to wait after setting variables
+SETTLE_STEP = 10           # raise the learned wait by this after a stale export
+FAST_TRANSLATE = 8         # an assembly translate POST returning faster than
+#                            this did no regeneration — a cache hit, i.e. the
+#                            settle was too short (a real one takes ~30s)
+
 CALLS = 0          # billed calls this run
 CUMULATIVE = 0     # all-time total (seeded from the ledger by begin())
 RUN_ID = ""
+LAST_POST_SECONDS = 0.0    # how long the most recent translate POST took
 
 
 def op_creds():
@@ -70,6 +88,23 @@ def creds():
     if not (a and s):
         a, s = op_creds()
     return HTTPBasicAuth(a, s)
+
+
+class LazyAuth:
+    """A requests auth object that resolves credentials on FIRST USE.
+
+    A fully cached run (export.py --use-cache) makes zero API calls, so it must
+    not demand a 1Password unlock — asking for keys it will never send is both a
+    pointless prompt and a way to fail a run that needs no network at all.
+    requests only ever calls auth(prepared_request), so proxying that is enough."""
+
+    def __init__(self):
+        self._auth = None
+
+    def __call__(self, request):
+        if self._auth is None:
+            self._auth = creds()
+        return self._auth(request)
 
 
 def parse_url(url):
@@ -153,19 +188,39 @@ def _load_poll():
         return {}
 
 
-def poll_delay(kind):
-    return int(_load_poll().get(kind, DEFAULT_POLL))
+def poll_delay(kind, default=DEFAULT_POLL):
+    return int(_load_poll().get(kind, default))
+
+
+def _save_poll(kind, seconds):
+    delays = _load_poll()
+    delays[kind] = int(seconds)
+    POLL_STATE.parent.mkdir(exist_ok=True)
+    POLL_STATE.write_text(json.dumps(delays, indent=2))
+
+
+def settle(label=""):
+    """Wait for a just-POSTed variable change to become visible to translations.
+    0 API calls — see the SETTLE_KEY note above for why this barrier exists."""
+    s = poll_delay(SETTLE_KEY, DEFAULT_SETTLE)
+    print(f"    … settling {s}s for the parameter change to propagate{label}")
+    time.sleep(s)
+    return s
+
+
+def bump_settle():
+    """An export came back stale despite the settle — wait longer next time."""
+    new = poll_delay(SETTLE_KEY, DEFAULT_SETTLE) + SETTLE_STEP
+    _save_poll(SETTLE_KEY, new)
+    return new
 
 
 def _learn_poll(kind, elapsed):
     """Raise the learned delay for `kind` toward the observed completion time so
     the next call needs a single poll. Increase-only: never risk an extra poll."""
-    delays = _load_poll()
     new = int(math.ceil(elapsed)) + POLL_MARGIN
-    if new > delays.get(kind, 0):
-        delays[kind] = new
-        POLL_STATE.parent.mkdir(exist_ok=True)
-        POLL_STATE.write_text(json.dumps(delays, indent=2))
+    if new > _load_poll().get(kind, 0):
+        _save_poll(kind, new)
 
 
 def translate(auth, kind, did, path, body, reason=""):
@@ -175,8 +230,19 @@ def translate(auth, kind, did, path, body, reason=""):
 
     Waits the learned delay before the first (billed) poll so one poll is the
     norm, and re-learns upward if it wasn't."""
+    global LAST_POST_SECONDS
     rp = f"{reason}-" if reason else ""
+    t_post = time.monotonic()
     tid = api(auth, "POST", path, f"{rp}translate", json=body)["id"]
+    LAST_POST_SECONDS = time.monotonic() - t_post
+    # A real assembly translate blocks ~30s while Onshape regenerates. Returning
+    # in a couple of seconds means it regenerated nothing and matched a cached
+    # result — which, right after a parameter change, means the change wasn't
+    # visible yet and this export is the PREVIOUS parameter set's.
+    if kind == "assembly" and LAST_POST_SECONDS < FAST_TRANSLATE:
+        print(f"    ⚠ {kind} translate POST returned in "
+              f"{LAST_POST_SECONDS:.1f}s (< {FAST_TRANSLATE}s) — likely a cached "
+              "result from the previous parameter set")
     t0 = time.monotonic()
     time.sleep(poll_delay(kind))
     st, polls = {}, 0

@@ -15,7 +15,7 @@ from pathlib import Path
 
 STATE_DIR = Path(__file__).with_name("state")
 COLUMNS = ["file", "type", "key", "element", "configuration",
-           "version", "microversion", "exported_at"]
+           "version", "microversion", "sha", "exported_at"]
 
 
 def _path(game):
@@ -40,6 +40,16 @@ def save(game, rows):
             w.writerow({c: r.get(c, "") for c in COLUMNS})
 
 
+def all_rows():
+    """(game, row) for every recorded component in every game. Used by the
+    identity guard, which must see across games: a stale export hands you the
+    PREVIOUS run's mesh, and the previous run is usually a different game."""
+    for p in sorted(STATE_DIR.glob("*.csv")):
+        with p.open(newline="") as f:
+            for r in csv.DictReader(f):
+                yield p.stem, r
+
+
 def is_current(prov, file, version):
     """True iff `file` is recorded and its version matches `version`."""
     r = prov.get(file)
@@ -47,13 +57,13 @@ def is_current(prov, file, version):
 
 
 def make_row(file, type, key, element, configuration, version,
-             microversion, when):
+             microversion, when, sha=""):
     return {"file": file, "type": type,
             "key": "|".join(str(x) for x in key) if isinstance(key, tuple)
                    else str(key),
             "element": element or "", "configuration": configuration or "",
             "version": str(version), "microversion": microversion or "",
-            "exported_at": when}
+            "sha": sha or "", "exported_at": when}
 
 
 def record(game, row):
