@@ -31,9 +31,9 @@ GAMES = {
     },
     "Dominion": {
         "folder": "Dominion",
-        "extras": ["TokenHolder"],
-        # Extras added ONLY to merged-slot (Mat) cascades — the "(Mat)" boxes.
-        "merged_extras": ["HalfTokenHolder"],
+        # Token holders are per-row now (parts.csv 'TokenHolder' column:
+        # none/full/full+half) — only sets whose expansions need them carry one.
+        "extras": [],
         "onshape_label": False,  # labels via labelmaker.py
     },
     "Food Chain Magnate": {

@@ -35,7 +35,7 @@ small, gated stage that only fetches the deduped, missing/changed set.
 Columns (the `Horizontal … 3D printer` block are the geometry inputs):
 `Short name, Base model, Unsl Model, Sleeved model, Game, Set/Extension,
 Status, Horizontal, Risers, Cards/Riser slot, Cards/First Riser,
-Front capacity, Box Height / mm, Merged-slot, 3D printer, Notes,
+Front capacity, Box Height / mm, Merged-slot, TokenHolder, 3D printer, Notes,
 Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm`.
 
 Decoded model code: **`<Size><Risers>.<FrontCapacity>.<Cards/RiserSlot>[/<Cards/FirstRiser>]`**;
@@ -66,7 +66,7 @@ Game-specific additions:
 
 | Game | Extra components | Labels |
 |---|---|---|
-| Dominion | **TokenHolder** ×1; **HalfTokenHolder** ×1 on merged-slot (Mat) cascades only | via `labelmaker.py` (not Onshape) |
+| Dominion | Token holders per-row (`TokenHolder` column: `none`/`full`/`full+half`) — only sets whose expansions need them; `full+half` (Mat boxes) also gets a HalfTokenHolder | via `labelmaker.py` (not Onshape) |
 | Innovation | **6 Toppers** — same dims, different embedded text (one per expansion + a blank); one whole-studio Onshape export per sleeving yields all 6 | via `labelmaker.py` |
 | Compile | — | **special label with logo → from Onshape**, only when `--labels` given |
 | Food Chain Magnate | — | via `labelmaker.py` |

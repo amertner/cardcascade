@@ -56,6 +56,7 @@ def build_context(row, sleeved, game, spec):
         "front_capacity": col(row, "Front capacity"),
         "horizontal": col(row, "Horizontal"),
         "merged": col(row, "Merged-slot").upper() == "TRUE",
+        "tokens": col(row, "TokenHolder").lower(),   # ''/none/full/full+half
         "sleeved": sleeved, "sl": "S" if sleeved == "Sl" else "U",
         "pushers": C.pushers_for(spec, size),
     }
@@ -107,16 +108,15 @@ def compose(ctx, spec, labels):
             f = holder(ctx, ctx["first_riser"], first=True)
             f["count"] = 1
             items.append(f)
-    # Game-specific extras.
-    if "TokenHolder" in spec["extras"]:
+    # Token holders — per-row (parts.csv 'TokenHolder': none/full/full+half).
+    # Only sets whose expansions need them carry one; 'full+half' (the Mat boxes)
+    # also gets the HalfTokenHolder, whose assembly object is Mat-only.
+    if ctx["tokens"] in ("full", "full+half"):
         items.append({"type": "TokenHolder",
                       "key": ("TokenHolder", ctx["size"], slv),
                       "file": f"TokenHolder {ctx['size']}-{slv}.3mf",
                       "object": "TokenHolder", "count": 1})
-    # HalfTokenHolder rides only on merged-slot (Mat) cascades — the "(Mat)"
-    # Dominion boxes; ignored everywhere else even though the assembly export
-    # may still contain the object.
-    if "HalfTokenHolder" in spec.get("merged_extras", []) and ctx["merged"]:
+    if ctx["tokens"] == "full+half":
         items.append({"type": "HalfTokenHolder",
                       "key": ("HalfTokenHolder", ctx["size"], slv),
                       "file": f"HalfTokenHolder {ctx['size']}-{slv}.3mf",
