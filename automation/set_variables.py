@@ -4,10 +4,10 @@
 Builds the FULL set of Primary input variables for a chosen cascade (default:
 Innovation "270 Card", sleeved) from parts.csv and POSTs them in ONE call. This
 is the Stage-2 variable step: because we specify every primary input, no GET of
-current state is needed. Inputs not distinguished by parts.csv (HalfThicknessMat,
-Version) get sensible defaults.
+current state is needed. Inputs not distinguished by parts.csv (Version) get
+sensible defaults.
 
-NOTE: the POST replaces the studio's variable set, so this assumes the 11
+NOTE: the POST replaces the studio's variable set, so this assumes the 10
 Primary inputs below are the COMPLETE set (as seen in the screenshots). If the
 studio has more, they would be dropped — recoverable via Onshape version
 history. Run --dry-run first to review the exact body; it makes 0 API calls.
@@ -65,8 +65,6 @@ def build_primary(row, sleeved, game_name=None):
             "0 or 1, indicating unsleeved or sleeved"),
         var("MatPocket", "NUMBER", str(merged),
             "1, if two front pockets should merge"),
-        var("HalfThicknessMat", "NUMBER", "0",          # default — no mat here
-            "1, if the pocket slider should be half thickness"),
         var("GameName", "ANY", f'"{game_name or col(row, "Game")}"',
             "Changes logo, height increment and card size"),
         var("Version", "ANY", '"6.4"',                  # current CC design
