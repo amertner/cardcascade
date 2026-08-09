@@ -135,17 +135,17 @@ def compose(ctx, spec, labels):
             f["count"] = 1
             items.append(f)
     # Token holders — the set has one (parts.csv 'TokenHolder' column) or not.
-    # Every token-holder set gets the FULL holder always; the HALF is added only
-    # when the full holder's pocket is deep enough to hold tokens (>=10mm) — a
-    # shallower one has no room for a half. Depth is read from the exported full
-    # component, so the half appears once that component exists.
+    # Every token-holder set gets the FULL holder always. The HALF is a Mat-box
+    # feature (the merged mat pocket splits in two), so it's added only on
+    # merged-slot cascades AND only when the full holder's pocket is deep enough
+    # to hold tokens (>=10mm) — a shallower one has no room for a half.
     if ctx["tokens"] not in ("", "none"):
         items.append({"type": "TokenHolder",
                       "key": ("TokenHolder", ctx["size"], slv),
                       "file": f"TokenHolder {ctx['size']}-{slv}.3mf",
                       "object": "TokenHolder", "count": 1})
         depth = token_holder_depth(spec["folder"], ctx["size"], slv)
-        if depth is not None and depth >= HALF_TOKEN_MIN_DEPTH_MM:
+        if ctx["merged"] and depth is not None and depth >= HALF_TOKEN_MIN_DEPTH_MM:
             items.append({"type": "HalfTokenHolder",
                           "key": ("HalfTokenHolder", ctx["size"], slv),
                           "file": f"HalfTokenHolder {ctx['size']}-{slv}.3mf",
