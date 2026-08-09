@@ -111,6 +111,26 @@ def _write(data, comp, folder, game, element, mv, when):
     return len(bodies)
 
 
+def cache_raw(folder, name, data):
+    """Save a raw translation 3MF under individual/<folder>/_raw/ so a part that
+    was dropped or re-keyed can be recovered by re-splitting locally, never by
+    re-fetching. Every Onshape download is expensive; none should be thrown away.
+    Returns the cache path."""
+    d = P.ROOT / "individual" / folder / "_raw"
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"{name}.3mf"
+    out.write_bytes(data)
+    return out
+
+
+def cached_assembly(folder, model, merged):
+    """The cached raw assembly for a (model, merged) parameter set, or None."""
+    mf = model.replace("/", "-")
+    p = (P.ROOT / "individual" / folder / "_raw"
+         / f"Assembly {mf}{' merged' if merged else ''}.3mf")
+    return p if p.exists() else None
+
+
 def export_studio(auth, comp, folder, game, when):
     """One part-studio component (Lid, Topper, Label): translate -> strip imports
     -> file + provenance."""
@@ -123,6 +143,7 @@ def export_studio(auth, comp, folder, game, when):
         auth, "partstudio", OC.DID,
         f"/api/partstudios/d/{OC.DID}/w/{OC.WID}/e/{OC.ELEMENTS[typ]}/translations",
         body, reason=typ.lower())
+    cache_raw(folder, comp["file"][:-4], mesh.unwrap(data))   # keep the raw studio
     clean, dropped = mesh.strip_objects(data, {t for t in OC.ELEMENTS if t != typ})
     n = _write(clean, comp, folder, game, OC.ELEMENTS[typ], mv, when)
     return n, dropped
@@ -135,20 +156,31 @@ def assembly_role(comp):
     return comp["type"]
 
 
-def export_assembly(auth, ctx):
+def export_assembly(auth, ctx, use_cache=False):
     """One assembly translation -> {role: clean 3mf bytes} (split locally),
-    plus the shared documentMicroversion."""
-    data, mv = O.translate(
-        auth, "assembly", OC.DID,
-        f"/api/assemblies/d/{OC.DID}/w/{OC.WID}/e/{OC.ASSEMBLY}/translations",
-        dict(MESH_BODY), reason="assembly")
+    plus the shared documentMicroversion. With use_cache, re-split the cached raw
+    assembly (0 API calls) instead of translating when one is on disk."""
+    cached = cached_assembly(ctx["folder"], ctx["model"], ctx["merged"]) \
+        if use_cache else None
+    if cached:
+        print(f"    ↻ re-split from cache: {cached.name}  (0 calls)")
+        raw, mv = cached.read_bytes(), ""
+    else:
+        data, mv = O.translate(
+            auth, "assembly", OC.DID,
+            f"/api/assemblies/d/{OC.DID}/w/{OC.WID}/e/{OC.ASSEMBLY}/translations",
+            dict(MESH_BODY), reason="assembly")
+        raw = mesh.unwrap(data)
+        mf = ctx["model"].replace("/", "-")  # the assembly is (model, merged)-specific
+        cache_raw(ctx["folder"],
+                  f"Assembly {mf}{' merged' if ctx['merged'] else ''}", raw)
     card_mm = 0.64 if ctx["sleeved"] == "Sl" else 0.34
-    parts = ASM.split(mesh.unwrap(data), cards_first=ctx.get("first_riser"),
+    parts = ASM.split(raw, cards_first=ctx.get("first_riser"),
                       cards_slot=ctx["cards_per_slot"], card_mm=card_mm)
     return parts, mv
 
 
-def run_export(game, spec, plan, batches, limit):
+def run_export(game, spec, plan, batches, limit, use_cache=False):
     O.begin()
     auth = O.creds()
     when = datetime.datetime.now().isoformat(timespec="seconds")
@@ -163,12 +195,19 @@ def run_export(game, spec, plan, batches, limit):
         needed = [bykey[k] for k in keys if k in bykey]
         asm = [c for c in needed if c["type"] in OC.ASSEMBLY_SOURCED]
         studio = [c for c in needed if c["type"] in OC.STUDIO_SOURCED]
-        set_primary(auth, casc["row"], casc["sleeved"] == "Sl",
-                    spec.get("onshape_name", spec["folder"]))
-        print(f"● SET PARAMETERS  [{casc['name']}]")
+        asm_cached = bool(use_cache and asm and cached_assembly(
+            folder, casc["ctx"]["model"], casc["ctx"]["merged"]))
+        # Setting the Primary variables is itself an API call; skip it when
+        # every needed part comes from the local cache.
+        if (asm and not asm_cached) or studio:
+            set_primary(auth, casc["row"], casc["sleeved"] == "Sl",
+                        spec.get("onshape_name", spec["folder"]))
+            print(f"● SET PARAMETERS  [{casc['name']}]")
+        else:
+            print(f"● FROM CACHE  [{casc['name']}]")
         # ONE assembly export supplies every monochrome component of this cascade
         if asm and not (limit and done >= limit):
-            parts, mv = export_assembly(auth, casc["ctx"])
+            parts, mv = export_assembly(auth, casc["ctx"], use_cache=use_cache)
             for comp in asm:
                 if limit and done >= limit:
                     break
@@ -211,6 +250,9 @@ def main():
                                    "e.g. '360 Card')")
     ap.add_argument("--limit", type=int, default=0,
                     help="export at most N components")
+    ap.add_argument("--use-cache", action="store_true",
+                    help="re-split cached raw assemblies (individual/<game>/_raw/) "
+                         "instead of re-fetching — 0 API calls for those cascades")
     args = ap.parse_args()
 
     game, spec = C.game_by_name(args.game)
@@ -272,7 +314,7 @@ def main():
         lim = f", limit {args.limit}" if args.limit else ""
         print(f"EXECUTE — {game}{scope}: {sets} parameter set(s), "
               f"{ops} translate op(s) ≈ {est} calls{lim}\n")
-        run_export(game, spec, plan, batches, args.limit)
+        run_export(game, spec, plan, batches, args.limit, use_cache=args.use_cache)
         return
 
     # ---- dry run ----
