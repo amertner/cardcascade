@@ -105,11 +105,13 @@ def compose(ctx, spec, labels):
     """All component instances for one cascade. Each dict: type, key (dedup
     identity), file, object (make_cascade name), count, [instance]."""
     m, sl, slv = ctx["model"], ctx["sl"], ctx["sleeved"]
+    mf = m.replace("/", "-")     # model codes can carry '/' (S2.40.12/30) — a
+    #                              path separator; fold it for filenames
     items = [
         {"type": "Box", "key": ("Box", m, ctx["merged"]),
-         "file": f"Box {m}{' merged' if ctx['merged'] else ''}.3mf",
+         "file": f"Box {mf}{' merged' if ctx['merged'] else ''}.3mf",
          "object": "Box", "count": 1},
-        {"type": "Lid", "key": ("Lid", m), "file": f"Lid {m}.3mf",
+        {"type": "Lid", "key": ("Lid", m), "file": f"Lid {mf}.3mf",
          "object": "Lid", "count": 1},
         {"type": "Pusher",
          "key": ("Pusher", ctx["risers"], ctx["cards_per_slot"], slv),

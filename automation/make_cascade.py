@@ -665,13 +665,25 @@ def main():
         old, _, new = spec.partition("=")
         if not _:
             fail(f"--rename needs OLD=NEW, got {spec!r}")
-        pattern = (r'(<object id="(\d+)">\s*<metadata key="name" value=")'
-                   + re.escape(esc(old)) + '(")')
-        matches = list(re.finditer(pattern, cfg))
-        if len(matches) != 1:
-            fail(f"object rename {old!r}: matched {len(matches)} objects, need 1")
-        cfg = re.sub(pattern, rf'\g<1>{esc(new)}\g<3>', cfg)
-        objects[matches[0].group(2)] = new   # keep in-memory name in sync so
+        im = re.match(r'^(.*)#(\d+)$', old)      # NAME#N targets the Nth instance
+        if im:                                   # (plate order) — like --part#N
+            old, inst = im.group(1), int(im.group(2))
+            in_order = [oid for _, _, objs in sorted(plates) for oid in objs
+                        if objects.get(oid) == old]
+            if not 1 <= inst <= len(in_order):
+                fail(f"{old}#{inst}: only {len(in_order)} instance(s)")
+            oid = in_order[inst - 1]
+        else:
+            pattern = (r'<object id="(\d+)">\s*<metadata key="name" value="'
+                       + re.escape(esc(old)) + '"')
+            matches = list(re.finditer(pattern, cfg))
+            if len(matches) != 1:
+                fail(f"object rename {old!r}: matched {len(matches)} "
+                     f"objects, need 1")
+            oid = matches[0].group(1)
+        cfg = re.sub(rf'(<object id="{oid}">\s*<metadata key="name" value=")'
+                     r'[^"]*(")', rf'\g<1>{esc(new)}\g<2>', cfg, count=1)
+        objects[oid] = new                       # keep in-memory name in sync so
         print(f"object renamed: {old!r} -> {new!r}")   # role/layout see it
     for spec in args.plate_sub:
         old, _, new = spec.partition("=")
