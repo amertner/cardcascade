@@ -66,7 +66,7 @@ Game-specific additions:
 
 | Game | Extra components | Labels |
 |---|---|---|
-| Dominion | Token holders per-row (`TokenHolder` column: `full`/`none`) — only sets whose expansions need them. Full holder always; a HalfTokenHolder is added only on **merged-slot (Mat)** cascades whose full holder's pocket is ≥10mm deep (a shallower one has no room for a half) | via `labelmaker.py` (not Onshape) |
+| Dominion | Token holders per-row (`TokenHolder` column: `full`/`none`) — only sets whose expansions need them. Full holder always; every **merged-slot (Mat)** cascade also gets a HalfTokenHolder (the mat pocket always splits into full + half) | via `labelmaker.py` (not Onshape) |
 | Innovation | **6 Toppers** — same dims, different embedded text (one per expansion + a blank); one whole-studio Onshape export per sleeving yields all 6 | via `labelmaker.py` |
 | Compile | — | **special label with logo → from Onshape**, only when `--labels` given |
 | Food Chain Magnate | — | via `labelmaker.py` |
