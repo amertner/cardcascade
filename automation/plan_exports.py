@@ -63,16 +63,23 @@ def build_context(row, sleeved, game, spec):
 
 
 def holder(ctx, capacity, first=False, spans=False):
-    """A holder keyed by (game, #cards it holds, sleeved). Compile holders span
-    `Horizontal` protocols of Cards/Riser slot, so key on that instead."""
+    """A per-slot holder. Its size is set by the box's front pocket, so it is
+    keyed by (size, front capacity, merged, sleeved, first) and named e.g.
+    'Holder M-21-Sl' / 'Holder M-21-Sl merged'. (size, front capacity) fixes
+    cards/slot within a game; `merged`/Mat merges the two rightmost front slots,
+    resizing the holder, so a Mat holder differs from its plain sibling. The
+    first-riser holder is a distinct sibling (same box, deeper) tagged `first`.
+    Compile/Innovation holders instead span `Horizontal` protocols."""
     slv = ctx["sleeved"]
     if spans:
         label = f"{ctx['horizontal']}x{ctx['cards_per_slot']}"
         key = ("Holder", "span", ctx["horizontal"], ctx["cards_per_slot"], slv)
+        name = f"Holder {label}-{slv}"
     else:
-        label = str(capacity)
-        key = ("Holder", capacity, slv)
-    name = f"Holder {label}-{slv}" + (" (first)" if first else "")
+        label = f"{ctx['size']}-{ctx['front_capacity']}"
+        key = ("Holder", ctx["size"], ctx["front_capacity"], ctx["merged"], slv, first)
+        mtag = " merged" if ctx["merged"] else ""
+        name = f"Holder {label}-{slv}{mtag}" + (" (first)" if first else "")
     # The first-riser holder is a distinct object named "FirstHolder" in the
     # Onshape export (its own slot); the default holder stays "Holder".
     return {"type": "Holder", "key": key, "file": f"{name}.3mf",
