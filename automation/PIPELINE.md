@@ -84,8 +84,8 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 | Holder (per-slot: Dominion/FCM) | `(cards_per_slot, sleeved)` | capacity = Cards/Riser slot; no size axis |
 | Holder (spanning: Compile, Innovation) | `(horizontal, cards_per_slot, sleeved)` | spans HorizontalSlots — Compile 3×7/5×7, Innovation 3×15 (S) / 4×15 (M) |
 | Holder (first-riser) | `(Cards/First Riser, sleeved)` | one per cascade when defined; replaces one standard holder |
-| TokenHolder (Dominion) | `(size, sleeved)` | TODO confirm dependency |
-| HalfTokenHolder (Dominion) | `(size, sleeved)` | merged-slot (Mat) cascades only; shares across Mat cascades of same size+sleeving |
+| TokenHolder (Dominion) | `(front capacity, merged, sleeved)` | fits the box's front pocket, so it varies by capacity, Mat-ness and sleeving; file `TokenHolder <cap>-<slv>[ merged]` |
+| HalfTokenHolder (Dominion) | `(front capacity, merged, sleeved)` | Mat-only; same key as the full holder |
 | Toppers (Innovation) | `(sleeved,)` | one export → 6 files; shared across all Innovation cascades of that sleeving |
 | Label (Compile) | `(model,)` | logo label; TODO confirm dependency |
 

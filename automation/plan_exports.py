@@ -41,11 +41,12 @@ def col(row, name):
     return (row.get(name) or "").strip()
 
 
-def token_holder_depth(folder, size, sleeved):
+def token_holder_depth(folder, cap, merged, sleeved):
     """Shallowest bounding dimension (mm) of the exported full TokenHolder — its
     token-pocket depth — or None if it isn't on disk yet. Drives the half-holder
     decision: a half is only worth adding when the full holder is deep enough."""
-    p = ROOT / "individual" / folder / f"TokenHolder {size}-{sleeved}.3mf"
+    p = (ROOT / "individual" / folder
+         / f"TokenHolder {cap}-{sleeved}{' merged' if merged else ''}.3mf")
     if not p.exists():
         return None
     txt = zipfile.ZipFile(p).read("3D/3dmodel.model").decode()
@@ -140,15 +141,17 @@ def compose(ctx, spec, labels):
     # merged-slot cascades AND only when the full holder's pocket is deep enough
     # to hold tokens (>=10mm) — a shallower one has no room for a half.
     if ctx["tokens"] not in ("", "none"):
+        cap = ctx["front_capacity"]          # token holder fits the front pocket:
+        mtag = " merged" if ctx["merged"] else ""   # varies by capacity + mat + slv
         items.append({"type": "TokenHolder",
-                      "key": ("TokenHolder", ctx["size"], slv),
-                      "file": f"TokenHolder {ctx['size']}-{slv}.3mf",
+                      "key": ("TokenHolder", cap, ctx["merged"], slv),
+                      "file": f"TokenHolder {cap}-{slv}{mtag}.3mf",
                       "object": "TokenHolder", "count": 1})
-        depth = token_holder_depth(spec["folder"], ctx["size"], slv)
+        depth = token_holder_depth(spec["folder"], cap, ctx["merged"], slv)
         if ctx["merged"] and depth is not None and depth >= HALF_TOKEN_MIN_DEPTH_MM:
             items.append({"type": "HalfTokenHolder",
-                          "key": ("HalfTokenHolder", ctx["size"], slv),
-                          "file": f"HalfTokenHolder {ctx['size']}-{slv}.3mf",
+                          "key": ("HalfTokenHolder", cap, ctx["merged"], slv),
+                          "file": f"HalfTokenHolder {cap}-{slv}{mtag}.3mf",
                           "object": "HalfTokenHolder", "count": 1})
     if "Toppers" in spec["extras"]:
         # Each topper is a separate export (Topper studio configured per
