@@ -187,13 +187,20 @@ Chains all three stages for a filtered set of cascades, prompting between steps:
 
 ```
 refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
-                    [--auto] [--dry-run] [--standardize-names]
+                    [--auto] [--dry-run] [--rebuild] [--standardize-names]
 ```
 
 - **PLAN** (offline) → **EXPORT** (only stale/missing; **always** confirms the
   API spend, even under `--auto`) → **ASSEMBLE** (`make_cascade --keep-layout`,
   in place, preserving each project's hand-tuned plates). `--auto` skips only the
   two offline prompts.
+- **`--rebuild`** switches ASSEMBLE to `make_cascade --auto-plates`: regenerate
+  the plate layout from the box's own project as donor (swap every mesh by role,
+  normalise the token-holder object name — donors often leave it `Part 1`), with
+  the bed chosen from parts.csv's `3D printer` column (**Standard→P1, Large→H2C,
+  Mixed→P1 unsleeved / H2C sleeved**). This is the general "auto-build" for
+  first-building a box whose only project is stale/mislabeled — it replaces the
+  old per-box shell scripts.
 - Cascade projects are named canonically — `<Game> <Short name>
   <Sleeved|Unsleeved> (<model>).3mf` (`components.cascade_filename`, `/`→`-`);
   Innovation/Compile already match. `--standardize-names` git-renames legacy

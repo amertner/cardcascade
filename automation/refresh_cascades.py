@@ -5,8 +5,12 @@ Refreshes a filtered set of cascades:
 
     PLAN     compute_plan (offline, 0 API calls) — what's selected, what's stale
     EXPORT   re-export only stale/missing components from Onshape (budget-gated)
-    ASSEMBLE make_cascade --keep-layout — swap refreshed meshes into each
-             cascade's existing project, preserving its hand-tuned plate layout
+    ASSEMBLE make_cascade — by default --keep-layout (swap refreshed meshes into
+             each cascade's project, preserving its hand-tuned plates). With
+             --rebuild, --auto-plates instead: regenerate the layout from the
+             box's own project as donor, bed chosen from parts.csv (Standard→P1,
+             Large→H2C, Mixed→P1 unsleeved/H2C sleeved) — the general "auto-build"
+             for first-building a box whose only project is stale/mislabeled.
 
 Each step asks for confirmation. `--auto` skips the two OFFLINE prompts (PLAN and
 ASSEMBLE) but the Onshape EXPORT step ALWAYS confirms before spending the tiny
@@ -289,9 +293,85 @@ def assemble_one(game, spec, casc, dry):
     return "ok", canon + note
 
 
-def run_assemble(selection, auto, dry):
+def bed_for(casc):
+    """make_cascade --bed for a cascade, from parts.csv's `3D printer` column:
+    Standard→p1, Large→h2c, Mixed→p1 unsleeved / h2c sleeved (the sleeved box is
+    deeper and needs the big bed), blank/unknown→auto (let make_cascade decide)."""
+    kind = (casc["row"].get("3D printer") or "").strip().lower()
+    if kind == "standard":
+        return "p1"
+    if kind == "large":
+        return "h2c"
+    if kind == "mixed":
+        return "p1" if casc["sleeved"] == "Un" else "h2c"
+    return "auto"
+
+
+def th_canonical(role, merged):
+    """The conventional object name for a (Half)TokenHolder: Mat boxes split the
+    front pocket into Full + Half; a plain box has one bare `TokenHolder`."""
+    if role == "HalfTokenHolder":
+        return "TokenHolder Half"
+    if role == "TokenHolder":
+        return "TokenHolder Full" if merged else "TokenHolder"
+    return None
+
+
+def rebuild_one(game, spec, casc, dry):
+    """Rebuild one cascade from its components with make_cascade --auto-plates,
+    using its existing project as the layout donor. Unlike keep-layout this
+    regenerates the plate layout — needed to first-build a box whose only project
+    is stale/mislabeled. Swaps every mesh by role, normalises the token-holder
+    object name (donors often leave it 'Part 1'), and picks the bed from
+    parts.csv. Returns (status, detail): 'ok' | 'skip' | 'fail'."""
+    folder = spec["folder"]
+    canon = C.cascade_filename(game, casc["ctx"]["short_name"],
+                               casc["sleeved"], casc["model"])
+    donor = ROOT / "cascades" / folder / canon
+    if not donor.exists():
+        return "skip", f"no donor project {canon!r} to rebuild from"
+
+    swap, unmatched, unused, conflicts = build_swap(donor, casc["components"])
+    if conflicts:
+        return "skip", (f"donor object(s) {conflicts} carry two roles — "
+                        "rename one so --part can target them apart")
+    if unused:                            # --auto-plates can't ADD a missing slot
+        return "skip", f"components with no donor slot: {unused}"
+    missing = [f for f in swap.values()
+               if not (ROOT / "individual" / folder / f).exists()]
+    if missing:
+        return "skip", f"components not on disk: {', '.join(sorted(missing))}"
+
+    merged = casc["ctx"]["merged"]
+    renames = {}
+    for name, src in object_specs(donor):
+        want = th_canonical(object_role(name, src)[0], merged)
+        if want and name != want:
+            renames[name] = want
+
+    bed = bed_for(casc)
+    cmd = [sys.executable, str(HERE / "make_cascade.py"), str(donor),
+           "-o", str(donor), "--auto-plates", "--bed", bed]
+    for obj, file in swap.items():
+        cmd += ["--part", f"{obj}={ROOT / 'individual' / folder / file}"]
+    for old, new in renames.items():
+        cmd += ["--rename", f"{old}={new}"]
+    note = f"  [bed {bed}]" + (f" (left: {unmatched})" if unmatched else "")
+    if dry:
+        return "ok", "would run: " + " ".join(
+            f'"{a}"' if " " in a else a for a in cmd) + note
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        tail = (res.stderr or res.stdout).strip().splitlines()[-1:] or [""]
+        return "fail", tail[0]
+    return "ok", canon + note
+
+
+def run_assemble(selection, auto, dry, rebuild=False):
     n = sum(len(cs) for *_, cs in selection)
-    print(f"● ASSEMBLE — keep-layout refresh of up to {n} cascade(s)"
+    mode = "auto-plates rebuild" if rebuild else "keep-layout refresh"
+    one = rebuild_one if rebuild else assemble_one
+    print(f"● ASSEMBLE — {mode} of up to {n} cascade(s)"
           f"{' (dry run)' if dry else ''}\n")
     if not confirm("Assemble these cascade(s)?", auto, default=True):
         print("assemble skipped.")
@@ -300,7 +380,7 @@ def run_assemble(selection, auto, dry):
     for game, spec, _, cs in selection:
         print(f"  {game}:")
         for c in sorted(cs, key=lambda c: c["name"]):
-            status, detail = assemble_one(game, spec, c, dry)
+            status, detail = one(game, spec, c, dry)
             tally[status] += 1
             mark = {"ok": "✓", "skip": "·", "fail": "⚠"}[status]
             print(f"    {mark} {c['name']}  {detail}")
@@ -372,6 +452,11 @@ def main():
     ap.add_argument("--standardize-names", action="store_true",
                     help="one-off: git-rename legacy cascade projects to the "
                          "standard name, then exit")
+    ap.add_argument("--rebuild", action="store_true",
+                    help="ASSEMBLE via make_cascade --auto-plates (regenerate the "
+                         "plate layout from the box's own project as donor, bed "
+                         "from parts.csv) instead of the default keep-layout swap; "
+                         "use to first-build a box whose only project is stale")
     args = ap.parse_args()
 
     sizes = {s.strip().upper() for s in (args.size or "").split(",") if s.strip()}
@@ -400,7 +485,7 @@ def main():
         print(f"● EXPORT — {stale} component(s) would be re-exported "
               "(run without --dry-run to spend the calls).\n")
 
-    run_assemble(selection, args.auto, args.dry_run)
+    run_assemble(selection, args.auto, args.dry_run, args.rebuild)
 
 
 if __name__ == "__main__":
