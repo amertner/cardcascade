@@ -15,7 +15,9 @@ Usage:
 import argparse
 import csv
 import json
+import re
 import sys
+import zipfile
 from collections import namedtuple
 from pathlib import Path
 
@@ -32,10 +34,29 @@ ROOT = HERE.parent                    # repo root — data dirs (individual/) li
 REQUIRED = ["Box Height / mm", "Unsleeved W/mm", "Unsleeved D/mm",
             "Sleeved W/mm", "Sleeved D/mm"]
 CALLS_PER_EXPORT = 4          # translate + ~1-2 polls + download (planning est.)
+HALF_TOKEN_MIN_DEPTH_MM = 10.0   # a half token holder below this holds no tokens
 
 
 def col(row, name):
     return (row.get(name) or "").strip()
+
+
+def token_holder_depth(folder, size, sleeved):
+    """Shallowest bounding dimension (mm) of the exported full TokenHolder — its
+    token-pocket depth — or None if it isn't on disk yet. Drives the half-holder
+    decision: a half is only worth adding when the full holder is deep enough."""
+    p = ROOT / "individual" / folder / f"TokenHolder {size}-{sleeved}.3mf"
+    if not p.exists():
+        return None
+    txt = zipfile.ZipFile(p).read("3D/3dmodel.model").decode()
+    scale = 1000.0 if re.search(r'unit="meter"', txt) else 1.0
+    vs = re.findall(r'<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"', txt)
+    if not vs:
+        return None
+    xs = [float(a) for a, _, _ in vs]
+    ys = [float(b) for _, b, _ in vs]
+    zs = [float(c) for _, _, c in vs]
+    return min(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)) * scale
 
 
 def build_context(row, sleeved, game, spec):
@@ -108,19 +129,22 @@ def compose(ctx, spec, labels):
             f = holder(ctx, ctx["first_riser"], first=True)
             f["count"] = 1
             items.append(f)
-    # Token holders — per-row (parts.csv 'TokenHolder': none/full/full+half).
-    # Only sets whose expansions need them carry one; 'full+half' (the Mat boxes)
-    # also gets the HalfTokenHolder, whose assembly object is Mat-only.
-    if ctx["tokens"] in ("full", "full+half"):
+    # Token holders — the set has one (parts.csv 'TokenHolder' column) or not.
+    # Every token-holder set gets the FULL holder always; the HALF is added only
+    # when the full holder's pocket is deep enough to hold tokens (>=10mm) — a
+    # shallower one has no room for a half. Depth is read from the exported full
+    # component, so the half appears once that component exists.
+    if ctx["tokens"] not in ("", "none"):
         items.append({"type": "TokenHolder",
                       "key": ("TokenHolder", ctx["size"], slv),
                       "file": f"TokenHolder {ctx['size']}-{slv}.3mf",
                       "object": "TokenHolder", "count": 1})
-    if ctx["tokens"] == "full+half":
-        items.append({"type": "HalfTokenHolder",
-                      "key": ("HalfTokenHolder", ctx["size"], slv),
-                      "file": f"HalfTokenHolder {ctx['size']}-{slv}.3mf",
-                      "object": "HalfTokenHolder", "count": 1})
+        depth = token_holder_depth(spec["folder"], ctx["size"], slv)
+        if depth is not None and depth >= HALF_TOKEN_MIN_DEPTH_MM:
+            items.append({"type": "HalfTokenHolder",
+                          "key": ("HalfTokenHolder", ctx["size"], slv),
+                          "file": f"HalfTokenHolder {ctx['size']}-{slv}.3mf",
+                          "object": "HalfTokenHolder", "count": 1})
     if "Toppers" in spec["extras"]:
         # Each topper is a separate export (Topper studio configured per
         # expansion). Toppers vary by (expansion, size, sleeved) only, so they
