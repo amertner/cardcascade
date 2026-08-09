@@ -815,10 +815,18 @@ def main():
                     print(f"  warning: forced bed {choice[0]} may not fit all parts")
             name, bw, bd, pkey, model = choice
             if ps.get("printer_model") != model:
-                colour = ps.get("filament_colour")
+                src_colour = ps.get("filament_colour", [])
                 ps = json.loads((PROFILES / f"{pkey}.config").read_text())
-                if colour:
-                    ps["filament_colour"] = colour       # keep black/white order
+                nfil = len(ps.get("filament_colour", []))
+                if src_colour:            # keep the source's colours/order but hold
+                    ps["filament_colour"] = (              # the profile's filament
+                        list(src_colour) + ps["filament_colour"])[:nfil]   # count
+                used = [int(e) for e in
+                        re.findall(r'key="extruder" value="(\d+)"', cfg)]
+                if used and max(used) > nfil:
+                    print(f"  warning: a part uses filament {max(used)} but the "
+                          f"{model} profile has {nfil} — reassign it or Bambu "
+                          f"will error on load")
                 profile_swapped = True
                 print(f"auto-bed: {name} — switched printer profile to {model}")
             else:
