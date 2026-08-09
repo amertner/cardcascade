@@ -160,8 +160,11 @@ def _plate_safe(name):
 
 def auto_plate_groups(objects, plates, title):
     """The standard plate scheme: [(plate name, [object ids]), ...] in
-    PLATE_SCHEME order; empty groups skipped."""
-    order = [o for _, _, objs in sorted(plates) for o in objs]
+    PLATE_SCHEME order; empty groups skipped. Auto-plates regenerates the layout
+    from scratch, so EVERY object is placed — including any the template left off
+    a plate (orphans, e.g. a token holder imported loose)."""
+    on_plates = [o for _, _, objs in sorted(plates) for o in objs]
+    order = on_plates + [o for o in objects if o not in on_plates]
     groups = []
     for label, roles in PLATE_SCHEME:
         oids = [o for o in order if _role(objects[o]) in roles]
@@ -662,12 +665,14 @@ def main():
         old, _, new = spec.partition("=")
         if not _:
             fail(f"--rename needs OLD=NEW, got {spec!r}")
-        pattern = (r'(<object id="\d+">\s*<metadata key="name" value=")'
+        pattern = (r'(<object id="(\d+)">\s*<metadata key="name" value=")'
                    + re.escape(esc(old)) + '(")')
-        cfg, n = re.subn(pattern, rf'\g<1>{esc(new)}\g<2>', cfg)
-        if n != 1:
-            fail(f"object rename {old!r}: matched {n} objects, need 1")
-        print(f"object renamed: {old!r} -> {new!r}")
+        matches = list(re.finditer(pattern, cfg))
+        if len(matches) != 1:
+            fail(f"object rename {old!r}: matched {len(matches)} objects, need 1")
+        cfg = re.sub(pattern, rf'\g<1>{esc(new)}\g<3>', cfg)
+        objects[matches[0].group(2)] = new   # keep in-memory name in sync so
+        print(f"object renamed: {old!r} -> {new!r}")   # role/layout see it
     for spec in args.plate_sub:
         old, _, new = spec.partition("=")
         if not _:
