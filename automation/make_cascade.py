@@ -49,6 +49,16 @@ from pathlib import Path
 GAP_DEFAULT = 12.0
 CLEARANCE = 1.0          # validation: min distance between objects
 
+# Candidate print beds for --auto-plates bed selection, smallest first. Each
+# carries a reference printer profile (a full project_settings.config under
+# profiles/) that the output is switched to when that bed is chosen.
+PROFILES = Path(__file__).parent / "profiles"
+BED_TABLE = [
+    ("P1",  256.0, 256.0, "p1p", "Bambu Lab P1P"),
+    ("H2C", 330.0, 320.0, "h2c", "Bambu Lab H2C"),
+]
+BED_MARGIN = 8.0         # bed-fit slack: an object's 45°-rotated span must clear this
+
 
 def fail(msg):
     sys.exit(f"REFUSING: {msg}")
@@ -209,9 +219,18 @@ def main():
                          "object positions, plates and wipe towers (for updating "
                          "a hand-crafted layout with same-design components); "
                          "refuses a swapped mesh that outgrew its slot")
+    ap.add_argument("--bed", choices=["auto", "p1", "h2c", "template"],
+                    help="with --auto-plates, the print bed: 'auto' (default) "
+                         "picks the smallest that fits parts rotated 45° (P1 "
+                         "256mm, else H2C 330mm) and swaps the printer profile "
+                         "to match; 'p1'/'h2c' force one; 'template' keeps the "
+                         "template's bed")
     args = ap.parse_args()
     if args.keep_layout and args.auto_plates:
         fail("--keep-layout and --auto-plates are mutually exclusive")
+    # Auto-plates regenerates the layout, so default to auto bed selection;
+    # keep-layout must never move the bed under a hand-tuned layout.
+    bed_mode = args.bed or ("auto" if args.auto_plates else "template")
 
     gap_over = {}
     for spec in args.gap_override:
@@ -766,6 +785,48 @@ def main():
             ry = o[2] * abs(s) + o[3] * abs(c)
             return o[0] - rx, o[1] - ry, o[0] + rx, o[1] + ry
 
+        # ---- auto-plates bed selection: smallest bed that fits (rotated) ----
+        profile_swapped = False
+        if args.auto_plates and bed_mode != "template":
+            dims = {}
+            for oid in objects:
+                lo, hi = obj_bbox(oid)
+                dims[oid] = (hi[0] - lo[0], hi[1] - lo[1])
+
+            def _fits(bw, bd):
+                # every object must clear the bed once turned 45° (its rotated
+                # span is the diagonal of its footprint), leaving BED_MARGIN
+                m = min(bw, bd) - BED_MARGIN
+                return all((w + d) / math.sqrt(2) <= m for w, d in dims.values())
+
+            if bed_mode == "auto":
+                choice = next((b for b in BED_TABLE if _fits(b[1], b[2])), None)
+                if choice is None:
+                    fail("no candidate bed fits every part even rotated 45 deg")
+            else:
+                want = "p1p" if bed_mode == "p1" else "h2c"
+                choice = next(b for b in BED_TABLE if b[3] == want)
+                if not _fits(choice[1], choice[2]):
+                    print(f"  warning: forced bed {choice[0]} may not fit all parts")
+            name, bw, bd, pkey, model = choice
+            if ps.get("printer_model") != model:
+                colour = ps.get("filament_colour")
+                ps = json.loads((PROFILES / f"{pkey}.config").read_text())
+                if colour:
+                    ps["filament_colour"] = colour       # keep black/white order
+                profile_swapped = True
+                print(f"auto-bed: {name} — switched printer profile to {model}")
+            else:
+                print(f"auto-bed: {name} (template already {model})")
+            # recompute every bed-derived local from the (possibly new) profile
+            area = [tuple(map(float, p.split("x"))) for p in ps["printable_area"]]
+            bed_w = max(p[0] for p in area)
+            bed_d = max(p[1] for p in area)
+            stride_x, stride_y = bed_w * 1.2, bed_d * 1.2
+            tower_w = float(ps.get("prime_tower_width", 35))
+            wx[:] = [float(v) for v in ps.get("wipe_tower_x", [])]
+            wy[:] = [float(v) for v in ps.get("wipe_tower_y", [])]
+
         ex = [tuple(map(float, p.split("x")))
               for p in ps.get("bed_exclude_area", [])]
         ex_obb = (rect_obb(min(p[0] for p in ex), min(p[1] for p in ex),
@@ -788,6 +849,16 @@ def main():
             bed = min(bed_w, bed_d)
             groups = []
             for name, oids in auto_plate_groups(objects, plates, Path(args.out).stem):
+                # A big object that must rotate 45° fills its plate diagonally,
+                # leaving no room for flat companions (e.g. the box's pushers on
+                # a P1 bed). Give those companions their own plate.
+                rot = [o for o in oids if max(_dims(o)) > bed - 20]
+                flat = [o for o in oids if o not in rot]
+                if rot and flat:
+                    base, _, title = name.partition(" — ")
+                    groups.append((f"{_role(objects[rot[0]])} — {title}", rot))
+                    groups.append((f"{_role(objects[flat[0]])}s — {title}", flat))
+                    continue
                 longest = max(max(_dims(o)) for o in oids)
                 depth = max(min(_dims(o)) for o in oids)
                 # thin strips (holders/toppers) get rotated 45° and packed in a
@@ -1010,9 +1081,10 @@ def main():
                                    org[1] + cy - (bcx * s + bcy * c),
                                    -lo[2])
 
-        if towers_moved:
-            ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
-            ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
+        if towers_moved or profile_swapped:
+            if towers_moved:
+                ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
+                ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
             (work / "Metadata/project_settings.config").write_text(
                 json.dumps(ps, ensure_ascii=False, indent=4))
 
