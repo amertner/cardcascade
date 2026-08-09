@@ -432,6 +432,30 @@ def main():
                 ys.append(px*v[1] + py*v[4] + pz*v[7] + v[10])
         return (min(xs), min(ys), max(xs), max(ys)) if xs else None
 
+    def _world_zmin(oid):
+        """Lowest world-space Z of oid, through the FULL item transform (rotation
+        included). Unlike _frame_zmin this sees a tipped item transform, so it
+        catches an object the flat re-rest leaves below the bed."""
+        it = re.search(rf'<item objectid="{oid}" [^>]*transform="([^"]+)"', xml)
+        if not it:
+            return None
+        v = [float(x) for x in it.group(1).split()]
+        zs = []
+        for f, cid in comps.get(oid, []):
+            got = parse_meshes((work / f.lstrip("/")).read_text()).get(int(cid))
+            if not got:
+                continue
+            _, verts, _ = got
+            cm = re.search(rf'<object id="{oid}"[^>]*>\s*<components>.*?'
+                           rf'objectid="{cid}"[^>]*transform="([^"]+)"', xml, re.S)
+            c = [float(x) for x in cm.group(1).split()]
+            for x, y, z in verts:
+                px = x*c[0] + y*c[3] + z*c[6] + c[9]
+                py = x*c[1] + y*c[4] + z*c[7] + c[10]
+                pz = x*c[2] + y*c[5] + z*c[8] + c[11]
+                zs.append(px*v[2] + py*v[5] + pz*v[8] + v[11])
+        return min(zs) if zs else None
+
     for spec in args.part:
         name, _, file = spec.partition("=")
         if not _:
@@ -746,12 +770,27 @@ def main():
             v[11] = f"{-zmin:.9g}"
             return m.group(1) + " ".join(v) + m.group(3)
 
+        offenders = []
         for oid in comps:
             zmin = _frame_zmin(oid)
             xml = re.sub(rf'(<item objectid="{oid}" [^>]*transform=")([^"]+)(")',
                          lambda m: _set_tz(m, zmin), xml, count=1)
             cfg = re.sub(rf'(<assemble_item object_id="{oid}"[^>]*transform=")'
                          r'([^"]+)(")', lambda m: _set_tz(m, zmin), cfg, count=1)
+            # Guard: _frame_zmin rests the object's component frame, but a stale
+            # donor whose item transform TIPS the part (a rotation out of the
+            # print plane, not a flat in-plane spin) still leaves geometry below
+            # z=0 — it prints through the bed. Refuse rather than emit that.
+            wz = _world_zmin(oid)
+            if wz is not None and wz < -0.1:
+                offenders.append((objects.get(oid, str(oid)), wz))
+        if offenders:
+            desc = ", ".join(f"{n} ({z:.0f} mm)" for n, z in sorted(offenders))
+            fail(f"keep-layout: {len(offenders)} object(s) sit below the bed after "
+                 f"re-rest: {desc}. The donor's saved orientation tips them through "
+                 f"z=0, which a flat re-rest can't correct. Regenerate the layout "
+                 f"instead: refresh_cascades.py --rebuild (or make_cascade "
+                 f"--auto-plates).")
         print("keep-layout: kept x/y + rotation, re-rested every object on z=0")
     else:
         # object-frame bounding boxes from the final meshes
