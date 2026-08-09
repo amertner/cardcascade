@@ -244,8 +244,11 @@ def main():
     manifest = {
         "game": game, "folder": spec["folder"],
         "cascades": [
-            {"name": c["name"], "model": c["model"], "sleeved": c["sleeved"],
+            {"name": c["name"], "short_name": c["ctx"]["short_name"],
+             "model": c["model"], "sleeved": c["sleeved"],
              "status": c["status"],
+             "file": C.cascade_filename(game, c["ctx"]["short_name"],
+                                        c["sleeved"], c["model"]),
              "parts": [{"object": it["object"], "file": it["file"],
                         "count": it["count"],
                         **({"instance": it["instance"]}

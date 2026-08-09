@@ -75,3 +75,21 @@ def game_by_name(name):
         if spec["folder"].lower() == name.lower():
             return gname, spec
     return None, None
+
+
+def cascade_filename(game, short_name, sleeved, model):
+    """Canonical output name for an assembled cascade project. The standard is
+    the Innovation/Compile convention:
+
+        "<Game> <Short name> <Sleeved|Unsleeved> (<model>).3mf"
+        e.g. "Innovation 270 Card Sleeved (S5.15.15.45-Sl).3mf"
+
+    `sleeved` is "Sl"/"Un" (as in the cascade context); `model` is the row's
+    per-sleeving model code (e.g. "M8.40.10.62-Sl")."""
+    slv = "Sleeved" if sleeved == "Sl" else "Unsleeved"
+    name = f"{game} {short_name} {slv} ({model}).3mf"
+    # Some model codes carry a '/' (e.g. S2.40.12/30.32-Un) — a path separator,
+    # so fold it and other filesystem-hostile chars to '-' (as legacy names did).
+    for ch in "/\\:":
+        name = name.replace(ch, "-")
+    return name

@@ -168,8 +168,35 @@ either supply a standard per-scheme template or extend the layout code.
 ## Build order
 
 1. Refactor `onshape_test.py`'s HTTP/ledger/translate layer into `onshape.py`
-   (reusable `export_part(...)`). *(no API)*
+   (reusable `export_part(...)`). *(no API)* **← built.**
 2. **Stage 1 planner** `plan_exports.py` + `components.py` — this document's
    composition + dedup, offline. **← built.**
-3. Stage 2 exporter — consume worklist, fetch misses, write state file.
-4. Stage 3 `assemble.py` — manifest → make_cascade calls.
+3. Stage 2 exporter `export.py` — consume worklist, fetch misses, write state
+   file. **← built.**
+4. Stage 3 assembler — `make_cascade --keep-layout`, driven by
+   `refresh_cascades.py`. **← built.**
+
+## Interactive refresh — `refresh_cascades.py`
+
+Chains all three stages for a filtered set of cascades, prompting between steps:
+
+```
+refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
+                    [--auto] [--dry-run] [--standardize-names]
+```
+
+- **PLAN** (offline) → **EXPORT** (only stale/missing; **always** confirms the
+  API spend, even under `--auto`) → **ASSEMBLE** (`make_cascade --keep-layout`,
+  in place, preserving each project's hand-tuned plates). `--auto` skips only the
+  two offline prompts.
+- Cascade projects are named canonically — `<Game> <Short name>
+  <Sleeved|Unsleeved> (<model>).3mf` (`components.cascade_filename`, `/`→`-`);
+  Innovation/Compile already match. `--standardize-names` git-renames legacy
+  projects (e.g. Dominion's old `CC 400S …`) to this form.
+- ASSEMBLE maps a component to its template slot by **role**, not exact name
+  (templates suffix objects: `Lid 400S`, `Topper Cities S-Un`, `TokenHolder
+  Full`/`Half`, bare `Topper` = Blank). It refuses (skips + diagnoses) rather
+  than half-swapping when the mapping isn't a clean bijection, when a component
+  isn't on disk, or for first-riser cascades (need a `Holder#N` override).
+  keep-layout cannot ADD an object, so a cascade missing a new object's slot
+  (e.g. a pre-HalfTokenHolder Mat template) is skipped for manual layout.

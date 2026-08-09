@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Interactive end-to-end cascade refresh (pipeline Stages 1 -> 3).
+
+Refreshes a filtered set of cascades:
+
+    PLAN     compute_plan (offline, 0 API calls) — what's selected, what's stale
+    EXPORT   re-export only stale/missing components from Onshape (budget-gated)
+    ASSEMBLE make_cascade --keep-layout — swap refreshed meshes into each
+             cascade's existing project, preserving its hand-tuned plate layout
+
+Each step asks for confirmation. `--auto` skips the two OFFLINE prompts (PLAN and
+ASSEMBLE) but the Onshape EXPORT step ALWAYS confirms before spending the tiny
+~2500-calls/year API budget — even under --auto.
+
+Filter the set with --game / --size / --sleeving / --name (AND-combined); with
+no --game every game is in scope.
+
+Usage:
+    refresh_cascades.py --game Dominion --size M --sleeving sl
+    refresh_cascades.py --game Innovation --auto
+    refresh_cascades.py --size L                     # every game's Large cascades
+    refresh_cascades.py --standardize-names --game Dominion   # one-off rename
+"""
+import argparse
+import re
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+import components as C
+import onshape_config as OC
+import plan_exports as P
+import provenance as PROV
+
+HERE = Path(__file__).parent          # automation/
+ROOT = HERE.parent                    # repo root — cascades/ and individual/ live here
+
+
+# ----------------------------------------------------------------- selection
+def resolve_games(game_arg):
+    """[(game, spec)] for the run: one resolved game, or every game."""
+    if game_arg:
+        game, spec = C.game_by_name(game_arg)
+        if not spec:
+            sys.exit(f"unknown game {game_arg!r}; known: {list(C.GAMES)}")
+        return [(game, spec)]
+    return list(C.GAMES.items())
+
+
+def matches(casc, sizes, sleeving, name):
+    ctx = casc["ctx"]
+    if sizes and ctx["size"] not in sizes:
+        return False
+    if sleeving and casc["sleeved"] != sleeving:
+        return False
+    if name and name.lower() not in ctx["short_name"].lower():
+        return False
+    return True
+
+
+def select(games, sizes, sleeving, name, labels):
+    """Per-game plan + the cascades that pass the filters. Returns
+    [(game, spec, plan, [cascade, ...])] for games with at least one match."""
+    out = []
+    for game, spec in games:
+        plan = P.compute_plan(game, spec, str(HERE / "parts.csv"), labels)
+        cs = [c for c in plan.cascades if matches(c, sizes, sleeving, name)]
+        if cs:
+            out.append((game, spec, plan, cs))
+    return out
+
+
+# ----------------------------------------------------------------- prompting
+def confirm(msg, auto, default=True, always_ask=False):
+    """Yes/no prompt. `auto` auto-approves unless `always_ask` (the API-spend
+    gate). `default` is the answer for an empty reply."""
+    if auto and not always_ask:
+        print(f"{msg}  → auto-yes")
+        return True
+    suffix = "[Y/n]" if default else "[y/N]"
+    try:
+        reply = input(f"{msg} {suffix} ").strip().lower()
+    except EOFError:
+        return default
+    if not reply:
+        return default
+    return reply[0] == "y"
+
+
+# ----------------------------------------------------------------- plan step
+def stale_keys(plan, cascades):
+    """Dedup keys among these cascades' components that the plan flags for
+    export (missing on disk or below the current version)."""
+    to_export = set(plan.to_export)
+    keys = set()
+    for c in cascades:
+        for comp in c["components"]:
+            if comp["key"] in to_export:
+                keys.add(comp["key"])
+    return keys
+
+
+def report_plan(selection):
+    total = sum(len(cs) for *_, cs in selection)
+    print(f"\n● PLAN — {total} cascade(s) selected across "
+          f"{len(selection)} game(s)\n")
+    stale_total = 0
+    for game, spec, plan, cs in selection:
+        keys = stale_keys(plan, cs)
+        stale_total += len(keys)
+        print(f"  {game}  ({len(cs)} cascade(s), individual/{spec['folder']}/)")
+        for c in sorted(cs, key=lambda c: c["name"]):
+            print(f"    · {c['name']}")
+        if keys:
+            files = sorted(f for k in keys for f in plan.unique[k]["files"])
+            print(f"    stale/missing components ({len(files)}): "
+                  f"{', '.join(files)}")
+        else:
+            print("    components: all current")
+        print()
+    return stale_total
+
+
+# --------------------------------------------------------------- export step
+def run_exports(selection, auto):
+    """Export stale/missing components for the selection. ALWAYS confirms the
+    API spend (even under --auto). Returns True if it's safe to continue."""
+    import export as E                       # lazy: pulls in onshape/requests
+
+    PER = 3                                  # translate + poll + download estimate
+    jobs = []                                # (game, spec, plan, batches, ops)
+    ops_total = sets_total = 0
+    for game, spec, plan, cs in selection:
+        keys = stale_keys(plan, cs)
+        if not keys:
+            continue
+        batches, _ = E.batch(cs, keys)
+        ops = 0
+        for _, bkeys in batches:
+            asm = any(plan.unique[k]["type"] in OC.ASSEMBLY_SOURCED
+                      for k in bkeys)
+            studio = [k for k in bkeys
+                      if plan.unique[k]["type"] in OC.STUDIO_SOURCED]
+            ops += (1 if asm else 0) + len(studio)
+        jobs.append((game, spec, plan, batches, ops))
+        sets_total += len(batches)
+        ops_total += ops
+
+    if not jobs:
+        print("● EXPORT — every selected component is already current; "
+              "skipping Onshape.\n")
+        return True
+
+    est = sets_total + ops_total * PER
+    ytd = E._ytd()
+    print(f"● EXPORT — {sets_total} parameter set(s), {ops_total} translate "
+          f"op(s) ≈ {est} API calls")
+    for game, *_ , ops in jobs:
+        print(f"    {game}: {ops} translate op(s)")
+    print(f"    Year-to-date {ytd}/2500.\n")
+
+    if not confirm(f"Spend ~{est} Onshape API calls?", auto,
+                   default=False, always_ask=True):
+        return confirm("Skip export and assemble with the components already "
+                       "on disk?", auto, default=True)
+
+    for game, spec, plan, batches, _ in jobs:
+        E.run_export(game, spec, plan, batches, 0)
+    return True
+
+
+# ------------------------------------------------------------- assemble step
+def object_names(template_path):
+    """The template's top-level OBJECT names (the --part swap targets), in
+    document order — the name that sits directly under each <object>, before its
+    <part> children. Repeated names (multiple Holder/Pusher instances) are kept."""
+    cfg = zipfile.ZipFile(template_path).read(
+        "Metadata/model_settings.config").decode()
+    out = []
+    for om in re.finditer(r'<object id="\d+">(.*?)</object>', cfg, re.S):
+        head = om.group(1).split("<part", 1)[0]
+        m = re.search(r'key="name" value="([^"]*)"', head)
+        out.append(m.group(1) if m else "")
+    return out
+
+
+def role_key(name):
+    """A (role, discriminator) key that pairs a template object name with the
+    component that should refill it. Templates suffix names by cascade/size
+    (`Lid 360S`, `Topper Cities S-Un`) and Dominion calls its token holders
+    `TokenHolder Full`/`Half`; the same function on a component's canonical
+    object name yields the matching key. The stale size/sleeving suffix on
+    toppers is ignored — only the expansion token discriminates."""
+    if "TokenHolder" in name and "Half" in name:
+        return ("HalfTokenHolder", None)
+    if name.startswith("HalfTokenHolder"):
+        return ("HalfTokenHolder", None)
+    if name.startswith("TokenHolder"):                # incl. "TokenHolder Full"
+        return ("TokenHolder", None)
+    if name == "Topper" or name.startswith("Topper "):
+        toks = name.split()
+        return ("Topper", toks[1] if len(toks) > 1 else "Blank")   # bare = Blank
+    for r in ("Box", "Lid", "Holder", "Pusher", "Label"):
+        if name.startswith(r):
+            return (r, None)
+    return ("Other", name)
+
+
+def build_swap(template_path, components):
+    """Pair each distinct template object with a component file by role.
+    Returns (swap, unmatched, unused): swap = {template object name -> file};
+    unmatched = template objects with no component; unused = components with no
+    slot in the template. A clean refresh has both empty."""
+    comp_by_key = {}
+    for c in components:
+        comp_by_key.setdefault(role_key(c["object"]), c)
+    swap, unmatched, used = {}, [], set()
+    for name in dict.fromkeys(object_names(template_path)):        # distinct
+        c = comp_by_key.get(role_key(name))
+        if c:
+            swap[name] = c["file"]
+            used.add(role_key(name))
+        else:
+            unmatched.append(name)
+    unused = [c["object"] for k, c in comp_by_key.items() if k not in used]
+    return swap, unmatched, unused
+
+
+def assemble_one(game, spec, casc, dry):
+    """Refresh one cascade in place with make_cascade --keep-layout. Returns
+    (status, detail) where status is 'ok' | 'skip' | 'fail'."""
+    folder = spec["folder"]
+    canon = C.cascade_filename(game, casc["ctx"]["short_name"],
+                               casc["sleeved"], casc["model"])
+    template = ROOT / "cascades" / folder / canon
+    if not template.exists():
+        return "skip", f"no cascade project {canon!r} to swap into"
+    if any(comp.get("instance") == "first" for comp in casc["components"]):
+        return "skip", "first-riser holder — assemble by hand (needs Holder#N)"
+
+    swap, unmatched, unused = build_swap(template, casc["components"])
+    if unmatched or unused:
+        bits = []
+        if unmatched:
+            bits.append(f"template objects with no component: {unmatched}")
+        if unused:
+            bits.append(f"components with no template slot: {unused}")
+        return "skip", "; ".join(bits)
+
+    missing = [f for f in swap.values()
+               if not (ROOT / "individual" / folder / f).exists()]
+    if missing:
+        return "skip", f"components not on disk: {', '.join(sorted(missing))}"
+
+    cmd = [sys.executable, str(HERE / "make_cascade.py"), str(template),
+           "-o", str(template), "--keep-layout"]
+    for obj, file in swap.items():
+        cmd += ["--part", f"{obj}={ROOT / 'individual' / folder / file}"]
+    if dry:
+        return "ok", "would run: " + " ".join(
+            f'"{a}"' if " " in a else a for a in cmd)
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        tail = (res.stderr or res.stdout).strip().splitlines()[-1:] or [""]
+        return "fail", tail[0]
+    return "ok", canon
+
+
+def run_assemble(selection, auto, dry):
+    n = sum(len(cs) for *_, cs in selection)
+    print(f"● ASSEMBLE — keep-layout refresh of up to {n} cascade(s)"
+          f"{' (dry run)' if dry else ''}\n")
+    if not confirm("Assemble these cascade(s)?", auto, default=True):
+        print("assemble skipped.")
+        return
+    tally = {"ok": 0, "skip": 0, "fail": 0}
+    for game, spec, _, cs in selection:
+        print(f"  {game}:")
+        for c in sorted(cs, key=lambda c: c["name"]):
+            status, detail = assemble_one(game, spec, c, dry)
+            tally[status] += 1
+            mark = {"ok": "✓", "skip": "·", "fail": "⚠"}[status]
+            print(f"    {mark} {c['name']}  {detail}")
+        print()
+    print(f"assembled {tally['ok']}, skipped {tally['skip']}, "
+          f"failed {tally['fail']}.")
+
+
+# ----------------------------------------------------- standardize-names mode
+def find_legacy(folder_dir, casc):
+    """Locate a pre-standard cascade project for this cascade so it can be
+    git-renamed. Matches the old Dominion 'CC <num><S|U> ...' form by short-name
+    number + sleeving; returns a Path or None."""
+    num = re.match(r"\d+", casc["ctx"]["short_name"])
+    if not num:
+        return None
+    letter = "S" if casc["sleeved"] == "Sl" else "U"
+    pat = re.compile(rf"^CC {num.group(0)}{letter}\b")
+    hits = [p for p in folder_dir.glob("*.3mf") if pat.match(p.name)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def standardize_names(selection, auto, dry):
+    print("\n● STANDARDIZE NAMES — rename legacy cascade projects to "
+          "'<Game> <Short> <Sleeved|Unsleeved> (<model>).3mf'\n")
+    renames = []                             # (old Path, new Path)
+    for game, spec, _, cs in selection:
+        d = ROOT / "cascades" / spec["folder"]
+        for c in cs:
+            canon = C.cascade_filename(game, c["ctx"]["short_name"],
+                                       c["sleeved"], c["model"])
+            if (d / canon).exists():
+                continue                     # already standard
+            legacy = find_legacy(d, c)
+            if legacy:
+                renames.append((legacy, d / canon))
+
+    if not renames:
+        print("  nothing to rename — all selected projects already standard.\n")
+        return
+    for old, new in renames:
+        print(f"    {old.name}\n      → {new.name}")
+    print()
+    if dry or not confirm(f"git mv {len(renames)} file(s)?", auto, default=True):
+        print("standardize skipped (dry run or declined).")
+        return
+    for old, new in renames:
+        subprocess.run(["git", "-C", str(ROOT), "mv", str(old), str(new)],
+                       check=True)
+    print(f"renamed {len(renames)} file(s).")
+
+
+# ------------------------------------------------------------------- main
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--game", help="restrict to one game (name or folder code)")
+    ap.add_argument("--size", help="comma-separated size classes: S,M,L")
+    ap.add_argument("--sleeving", choices=["un", "sl"],
+                    help="restrict to unsleeved or sleeved cascades")
+    ap.add_argument("--name", help="substring match on Short name (e.g. '400')")
+    ap.add_argument("--labels", action="store_true",
+                    help="include Onshape-generated labels (Compile)")
+    ap.add_argument("--auto", action="store_true",
+                    help="skip the offline PLAN/ASSEMBLE prompts (the Onshape "
+                         "EXPORT step still confirms before spending calls)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="show the plan and the make_cascade commands without "
+                         "exporting, assembling or renaming anything")
+    ap.add_argument("--standardize-names", action="store_true",
+                    help="one-off: git-rename legacy cascade projects to the "
+                         "standard name, then exit")
+    args = ap.parse_args()
+
+    sizes = {s.strip().upper() for s in (args.size or "").split(",") if s.strip()}
+    sleeving = {"un": "Un", "sl": "Sl"}.get(args.sleeving)
+    games = resolve_games(args.game)
+    selection = select(games, sizes, sleeving, args.name, args.labels)
+    if not selection:
+        sys.exit("no cascades match the given filters.")
+
+    if args.standardize_names:
+        standardize_names(selection, args.auto, args.dry_run)
+        return
+
+    stale = report_plan(selection)
+    if args.dry_run:
+        print("(dry run) — showing export need and assemble commands only.\n")
+    elif not confirm("Proceed with this selection?", args.auto, default=True):
+        print("aborted.")
+        return
+
+    if not args.dry_run:
+        if not run_exports(selection, args.auto):
+            print("aborted before assemble.")
+            return
+    elif stale:
+        print(f"● EXPORT — {stale} component(s) would be re-exported "
+              "(run without --dry-run to spend the calls).\n")
+
+    run_assemble(selection, args.auto, args.dry_run)
+
+
+if __name__ == "__main__":
+    main()
