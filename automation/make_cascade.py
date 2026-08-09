@@ -130,7 +130,7 @@ def plate_columns(n):
 PLATE_SCHEME = [
     ("Box + pushers", ("Box", "Pusher")),
     ("Lid", ("Lid",)),
-    ("Holders", ("Holder",)),
+    ("Holders", ("Holder", "FirstHolder")),
     ("Toppers", ("Topper",)),
     ("Token holders", ("TokenHolder",)),
     ("Half token holders", ("HalfTokenHolder",)),
@@ -139,8 +139,8 @@ PLATE_SCHEME = [
 
 
 def _role(name):
-    for r in ("HalfTokenHolder", "TokenHolder", "Box", "Lid", "Holder",
-              "Topper", "Pusher", "Label"):
+    for r in ("HalfTokenHolder", "TokenHolder", "FirstHolder", "Box", "Lid",
+              "Holder", "Topper", "Pusher", "Label"):
         if name.startswith(r):
             return r
     return "Other"

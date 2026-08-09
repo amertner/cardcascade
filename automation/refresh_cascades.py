@@ -204,7 +204,7 @@ def role_key(name):
     if name == "Topper" or name.startswith("Topper "):
         toks = name.split()
         return ("Topper", toks[1] if len(toks) > 1 else "Blank")   # bare = Blank
-    for r in ("Box", "Lid", "Holder", "Pusher", "Label"):
+    for r in ("FirstHolder", "Box", "Lid", "Holder", "Pusher", "Label"):
         if name.startswith(r):
             return (r, None)
     return ("Other", name)
@@ -261,8 +261,6 @@ def assemble_one(game, spec, casc, dry):
     template = ROOT / "cascades" / folder / canon
     if not template.exists():
         return "skip", f"no cascade project {canon!r} to swap into"
-    if any(comp.get("instance") == "first" for comp in casc["components"]):
-        return "skip", "first-riser holder — assemble by hand (needs Holder#N)"
 
     swap, unmatched, unused, conflicts = build_swap(template, casc["components"])
     if conflicts:

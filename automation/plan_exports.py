@@ -94,8 +94,11 @@ def holder(ctx, capacity, first=False, spans=False):
         label = str(capacity)
         key = ("Holder", capacity, slv)
     name = f"Holder {label}-{slv}" + (" (first)" if first else "")
+    # The first-riser holder is a distinct object named "FirstHolder" in the
+    # Onshape export (its own slot); the default holder stays "Holder".
     return {"type": "Holder", "key": key, "file": f"{name}.3mf",
-            "object": "Holder", "instance": "first" if first else None}
+            "object": "FirstHolder" if first else "Holder",
+            "instance": "first" if first else None}
 
 
 def compose(ctx, spec, labels):
