@@ -164,7 +164,7 @@ def export_assembly(auth, ctx, use_cache=False):
         if use_cache else None
     if cached:
         print(f"    ↻ re-split from cache: {cached.name}  (0 calls)")
-        raw, mv = cached.read_bytes(), ""
+        raw, mv = mesh.unwrap(cached.read_bytes()), ""   # tolerate a wrapped file
     else:
         data, mv = O.translate(
             auth, "assembly", OC.DID,
