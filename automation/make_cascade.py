@@ -1150,6 +1150,29 @@ def main():
     xml = re.sub(r'(<metadata name="ModificationDate">)[^<]*(</metadata>)',
                  rf'\g<1>{datetime.date.today().isoformat()}\g<2>', xml)
 
+    # Every sub-model <object id> must be globally unique across the part files.
+    # A --part#N split copies a shared mesh to a new file keeping its internal id,
+    # so two instances split from one shared mesh end up both defining e.g.
+    # <object id="19"> — and Bambu resolves the duplicate to a single mesh (both
+    # render identically). Renumber any collision and repoint the component.
+    seen, nid = {}, _max_id() + 1
+    for p in sorted((work / "3D/Objects").glob("object_*.model")):
+        txt = p.read_text()
+        for oid in re.findall(r'<object id="(\d+)"', txt):
+            if oid in seen:
+                new = str(nid)
+                nid += 1
+                txt = re.sub(rf'(<object id="){oid}(")', rf'\g<1>{new}\g<2>',
+                             txt, count=1)
+                txt = re.sub(rf'(\bobjectid="){oid}(")', rf'\g<1>{new}\g<2>', txt)
+                xml = re.sub(rf'(<component p:path="/3D/Objects/'
+                             rf'{re.escape(p.name)}"[^>]*\bobjectid="){oid}(")',
+                             rf'\g<1>{new}\g<2>', xml)
+                seen[new] = p.name
+            else:
+                seen[oid] = p.name
+        p.write_text(txt)
+
     # sub-model housekeeping: drop unreferenced mesh files (including the
     # empty husks Bambu leaves behind) and rebuild the rels from scratch
     refs = []
