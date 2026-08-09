@@ -1,6 +1,8 @@
 file,type,key,element,configuration,version,microversion,exported_at
 Box L6.40.12.45-Un.3mf,Box,Box|L6.40.12.45-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T23:02:13
 Box L6.40.12.62-Sl.3mf,Box,Box|L6.40.12.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T23:02:13
+Box L8.50.10.62-Sl.3mf,Box,Box|L8.50.10.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T23:42:22
+Box L8.50.10.62-Un.3mf,Box,Box|L8.50.10.62-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T23:42:22
 Box M2.60.18-40.45-Un.3mf,Box,Box|M2.60.18-40.45-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T16:41:48
 Box M2.60.18-40.62-Sl.3mf,Box,Box|M2.60.18-40.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T16:41:48
 Box M4.21.10.32-Un merged.3mf,Box,Box|M4.21.10.32-Un|True,f27edbc7a0f89c28092f18d4,,6.4,,2026-08-09T15:23:21
@@ -25,6 +27,8 @@ HalfTokenHolder 40-Sl merged.3mf,HalfTokenHolder,HalfTokenHolder|40|True|Sl,f27e
 HalfTokenHolder 40-Un merged.3mf,HalfTokenHolder,HalfTokenHolder|40|True|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T19:03:27
 Holder L-40-Sl.3mf,Holder,Holder|L|40|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T23:02:13
 Holder L-40-Un.3mf,Holder,Holder|L|40|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T23:02:13
+Holder L-50-Sl.3mf,Holder,Holder|L|50|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T23:42:22
+Holder L-50-Un.3mf,Holder,Holder|L|50|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T23:42:22
 Holder M-21-Sl.3mf,Holder,Holder|M|21|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T21:23:22
 Holder M-21-Un.3mf,Holder,Holder|M|21|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T21:23:22
 Holder M-40-Sl.3mf,Holder,Holder|M|40|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T21:09:00
@@ -43,6 +47,8 @@ Holder S-40-Un (first).3mf,Holder,Holder|S|40|Un|True,f27edbc7a0f89c28092f18d4,,
 Holder S-40-Un.3mf,Holder,Holder|S|40|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T16:40:07
 Lid L6.40.12.45-Un.3mf,Lid,Lid|L6.40.12.45-Un,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T23:02:13
 Lid L6.40.12.62-Sl.3mf,Lid,Lid|L6.40.12.62-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T23:02:13
+Lid L8.50.10.62-Sl.3mf,Lid,Lid|L8.50.10.62-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T23:42:22
+Lid L8.50.10.62-Un.3mf,Lid,Lid|L8.50.10.62-Un,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T23:42:22
 Lid M2.60.18-40.45-Un.3mf,Lid,Lid|M2.60.18-40.45-Un,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T16:41:48
 Lid M2.60.18-40.62-Sl.3mf,Lid,Lid|M2.60.18-40.62-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T16:41:48
 Lid M4.21.10.32-Un.3mf,Lid,Lid|M4.21.10.32-Un,1f5cc8c63b87dcf62f713af0,,6.4,,2026-08-09T15:23:21
@@ -85,5 +91,7 @@ TokenHolder 40-Sl merged.3mf,TokenHolder,TokenHolder|40|True|Sl,f27edbc7a0f89c28
 TokenHolder 40-Sl.3mf,TokenHolder,TokenHolder|40|False|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T22:46:48
 TokenHolder 40-Un merged.3mf,TokenHolder,TokenHolder|40|True|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T19:03:27
 TokenHolder 40-Un.3mf,TokenHolder,TokenHolder|40|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T22:46:48
+TokenHolder 50-Sl.3mf,TokenHolder,TokenHolder|50|False|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T23:42:22
+TokenHolder 50-Un.3mf,TokenHolder,TokenHolder|50|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T23:42:22
 TokenHolder 60-Sl.3mf,TokenHolder,TokenHolder|60|False|Sl,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T18:23:31
 TokenHolder 60-Un.3mf,TokenHolder,TokenHolder|60|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,2026-08-09T18:23:31
