@@ -81,9 +81,9 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 | Box | `(model, merged)` | merged-slot changes the box, so 202 vs 244 Card (same model) are DIFFERENT boxes |
 | Lid | `model` | same footprint as box (box + 2 mm); merged doesn't change outer size |
 | Pusher | `(risers, cards, sleeved)` | depends only on #risers, #cards, sleeved |
-| Holder (per-slot: Dominion/FCM) | `(size, front_capacity, merged, sleeved, first=False)` | sized by the box's front pocket — 202 (M-21) ≠ 400 (M-40) even at equal cards/slot; Mat (`merged`) merges the two rightmost front slots, resizing the holder, so M-21 ≠ M-21 merged; `(size, front cap)` fixes cards/slot within a game; file `Holder <size>-<cap>-<slv>[ merged]` |
+| Holder (per-slot: Dominion/FCM) | `(size, front_capacity, sleeved, first=False)` | sized by the box's front pocket — 202 (M-21) ≠ 400 (M-40) even at equal cards/slot; `(size, front cap)` fixes cards/slot within a game; file `Holder <size>-<cap>-<slv>`. NB Mat (`merged`) is NOT an axis: the merge combines the two rightmost FRONT-pocket slots (resizing box + token holder), but the sliding-slot holder is byte-identical Mat vs plain (verified) |
 | Holder (spanning: Compile, Innovation) | `(horizontal, cards_per_slot, sleeved)` | spans HorizontalSlots — Compile 3×7/5×7, Innovation 3×15 (S) / 4×15 (M) |
-| Holder (first-riser) | `(size, front_capacity, merged, sleeved, first=True)` | deeper sibling of the standard holder in the same box; replaces one standard holder; file `Holder <size>-<cap>-<slv>[ merged] (first)` |
+| Holder (first-riser) | `(size, front_capacity, sleeved, first=True)` | deeper sibling of the standard holder in the same box; replaces one standard holder; file `Holder <size>-<cap>-<slv> (first)` |
 | TokenHolder (Dominion) | `(front capacity, merged, sleeved)` | fits the box's front pocket, so it varies by capacity, Mat-ness and sleeving; file `TokenHolder <cap>-<slv>[ merged]` |
 | HalfTokenHolder (Dominion) | `(front capacity, merged, sleeved)` | Mat-only; same key as the full holder |
 | Toppers (Innovation) | `(sleeved,)` | one export → 6 files; shared across all Innovation cascades of that sleeving |
@@ -151,12 +151,12 @@ either supply a standard per-scheme template or extend the layout code.
   names (`Art`/`Arti`→Artifacts, `Fig`→Figures, `unseen`→Unseen) — **git-rename
   queued.**
 - Holder identity: **per-slot** holders (Dominion/FCM) are keyed `(size, front
-  capacity, merged, sleeved, first)` — the front pocket sets the holder's depth,
-  so equal cards/slot boxes with different front capacity (202 M-21 vs 400 M-40)
-  are DIFFERENT holders (~0.3 mm apart), and Mat (`merged`) merges the two
-  rightmost front slots, resizing the holder again (M-21 ≠ M-21 merged).
-  **Spanning** holders (Compile/Innovation) key on `(horizontal, cards_per_slot,
-  sleeved)`.
+  capacity, sleeved, first)` — the front pocket sets the holder's depth, so equal
+  cards/slot boxes with different front capacity (202 M-21 vs 400 M-40) are
+  DIFFERENT holders (~0.3 mm apart). Mat (`merged`) is NOT an axis: the merge
+  combines the two rightmost front-pocket slots (resizing box + token holder),
+  but the sliding-slot holder is byte-identical Mat vs plain. **Spanning** holders
+  (Compile/Innovation) key on `(horizontal, cards_per_slot, sleeved)`.
 - Pusher count = `S→2, M/L→3`, **except Innovation** where M→2 (per-game
   override `pushers` in components.py).
 - Merged-slot changes the **Box** only.
