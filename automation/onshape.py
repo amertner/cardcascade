@@ -48,17 +48,20 @@ POLL_MARGIN = 3            # cushion added to a newly learned delay (s)
 # So wait after setting variables, before the batch's first translation. Sleeping
 # costs 0 API calls, which is the whole point at ~2500/year; polling Onshape for
 # readiness would not be free. The wait is learned/tunable in poll_delay.json.
+#
+# Do NOT try to detect staleness from how long the translate POST takes. Without
+# a settle, a POST that returned fast meant "regenerated nothing, served a cached
+# result" — which is how the original bug was spotted. With the settle in place
+# the regeneration happens DURING the wait, so a healthy translate POST now
+# returns in ~1.5s and a slow one is the anomaly. The signal inverted the moment
+# this barrier existed. Staleness is caught by content instead (see verify.py).
 SETTLE_KEY = "variable-settle"
 DEFAULT_SETTLE = 20        # seconds to wait after setting variables
 SETTLE_STEP = 10           # raise the learned wait by this after a stale export
-FAST_TRANSLATE = 8         # an assembly translate POST returning faster than
-#                            this did no regeneration — a cache hit, i.e. the
-#                            settle was too short (a real one takes ~30s)
 
 CALLS = 0          # billed calls this run
 CUMULATIVE = 0     # all-time total (seeded from the ledger by begin())
 RUN_ID = ""
-LAST_POST_SECONDS = 0.0    # how long the most recent translate POST took
 
 
 def op_creds():
@@ -230,19 +233,8 @@ def translate(auth, kind, did, path, body, reason=""):
 
     Waits the learned delay before the first (billed) poll so one poll is the
     norm, and re-learns upward if it wasn't."""
-    global LAST_POST_SECONDS
     rp = f"{reason}-" if reason else ""
-    t_post = time.monotonic()
     tid = api(auth, "POST", path, f"{rp}translate", json=body)["id"]
-    LAST_POST_SECONDS = time.monotonic() - t_post
-    # A real assembly translate blocks ~30s while Onshape regenerates. Returning
-    # in a couple of seconds means it regenerated nothing and matched a cached
-    # result — which, right after a parameter change, means the change wasn't
-    # visible yet and this export is the PREVIOUS parameter set's.
-    if kind == "assembly" and LAST_POST_SECONDS < FAST_TRANSLATE:
-        print(f"    ⚠ {kind} translate POST returned in "
-              f"{LAST_POST_SECONDS:.1f}s (< {FAST_TRANSLATE}s) — likely a cached "
-              "result from the previous parameter set")
     t0 = time.monotonic()
     time.sleep(poll_delay(kind))
     st, polls = {}, 0
