@@ -66,7 +66,7 @@ Game-specific additions:
 
 | Game | Extra components | Labels |
 |---|---|---|
-| Dominion | **TokenHolder** ×1 | via `labelmaker.py` (not Onshape) |
+| Dominion | **TokenHolder** ×1; **HalfTokenHolder** ×1 on merged-slot (Mat) cascades only | via `labelmaker.py` (not Onshape) |
 | Innovation | **6 Toppers** — same dims, different embedded text (one per expansion + a blank); one whole-studio Onshape export per sleeving yields all 6 | via `labelmaker.py` |
 | Compile | — | **special label with logo → from Onshape**, only when `--labels` given |
 | Food Chain Magnate | — | via `labelmaker.py` |
@@ -85,6 +85,7 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 | Holder (spanning: Compile, Innovation) | `(horizontal, cards_per_slot, sleeved)` | spans HorizontalSlots — Compile 3×7/5×7, Innovation 3×15 (S) / 4×15 (M) |
 | Holder (first-riser) | `(Cards/First Riser, sleeved)` | one per cascade when defined; replaces one standard holder |
 | TokenHolder (Dominion) | `(size, sleeved)` | TODO confirm dependency |
+| HalfTokenHolder (Dominion) | `(size, sleeved)` | merged-slot (Mat) cascades only; shares across Mat cascades of same size+sleeving |
 | Toppers (Innovation) | `(sleeved,)` | one export → 6 files; shared across all Innovation cascades of that sleeving |
 | Label (Compile) | `(model,)` | logo label; TODO confirm dependency |
 

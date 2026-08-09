@@ -3,12 +3,15 @@ individual monochrome component 3MFs the pipeline consumes — so a whole cascad
 Box/Pushers/Holders/TokenHolder cost ONE translation call instead of one each.
 
 Objects in the assembly map to component types by name (Box, Pusher, TokenHolder,
-Holder). The two Holder instances share the name "Holder"; they are told apart by
-HEIGHT, which tracks card capacity (~a card's thickness per card): the holder
-whose height matches the cascade's Cards/First Riser is the first-riser holder,
-the other is the default. When the two capacities are equal the holders are
-identical and either is used. A sanity gate refuses to guess if the measured
-height gap doesn't match the expected card-count gap.
+HalfTokenHolder, Holder). HalfTokenHolder rides only on Mat cascades; when absent
+it's simply skipped. When a cascade has a distinct first-riser holder the assembly
+names it
+"FirstHolder" (separate from the default "Holder"), so the two are told apart by
+NAME — no guessing. Older exports that lack the distinct name (both instances
+called "Holder") fall back to a HEIGHT heuristic: height tracks card capacity
+(~a card's thickness per card), so the taller/shorter holder is matched to the
+cascade's Cards/First Riser vs Cards/Riser, with a sanity gate that refuses to
+guess if the measured height gap doesn't match the expected card-count gap.
 
 Emits, per component, a minimal single-object 3MF byte-string that
 make_cascade.load_export accepts unchanged. Makes NO API calls.
@@ -97,12 +100,16 @@ def build_component_3mf(unit, name, mesh, color=None):
 
 
 def split(assembly_bytes, cards_first=None, cards_slot=None, card_mm=0.64):
-    """Return {role: 3mf-bytes}. Roles: Box, Pusher, TokenHolder, Holder, and
-    Holder_first (only when the cascade has a distinct first-riser holder).
+    """Return {role: 3mf-bytes}. Roles: Box, Pusher, TokenHolder, Holder,
+    Holder_first (only when the cascade has a distinct first-riser holder), and
+    HalfTokenHolder (only when the assembly export contains it — Mat cascades).
 
+    When the assembly names the first-riser holder "FirstHolder", the two holders
+    are told apart by NAME. cards_first / cards_slot / card_mm are only the
+    fallback for legacy exports whose two holders both share the name "Holder":
     cards_first / cards_slot are the cascade's Cards/First Riser and Cards/Riser
-    slot, used ONLY to disambiguate the two Holder instances by height. card_mm
-    is a card's thickness (sleeved ≈ 0.64, unsleeved thinner) for the sanity gate.
+    slot, used to disambiguate them by height, and card_mm is a card's thickness
+    (sleeved ≈ 0.64, unsleeved thinner) for the sanity gate.
     """
     model = _model_text(assembly_bytes)
     unit = _unit(model)
@@ -111,7 +118,9 @@ def split(assembly_bytes, cards_first=None, cards_slot=None, card_mm=0.64):
         by_name.setdefault(o["name"], []).append(o)
 
     out = {}
-    for role in ("Box", "Pusher", "TokenHolder"):
+    # HalfTokenHolder is present only on Mat cascades; when absent the loop just
+    # skips it, and non-Mat plans never request the role (see plan_exports).
+    for role in ("Box", "Pusher", "TokenHolder", "HalfTokenHolder"):
         got = by_name.get(role, [])
         if len(got) > 1:
             raise ValueError(f"assembly has {len(got)} {role!r} objects, expected 1")
@@ -119,10 +128,21 @@ def split(assembly_bytes, cards_first=None, cards_slot=None, card_mm=0.64):
             out[role] = build_component_3mf(unit, role, got[0]["mesh"], got[0]["color"])
 
     holders = by_name.get("Holder", [])
-    if len(holders) == 1 or (holders and (not cards_first or cards_first == cards_slot)):
+    firsts = by_name.get("FirstHolder", [])
+    if firsts:
+        # The model names the first-riser holder distinctly — no guessing.
+        if len(firsts) > 1:
+            raise ValueError(f"assembly has {len(firsts)} FirstHolder objects, expected 1")
+        if len(holders) != 1:
+            raise ValueError(f"assembly has FirstHolder plus {len(holders)} Holder "
+                             "objects, expected exactly 1 default Holder")
+        out["Holder"] = build_component_3mf(unit, "Holder", holders[0]["mesh"], holders[0]["color"])
+        out["Holder_first"] = build_component_3mf(unit, "Holder", firsts[0]["mesh"], firsts[0]["color"])
+    elif len(holders) == 1 or (holders and (not cards_first or cards_first == cards_slot)):
         o = holders[0]
         out["Holder"] = build_component_3mf(unit, "Holder", o["mesh"], o["color"])
     elif len(holders) == 2:
+        # Legacy export: both instances share the name "Holder" — tell apart by height.
         ranked = sorted(holders, key=lambda o: _height_mm(o["mesh"], unit))
         short, tall = ranked[0], ranked[1]
         gap = _height_mm(tall["mesh"], unit) - _height_mm(short["mesh"], unit)

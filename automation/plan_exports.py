@@ -113,6 +113,14 @@ def compose(ctx, spec, labels):
                       "key": ("TokenHolder", ctx["size"], slv),
                       "file": f"TokenHolder {ctx['size']}-{slv}.3mf",
                       "object": "TokenHolder", "count": 1})
+    # HalfTokenHolder rides only on merged-slot (Mat) cascades — the "(Mat)"
+    # Dominion boxes; ignored everywhere else even though the assembly export
+    # may still contain the object.
+    if "HalfTokenHolder" in spec.get("merged_extras", []) and ctx["merged"]:
+        items.append({"type": "HalfTokenHolder",
+                      "key": ("HalfTokenHolder", ctx["size"], slv),
+                      "file": f"HalfTokenHolder {ctx['size']}-{slv}.3mf",
+                      "object": "HalfTokenHolder", "count": 1})
     if "Toppers" in spec["extras"]:
         # Each topper is a separate export (Topper studio configured per
         # expansion). Toppers vary by (expansion, size, sleeved) only, so they

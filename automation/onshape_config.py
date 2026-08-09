@@ -41,13 +41,16 @@ ASSEMBLY = "f27edbc7a0f89c28092f18d4"
 
 # Which component types come from the ONE assembly export vs a per-part-studio
 # export. Membership decides how plan_exports/export route each component.
-ASSEMBLY_SOURCED = frozenset({"Box", "Pusher", "Holder", "TokenHolder"})
+ASSEMBLY_SOURCED = frozenset({"Box", "Pusher", "Holder", "TokenHolder",
+                              "HalfTokenHolder"})
 STUDIO_SOURCED = frozenset({"Lid", "Topper", "Label"})
 
-# Object names inside the assembly export map 1:1 to component types (the two
-# Holder instances share the name "Holder" and are told apart by height — see
-# assembly_split.py).
-ASSEMBLY_ROLE_NAMES = {"Box", "Pusher", "Holder", "TokenHolder"}
+# Object names inside the assembly export map 1:1 to component types. A distinct
+# first-riser holder is named "FirstHolder" (separate from the default "Holder");
+# older exports name both "Holder" and are told apart by height — see
+# assembly_split.py.
+ASSEMBLY_ROLE_NAMES = {"Box", "Pusher", "Holder", "FirstHolder", "TokenHolder",
+                       "HalfTokenHolder"}
 
 # The Topper studio uses a CONFIGURATION input for the embossed expansion name,
 # so each topper is a separate export (one per expansion, via
@@ -91,7 +94,8 @@ def is_imported(part_name, component_type):
 # they stay at their own design version (no needless re-exports).
 VERSIONS = {
     "Box": "6.4", "Lid": "6.4", "Holder": "6.3", "Pusher": "6.3",
-    "Topper": "6.4", "TokenHolder": "6.3", "Label": "6.3",
+    "Topper": "6.4", "TokenHolder": "6.3", "HalfTokenHolder": "6.3",
+    "Label": "6.3",
 }
 # Innovation lid + toppers changed at 6.4; the Blank topper is exempt (no logo)
 # and stays 6.3 — handled in plan_exports.needs_export.

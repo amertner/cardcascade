@@ -123,13 +123,14 @@ PLATE_SCHEME = [
     ("Holders", ("Holder",)),
     ("Toppers", ("Topper",)),
     ("Token holders", ("TokenHolder",)),
+    ("Half token holders", ("HalfTokenHolder",)),
     ("Labels", ("Label",)),
 ]
 
 
 def _role(name):
-    for r in ("TokenHolder", "Box", "Lid", "Holder", "Topper", "Pusher",
-              "Label"):
+    for r in ("HalfTokenHolder", "TokenHolder", "Box", "Lid", "Holder",
+              "Topper", "Pusher", "Label"):
         if name.startswith(r):
             return r
     return "Other"
