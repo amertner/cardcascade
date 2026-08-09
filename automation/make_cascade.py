@@ -58,6 +58,8 @@ BED_TABLE = [
     ("H2C", 330.0, 320.0, "h2c", "Bambu Lab H2C"),
 ]
 BED_MARGIN = 8.0         # bed-fit slack: an object's 45°-rotated span must clear this
+#                          (auto is deliberately conservative; a cascade the user
+#                          knows fits a tighter bed can force it with --bed p1)
 
 
 def fail(msg):
@@ -833,16 +835,25 @@ def main():
                 if src_colour:            # keep the source's colours/order but hold
                     ps["filament_colour"] = (              # the profile's filament
                         list(src_colour) + ps["filament_colour"])[:nfil]   # count
-                used = [int(e) for e in
-                        re.findall(r'key="extruder" value="(\d+)"', cfg)]
-                if used and max(used) > nfil:
-                    print(f"  warning: a part uses filament {max(used)} but the "
-                          f"{model} profile has {nfil} — reassign it or Bambu "
-                          f"will error on load")
                 profile_swapped = True
                 print(f"auto-bed: {name} — switched printer profile to {model}")
             else:
+                nfil = len(ps.get("filament_colour", []))
                 print(f"auto-bed: {name} (template already {model})")
+            # A donor can carry a stale extruder from a 3-filament era (e.g. some
+            # Un lids export their base body on filament 3); with fewer filaments
+            # in the profile Bambu renders it wrong — an all-black lid — or errors
+            # on load. Clamp any extruder above the profile's filament count down
+            # to the base (highest valid) filament, which is the white lid body.
+            over = sorted({int(e) for e in
+                           re.findall(r'key="extruder" value="(\d+)"', cfg)
+                           if int(e) > nfil})
+            if over:
+                cfg = re.sub(r'(key="extruder" value=")(\d+)(")',
+                             lambda m: f'{m.group(1)}{min(int(m.group(2)), nfil)}'
+                                       f'{m.group(3)}', cfg)
+                print(f"  clamped filament {over} -> {nfil} "
+                      f"({model} profile has {nfil})")
             # recompute every bed-derived local from the (possibly new) profile
             area = [tuple(map(float, p.split("x"))) for p in ps["printable_area"]]
             bed_w = max(p[0] for p in area)
@@ -1106,12 +1117,16 @@ def main():
                                    org[1] + cy - (bcx * s + bcy * c),
                                    -lo[2])
 
-        if towers_moved or profile_swapped:
-            if towers_moved:
-                ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
-                ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
-            (work / "Metadata/project_settings.config").write_text(
-                json.dumps(ps, ensure_ascii=False, indent=4))
+        # auto-plates rewrote the layout, so ps now carries the regenerated
+        # plate/wipe-tower count (regroup_cfg), any bed-profile swap and the
+        # filament clamp. Persist it unconditionally — otherwise, when no tower
+        # moved AND the profile was unchanged (e.g. a forced --bed p1 whose donor
+        # is already P1P), the regrouped wipe-tower arrays would be dropped and
+        # the donor's stale, wrong-length arrays would survive (4 for 5 plates).
+        ps["wipe_tower_x"] = [f"{v:g}" for v in wx]
+        ps["wipe_tower_y"] = [f"{v:g}" for v in wy]
+        (work / "Metadata/project_settings.config").write_text(
+            json.dumps(ps, ensure_ascii=False, indent=4))
 
         for oid, (th, tx, ty, tz) in placements.items():
             c, s = math.cos(th), math.sin(th)
