@@ -414,3 +414,7 @@ date,time,run_id,reason,method,status,consumed,run_calls,cumulative_total,endpoi
 2026-08-10,00:53:08,20260810-005114,lid-translate,POST,200,1,12,411,/api/partstudios/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/1f5cc8c63b87dcf62f713af0/translations
 2026-08-10,00:53:18,20260810-005114,lid-poll,GET,200,1,13,412,/api/translations/6a7912dcd47f510cb0defa69
 2026-08-10,00:53:18,20260810-005114,lid-download,GET,200,1,14,413,/api/documents/d/b6cb17a272a81e2049649d97/externaldata/6a7912e8f8492433ff73e2d2
+2026-08-10,13:43:07,20260810-134259,set-primary,POST,204,1,1,414,/api/variables/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/8aa4636cbb697a1091437161/variables
+2026-08-10,13:43:58,20260810-134259,assembly-translate,POST,200,1,2,415,/api/assemblies/d/b6cb17a272a81e2049649d97/w/0d5e487a46c4ad6ff8cf268f/e/f27edbc7a0f89c28092f18d4/translations
+2026-08-10,13:44:17,20260810-134259,assembly-poll,GET,200,1,3,416,/api/translations/6a79c7703905a30b0533929b
+2026-08-10,13:44:18,20260810-134259,assembly-download,GET,200,1,4,417,/api/documents/d/b6cb17a272a81e2049649d97/externaldata/6a79c7961901fadff9aa8730
