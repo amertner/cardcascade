@@ -28,9 +28,14 @@ Objects name their filament by 1-based slot in model_settings.config, so any
 order that moves a slot must be paired with `remap_extruders`, or the print
 comes out in the wrong colours.
 
+Separately, `--makerworld` fixes what makes MakerWorld reject an upload with
+"Uploading a 3mf file that contains custom printer types or filament types is
+not allowed". See MAKERWORLD_NOTES below.
+
 CLI:
     filaments.py --white-first <project.3mf>...   # two slots: white, then dark
     filaments.py --drop-unused <project.3mf>...   # shed trailing unused slots
+    filaments.py --makerworld <project.3mf>...    # make presets stock again
     filaments.py --check <project.3mf>...         # report only, write nothing
 """
 import argparse
@@ -135,8 +140,86 @@ MATRIX = "flush_volumes_matrix"
 # after a permutation rather than carried along with their slot.
 POSITIONAL = {"filament_self_index"}
 
+MAKERWORLD_NOTES = """\
+MakerWorld accepts only STOCK Bambu printer and filament presets. Three things
+in this repo's projects trip that check:
+
+1. printer_settings_id must be "<model> <variant> nozzle" — the form every P1
+   project here uses, and the form these projects' own inherits_group names.
+   The H2C profile was written as "Bambu Lab H2C 0.4", missing " nozzle", so
+   every project built on the H2C bed inherited a printer id MakerWorld can't
+   match to a stock preset.
+2. filament_settings_id must not carry a "(<project>.3mf)" suffix. Bambu Studio
+   appends that when a preset is edited inside a project, turning it into a
+   project-LOCAL custom preset. Saving in Studio to work around (1) is what
+   creates these — it gets the file past upload and then fails verification.
+3. filament_nozzle_map / filament_volume_map are sized to the filament count by
+   current Studio versions; older files carry 9 (or other stale lengths).
+
+Clearing a filament's entry in different_settings_to_system + inherits_group is
+what stops (2) coming back: those mark the filament as deviating from its
+system preset, which is the seed Studio promotes into a named local preset. In
+every project here the deviation is phantom — the flagged setting
+(support_air_filtration) already holds the same value as the stock profile."""
+
+
 def slots(ps):
     return len(ps.get("filament_colour", []))
+
+
+def stock_printer_id(ps):
+    """The stock preset name for this project's printer, e.g.
+    "Bambu Lab H2C 0.4 nozzle"."""
+    model, variant = ps.get("printer_model", ""), ps.get("printer_variant", "")
+    return f"{model} {variant} nozzle" if model and variant else ""
+
+
+def makerworld_problems(ps):
+    """[(key, found, wanted, blocking)] for a MakerWorld upload.
+
+    `blocking` marks what the evidence says actually causes a rejection. The
+    stale nozzle/volume maps are reported but NOT blocking: Dominion 560 and
+    650 carry maps of 3 and 7 entries for 2 filaments and upload fine, so the
+    length mismatch is cosmetic drift from an older Studio, not a gate. Only
+    the preset IDENTITY fields gate the upload."""
+    out, n = [], slots(ps)
+    stock = stock_printer_id(ps)
+    if stock and ps.get("printer_settings_id") != stock:
+        out.append(("printer_settings_id", ps.get("printer_settings_id"),
+                    stock, True))
+    for i, fid in enumerate(ps.get("filament_settings_id", [])):
+        if "(" in fid:
+            out.append((f"filament_settings_id[{i}]", fid,
+                        fid.split("(")[0], True))
+    for k in ("different_settings_to_system", "inherits_group"):
+        v = ps.get(k, [])
+        flagged = [x for x in v[2:] if x]          # [printer, process, filaments...]
+        if flagged:
+            out.append((f"{k} (filaments)", flagged,
+                        "empty — no local deviation", True))
+    for k in ("filament_nozzle_map", "filament_volume_map"):
+        v = ps.get(k)
+        if isinstance(v, list) and v and len(v) != n:
+            out.append((k, f"{len(v)} entries", f"{n} (one per filament)", False))
+    return out
+
+
+def makerworld_fix(ps):
+    """Settings with every BLOCKING makerworld_problems() issue corrected.
+
+    Deliberately leaves the non-blocking maps alone: rewriting 16 published
+    projects to chase something demonstrably not a gate is churn, not a fix."""
+    out = dict(ps)
+    stock = stock_printer_id(ps)
+    if stock:
+        out["printer_settings_id"] = stock
+    out["filament_settings_id"] = [f.split("(")[0]
+                                   for f in ps.get("filament_settings_id", [])]
+    for k in ("different_settings_to_system", "inherits_group"):
+        v = list(ps.get(k, []))
+        if len(v) > 2:
+            out[k] = v[:2] + [""] * (len(v) - 2)
+    return out
 
 
 def per_filament_keys(ps):
@@ -253,6 +336,24 @@ def drop_unused_order(ps, used, keep_min=2):
 
 
 # ------------------------------------------------------------------- rewrite
+def write_settings(path, new_ps, new_ms=None):
+    """Replace project_settings (and optionally model_settings) in place. Every
+    other zip member is copied through byte-for-byte, so geometry is never
+    touched by any operation here."""
+    shutil.copy2(path, str(path) + ".bak")
+    src = zipfile.ZipFile(str(path) + ".bak")
+    blob = (json.dumps(new_ps, ensure_ascii=False, indent=4) + "\n").encode()
+    with zipfile.ZipFile(path, "w") as out:
+        for info in src.infolist():
+            data = (blob if info.filename == PS else
+                    new_ms.encode() if (new_ms is not None
+                                        and info.filename == MS) else
+                    src.read(info.filename))
+            out.writestr(info, data, zipfile.ZIP_DEFLATED)
+    src.close()
+    Path(str(path) + ".bak").unlink()
+
+
 def apply(path, order, mapping, dry=False):
     z = zipfile.ZipFile(path)
     ps = json.loads(z.read(PS))
@@ -269,17 +370,7 @@ def apply(path, order, mapping, dry=False):
     if dry:
         return
     z.close()
-    shutil.copy2(path, str(path) + ".bak")
-    src = zipfile.ZipFile(str(path) + ".bak")
-    blob = (json.dumps(new_ps, ensure_ascii=False, indent=4) + "\n").encode()
-    with zipfile.ZipFile(path, "w") as out:
-        for info in src.infolist():
-            data = (blob if info.filename == PS else
-                    new_ms.encode() if info.filename == MS else
-                    src.read(info.filename))
-            out.writestr(info, data, zipfile.ZIP_DEFLATED)
-    src.close()
-    Path(str(path) + ".bak").unlink()
+    write_settings(path, new_ps, new_ms)
 
 
 def explicit_order(spec, mapping_spec):
@@ -305,6 +396,9 @@ def main():
     g.add_argument("--drop-unused", action="store_true",
                    help="shed trailing unused slots (never reorders)")
     g.add_argument("--check", action="store_true", help="report only")
+    g.add_argument("--makerworld", action="store_true",
+                   help="reset printer/filament presets to stock so MakerWorld "
+                        "accepts the upload")
     g.add_argument("--order", help="explicit 1-based source slots, e.g. 3,1")
     ap.add_argument("--extruder-map", help="explicit old=new pairs, e.g. 3=1,1=2")
     ap.add_argument("--dry-run", action="store_true")
@@ -321,6 +415,20 @@ def main():
         print(f"{Path(p).name}")
         if args.check:
             print(f"  slots {slots(ps)} {ps['filament_colour']}  used={used}")
+            for key, found, want, block in makerworld_problems(ps):
+                tag = "BLOCKS" if block else "stale "
+                print(f"  {tag} {key} = {found!r}, wants {want!r}")
+            continue
+        if args.makerworld:
+            issues = [i for i in makerworld_problems(ps) if i[3]]
+            if not issues:
+                print("  already stock")
+                continue
+            for key, found, want, _ in issues:
+                print(f"  {key}: {found!r} -> {want!r}")
+            if not args.dry_run:
+                write_settings(p, makerworld_fix(ps))
+            changed += 1
             continue
         if args.order:
             got, why = explicit_order(args.order, args.extruder_map), None

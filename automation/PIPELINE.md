@@ -257,6 +257,42 @@ together. It refuses rather than guessing when a project doesn't reduce to two
 the explicit escape hatch, and the only way to express a **merge** of two
 slots into one.
 
+### MakerWorld uploads
+
+MakerWorld rejects a project carrying non-stock printer or filament presets —
+*"Uploading a 3mf file that contains custom printer types or filament types is
+not allowed"*. `filaments.py --check` reports the causes, `--makerworld` fixes
+them:
+
+- **`printer_settings_id` must be `<model> <variant> nozzle`.** `h2c.config`
+  was written as `Bambu Lab H2C 0.4`, missing ` nozzle`, so every project built
+  on the H2C bed inherited an id MakerWorld can't match to a stock preset. The
+  P1 profiles were always correct, which is why only H2C projects failed — and
+  why Dominion 560/650, built before that profile, upload fine. (Confirmed:
+  FCM Occ 2S passed MakerWorld verification once corrected.)
+- **A filament flagged as deviating from its system preset** (a non-empty
+  filament entry in `different_settings_to_system` / `inherits_group`) is the
+  seed Bambu Studio promotes, on save, into a project-LOCAL preset named
+  `<preset>(<project>.3mf)`. That gets past upload and then fails
+  verification. In this repo the deviation is phantom: the flagged setting
+  (`support_air_filtration`) already holds the stock value.
+
+So do NOT "fix" a rejected upload by re-saving in Studio — that converts a
+rejected upload into a failed verification. Clear the deviation instead.
+
+The same two corrections also clear MakerWorld's long-standing warning *"It is
+detected that the printer settings has been changed in the 3mf, these change
+will reset to system values when printing by Bambu Handy App"* — that warning
+is what a non-stock `printer_settings_id` plus the deviation markers look like
+from MakerWorld's side, so a clean upload and a warning-free listing are the
+same fix.
+
+Stale `filament_nozzle_map` / `filament_volume_map` lengths (9 or 7 entries for
+2 filaments) are reported but deliberately NOT changed: Dominion 560/650 carry
+them and upload fine, so they are drift from an older Studio, not a gate.
+
+### Identifying per-filament keys
+
 Identifying which of the ~500 settings keys are per-filament is the subtle
 part, and shape alone cannot do it: `filament_nozzle_map` is 9 entries at any
 filament count, and on the dual-nozzle H2C `nozzle_diameter` and
