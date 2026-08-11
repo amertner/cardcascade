@@ -1,12 +1,12 @@
 file,type,key,element,configuration,version,microversion,sha,exported_at
-Box M5.15.15.45-Un.3mf,Box,Box|M5.15.15.45-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,51c0355c4ff7c3b6,2026-08-10T13:59:26
-Box M5.15.15.62-Sl.3mf,Box,Box|M5.15.15.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,88679703c3161329,2026-08-10T13:42:59
-Box S5.15.15.45-Un.3mf,Box,Box|S5.15.15.45-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,7aab8bba4326e50c,2026-08-10T13:59:26
-Box S5.15.15.62-Sl.3mf,Box,Box|S5.15.15.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,e10bb05f76fc10f1,2026-08-10T13:59:26
-Holder 3x15-Sl.3mf,Holder,Holder|span|3|15|Sl,8b9578cb73a2958f625ee53d,,6.3,,30d2528efe82ebb7,2026-08-04T22:39:17
-Holder 3x15-Un.3mf,Holder,Holder|span|3|15|Un,8b9578cb73a2958f625ee53d,,6.3,,1295221a4569109c,2026-08-04T22:39:17
-Holder 4x15-Sl.3mf,Holder,Holder|span|4|15|Sl,8b9578cb73a2958f625ee53d,,6.3,,fe05aac32dcd911b,2026-08-07T15:47:44
-Holder 4x15-Un.3mf,Holder,Holder|span|4|15|Un,8b9578cb73a2958f625ee53d,,6.3,,a7ec58c800780963,2026-08-06T17:28:29
+Box M5.15.15.45-Un.3mf,Box,Box|M5.15.15.45-Un|False,f27edbc7a0f89c28092f18d4,,6.5,,0fc29093b4b82fa2,2026-08-11T22:04:59
+Box M5.15.15.62-Sl.3mf,Box,Box|M5.15.15.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.5,,74d124e84d79fb12,2026-08-11T22:04:59
+Box S5.15.15.45-Un.3mf,Box,Box|S5.15.15.45-Un|False,f27edbc7a0f89c28092f18d4,,6.5,,fbe4ef728005f98d,2026-08-11T22:04:59
+Box S5.15.15.62-Sl.3mf,Box,Box|S5.15.15.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.5,,8d5bc2a8b578c8fe,2026-08-11T22:04:59
+Holder 3x15-Sl.3mf,Holder,Holder|span|3|15|Sl,f27edbc7a0f89c28092f18d4,,6.5,,eeb6cdd5bb8ec966,2026-08-11T22:04:59
+Holder 3x15-Un.3mf,Holder,Holder|span|3|15|Un,f27edbc7a0f89c28092f18d4,,6.5,,de3d8a3c13062b8f,2026-08-11T22:04:59
+Holder 4x15-Sl.3mf,Holder,Holder|span|4|15|Sl,f27edbc7a0f89c28092f18d4,,6.5,,1c6e4e2aab99d413,2026-08-11T22:04:59
+Holder 4x15-Un.3mf,Holder,Holder|span|4|15|Un,f27edbc7a0f89c28092f18d4,,6.5,,7931b5121502603e,2026-08-11T22:04:59
 Lid M5.15.15.45-Un.3mf,Lid,Lid|M5.15.15.45-Un,1f5cc8c63b87dcf62f713af0,,6.4,,59cbfdd674bfe24a,2026-08-07T21:59:23
 Lid M5.15.15.62-Sl.3mf,Lid,Lid|M5.15.15.62-Sl,1f5cc8c63b87dcf62f713af0,,6.4,,09ea49c8e72e1587,2026-08-07T15:47:44
 Lid S5.15.15.45-Un.3mf,Lid,Lid|S5.15.15.45-Un,1f5cc8c63b87dcf62f713af0,,6.4,,c920ff9b0d7eb40e,2026-08-07T21:59:23
