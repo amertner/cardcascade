@@ -39,8 +39,17 @@ Front capacity, Box Height / mm, Merged-slot, TokenHolder, 3D printer, Notes,
 Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm`.
 
 Decoded model code: **`<Size><Risers>.<FrontCapacity>.<Cards/RiserSlot>[/<Cards/FirstRiser>]`**;
-`Unsl/Sleeved model` append `.<boxWidth>-Un` / `-Sl`. `Horizontal` = size class
+`Unsl/Sleeved model` append `.<labelWidth>-Un` / `-Sl`. `Horizontal` = size class
 (S=3, M=4, L=5). Each row yields **two cascades** (`-Un` and `-Sl`).
+
+**The box itself is the authority on its model code** — the CAD embosses it on
+the inside, and parts.csv is a transcription that can be wrong. FCM's 180
+sleeved was recorded as `L3.18.6.32-Sl` when the box reads `L3.18.6.20-Sl`;
+the geometry agrees with the box, since a label must sit ~14 mm narrower than
+the lid's depth and the sleeved 180 lid is only 44.9 mm deep, so 32 could
+never have fitted. The trailing number is a LABEL width and drives no Onshape
+input, so correcting one is a rename of the Box/Lid files plus their
+provenance rows — never a re-export.
 
 ### `components.py` — per-game component spec
 Because naming/holder-geometry differs per game, each game declares how its
@@ -203,8 +212,16 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   old per-box shell scripts.
 - Cascade projects are named canonically — `<Game> <Short name>
   <Sleeved|Unsleeved> (<model>).3mf` (`components.cascade_filename`, `/`→`-`);
-  Innovation/Compile already match. `--standardize-names` git-renames legacy
+  Innovation/Compile/Dominion match. `--standardize-names` git-renames legacy
   projects (e.g. Dominion's old `CC 400S …`) to this form.
+- **The canonical name is not required.** `find_project` takes it when it
+  exists and otherwise matches the **model code** the filename carries, with
+  `.` folded to `-`. FCM keeps its own scheme deliberately — `FCM Occ 2S (180
+  Card L3-18-6-20-Sl).3mf` is *the 2nd box for Occupations, sleeved*, which is
+  how those boxes are thought about and which the canonical form can't say.
+  Since a model code is unique per cascade, any naming that embeds it works
+  with no per-game rule; an ambiguous or absent match is reported, never
+  guessed. Do NOT run `--standardize-names` over FCM.
 - ASSEMBLE maps a component to its template slot by **role**, not exact name
   (templates suffix objects: `Lid 400S`, `Topper Cities S-Un`, `TokenHolder
   Full`/`Half`, bare `Topper` = Blank). It refuses (skips + diagnoses) rather

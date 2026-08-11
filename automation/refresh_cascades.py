@@ -256,15 +256,39 @@ def build_swap(template_path, components):
     return swap, unmatched, unused, conflicts
 
 
+def find_project(folder_dir, game, casc):
+    """This cascade's project file, or None.
+
+    The canonical name wins when it exists. Otherwise match on the MODEL CODE
+    the filename carries, with '.' folded to '-' as project names write it.
+
+    Not every game wants the canonical scheme. FCM's projects are named
+    "FCM Occ 2S (180 Card L3-18-6-20-Sl).3mf" — the 2nd box for Occupations,
+    sleeved — which is how Allan thinks about those boxes and which the
+    canonical form can't express, so that naming is deliberate and kept. The
+    model code is unique per cascade, so matching on it supports any naming
+    that includes it, without a per-game rule to maintain."""
+    canon = C.cascade_filename(game, casc["ctx"]["short_name"],
+                               casc["sleeved"], casc["model"])
+    if (folder_dir / canon).exists():
+        return folder_dir / canon, canon
+    tag = casc["model"].replace(".", "-")
+    hits = sorted(p for p in folder_dir.glob("*.3mf") if tag in p.name)
+    if len(hits) == 1:
+        return hits[0], hits[0].name
+    if hits:
+        return None, (f"{canon!r} absent and {len(hits)} projects carry model "
+                      f"{tag} ({', '.join(p.name for p in hits)})")
+    return None, f"{canon!r} absent and no project carries model {tag}"
+
+
 def assemble_one(game, spec, casc, dry):
     """Refresh one cascade in place with make_cascade --keep-layout. Returns
     (status, detail) where status is 'ok' | 'skip' | 'fail'."""
     folder = spec["folder"]
-    canon = C.cascade_filename(game, casc["ctx"]["short_name"],
-                               casc["sleeved"], casc["model"])
-    template = ROOT / "cascades" / folder / canon
-    if not template.exists():
-        return "skip", f"no cascade project {canon!r} to swap into"
+    template, canon = find_project(ROOT / "cascades" / folder, game, casc)
+    if template is None:
+        return "skip", f"no cascade project to swap into — {canon}"
 
     swap, unmatched, unused, conflicts = build_swap(template, casc["components"])
     if conflicts:
@@ -325,11 +349,9 @@ def rebuild_one(game, spec, casc, dry):
     object name (donors often leave it 'Part 1'), and picks the bed from
     parts.csv. Returns (status, detail): 'ok' | 'skip' | 'fail'."""
     folder = spec["folder"]
-    canon = C.cascade_filename(game, casc["ctx"]["short_name"],
-                               casc["sleeved"], casc["model"])
-    donor = ROOT / "cascades" / folder / canon
-    if not donor.exists():
-        return "skip", f"no donor project {canon!r} to rebuild from"
+    donor, canon = find_project(ROOT / "cascades" / folder, game, casc)
+    if donor is None:
+        return "skip", f"no donor project to rebuild from — {canon}"
 
     swap, unmatched, unused, conflicts = build_swap(donor, casc["components"])
     if conflicts:
