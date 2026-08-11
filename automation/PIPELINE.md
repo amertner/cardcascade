@@ -212,3 +212,41 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   isn't on disk, or for first-riser cascades (need a `Holder#N` override).
   keep-layout cannot ADD an object, so a cascade missing a new object's slot
   (e.g. a pre-HalfTokenHolder Mat template) is skipped for manual layout.
+
+## Filament slots — `filaments.py`
+
+Every cascade project should carry exactly **two** filament slots: **white in
+slot 1, black in slot 2**. Objects name their filament by 1-based slot, so the
+bodies (box, holders, pushers, token holders, lid body) sit on slot 1 and the
+lid's embossed lettering on slot 2.
+
+Projects drift from this because a project inherits its whole
+`project_settings.config` from whatever donor built it. `make_cascade` now
+trims **trailing unused slots on every path** (including `--keep-layout`) —
+that alone can't change a colour, since it never reorders. The rest needs
+`filaments.py`:
+
+```
+filaments.py --check <project.3mf>...          # report slots + slots in use
+filaments.py --white-first <project.3mf>...    # reorder to white, black
+filaments.py --drop-unused <project.3mf>...    # shed trailing unused slots
+filaments.py --order 3,1 --extruder-map 3=1,2=1,1=2 <project.3mf>
+```
+
+Reordering slots **must** move every object's extruder reference with them, or
+the print comes out in the wrong colours — `--white-first` derives both
+together. It refuses rather than guessing when a project doesn't reduce to two
+(no white slot, or two colours genuinely in use); `--order/--extruder-map` is
+the explicit escape hatch, and the only way to express a **merge** of two
+slots into one.
+
+Identifying which of the ~500 settings keys are per-filament is the subtle
+part, and shape alone cannot do it: `filament_nozzle_map` is 9 entries at any
+filament count, and on the dual-nozzle H2C `nozzle_diameter` and
+`extruder_printable_area` are 2 entries for reasons unrelated to filaments —
+indistinguishable, in a 2-filament project, from a real per-filament array.
+`filaments.PER_FILAMENT` is therefore an explicit list, derived as the exact
+set of keys whose length differed between the 9-slot and 2-slot halves of one
+project. Anything unlisted is left alone; a listed key whose shape disagrees
+is reported rather than reshaped. `flush_volumes_matrix` is `n x n` per
+nozzle (4 on a P1S, 8 on an H2C) and is permuted as a matrix.

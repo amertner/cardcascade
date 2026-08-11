@@ -46,6 +46,8 @@ import uuid
 import zipfile
 from pathlib import Path
 
+import filaments as FIL
+
 GAP_DEFAULT = 12.0
 CLEARANCE = 1.0          # validation: min distance between objects
 
@@ -884,6 +886,8 @@ def main():
             # in the profile Bambu renders it wrong — an all-black lid — or errors
             # on load. Clamp any extruder above the profile's filament count down
             # to the base (highest valid) filament, which is the white lid body.
+            # This handles a SHRINKING profile; unused slots left over the other
+            # way are trimmed unconditionally near the end of main().
             over = sorted({int(e) for e in
                            re.findall(r'key="extruder" value="(\d+)"', cfg)
                            if int(e) > nfil})
@@ -1254,6 +1258,28 @@ def main():
                       f' connectors_cnt="0"/>\n </object>\n'
                       for i in range(1, len(objects) + 1))
             + "</objects>\n")
+
+    # ---------------- filament slots ----------------
+    # Donors carry filament slots no object uses — Compile 126 arrived with 9
+    # because it was built from a 9-slot donor whose bed already matched, so
+    # the profile swap below never fired and never trimmed them. Normalise
+    # unconditionally instead: on every path, including --keep-layout, which
+    # otherwise leaves project_settings.config exactly as the donor wrote it.
+    #
+    # Only TRAILING unused slots go, and the slot order never changes, so this
+    # can't alter what colour anything prints. A dead slot in the MIDDLE is a
+    # real decision (Dominion 560's lid body sat on a stray lime slot) and is
+    # left to `filaments.py --order/--extruder-map`.
+    used = FIL.used_extruders(cfg)
+    got, _ = FIL.drop_unused_order(ps, used)
+    if got:
+        order, _map = got
+        before = FIL.slots(ps)
+        ps, _notes = FIL.remap(ps, order)
+        print(f"filaments: {before} slots -> {len(order)} "
+              f"(dropped unused {list(range(len(order) + 1, before + 1))})")
+        (work / "Metadata/project_settings.config").write_text(
+            json.dumps(ps, ensure_ascii=False, indent=4))
 
     root_p.write_text(xml)
     cfg_p.write_text(cfg)
