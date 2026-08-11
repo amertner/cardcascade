@@ -88,12 +88,15 @@ def is_imported(part_name, component_type):
 # Per-studio design version. Bump the entry for a studio you have edited in
 # Onshape; components exported at an older version go stale and are re-exported
 # (see provenance.py). No API calls — you control these.
-# The embossed version number (set_variables.build_primary) is now 6.4, so the
-# parts that carry it — the Box and the Lid — are 6.4. Holders/pushers/token
-# holders don't emboss a version, so their geometry is version-independent and
-# they stay at their own design version (no needless re-exports).
+# The embossed version number (set_variables.build_primary) is now 6.5. The Box
+# and Holder studios changed at 6.5, so both are 6.5. The Lid carries the emboss
+# too but is deliberately held at 6.4: re-exporting every lid only to reprint the
+# number isn't worth the API budget, so a 6.5 box currently ships under a 6.4
+# lid — bump "Lid" here to catch them up. Pushers/token holders emboss nothing,
+# so their geometry is version-independent and they stay at their own design
+# version (no needless re-exports).
 VERSIONS = {
-    "Box": "6.4", "Lid": "6.4", "Holder": "6.3", "Pusher": "6.3",
+    "Box": "6.5", "Lid": "6.4", "Holder": "6.5", "Pusher": "6.3",
     "Topper": "6.4", "TokenHolder": "6.3", "HalfTokenHolder": "6.3",
     "Label": "6.3",
 }

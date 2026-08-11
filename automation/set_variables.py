@@ -67,7 +67,7 @@ def build_primary(row, sleeved, game_name=None):
             "1, if two front pockets should merge"),
         var("GameName", "ANY", f'"{game_name or col(row, "Game")}"',
             "Changes logo, height increment and card size"),
-        var("Version", "ANY", '"6.4"',                  # current CC design
+        var("Version", "ANY", '"6.5"',                  # current CC design
             "Version number to be printed on box and lid"),
     ]
 
