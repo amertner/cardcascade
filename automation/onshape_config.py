@@ -89,12 +89,14 @@ def is_imported(part_name, component_type):
 # Onshape; components exported at an older version go stale and are re-exported
 # (see provenance.py). No API calls — you control these.
 # The embossed version number (set_variables.build_primary) is now 6.5. The Box
-# and Holder studios changed at 6.5, so both are 6.5. The Lid was held back at
-# 6.4 while its only 6.5 change was the reprinted emboss — not worth re-exporting
-# 34 lids for. It is now 6.5 too: the lid BODY changed (the inner lip is ~4.6 mm
-# deeper on the sleeved 180), which is geometry, not lettering. Only that one lid
-# has been re-exported; the other 33 are correctly stale and catch up on their
-# next refresh. Pushers/token holders emboss nothing, so their geometry is
+# and Holder studios changed at 6.5, so both are 6.5. The Lid is 6.5 as well, but
+# for a fix that reached exactly ONE file: a singularity in the CAD stopped
+# Onshape extruding the pusher slot out of the lid's foot, so the sleeved FCM 180
+# lid printed with that foot solid and no channel for the pusher to slot into.
+# Every other lid was checked against that defect's signature — the slot's cut
+# faces are simply absent when the extrude fails — and all 33 carry their full
+# cut, so they were adopted at 6.5 rather than re-exported (they already match
+# the studio). Pushers/token holders emboss nothing, so their geometry is
 # version-independent and they stay at their own design version (no needless
 # re-exports).
 VERSIONS = {
@@ -103,7 +105,30 @@ VERSIONS = {
     "Label": "6.3",
 }
 # Innovation lid + toppers changed at 6.4; the Blank topper is exempt (no logo)
-# and stays 6.3 — handled in plan_exports.needs_export.
+# and stays 6.3 — see expected_version() below, which every reader and writer of
+# a provenance version must go through.
+
+
+def expected_version(comp_type, files):
+    """The version a component of `comp_type` SHOULD be at — VERSIONS, plus the
+    per-file exemptions.
+
+    This must be the ONE place the rule lives. It is read when deciding whether
+    a component is stale (plan_exports.needs_export) AND when writing a
+    provenance row (export._record, --adopt); if those two disagree, a component
+    is recorded at a version the staleness check never expects and goes stale
+    the instant it is written. Innovation's Blank topper is exactly that case:
+    the lid + toppers changed at 6.4, but the Blank one has no expansion logo
+    and stays at 6.3.
+
+    `files` is the component's file name, or the set of files sharing its key.
+    """
+    if isinstance(files, str):
+        files = (files,)
+    files = tuple(files)
+    if comp_type == "Topper" and files and all("Blank" in f for f in files):
+        return "6.3"
+    return VERSIONS.get(comp_type)
 
 
 def part_url(eid):

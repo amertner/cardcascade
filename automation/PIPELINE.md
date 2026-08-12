@@ -143,6 +143,18 @@ in `_raw/` under the component's filename and running `export.py --use-cache`
 does the same thing through the normal export path (it also re-strips imports),
 which is the better route for a studio whose export carries parts to strip.
 
+**Scope `--adopt` with `--types`.** Adopting a whole game blesses *every*
+version-stale component as current, including ones whose geometry really is out
+of date — Dominion's boxes and holders are still 6.4 awaiting a real upgrade, so
+a bare `export.py Dominion --adopt` would record them as 6.5 and they would
+never be re-exported. `--types Lid` restricts it to what you actually verified.
+
+The version a component should carry — `VERSIONS` plus per-file exemptions like
+Innovation's Blank topper — comes from `onshape_config.expected_version()`, and
+both the staleness check and every provenance write must go through it. When
+they disagree, a component is recorded at a version the check never expects and
+goes stale the moment it is written.
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row

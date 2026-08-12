@@ -108,7 +108,7 @@ def set_primary(auth, row, sleeved, game_name):
 def _record(comp, game, element, mv, when, sha):
     PROV.record(game, PROV.make_row(
         comp["file"], comp["type"], comp["key"], element, comp_config(comp),
-        OC.VERSIONS.get(comp["type"], ""), mv, when, sha))
+        OC.expected_version(comp["type"], comp["file"]) or "", mv, when, sha))
 
 
 def _write(data, comp, folder, game, element, mv, when, verify=True):
@@ -322,7 +322,12 @@ def main():
                     help="record present on-disk files as current, then exit — "
                          "including any whose bytes changed under us, so "
                          "overwriting a component in place is enough to update "
-                         "it (0 API calls)")
+                         "it (0 API calls). SCOPE IT with --types: adopting a "
+                         "whole game blesses every version-stale component, "
+                         "including ones whose geometry really is out of date")
+    ap.add_argument("--types", default="",
+                    help="restrict --adopt to these component types "
+                         "(e.g. 'Lid'); default is every type")
     ap.add_argument("--execute", action="store_true",
                     help="actually export (default is a 0-call dry run)")
     ap.add_argument("--sleeving", choices=["un", "sl"],
@@ -370,15 +375,19 @@ def main():
 
     if args.adopt:
         when = datetime.datetime.now().isoformat(timespec="seconds")
+        types = {t.strip() for t in args.types.split(",") if t.strip()}
         seen, adopted = set(), []
         for casc in plan.cascades:
             for comp in casc["components"]:
                 f = comp["file"]
                 if f in seen or f not in plan.present:
                     continue
+                if types and comp["type"] not in types:
+                    continue
                 seen.add(f)
                 sha = on_disk_sha(f)
                 row = prov.get(f)
+                want = OC.expected_version(comp["type"], f)
                 # Adopt a file whose recorded version is stale OR whose bytes
                 # have changed under us: overwriting a component in place (a
                 # part re-downloaded from Onshape by hand) is a supported way to
@@ -386,9 +395,8 @@ def main():
                 # identity guard that reads it — true.
                 if not row:
                     why = "new"
-                elif not PROV.is_current(prov, f, OC.VERSIONS.get(comp["type"])):
-                    why = f"version {row.get('version') or '?'} → " \
-                          f"{OC.VERSIONS.get(comp['type'])}"
+                elif not PROV.is_current(prov, f, want):
+                    why = f"version {row.get('version') or '?'} → {want}"
                 elif row.get("sha") != sha:
                     why = f"changed on disk ({row.get('sha') or '?'} → {sha})"
                 else:
@@ -396,7 +404,7 @@ def main():
                 prov[f] = PROV.make_row(
                     f, comp["type"], comp["key"],
                     OC.ELEMENTS.get(comp["type"], ""), comp_config(comp),
-                    OC.VERSIONS.get(comp["type"], ""), "", when, sha)
+                    want or "", "", when, sha)
                 adopted.append((f, why))
         PROV.save(game, prov)
         for f, why in sorted(adopted):

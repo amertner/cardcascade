@@ -210,10 +210,9 @@ def compute_plan(game, spec, csv_path, labels=False, changed=frozenset()):
         # provenance, or an older version -> re-export.
         if u["type"] in changed:
             return True
-        ver = OC.VERSIONS.get(u["type"])
-        # The Blank topper wasn't upgraded at 6.4 (no expansion logo) -> 6.3.
-        if u["type"] == "Topper" and all("Blank" in f for f in u["files"]):
-            ver = "6.3"
+        # Per-file exemptions (the Blank topper) live in onshape_config so that
+        # the exporter records the same version this check expects.
+        ver = OC.expected_version(u["type"], u["files"])
         return not all(PROV.is_current(prov, f, ver) for f in u["files"])
 
     to_export = {k: u for k, u in unique.items() if needs_export(u)}
