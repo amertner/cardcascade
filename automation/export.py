@@ -161,21 +161,45 @@ def cached_assembly(folder, ctx):
     return p if p.exists() else None
 
 
-def export_studio(auth, comp, folder, game, when, verify=True):
+def cached_studio(folder, comp):
+    """The cached raw studio export for one component, or None. export_studio
+    caches under the component's OWN filename, so this also picks up a studio
+    export downloaded by hand into _raw/ under that name."""
+    p = P.ROOT / "individual" / folder / "_raw" / comp["file"]
+    return p if p.exists() else None
+
+
+def export_studio(auth, comp, folder, game, when, verify=True, use_cache=False):
     """One part-studio component (Lid, Topper, Label): translate -> strip imports
-    -> file + provenance."""
+    -> file + provenance. With use_cache, re-strip the cached raw studio export
+    (0 API calls) instead of translating when one is on disk — the studio
+    counterpart of export_assembly's cache path."""
     typ = comp["type"]
-    body = dict(MESH_BODY)
-    cfg = api_config(comp)
-    if cfg:
-        body["configuration"] = cfg
-    data, mv = O.translate(
-        auth, "partstudio", OC.DID,
-        f"/api/partstudios/d/{OC.DID}/w/{OC.WID}/e/{OC.ELEMENTS[typ]}/translations",
-        body, reason=typ.lower())
-    cache_raw(folder, comp["file"][:-4], mesh.unwrap(data))   # keep the raw studio
+    cached = cached_studio(folder, comp) if use_cache else None
+    if cached:
+        print(f"    ↻ re-strip from cache: {cached.name}  (0 calls)")
+        # A cached raw is never re-cached, and never deleted: it may be a file
+        # staged there by hand, which is not ours to remove.
+        data, mv, raw = cached.read_bytes(), "", None
+    else:
+        body = dict(MESH_BODY)
+        cfg = api_config(comp)
+        if cfg:
+            body["configuration"] = cfg
+        data, mv = O.translate(
+            auth, "partstudio", OC.DID,
+            f"/api/partstudios/d/{OC.DID}/w/{OC.WID}/e/{OC.ELEMENTS[typ]}/translations",
+            body, reason=typ.lower())
+        raw = cache_raw(folder, comp["file"][:-4], mesh.unwrap(data))
     clean, dropped = mesh.strip_objects(data, {t for t in OC.ELEMENTS if t != typ})
     n = _write(clean, comp, folder, game, OC.ELEMENTS[typ], mv, when, verify)
+    # The raw studio download is cached BEFORE the write, so a refused export
+    # (the identity guard exits) never costs its bytes. Past that point it only
+    # earns its keep if stripping removed parts the component doesn't carry —
+    # e.g. the Topper studio's imported Holder. Every Lid studio strips nothing,
+    # so its raw IS the component: drop it rather than store the same 3MF twice.
+    if raw and not dropped:
+        raw.unlink()
     return n, dropped
 
 
@@ -245,9 +269,11 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
         studio = [c for c in needed if c["type"] in OC.STUDIO_SOURCED]
         asm_cached = bool(use_cache and asm and cached_assembly(
             folder, casc["ctx"]))
+        studio_live = [c for c in studio
+                       if not (use_cache and cached_studio(folder, c))]
         # Setting the Primary variables is itself an API call; skip it when
         # every needed part comes from the local cache.
-        if (asm and not asm_cached) or studio:
+        if (asm and not asm_cached) or studio_live:
             set_primary(auth, casc["row"], casc["sleeved"] == "Sl",
                         spec.get("onshape_name", spec["folder"]))
             print(f"● SET PARAMETERS  [{casc['name']}]")
@@ -276,7 +302,8 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
                 break
             if comp["type"] not in OC.ELEMENTS:
                 print(f"    ⚠ skip {comp['file']} — no element id"); continue
-            n, dropped = export_studio(auth, comp, folder, game, when, verify)
+            n, dropped = export_studio(auth, comp, folder, game, when, verify,
+                                       use_cache=use_cache)
             extra = f", stripped {dropped}" if dropped else ""
             print(f"    ✓ {comp['file']}  ({n} bodies, studio{extra})")
             done += 1
@@ -292,7 +319,10 @@ def main():
     ap.add_argument("--changed", default="")
     ap.add_argument("--labels", action="store_true")
     ap.add_argument("--adopt", action="store_true",
-                    help="record present on-disk files as current, then exit")
+                    help="record present on-disk files as current, then exit — "
+                         "including any whose bytes changed under us, so "
+                         "overwriting a component in place is enough to update "
+                         "it (0 API calls)")
     ap.add_argument("--execute", action="store_true",
                     help="actually export (default is a 0-call dry run)")
     ap.add_argument("--sleeving", choices=["un", "sl"],
@@ -302,8 +332,9 @@ def main():
     ap.add_argument("--limit", type=int, default=0,
                     help="export at most N components")
     ap.add_argument("--use-cache", action="store_true",
-                    help="re-split cached raw assemblies (individual/<game>/_raw/) "
-                         "instead of re-fetching — 0 API calls for those cascades")
+                    help="reuse cached raw downloads (individual/<game>/_raw/) "
+                         "instead of re-fetching — re-split an assembly, "
+                         "re-strip a studio export; 0 API calls for those")
     ap.add_argument("--skip-verify", action="store_true",
                     help="don't check the exported box against parts.csv W/D or "
                          "reject geometry identical to another component "
@@ -339,23 +370,38 @@ def main():
 
     if args.adopt:
         when = datetime.datetime.now().isoformat(timespec="seconds")
-        seen, n = set(), 0
+        seen, adopted = set(), []
         for casc in plan.cascades:
             for comp in casc["components"]:
                 f = comp["file"]
-                if f in seen:
+                if f in seen or f not in plan.present:
                     continue
                 seen.add(f)
-                if f in plan.present and not PROV.is_current(
-                        prov, f, OC.VERSIONS.get(comp["type"])):
-                    prov[f] = PROV.make_row(
-                        f, comp["type"], comp["key"],
-                        OC.ELEMENTS.get(comp["type"], ""), comp_config(comp),
-                        OC.VERSIONS.get(comp["type"], ""), "", when,
-                        on_disk_sha(f))
-                    n += 1
+                sha = on_disk_sha(f)
+                row = prov.get(f)
+                # Adopt a file whose recorded version is stale OR whose bytes
+                # have changed under us: overwriting a component in place (a
+                # part re-downloaded from Onshape by hand) is a supported way to
+                # update one, and the sha is what makes the record — and the
+                # identity guard that reads it — true.
+                if not row:
+                    why = "new"
+                elif not PROV.is_current(prov, f, OC.VERSIONS.get(comp["type"])):
+                    why = f"version {row.get('version') or '?'} → " \
+                          f"{OC.VERSIONS.get(comp['type'])}"
+                elif row.get("sha") != sha:
+                    why = f"changed on disk ({row.get('sha') or '?'} → {sha})"
+                else:
+                    continue
+                prov[f] = PROV.make_row(
+                    f, comp["type"], comp["key"],
+                    OC.ELEMENTS.get(comp["type"], ""), comp_config(comp),
+                    OC.VERSIONS.get(comp["type"], ""), "", when, sha)
+                adopted.append((f, why))
         PROV.save(game, prov)
-        print(f"Adopted {n} on-disk file(s) into provenance → "
+        for f, why in sorted(adopted):
+            print(f"    ✓ {f}  [{why}]")
+        print(f"Adopted {len(adopted)} on-disk file(s) into provenance → "
               f"automation/state/{game}.csv")
         return
 

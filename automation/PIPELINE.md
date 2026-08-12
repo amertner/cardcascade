@@ -110,6 +110,39 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
   Onshape element + configuration + document microversion it came from
   (idempotency + audit). *(Stage 2.)*
 
+### `_raw/` — what a cached download is for
+
+`individual/<Game>/_raw/` keeps downloads that hold **more than the component
+file does**, so a part that was dropped or re-keyed is recovered by re-splitting
+locally instead of re-fetching:
+
+- **Assemblies** always qualify — one download carries Box, Pushers, Holders and
+  the token holders, and `--use-cache` re-splits it for 0 calls.
+- **Studio exports** (Lid, Topper, Label) qualify only when stripping imports
+  actually removed something, e.g. the Topper studio's imported Holder. A Lid
+  studio strips nothing, so its raw *is* the component — `export_studio` caches
+  the download before the write (a refused export never costs its bytes) and
+  deletes it after a clean write when nothing was stripped. The 16 lid raws that
+  predated this rule were the same 3MF stored twice, 9.8 MB, and are gone.
+
+### Updating a component by hand
+
+Onshape's UI export sometimes beats the scripted path — a part re-downloaded
+manually is updated by **overwriting `individual/<Game>/<component>.3mf` in
+place**, then:
+
+```
+export.py <Game> --adopt          # re-record provenance from disk (0 calls)
+refresh_cascades.py --game <Game> --name '<Short name>' --sleeving un|sl
+```
+
+`--adopt` re-records a component whose version is stale **or whose bytes changed
+under it** — the `sha` is what the identity guard reads, so a silent
+disagreement between disk and provenance would disarm it. Staging the download
+in `_raw/` under the component's filename and running `export.py --use-cache`
+does the same thing through the normal export path (it also re-strips imports),
+which is the better route for a studio whose export carries parts to strip.
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row
