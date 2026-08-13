@@ -17,12 +17,14 @@ ASSEMBLE) but the Onshape EXPORT step ALWAYS confirms before spending the tiny
 ~2500-calls/year API budget — even under --auto.
 
 Filter the set with --game / --size / --sleeving / --name (AND-combined); with
-no --game every game is in scope.
+no --game every game is in scope. --changed forces a component type to re-export
+even when provenance calls it current, scoped to those same filters.
 
 Usage:
     refresh_cascades.py --game Dominion --size M --sleeving sl
     refresh_cascades.py --game Innovation --auto
     refresh_cascades.py --size L                     # every game's Large cascades
+    refresh_cascades.py --game Dominion --name 168 --sleeving sl --changed Lid
     refresh_cascades.py --standardize-names --game Dominion   # one-off rename
 """
 import argparse
@@ -63,12 +65,20 @@ def matches(casc, sizes, sleeving, name):
     return True
 
 
-def select(games, sizes, sleeving, name, labels):
+def select(games, sizes, sleeving, name, labels, changed=frozenset()):
     """Per-game plan + the cascades that pass the filters. Returns
-    [(game, spec, plan, [cascade, ...])] for games with at least one match."""
+    [(game, spec, plan, [cascade, ...])] for games with at least one match.
+
+    `changed` forces those component types to count as stale even when
+    provenance says they are current — the only way to re-export a component
+    whose version is right but whose FILE is not what you want (an adopted lid
+    still embossing the previous version). The filters keep the blast radius to
+    the selected cascades: stale_keys intersects the plan with them, so
+    --changed Lid --name '168' re-exports one lid, not the game's twenty."""
     out = []
     for game, spec in games:
-        plan = P.compute_plan(game, spec, str(HERE / "parts.csv"), labels)
+        plan = P.compute_plan(game, spec, str(HERE / "parts.csv"), labels,
+                              changed)
         cs = [c for c in plan.cascades if matches(c, sizes, sleeving, name)]
         if cs:
             out.append((game, spec, plan, cs))
@@ -465,6 +475,10 @@ def main():
     ap.add_argument("--name", help="substring match on Short name (e.g. '400')")
     ap.add_argument("--labels", action="store_true",
                     help="include Onshape-generated labels (Compile)")
+    ap.add_argument("--changed", default="",
+                    help="comma-separated component types to force re-export "
+                         "even if provenance says they are current (e.g. 'Lid'); "
+                         "scoped to the cascades the filters select")
     ap.add_argument("--auto", action="store_true",
                     help="skip the offline PLAN/ASSEMBLE prompts (the Onshape "
                          "EXPORT step still confirms before spending calls)")
@@ -484,7 +498,12 @@ def main():
     sizes = {s.strip().upper() for s in (args.size or "").split(",") if s.strip()}
     sleeving = {"un": "Un", "sl": "Sl"}.get(args.sleeving)
     games = resolve_games(args.game)
-    selection = select(games, sizes, sleeving, args.name, args.labels)
+    changed = {c.strip() for c in args.changed.split(",") if c.strip()}
+    unknown = changed - set(OC.VERSIONS)
+    if unknown:
+        sys.exit(f"unknown component type(s) for --changed: "
+                 f"{', '.join(sorted(unknown))}; known: {list(OC.VERSIONS)}")
+    selection = select(games, sizes, sleeving, args.name, args.labels, changed)
     if not selection:
         sys.exit("no cascades match the given filters.")
 

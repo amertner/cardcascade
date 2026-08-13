@@ -241,6 +241,7 @@ Chains all three stages for a filtered set of cascades, prompting between steps:
 
 ```
 refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
+                    [--changed Lid,Box,...]
                     [--auto] [--dry-run] [--rebuild] [--standardize-names]
 ```
 
@@ -248,6 +249,14 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   API spend, even under `--auto`) → **ASSEMBLE** (`make_cascade --keep-layout`,
   in place, preserving each project's hand-tuned plates). `--auto` skips only the
   two offline prompts.
+- **`--changed Lid`** forces a component type to re-export even though
+  provenance calls it current — the only route to a component whose recorded
+  version is right but whose FILE is not what you want. The adopted lids are
+  exactly that: recorded 6.5, still **embossing 6.4**, because adoption blessed
+  the bytes rather than re-fetching them. The selection filters bound the spend
+  (`stale_keys` intersects the plan with the selected cascades), so
+  `--changed Lid --name 168 --sleeving sl` re-exports one lid, not Dominion's
+  twenty. An unknown type is rejected rather than silently matching nothing.
 - **`--rebuild`** switches ASSEMBLE to `make_cascade --auto-plates`: regenerate
   the plate layout from the box's own project as donor (swap every mesh by role,
   normalise the token-holder object name — donors often leave it `Part 1`), with
