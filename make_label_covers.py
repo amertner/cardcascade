@@ -7,7 +7,7 @@ stacked UNSLEEVED/SLEEVED corner banners, a size-graded stack of the
 set's actual labels (front, box sides, split-box labels) with type/width
 captions, FULL SET / PARTIAL SETS chips, and a bottom band naming the set.
 
-    python3 make_label_covers.py [--out cascades] [--version 6.4]
+    python3 make_label_covers.py [--out cascades] [--version 6.5]
                                  [--sets "Renaissance,Base Set"]
 
 Covers are written to <out>/<game>/labels/, next to the per-set .3mf files.
@@ -100,6 +100,7 @@ def load_logo(path):
 
 # ---------- the printed label, top view ----------
 LABEL_H_MM = 22.2
+DESCENT = 0.32      # Orbitron descender depth, as a fraction of cap height
 
 
 def draw_staircase(d, x, y, s, colour):
@@ -125,6 +126,9 @@ def render_label(text, width_mm, scale, caps):
     ch = int(0.6 * scale)
     d.rounded_rectangle([ox + ch, oy + ch, ox + w - ch, oy + h - ch],
                         radius=int(0.25 * scale), fill=PLATE)
+    m, ls = 3.6 * scale, 4.5 * scale
+    fcc = ImageFont.truetype(ORB, int(2.5 * scale / 0.5))
+    ccw = d.textlength("cc", font=fcc)
     if text:
         caph = caps.get(width_mm, 4.5) * scale
         f = cap_scale(caph)
@@ -134,14 +138,28 @@ def render_label(text, width_mm, scale, caps):
             caph *= max_tw / tw
             f = cap_scale(caph)
             tw = d.textlength(text, font=f)
-        asc, _ = f.getmetrics()
         baseline = oy + h - 10.1 * scale
+        # wide labels: the lowered layout of labelmaker.make_label — bigger
+        # text dropped beside the logo and the "cc", shrunk to the gap
+        # between them and standing on a descender-deep baseline.
+        big_cap = dl.BIG_CAPS.get(width_mm)
+        if big_cap is not None:
+            big = big_cap * scale
+            fb = cap_scale(big)
+            twb = d.textlength(text, font=fb)
+            gap = 2 * min(w / 2 - (dl.MARGIN + dl.LOGO_SIZE
+                                   + dl.TEXT_SIDE_GAP) * scale,
+                          w / 2 - (dl.MARGIN + dl.TEXT_SIDE_GAP) * scale - ccw)
+            if twb > gap:
+                big, fb = big * gap / twb, cap_scale(big * gap / twb)
+                twb = d.textlength(text, font=fb)
+            if big > caph:
+                caph, f, tw = big, fb, twb
+                baseline = oy + h - (dl.MARGIN * scale + big * DESCENT)
+        asc, _ = f.getmetrics()
         d.text(((img.width - tw) / 2, baseline - asc * 0.98),
                text, font=f, fill=INK)
-    m, ls = 3.6 * scale, 4.5 * scale
     draw_staircase(d, ox + m, oy + h - m - ls, ls, INK)
-    fcc = ImageFont.truetype(ORB, int(2.5 * scale / 0.5))
-    ccw = d.textlength("cc", font=fcc)
     d.text((ox + w - m - ccw, oy + h - m - fcc.getmetrics()[0] * 0.78),
            "cc", font=fcc, fill=INK)
     return img
@@ -211,12 +229,39 @@ def footer(d, version):
 
 
 # ---------- per-set label stack ----------
+def front_row(rec, game_cfg):
+    """The front-label row. Sets whose box is only ever split have no label
+    reading just the set name — every front label carries the half number
+    (or the part name), so the cover shows "<name> [X]" and says what X is.
+    """
+    front = game_cfg["front"]
+    name = rec["name"]
+    if not name:
+        return ("FRONT LABEL", "", front)
+    plain = bool(rec.get("box")) or any(
+        w == front for _, widths in rec.get("plates", []) for w in widths)
+    variants = []
+    if not plain:
+        if rec.get("split"):
+            variants = [str(i) for i, _ in enumerate(rec["split"], 1)]
+        else:
+            variants = [lab for _, labels in rec.get("nsplits", [])
+                        for lab in labels]
+    if not variants:
+        return ("FRONT LABEL", name, front)
+    listed = variants[-1].upper()
+    if len(variants) > 1:
+        listed = ", ".join(v.upper() for v in variants[:-1]) + f" OR {listed}"
+    if len(listed) > 60:
+        listed = "THE PART NAME"
+    return (f"FRONT LABEL ([X] IS {listed})", f"{name} [X]", front)
+
+
 def stack_rows(rec, game_cfg):
     """[(caption, label text, width_mm)] for one cc.cfg record."""
     name = rec["name"] or "Blank"
     side_text = rec.get("side") or name
-    rows = [("FRONT LABEL", "" if not rec["name"] else name,
-             game_cfg["front"])]
+    rows = [front_row(rec, game_cfg)]
     if rec.get("box"):
         u, s = rec["box"]["widths"]
         for wmm in sorted({w for w in (u, s) if w}, reverse=True):
@@ -322,7 +367,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=os.path.join(REPO, "cascades"),
                     help="base dir; covers go to <out>/<game>/labels")
-    ap.add_argument("--version", default="6.4")
+    ap.add_argument("--version", default="6.5")
     ap.add_argument("--sets", default=None,
                     help="comma-separated set names (default: all)")
     args = ap.parse_args()

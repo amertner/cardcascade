@@ -93,7 +93,15 @@ LOGO_STEPS = 3
 
 TEXT_GAP_ABOVE_LOGO = 2.0    # gap between logo top and text bottom
 TEXT_TOP_MARGIN = 3.0        # min gap between text top and label top edge
+TEXT_SIDE_GAP = 2.0          # lowered text: clearance from the logo and "cc"
 CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
+
+# Capital heights (mm) for the lowered layout, per label width: on a label
+# this wide the name can drop to the logo's line and grow into the empty
+# space beside the logo and the "cc" instead of sitting above them. Long
+# names shrink to fit that gap, and a name that would end up no bigger than
+# the standard size keeps the standard layout above the logo.
+BIG_CAPS = {156.4: 9.0}
 
 FONT_FILE = "Orbitron-Bold.ttf"
 CONFIG_FILE = "cc.cfg"       # set/box configuration (see read_config_file)
@@ -311,7 +319,11 @@ class LabelFont:
 
     def __init__(self, font_path: str):
         self.font_path = font_path
-        self.cap = self.render("H").bounding_box().size.Y
+        cap_box = self.render("H").bounding_box()
+        self.cap = cap_box.size.Y
+        self.baseline = cap_box.min.Y     # baseline in render() coordinates
+        # deepest descender below the baseline (the deepest glyph in the font)
+        self.descent = self.baseline - self.render("gjpqy").bounding_box().min.Y
         self.xheight = self.render("c").bounding_box().size.Y
 
     def render(self, txt: str):
@@ -337,13 +349,21 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None):
     # "cc" mark, bottom-right corner, bottom-aligned with the logo
     cc = scale(font.render("cc"), by=CC_XHEIGHT / font.xheight)
     bb = cc.bounding_box()
+    cc_left = width - MARGIN - bb.size.X
     cc = cc.translate(Vector(width - MARGIN - bb.max.X, MARGIN - bb.min.Y, 0))
     raised += extrude(cc.translate(z_top), amount=RAISE_LOGO)
 
-    # expansion name: standard capital height for this label width (caps),
-    # shrunk to fit its box when the name is too long — the box runs from
-    # the logo's left to the cc's right edge, from 2 mm above the logo to
-    # 3 mm below the top edge. Centred horizontally, bottom-anchored.
+    # expansion name, centred horizontally, in one of two layouts:
+    #   standard  the text box runs from the logo's left to the cc's right
+    #             edge, from 2 mm above the logo to 3 mm below the top edge;
+    #             the text stands on the box floor at the standard capital
+    #             height for this width (caps), shrunk when the name is
+    #             too long for the box
+    #   lowered   wide labels only (BIG_CAPS): the text drops beside the
+    #             logo and the cc — so it must fit in the gap between them —
+    #             and grows to BIG_CAPS, sitting on a baseline low enough
+    #             for its descenders to clear the bottom margin
+    # The lowered layout is used whenever it renders the name larger.
     if name:
         box_left, box_right = MARGIN, width - MARGIN
         box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
@@ -355,6 +375,19 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None):
         cap = (caps or {}).get(width)
         if cap is not None:
             factor = min(factor, cap / font.cap)
+        big_cap = BIG_CAPS.get(width)
+        if big_cap is not None:
+            centre = (box_left + box_right) / 2
+            gap = 2 * min(centre - (MARGIN + LOGO_SIZE + TEXT_SIDE_GAP),
+                          cc_left - TEXT_SIDE_GAP - centre)
+            drop = font.baseline - bb.min.Y     # this name's own descent
+            big = min(gap / bb.size.X, big_cap / font.cap,
+                      (box_top - MARGIN) / (bb.size.Y + font.descent - drop))
+            if big > factor:
+                # a full-descender name just touches the bottom margin;
+                # shallower names sit higher, on the same baseline
+                factor = big
+                box_bottom = MARGIN + (font.descent - drop) * big
         txt = scale(txt, by=factor)
         bb = txt.bounding_box()
         txt = txt.translate(Vector(
@@ -801,8 +834,8 @@ def main():
     ap.add_argument("--individual", action="store_true",
                     help="write one 3MF per individual label instead of the "
                          "default per-set files")
-    ap.add_argument("--version", default="6.4",
-                    help="project version (default 6.4); no longer embedded "
+    ap.add_argument("--version", default="6.5",
+                    help="project version (default 6.5); no longer embedded "
                          "in file names, kept for reference")
     args = ap.parse_args()
 
