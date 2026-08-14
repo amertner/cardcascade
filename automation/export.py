@@ -327,7 +327,9 @@ def main():
                          "including ones whose geometry really is out of date")
     ap.add_argument("--types", default="",
                     help="restrict --adopt to these component types "
-                         "(e.g. 'Lid'); default is every type")
+                         "(e.g. 'Lid'); default is every type. --name and "
+                         "--sleeving narrow it further, to the components of "
+                         "one cascade")
     ap.add_argument("--execute", action="store_true",
                     help="actually export (default is a 0-call dry run)")
     ap.add_argument("--sleeving", choices=["un", "sl"],
@@ -373,11 +375,22 @@ def main():
         print(f"Hashed {n} on-disk component(s) → automation/state/{game}.csv")
         return
 
+    def selected(cascades):
+        """Apply --sleeving / --name to a cascade list. Shared by --adopt and the
+        export path so a filter means the same thing on both."""
+        if args.sleeving:
+            cascades = [c for c in cascades
+                        if c["sleeved"] == args.sleeving.capitalize()]
+        if args.name:
+            cascades = [c for c in cascades
+                        if c["ctx"]["short_name"] == args.name]
+        return cascades
+
     if args.adopt:
         when = datetime.datetime.now().isoformat(timespec="seconds")
         types = {t.strip() for t in args.types.split(",") if t.strip()}
         seen, adopted = set(), []
-        for casc in plan.cascades:
+        for casc in selected(plan.cascades):
             for comp in casc["components"]:
                 f = comp["file"]
                 if f in seen or f not in plan.present:
@@ -403,7 +416,7 @@ def main():
                     continue
                 prov[f] = PROV.make_row(
                     f, comp["type"], comp["key"],
-                    OC.ELEMENTS.get(comp["type"], ""), comp_config(comp),
+                    OC.source_element(comp["type"]), comp_config(comp),
                     want or "", "", when, sha)
                 adopted.append((f, why))
         PROV.save(game, prov)
@@ -414,12 +427,7 @@ def main():
         return
 
     to_export_keys = set(plan.unique) if args.all else set(plan.to_export)
-    cascades = plan.cascades
-    if args.sleeving:
-        cascades = [c for c in cascades if c["sleeved"] == args.sleeving.capitalize()]
-    if args.name:
-        cascades = [c for c in cascades if c["ctx"]["short_name"] == args.name]
-    batches, skipped = batch(cascades, to_export_keys)
+    batches, skipped = batch(selected(plan.cascades), to_export_keys)
 
     def classify(keys):
         """(assembly-sourced keys, studio-sourced keys) for one cascade."""

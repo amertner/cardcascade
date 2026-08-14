@@ -45,6 +45,19 @@ ASSEMBLY_SOURCED = frozenset({"Box", "Pusher", "Holder", "TokenHolder",
                               "HalfTokenHolder"})
 STUDIO_SOURCED = frozenset({"Lid", "Topper", "Label"})
 
+
+def source_element(comp_type):
+    """The Onshape element a component is exported FROM: the shared assembly for
+    monochrome parts, the per-type part studio otherwise.
+
+    --adopt must record the same id the export path writes, or a part that came
+    out of an assembly split is misattributed to a studio it never came from.
+    ELEMENTS carries a standalone studio for Box/Holder/Pusher/TokenHolder as
+    well, so keying off it alone silently produces that wrong answer."""
+    if comp_type in ASSEMBLY_SOURCED:
+        return ASSEMBLY
+    return ELEMENTS.get(comp_type, "")
+
 # Object names inside the assembly export map 1:1 to component types. A distinct
 # first-riser holder is named "FirstHolder" (separate from the default "Holder");
 # older exports name both "Holder" and are told apart by height — see
@@ -96,12 +109,19 @@ def is_imported(part_name, component_type):
 # Every other lid was checked against that defect's signature — the slot's cut
 # faces are simply absent when the extrude fails — and all 33 carry their full
 # cut, so they were adopted at 6.5 rather than re-exported (they already match
-# the studio). Pushers/token holders emboss nothing, so their geometry is
-# version-independent and they stay at their own design version (no needless
-# re-exports).
+# the studio). Pushers emboss nothing, so their geometry is version-independent
+# and they stay at their own design version (no needless re-exports).
+#
+# Token holders were in that same "version-independent" group until 6.5, when
+# the design narrowed them (Dominion 168 sleeved: 74.80 -> 63.10 mm wide) and
+# narrowed the box's front pocket to match. That is a real geometry change, not
+# an embossed version string, so both token-holder types move to 6.5 and every
+# one still on 6.3 is genuinely stale — a 6.3 holder is too wide for a 6.5
+# pocket. Token holders are Dominion-only, so this marks nothing stale in the
+# other three games.
 VERSIONS = {
     "Box": "6.5", "Lid": "6.5", "Holder": "6.5", "Pusher": "6.3",
-    "Topper": "6.4", "TokenHolder": "6.3", "HalfTokenHolder": "6.3",
+    "Topper": "6.4", "TokenHolder": "6.5", "HalfTokenHolder": "6.5",
     "Label": "6.3",
 }
 # Innovation lid + toppers changed at 6.4; the Blank topper is exempt (no logo)

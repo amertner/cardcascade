@@ -149,11 +149,26 @@ of date — Dominion's boxes and holders are still 6.4 awaiting a real upgrade, 
 a bare `export.py Dominion --adopt` would record them as 6.5 and they would
 never be re-exported. `--types Lid` restricts it to what you actually verified.
 
+`--name` and `--sleeving` narrow it further, to the components of ONE cascade,
+and they mean the same thing on the adopt path as on the export path (one
+`selected()` helper serves both). Type alone is too coarse when a type is
+mid-upgrade: after the 6.5 token-holder change, `--types TokenHolder` would have
+blessed all 14 Dominion token holders when exactly one — the 168 sleeved, split
+from the updated assembly — had earned it.
+
 The version a component should carry — `VERSIONS` plus per-file exemptions like
 Innovation's Blank topper — comes from `onshape_config.expected_version()`, and
 both the staleness check and every provenance write must go through it. When
 they disagree, a component is recorded at a version the check never expects and
 goes stale the moment it is written.
+
+The element a component is recorded against comes from
+`onshape_config.source_element()`, for the same reason: `ELEMENTS` carries a
+standalone part studio for Box/Holder/Pusher/TokenHolder as well as the
+assembly, so reading it directly attributes an assembly-split part to a studio
+it never came from. Only `--adopt` ever got this wrong, and only for
+assembly-sourced types — its previous callers were all `--types Lid`, which
+`ELEMENTS` answers correctly.
 
 ## Build policies (decided)
 
