@@ -11,34 +11,34 @@ Box M4.21.10.45-Sl merged.3mf,Box,Box|M4.21.10.45-Sl|True,f27edbc7a0f89c28092f18
 Box M4.21.10.45-Sl.3mf,Box,Box|M4.21.10.45-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,0efcfd3bbeb784c0,2026-08-09T21:23:22
 Box M6.21.10.45-Un.3mf,Box,Box|M6.21.10.45-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,7171cb95bffe7126,2026-08-09T22:03:03
 Box M6.21.10.62-Sl.3mf,Box,Box|M6.21.10.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,1df45c86ef090164,2026-08-09T22:03:03
-Box M8.40.10.62-Sl merged.3mf,Box,Box|M8.40.10.62-Sl|True,f27edbc7a0f89c28092f18d4,,6.4,,0708c43e5fe2e326,2026-08-08T22:04:09
-Box M8.40.10.62-Un merged.3mf,Box,Box|M8.40.10.62-Un|True,f27edbc7a0f89c28092f18d4,,6.4,,b08a2c7db62d01f7,2026-08-08T22:04:09
+Box M8.40.10.62-Sl merged.3mf,Box,Box|M8.40.10.62-Sl|True,f27edbc7a0f89c28092f18d4,,6.5,,7ea03397288f703e,2026-08-14T15:36:49
+Box M8.40.10.62-Un merged.3mf,Box,Box|M8.40.10.62-Un|True,f27edbc7a0f89c28092f18d4,,6.5,,4263f18257a4b046,2026-08-14T15:36:49
 Box S2.40.12-30.32-Un.3mf,Box,Box|S2.40.12-30.32-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,57f0555fc8206670,2026-08-09T16:40:07
 Box S2.40.12-30.45-Sl.3mf,Box,Box|S2.40.12-30.45-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,cdcfc51d2575b65e,2026-08-09T16:40:07
 Box S4.16.10.32-Sl.3mf,Box,Box|S4.16.10.32-Sl|False,f27edbc7a0f89c28092f18d4,,6.5,,9eb7f17ffa954543,2026-08-14T12:55:07
-Box S4.16.10.32-Un.3mf,Box,Box|S4.16.10.32-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,6266dea31a333055,2026-08-09T16:01:55
+Box S4.16.10.32-Un.3mf,Box,Box|S4.16.10.32-Un|False,f27edbc7a0f89c28092f18d4,,6.5,,4a7ec1dc1c8402bb,2026-08-14T15:34:33
 Box S5.40.12.45-Un.3mf,Box,Box|S5.40.12.45-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,b9339cd0431ac049,2026-08-09T22:46:48
 Box S5.40.12.62-Sl.3mf,Box,Box|S5.40.12.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,66633fca662fb1c2,2026-08-09T22:46:48
 Box S9.21.10.62-Sl.3mf,Box,Box|S9.21.10.62-Sl|False,f27edbc7a0f89c28092f18d4,,6.4,,0a8c3d1cdf69a21c,2026-08-09T22:54:36
 Box S9.21.10.62-Un.3mf,Box,Box|S9.21.10.62-Un|False,f27edbc7a0f89c28092f18d4,,6.4,,cc1b9a942c7a4f88,2026-08-09T22:54:36
 HalfTokenHolder 21-Sl merged.3mf,HalfTokenHolder,HalfTokenHolder|21|True|Sl,f27edbc7a0f89c28092f18d4,,6.3,,aa7586c5b81f4713,2026-08-09T20:44:32
 HalfTokenHolder 21-Un merged.3mf,HalfTokenHolder,HalfTokenHolder|21|True|Un,f27edbc7a0f89c28092f18d4,,6.3,,e55f7f536677c408,2026-08-09T20:44:32
-HalfTokenHolder 40-Sl merged.3mf,HalfTokenHolder,HalfTokenHolder|40|True|Sl,f27edbc7a0f89c28092f18d4,,6.3,,3a95b4e1d301ad02,2026-08-09T19:03:27
-HalfTokenHolder 40-Un merged.3mf,HalfTokenHolder,HalfTokenHolder|40|True|Un,f27edbc7a0f89c28092f18d4,,6.3,,113fc6da7ec7bb89,2026-08-09T19:03:27
+HalfTokenHolder 40-Sl merged.3mf,HalfTokenHolder,HalfTokenHolder|40|True|Sl,f27edbc7a0f89c28092f18d4,,6.5,,7e2fa09c31115481,2026-08-14T15:36:49
+HalfTokenHolder 40-Un merged.3mf,HalfTokenHolder,HalfTokenHolder|40|True|Un,f27edbc7a0f89c28092f18d4,,6.5,,7b9f5294206da63f,2026-08-14T15:36:49
 Holder L-40-Sl.3mf,Holder,Holder|L|40|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,23dbb3f07b1d6d9c,2026-08-09T23:02:13
 Holder L-40-Un.3mf,Holder,Holder|L|40|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,071e8fd17116d3a4,2026-08-09T23:02:13
 Holder L-50-Sl.3mf,Holder,Holder|L|50|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,d76584818f6c6662,2026-08-09T23:42:22
 Holder L-50-Un.3mf,Holder,Holder|L|50|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,f396981dd0e5b7ca,2026-08-09T23:42:22
 Holder M-21-Sl.3mf,Holder,Holder|M|21|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,78817aeba2a5b1c1,2026-08-09T21:23:22
 Holder M-21-Un.3mf,Holder,Holder|M|21|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,8bedb648c73c1651,2026-08-09T21:23:22
-Holder M-40-Sl.3mf,Holder,Holder|M|40|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,883c065008bf70fb,2026-08-09T21:09:00
-Holder M-40-Un.3mf,Holder,Holder|M|40|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,209a7a48fe9a34f8,2026-08-09T21:09:00
+Holder M-40-Sl.3mf,Holder,Holder|M|40|Sl|False,f27edbc7a0f89c28092f18d4,,6.5,,32fd39f1eb03ef18,2026-08-14T15:36:49
+Holder M-40-Un.3mf,Holder,Holder|M|40|Un|False,f27edbc7a0f89c28092f18d4,,6.5,,8e7fccc04dee0152,2026-08-14T15:36:49
 Holder M-60-Sl (first).3mf,Holder,Holder|M|60|Sl|True,f27edbc7a0f89c28092f18d4,,6.3,,22bbe1cd34471479,2026-08-09T16:41:48
 Holder M-60-Sl.3mf,Holder,Holder|M|60|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,85e151a45aca5502,2026-08-09T16:41:48
 Holder M-60-Un (first).3mf,Holder,Holder|M|60|Un|True,f27edbc7a0f89c28092f18d4,,6.3,,a586b2a29ee625b2,2026-08-09T16:41:48
 Holder M-60-Un.3mf,Holder,Holder|M|60|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,a620f6d0635ef906,2026-08-09T16:41:48
 Holder S-16-Sl.3mf,Holder,Holder|S|16|Sl|False,f27edbc7a0f89c28092f18d4,,6.5,,59ead4fac33d2759,2026-08-13T10:50:42
-Holder S-16-Un.3mf,Holder,Holder|S|16|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,0b5979f9d5fe2cb5,2026-08-09T21:09:00
+Holder S-16-Un.3mf,Holder,Holder|S|16|Un|False,f27edbc7a0f89c28092f18d4,,6.5,,21bc6decbaccfd83,2026-08-14T15:34:33
 Holder S-21-Sl.3mf,Holder,Holder|S|21|Sl|False,f27edbc7a0f89c28092f18d4,,6.3,,a405ab9a5c9707bf,2026-08-09T22:54:36
 Holder S-21-Un.3mf,Holder,Holder|S|21|Un|False,f27edbc7a0f89c28092f18d4,,6.3,,3720e75ab8aca6e5,2026-08-09T22:54:36
 Holder S-40-Sl (first).3mf,Holder,Holder|S|40|Sl|True,f27edbc7a0f89c28092f18d4,,6.3,,229a4f20d02889cf,2026-08-09T16:40:07
@@ -82,14 +82,14 @@ Pusher 8x10-Un.3mf,Pusher,Pusher|8|10|Un,f27edbc7a0f89c28092f18d4,,6.3,,1cffcd89
 Pusher 9x10-Sl.3mf,Pusher,Pusher|9|10|Sl,f27edbc7a0f89c28092f18d4,,6.3,,9c4dc5be83e78569,2026-08-09T22:54:36
 Pusher 9x10-Un.3mf,Pusher,Pusher|9|10|Un,f27edbc7a0f89c28092f18d4,,6.3,,0a7bd25725d6a3e5,2026-08-09T22:54:36
 TokenHolder 16-Sl.3mf,TokenHolder,TokenHolder|16|False|Sl,f27edbc7a0f89c28092f18d4,,6.5,,8d194ca2fa43dcea,2026-08-14T15:33:30
-TokenHolder 16-Un.3mf,TokenHolder,TokenHolder|16|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,1b6e4ede68022fc7,2026-08-09T16:01:55
+TokenHolder 16-Un.3mf,TokenHolder,TokenHolder|16|False|Un,f27edbc7a0f89c28092f18d4,,6.5,,f1f9a26fc0b221ff,2026-08-14T15:34:33
 TokenHolder 21-Sl merged.3mf,TokenHolder,TokenHolder|21|True|Sl,f27edbc7a0f89c28092f18d4,,6.3,,52c940c15c0eff17,2026-08-09T20:44:32
 TokenHolder 21-Sl.3mf,TokenHolder,TokenHolder|21|False|Sl,f27edbc7a0f89c28092f18d4,,6.3,,cfb23a6296120b77,2026-08-09T21:23:22
 TokenHolder 21-Un merged.3mf,TokenHolder,TokenHolder|21|True|Un,f27edbc7a0f89c28092f18d4,,6.3,,2cfd71ce7ea63df4,2026-08-09T20:44:32
 TokenHolder 21-Un.3mf,TokenHolder,TokenHolder|21|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,21b06fff02a0df11,2026-08-09T21:23:22
-TokenHolder 40-Sl merged.3mf,TokenHolder,TokenHolder|40|True|Sl,f27edbc7a0f89c28092f18d4,,6.3,,071ba567e6d0a09d,2026-08-09T19:03:27
+TokenHolder 40-Sl merged.3mf,TokenHolder,TokenHolder|40|True|Sl,f27edbc7a0f89c28092f18d4,,6.5,,f2a6a3574bd0637a,2026-08-14T15:36:49
 TokenHolder 40-Sl.3mf,TokenHolder,TokenHolder|40|False|Sl,f27edbc7a0f89c28092f18d4,,6.3,,d72d7aeffd01cc37,2026-08-09T22:46:48
-TokenHolder 40-Un merged.3mf,TokenHolder,TokenHolder|40|True|Un,f27edbc7a0f89c28092f18d4,,6.3,,9287346bb6a3f2fe,2026-08-09T19:03:27
+TokenHolder 40-Un merged.3mf,TokenHolder,TokenHolder|40|True|Un,f27edbc7a0f89c28092f18d4,,6.5,,425ca6dc65fd10f5,2026-08-14T15:36:49
 TokenHolder 40-Un.3mf,TokenHolder,TokenHolder|40|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,642107d71272b5fa,2026-08-09T22:46:48
 TokenHolder 50-Sl.3mf,TokenHolder,TokenHolder|50|False|Sl,f27edbc7a0f89c28092f18d4,,6.3,,4d280b63cc8fe658,2026-08-09T23:42:22
 TokenHolder 50-Un.3mf,TokenHolder,TokenHolder|50|False|Un,f27edbc7a0f89c28092f18d4,,6.3,,4a379340cfad8633,2026-08-09T23:42:22
