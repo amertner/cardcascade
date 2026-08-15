@@ -110,7 +110,32 @@ def draw_staircase(d, x, y, s, colour):
                      x + (i + 1) * step, y + s], fill=colour)
 
 
-def render_label(text, width_mm, scale, caps):
+_FONT = None
+
+
+def label_font():
+    global _FONT
+    if _FONT is None:
+        _FONT = dl.LabelFont(dl.find_font())
+    return _FONT
+
+
+def draw_artwork(d, art_file, width_mm, scale, caps, ox, oy, h):
+    """Draw a label's printed detail from the real geometry.
+
+    Artwork placement follows rules (which box it lands in, where a number
+    goes) that only labelmaker knows, so the cover asks it for the actual
+    polygons rather than guessing. Holes are painted back in the plate
+    colour, and the shapes come largest first so an island inside a hole
+    lands on top of it."""
+    for rings in dl.label_polygons("", width_mm, label_font(), caps,
+                                   dl.load_art(art_file)):
+        for i, ring in enumerate(rings):
+            d.polygon([(ox + x * scale, oy + h - y * scale) for x, y in ring],
+                      fill=INK if i == 0 else PLATE)
+
+
+def render_label(text, width_mm, scale, caps, art=None):
     w, h = int(width_mm * scale), int(LABEL_H_MM * scale)
     pad = int(0.35 * scale) + 6
     img = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
@@ -126,6 +151,9 @@ def render_label(text, width_mm, scale, caps):
     ch = int(0.6 * scale)
     d.rounded_rectangle([ox + ch, oy + ch, ox + w - ch, oy + h - ch],
                         radius=int(0.25 * scale), fill=PLATE)
+    if art is not None:      # artwork labels are drawn from their geometry
+        draw_artwork(d, art, width_mm, scale, caps, ox, oy, h)
+        return img
     m, ls = 3.6 * scale, 4.5 * scale
     fcc = ImageFont.truetype(ORB, int(2.5 * scale / 0.5))
     ccw = d.textlength("cc", font=fcc)
@@ -257,10 +285,19 @@ def front_row(rec, game_cfg):
     return (f"FRONT LABEL ([X] IS {listed})", f"{name} [X]", front)
 
 
-def stack_rows(rec, game_cfg):
-    """[(caption, label text, width_mm)] for one cc.cfg record."""
+def stack_rows(rec, game_cfg, profile=""):
+    """[(caption, label text, width_mm)] for one cc.cfg record.
+
+    The "Logo" profile shows the same widths carrying the set's artwork
+    instead of its name, so the pair of covers reads as two versions of
+    one print."""
     name = rec["name"] or "Blank"
     side_text = rec.get("side") or name
+    if profile == "Logo":
+        front = game_cfg["front"]
+        widths = [front] + [w for w in game_cfg["widths"] if w != front]
+        return [("FRONT LABEL" if w == front else f"SIDE LABEL · {w:g} MM",
+                 "", w) for w in widths]
     rows = [front_row(rec, game_cfg)]
     if rec.get("box"):
         u, s = rec["box"]["widths"]
@@ -305,10 +342,11 @@ def fit_scale(n_rows):
     return round(scale, 1)
 
 
-def make_cover(rec, game, game_cfg, version, out_dir):
+def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
     display = rec["name"] or "Blank"
     game_disp = GAME_DISPLAY.get(game, game)
     caps = game_cfg["caps"]
+    art = rec.get("logo") if profile == "Logo" else None
 
     img = Image.new("RGB", (W, H), CREAM)
     d = ImageDraw.Draw(img)
@@ -332,14 +370,14 @@ def make_cover(rec, game, game_cfg, version, out_dir):
     d.text((70, 910), "for every box size", font=F(MONO_R, 46), fill=INK)
 
     # right-hand stack: large labels by default, shrink to fit if many rows
-    rows = stack_rows(rec, game_cfg)
+    rows = stack_rows(rec, game_cfg, profile)
     scale = fit_scale(len(rows))
     total_h = sum(row_height(scale) for _ in rows)
     x_right = W - 90
     y = STACK_TOP + max(0, (STACK_BOTTOM - STACK_TOP - total_h) // 2)
     fcap = F(MONO_B, 34)
     for caption, text, wmm in rows:
-        lab = render_label(text, wmm, scale, caps)
+        lab = render_label(text, wmm, scale, caps, art)
         cw = d.textlength(caption, font=fcap)
         d.text((x_right - cw - 12, y), caption, font=fcap, fill=GREY)
         y += 44
@@ -350,15 +388,15 @@ def make_cover(rec, game, game_cfg, version, out_dir):
     d.polygon([(0, H - 340), (W * 0.72, H - 340), (W * 0.66, H - 200),
                (0, H - 200)], fill=GREEN)
     band = display if not rec["name"] else f"{game_disp}: {display}"
+    if profile == "Logo":
+        band += " logo"
     fb2 = F(MONO_B, 84)
     while d.textlength(band, font=fb2) > 1160 and fb2.size > 40:
         fb2 = F(MONO_B, fb2.size - 4)
     d.text((70, H - 324 + (84 - fb2.size) // 2), band, font=fb2, fill=WHITE)
     footer(d, version)
 
-    fname = f"{display} Labels.png"
-    fname = "".join(c if c not in '\\/:*?"<>|' else "_" for c in fname)
-    path = os.path.join(out_dir, fname)
+    path = os.path.join(out_dir, dl.label_file_name(rec, profile, ".png"))
     img.save(path)
     return path
 
@@ -389,9 +427,12 @@ def main():
             display = rec["name"] or "Blank"
             if wanted and display.lower() not in wanted:
                 continue
-            path = make_cover(rec, game, game_cfg, args.version, set_dir)
-            print(f"  {path}")
-            n += 1
+            # one cover per 3MF the set ships as
+            for profile in dl.set_plate_specs(rec, game_cfg):
+                path = make_cover(rec, game, game_cfg, args.version, set_dir,
+                                  profile)
+                print(f"  {path}")
+                n += 1
     print(f"done: {n} cover(s)")
 
 

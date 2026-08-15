@@ -33,6 +33,7 @@ from build123d import (
     Align,
     Color,
     Compound,
+    Face,
     Mesher,
     Polygon,
     Rectangle,
@@ -40,6 +41,7 @@ from build123d import (
     Vector,
     export_step,
     extrude,
+    import_dxf,
     scale,
 )
 
@@ -103,6 +105,18 @@ CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
 # the standard size keeps the standard layout above the logo.
 BIG_CAPS = {156.4: 9.0}
 
+# Game artwork (logo=) printed instead of the name: <repo>/logos/<game>/<file>
+ART_DIR = "logos"
+ART_MARGIN = 2.5             # artwork inset from the label outline
+ART_NUMBER_CAP = 0.55        # number beside the art, as a fraction of its height
+ART_NUMBER_GAP = 0.18        # gap between art and number, likewise
+NUMBER_BELOW_CAP = 4.5       # number under the art: as tall as the staircase
+NUMBER_MIN_CAP = 3.0         # below this it goes beside the art instead
+
+# The bottom of the label slides into a pocket on the box, so nothing may
+# be printed within this distance of the bottom edge.
+BOTTOM_CLEARANCE = 2.0
+
 FONT_FILE = "Orbitron-Bold.ttf"
 CONFIG_FILE = "cc.cfg"       # set/box configuration (see read_config_file)
 
@@ -143,6 +157,72 @@ def find_font() -> str:
         f"Font file '{FONT_FILE}' not found in fonts/ or next to the script.\n"
         "Download Orbitron (Bold) from https://fonts.google.com/specimen/Orbitron"
     )
+
+
+def find_art_file(game: str, filename: str) -> Path:
+    here = Path(__file__).resolve().parent
+    for base in (Path.cwd(), here):
+        cand = base / ART_DIR / game / filename
+        if cand.is_file():
+            return cand
+    sys.exit(f"logo file {filename!r} not found in {ART_DIR}/{game}/")
+
+
+_ART_CACHE = {}
+
+
+def load_art(path: Path) -> Compound:
+    """The drawing in `path` (DXF) as filled planar faces, ready to extrude.
+
+    A DXF holds only closed outlines, so the letter counters arrive as
+    separate wires: a wire nested in an odd number of others is a hole in
+    the face around it, and one nested in an even number is a face of its
+    own (an island inside a hole). Results are cached per file."""
+    key = str(path)
+    if key in _ART_CACHE:
+        return _ART_CACHE[key]
+    faces = sorted((Face(w) for w in import_dxf(str(path))),
+                   key=lambda f: -f.area)
+    if not faces:
+        sys.exit(f"{path}: no closed outlines to fill")
+
+    def inner_point(face):
+        """A point strictly inside `face` — its centre when the face is
+        convex enough, else the first hit of a coarse grid."""
+        centre = face.center()
+        if face.is_inside(centre):
+            return centre
+        bb = face.bounding_box()
+        for i in range(1, 20):
+            for j in range(1, 20):
+                p = (bb.min.X + bb.size.X * i / 20,
+                     bb.min.Y + bb.size.Y * j / 20, 0)
+                if face.is_inside(p):
+                    return p
+        raise RuntimeError(f"{path}: cannot find a point inside an outline")
+
+    points = [inner_point(f) for f in faces]
+    parent = [None] * len(faces)
+    for i in range(len(faces)):
+        for j in range(i - 1, -1, -1):        # smallest container wins
+            if faces[j].is_inside(points[i]):
+                parent[i] = j
+                break
+    depth = []
+    for i in range(len(faces)):
+        d, p = 0, parent[i]
+        while p is not None:
+            d, p = d + 1, parent[p]
+        depth.append(d)
+    filled = [Face(faces[i].outer_wire(),
+                   [faces[j].outer_wire() for j in range(len(faces))
+                    if parent[j] == i])
+              for i in range(len(faces)) if depth[i] % 2 == 0]
+    # a face built from a clockwise outline faces -Z and would extrude down
+    # into the base plate, so point them all up
+    art = Compound(children=[f if f.normal_at().Z > 0 else -f for f in filled])
+    _ART_CACHE[key] = art
+    return art
 
 
 def find_config_file():
@@ -215,6 +295,14 @@ def read_config_file(path: Path, game: str) -> list:
                exactly these label widths (free-form, NOT restricted to
                the game's standard widths - e.g. legacy sizes); may be
                given multiple times
+      logo=<file>  artwork in logos/<game>/<file> (DXF) printed instead
+               of the set name; doubles every plate= plate into a "with
+               logo" and a "plain" version
+      numbers=<n>  the set ships as n numbered boxes, so every plate=
+               plate is repeated unnumbered and once per number. Plain
+               labels carry "<name> <i>" at every width; logo labels
+               carry the number on the front label only (the side ones
+               are too narrow for artwork and a number)
     Widths must be standard widths of the game (box= against `widths`,
     split*= against `split_widths`; plate= widths are free-form). A line
     with no keys is skipped. The special name '(BLANK)' is the blank
@@ -222,7 +310,8 @@ def read_config_file(path: Path, game: str) -> list:
     Returns dicts {"name": str, "box": parse_box() | None,
     "split": [half1, half2] | None, "side": str | None,
     "plates": [(title, [widths]), ...],
-    "nsplits": [([widths], [labels]), ...]}."""
+    "nsplits": [([widths], [labels]), ...],
+    "logo": Path | None, "numbers": int}."""
     cfg = GAMES[game]
     records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -240,7 +329,7 @@ def read_config_file(path: Path, game: str) -> list:
         if name.upper() == "(BLANK)":
             name = ""
         box, split, halves, side, plates = None, None, {}, None, []
-        nsplits = []
+        nsplits, logo, numbers = [], None, 0
         for field in parts[2:]:
             if not field:
                 continue
@@ -284,10 +373,17 @@ def read_config_file(path: Path, game: str) -> list:
                 if len(labels) < 2 or any(not t for t in labels):
                     sys.exit(f"{where}: parts= needs 2 or more non-empty labels")
                 nsplits.append((widths, labels))
+            elif key == "logo" and sep:
+                logo = find_art_file(game, value.strip())
+            elif key == "numbers" and sep:
+                if not value.strip().isdigit() or int(value) < 1:
+                    sys.exit(f"{where}: numbers= takes a count of 1 or more, "
+                             f"got {value!r}")
+                numbers = int(value)
             else:
                 sys.exit(f"{where}: unknown field {field!r} (expected box=U[/S], "
                          f"split=U[/S], split1=/split2=, parts=<w>@<labels>, "
-                         f"side= or plate=)")
+                         f"side=, plate=, logo= or numbers=)")
         if halves:
             if split is not None or set(halves) != {"split1", "split2"}:
                 sys.exit(f"{where}: split1= and split2= must be given "
@@ -295,7 +391,8 @@ def read_config_file(path: Path, game: str) -> list:
             split = [halves["split1"], halves["split2"]]
         if box is not None or split is not None or plates or nsplits:
             records.append({"name": name, "box": box, "split": split,
-                            "side": side, "plates": plates, "nsplits": nsplits})
+                            "side": side, "plates": plates, "nsplits": nsplits,
+                            "logo": logo, "numbers": numbers})
     return records
 
 
@@ -331,10 +428,226 @@ class LabelFont:
                     align=(Align.MIN, Align.NONE))
 
 
-def make_label(name: str, width: float, font: LabelFont, caps: dict = None):
+_MAIN_ROW_CACHE = {}
+
+
+def art_main_row(art: Compound) -> Compound:
+    """`art` cropped to its densest horizontal band and everything above.
+
+    A logo often hangs a device below its wordmark — Compile's "<!>" —
+    which is charming on its own but eats the height a box number needs
+    underneath. Dropping it doubles the wordmark on a narrow label. The
+    cut is the bottom of the band carrying the bulk of the ink, i.e. the
+    wordmark's baseline, found by scanning ink area band by band."""
+    if id(art) in _MAIN_ROW_CACHE:
+        return _MAIN_ROW_CACHE[id(art)]
+    bb = art.bounding_box()
+    bands = 40
+    step = bb.size.Y / bands
+    ink = []
+    for i in range(bands):
+        strip = Rectangle(bb.size.X + 2, step, align=(Align.MIN, Align.MIN))
+        strip = strip.translate(Vector(bb.min.X - 1, bb.min.Y + i * step, 0))
+        area = 0.0
+        for face in art.faces():
+            overlap = face & strip
+            if overlap is not None:
+                area += overlap.area
+        ink.append(area)
+    peak = ink.index(max(ink))
+    floor = peak
+    while floor > 0 and ink[floor - 1] >= 0.25 * ink[peak]:
+        floor -= 1
+    cut = bb.min.Y + floor * step
+    keep = Rectangle(bb.size.X + 2, bb.max.Y - cut + 1,
+                     align=(Align.MIN, Align.MIN)).translate(
+        Vector(bb.min.X - 1, cut, 0))
+    faces = []
+    for face in art.faces():
+        overlap = face & keep
+        if overlap is not None:
+            faces += overlap.faces()
+    cropped = Compound(children=faces)
+    _MAIN_ROW_CACHE[id(art)] = cropped
+    return cropped
+
+
+def hits(shapes, box) -> bool:
+    """Does any of `shapes` have ink inside the rectangle (x0, x1, y0, y1)?"""
+    x0, x1, y0, y1 = box
+    rect = Rectangle(x1 - x0, y1 - y0, align=(Align.MIN, Align.MIN)).translate(
+        Vector(x0, y0, 0))
+    for face in shapes.faces():
+        bb = face.bounding_box()
+        if bb.max.X < x0 or bb.min.X > x1 or bb.max.Y < y0 or bb.min.Y > y1:
+            continue                       # bounding boxes miss: cheap reject
+        overlap = face & rect               # None when they only touch
+        if overlap is not None and overlap.area > 1e-6:
+            return True
+    return False
+
+
+def fit_art(art: Compound, width: float, height: float, cc_left: float,
+            group_w: float, group_h: float, keepouts: list):
+    """Largest placement of `art` (as part of a group `group_w` x `group_h`
+    wide in artwork units) that puts no ink in any keep-out rectangle.
+
+    The artwork's bounding box may overlap the staircase and the "cc" as
+    long as no ink lands on them — logos tend to be empty in the corners,
+    which is what lets the big front label carry a big logo — so the
+    boxes are tried largest first. Returns (placed artwork, scale) or
+    (None, 0) when even the smallest box is blocked."""
+    top = height - ART_MARGIN
+    boxes = [(ART_MARGIN, width - ART_MARGIN, ART_MARGIN),         # whole label
+             (MARGIN + LOGO_SIZE + TEXT_SIDE_GAP,                  # between the
+              cc_left - TEXT_SIDE_GAP, ART_MARGIN),                #  two marks
+             (ART_MARGIN, width - ART_MARGIN,                      # above them
+              MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO)]
+    for left, right, bottom in sorted(
+            boxes, key=lambda b: -min((b[1] - b[0]) / group_w,
+                                      (top - b[2]) / group_h)):
+        if right <= left or top <= bottom:
+            continue
+        factor = min((right - left) / group_w, (top - bottom) / group_h)
+        placed = scale(art, by=factor)
+        bb = placed.bounding_box()
+        placed = placed.translate(Vector(
+            left + (right - left - group_w * factor) / 2 - bb.min.X,
+            bottom + (top - bottom - group_h * factor) / 2 - bb.min.Y, 0))
+        if not any(hits(placed, box) for box in keepouts):
+            return placed, factor
+    return None, 0.0
+
+
+def art_placement(art: Compound, number: str, font: LabelFont, width: float,
+                  height: float, cc_left: float):
+    """Place game artwork, and any box number, on a label.
+
+    The artwork takes the name's place. A number goes beside it only when
+    the label is wide enough for that to cost the artwork nothing — the
+    front label — and otherwise underneath it, on the staircase's line
+    between the staircase and the "cc". Underneath, the artwork is cropped
+    to its wordmark (see art_main_row): the room that frees up more than
+    pays for what is dropped. A label too narrow for a number down there
+    (20mm) falls back to setting it beside the artwork, uncropped.
+    Returns the placed 2D shapes."""
+    bb = art.bounding_box()
+    art_w, art_h = bb.size.X, bb.size.Y          # artwork units
+    marks = [(MARGIN - TEXT_SIDE_GAP, MARGIN + LOGO_SIZE + TEXT_SIDE_GAP,
+              BOTTOM_CLEARANCE, MARGIN + LOGO_SIZE + TEXT_SIDE_GAP),
+             (cc_left - TEXT_SIDE_GAP, width - MARGIN + TEXT_SIDE_GAP,
+              BOTTOM_CLEARANCE, MARGIN + CC_XHEIGHT + TEXT_SIDE_GAP)]
+    alone, alone_factor = fit_art(art, width, height, cc_left,
+                                  art_w, art_h, marks)
+    if not number:
+        return [alone] if alone is not None else []
+
+    num = font.render(number)
+    num_ratio = num.bounding_box().size.X / font.cap     # width per cap height
+
+    # beside the artwork: they scale together, so the number costs the
+    # artwork width but no height
+    group_w = art_w + (ART_NUMBER_GAP + ART_NUMBER_CAP * num_ratio) * art_h
+    beside, beside_factor = fit_art(art, width, height, cc_left,
+                                    group_w, art_h, marks)
+
+    def beside_shapes():
+        """Artwork with the number to its right, cap on the label's centre."""
+        scaled = scale(num, by=ART_NUMBER_CAP * art_h * beside_factor / font.cap)
+        nb, ab = scaled.bounding_box(), beside.bounding_box()
+        return [beside, scaled.translate(Vector(
+            ab.max.X + ART_NUMBER_GAP * ab.size.Y - nb.min.X,
+            (height - nb.size.Y) / 2 - nb.min.Y, 0))]
+
+    if beside is not None and beside_factor >= alone_factor - 1e-9:
+        return beside_shapes()
+
+    # under the wordmark: a fixed-height number on the staircase's line,
+    # centred in the gap between the staircase and the "cc" and shrunk to it
+    left = MARGIN + LOGO_SIZE + TEXT_SIDE_GAP
+    right = cc_left - TEXT_SIDE_GAP
+    cap = min(NUMBER_BELOW_CAP, (right - left) / num_ratio)
+    if cap >= NUMBER_MIN_CAP:
+        under_number = scale(num, by=cap / font.cap)
+        nb = under_number.bounding_box()
+        under_number = under_number.translate(Vector(
+            (left + right - nb.size.X) / 2 - nb.min.X, MARGIN - nb.min.Y, 0))
+        nb = under_number.bounding_box()
+        wordmark = art_main_row(art)
+        wb = wordmark.bounding_box()
+        under, _ = fit_art(
+            wordmark, width, height, cc_left, wb.size.X, wb.size.Y,
+            marks + [(nb.min.X - TEXT_SIDE_GAP, nb.max.X + TEXT_SIDE_GAP,
+                      BOTTOM_CLEARANCE, nb.max.Y + TEXT_SIDE_GAP)])
+        if under is not None:
+            return [under, under_number]
+
+    # stacked: no room for a number beside the staircase (20mm), so the
+    # wordmark and the number share the box above it, both centred
+    box_left, box_right = ART_MARGIN, width - ART_MARGIN
+    box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
+    box_top = height - ART_MARGIN
+    cap = min(NUMBER_BELOW_CAP, (box_right - box_left) / num_ratio)
+    wordmark = art_main_row(art)
+    wb = wordmark.bounding_box()
+    room = box_top - box_bottom - cap - TEXT_GAP_ABOVE_LOGO
+    if cap >= NUMBER_MIN_CAP and room > 0:
+        factor = min((box_right - box_left) / wb.size.X, room / wb.size.Y)
+        stack = wb.size.Y * factor + TEXT_GAP_ABOVE_LOGO + cap
+        bottom = box_bottom + (box_top - box_bottom - stack) / 2
+        digit = scale(num, by=cap / font.cap)
+        nb = digit.bounding_box()
+        digit = digit.translate(Vector((width - nb.size.X) / 2 - nb.min.X,
+                                       bottom - nb.min.Y, 0))
+        placed = scale(wordmark, by=factor)
+        ab = placed.bounding_box()
+        placed = placed.translate(Vector(
+            (width - ab.size.X) / 2 - ab.min.X,
+            bottom + cap + TEXT_GAP_ABOVE_LOGO - ab.min.Y, 0))
+        return [placed, digit]
+
+    return beside_shapes() if beside is not None else []
+
+
+def number_below(number: str, name: str, font: LabelFont, width: float,
+                 height: float, cc_left: float, cap: float):
+    """Set a box number under the name; returns (number shape, text floor).
+
+    It goes on the staircase's line, centred in the gap between the
+    staircase and the "cc". On a label too narrow for that gap (20mm) it
+    takes its own line instead, directly above the staircase, and the
+    name's box floor rises to make room — hence the returned floor."""
+    floor = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
+    num = font.render(number)
+    ratio = num.bounding_box().size.X / font.cap
+    left, right = MARGIN + LOGO_SIZE + TEXT_SIDE_GAP, cc_left - TEXT_SIDE_GAP
+    size = min(NUMBER_BELOW_CAP, (right - left) / ratio)
+    if size >= NUMBER_MIN_CAP:
+        digit = scale(num, by=size / font.cap)
+        nb = digit.bounding_box()
+        return digit.translate(Vector((left + right - nb.size.X) / 2 - nb.min.X,
+                                      MARGIN - nb.min.Y, 0)), floor
+    # its own line: the name keeps its standard height, the number takes
+    # what is left over
+    text_h = font.render(name).bounding_box().size.Y * cap / font.cap
+    size = min(NUMBER_BELOW_CAP, (width - 2 * MARGIN) / ratio,
+               height - TEXT_TOP_MARGIN - floor - text_h - TEXT_GAP_ABOVE_LOGO)
+    if size < NUMBER_MIN_CAP:
+        return None, floor
+    digit = scale(num, by=size / font.cap)
+    nb = digit.bounding_box()
+    return (digit.translate(Vector((width - nb.size.X) / 2 - nb.min.X,
+                                   floor - nb.min.Y, 0)),
+            floor + size + TEXT_GAP_ABOVE_LOGO)
+
+
+def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
+               art: Compound = None, number: str = ""):
     """Build one label; returns (base Solid (white), raised Compound (black)).
     `caps` maps label width -> standard text capital height (mm); without an
-    entry for `width` the text sizes to fill its box."""
+    entry for `width` the text sizes to fill its box. `art` is a drawing
+    printed instead of the name, and `number` a box number set apart from
+    both (a number that reads as part of the name belongs in `name`)."""
     height = LABEL_HEIGHT
     z_top = Vector(0, 0, BASE_THICKNESS)
 
@@ -363,19 +676,28 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None):
     #             logo and the cc — so it must fit in the gap between them —
     #             and grows to BIG_CAPS, sitting on a baseline low enough
     #             for its descenders to clear the bottom margin
-    # The lowered layout is used whenever it renders the name larger.
-    if name:
+    # The lowered layout is used whenever it renders the name larger. A
+    # box number set apart from the name goes below it (number_below).
+    if art is not None:
+        for shape in art_placement(art, number, font, width, height, cc_left):
+            raised += extrude(shape.translate(z_top), amount=RAISE_TEXT)
+    elif name:
         box_left, box_right = MARGIN, width - MARGIN
         box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
         box_top = height - TEXT_TOP_MARGIN
+        cap = (caps or {}).get(width)
+        if number:
+            digit, box_bottom = number_below(number, name, font, width, height,
+                                             cc_left, cap or LOGO_SIZE)
+            if digit is not None:
+                raised += extrude(digit.translate(z_top), amount=RAISE_TEXT)
         txt = font.render(name)
         bb = txt.bounding_box()
         factor = min((box_right - box_left) / bb.size.X,
                      (box_top - box_bottom) / bb.size.Y)
-        cap = (caps or {}).get(width)
         if cap is not None:
             factor = min(factor, cap / font.cap)
-        big_cap = BIG_CAPS.get(width)
+        big_cap = BIG_CAPS.get(width) if not number else None
         if big_cap is not None:
             centre = (box_left + box_right) / 2
             gap = 2 * min(centre - (MARGIN + LOGO_SIZE + TEXT_SIDE_GAP),
@@ -401,9 +723,36 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None):
     base_solid.color = BASE_COLOR
     base_solid.label = "base"
     raised_comp = Compound(raised.solids())
+    low = raised_comp.bounding_box().min.Y
+    if low < BOTTOM_CLEARANCE - 1e-6:        # the box pocket must stay clear
+        sys.exit(f"{name or 'blank'} {width:g}mm: raised detail reaches "
+                 f"{low:.2f}mm from the bottom edge, inside the "
+                 f"{BOTTOM_CLEARANCE:g}mm pocket clearance")
     raised_comp.color = RAISED_COLOR
     raised_comp.label = "raised"
     return base_solid, raised_comp
+
+
+def label_polygons(name: str, width: float, font: LabelFont, caps: dict = None,
+                   art: Compound = None, number: str = "", segments: int = 10):
+    """The label's raised detail as flat polygons, for drawing previews.
+
+    Returns one entry per printed shape, largest first, each a list of
+    rings in mm: the outline followed by its holes (letter counters). The
+    cover images use this so they show exactly what gets printed."""
+    _, raised = make_label(name, width, font, caps, art, number)
+    faces = [face for solid in raised.solids() for face in solid.faces()
+             if face.bounding_box().size.Z < 1e-6
+             and face.bounding_box().max.Z > BASE_THICKNESS + 1e-6]
+
+    def ring(wire):
+        points = []
+        for edge in wire.order_edges():
+            points += [tuple(edge @ (i / segments))[:2] for i in range(segments)]
+        return points
+
+    return [[ring(face.outer_wire())] + [ring(w) for w in face.inner_wires()]
+            for face in sorted(faces, key=lambda f: -f.area)]
 
 
 def add_mesh_object(mesher: Mesher, shape, part_number: str):
@@ -630,9 +979,14 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     cascade (sleeved) — collapsing sleeved/unsleeved pairs that use the
     same widths — plus, for each parts= grouping, one plate per width
     holding all its parts at that width — and every other label as
-    spares. Split plates carry one front and one side per half-box.
-    Returns
-    [(plate name, [(label name, width), ...]), ...]."""
+    spares. Split plates carry one front and one side per half-box. A
+    plate= plate with logo= and/or numbers= expands into one plate per
+    combination (see read_config_file).
+
+    Returns {profile: [(plate name, labels), ...]}, one profile per 3MF
+    the set needs: "" for the set's own file and "Logo" for its artwork
+    labels, which are a print of their own. A label is
+    (name, width, artwork | None, box number)."""
     name = record["name"]
     display = name or "Blank"
     front = cfg.get("front")
@@ -643,9 +997,9 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     side_base = record.get("side") or name   # short text for side labels
 
     def box_labels(front_text, side_text, side_width):
-        labels = [(front_text, front)] if front else []
+        labels = [(front_text, front, None)] if front else []
         if side_width and side_width != front:   # width 0 = no side label
-            labels.append((side_text, side_width))
+            labels.append((side_text, side_width, None))
         return labels
 
     def boxes_title(entries, sleeving=None):
@@ -702,24 +1056,38 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
         # narrower side widths carry just the label ("Ages 1-4").
         for w in widths:
             tag = "front" if w == front else f"{w:g}mm"
-            rows = [((f"{name} {lab}" if w == front else lab), w)
+            rows = [((f"{name} {lab}" if w == front else lab), w, None)
                     for lab in labels]
             specs.append((f"{display} {tag} {len(labels)}-part", rows))
+    logo = record.get("logo")
+    numbers = [""] + [str(i) for i in range(1, record.get("numbers", 0) + 1)]
+    art_specs = []
     for title, widths in record.get("plates", []):
-        specs.append((title.replace("/", "-"),
-                      [((name if w == front else side_base), w) for w in widths]))
+        title = title.replace("/", "-")
+        for n in numbers:      # artwork instead of the name, in its own file
+            if logo is None:
+                break
+            art_specs.append((f"{title} with logo{' ' + n if n else ''}",
+                              [("", w, logo, n) for w in widths]))
+        for n in numbers:
+            # the front label reads "<name> <n>"; the narrower ones have no
+            # room for that, so their number goes on its own below the name
+            specs.append((
+                f"{title}{f' {n}' if n else ''}",
+                [(f"{name} {n}".strip(), w, None, "") if w == front else
+                 (side_base, w, None, n) for w in widths]))
     spares = []
     if record["box"]:
         used = {front, *record["box"]["widths"]}
-        spares += [(side_base, w) for w in cfg["widths"] if w not in used]
+        spares += [(side_base, w, None) for w in cfg["widths"] if w not in used]
     if record["split"]:
         for half_no, half in enumerate(record["split"], 1):
             used = {front, *half["widths"]}
-            spares += [(f"{side_base} {half_no}", w) for w in cfg["split_widths"]
-                       if w not in used]
+            spares += [(f"{side_base} {half_no}", w, None)
+                       for w in cfg["split_widths"] if w not in used]
     if spares:
         specs.append((f"{display} spares", spares))
-    return specs
+    return {"": specs, "Logo": art_specs} if art_specs else {"": specs}
 
 
 PROJECT_PLATE_ROWS = 7    # rows a centred stack can hold below the wipe tower
@@ -756,12 +1124,19 @@ def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = Non
                        PLATE_TOP_LIMIT - stack_height)
         y_bottom = max(PLATE_MARGIN, y_bottom)
         for i, row in enumerate(rows):
-            row_w = sum(w for _, w in row) + LABEL_GAP * (len(row) - 1)
+            row_w = sum(e[1] for e in row) + LABEL_GAP * (len(row) - 1)
             x = (PLATE_SIZE - row_w) / 2
             y = y_bottom + (len(rows) - 1 - i) * pitch
-            for label_name, width in row:
-                base, raised = make_label(label_name, width, font, caps)
-                stem = f"{safe_filename(label_name)}_{width:g}mm"
+            for entry_spec in row:
+                label_name, width = entry_spec[0], entry_spec[1]
+                art_file = entry_spec[2] if len(entry_spec) > 2 else None
+                number = entry_spec[3] if len(entry_spec) > 3 else ""
+                art = load_art(art_file) if art_file else None
+                base, raised = make_label(label_name, width, font, caps, art,
+                                          number)
+                stem = " ".join(p for p in ("Logo" if art else "",
+                                            label_name, number) if p)
+                stem = f"{safe_filename(stem)}_{width:g}mm"
                 assembly, entry = add_assembled_label(m, stem, base, raised)
                 m.model.AddBuildItem(assembly,
                                      translation(m, origin_x + x, origin_y + y))
@@ -811,6 +1186,15 @@ def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
     inject_bambu_metadata(path, objects, plates,
                           project_settings=render_project_settings(n_plates))
     print(f"{path}: {len(objects)} labels on {n_plates} plates")
+
+
+def label_file_name(record: dict, profile: str = "", suffix: str = ".3mf") -> str:
+    """The file a set's labels go in: '<set> Labels.3mf', or
+    '<set> Logo Labels.3mf' for a profile. Shared with make_label_covers
+    so a cover always sits next to the print it shows."""
+    name = f"{record['name'] or 'Blank'}{' ' + profile if profile else ''}"
+    return "".join(c if c not in '\\/:*?"<>|' else "_"
+                   for c in f"{name} Labels{suffix}")
 
 
 def safe_filename(name: str) -> str:
@@ -884,14 +1268,16 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
 
     if not args.plates and not args.individual and records is not None:
-        # default: one 3MF per set (whole box / split boxes / spares plates)
+        # default: one 3MF per set (whole box / split boxes / spares plates),
+        # and a second one for its logo labels where the set has artwork
         setdir = outdir
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:
-            fname = f"{rec['name'] or 'Blank'} Labels.3mf"
-            fname = "".join(c if c not in '\\/:*?"<>|' else "_" for c in fname)
-            write_project_3mf(setdir / fname,
-                              set_plate_specs(rec, cfg), font, cfg["caps"])
+            for profile, specs in set_plate_specs(rec, cfg).items():
+                if not specs:
+                    continue
+                write_project_3mf(setdir / label_file_name(rec, profile),
+                                  specs, font, cfg["caps"])
         print("done")
         return
 
