@@ -279,6 +279,19 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   Mixed→P1 unsleeved / H2C sleeved**). This is the general "auto-build" for
   first-building a box whose only project is stale/mislabeled — it replaces the
   old per-box shell scripts.
+- **A cascade with no project at all** is outside `refresh_cascades`: both its
+  modes write *in place* into a project found by model code. Call
+  `make_cascade` directly, donor project in, `-o` the new name out. The donor
+  must carry **at least as many instances of every object** as the new cascade
+  needs — `--count` only ever drops instances (`--count TokenHolder=0` sheds a
+  role the new box doesn't have), and nothing can add one. FCM Milestones needs
+  5 holders where FCM's own projects top out at 4, so it was built from
+  **Dominion 324**, cross-game. That is safe: plate titles are regenerated from
+  the `-o` name, and a project's settings carry nothing game-specific. Where the
+  donor's lid has fewer lettering bodies than the new one (Dominion embosses a
+  shorter model code — 7 bodies against FCM's 11), `add_body_part` clones the
+  missing parts onto the lid object's default extruder, which is the lettering
+  colour; check the built lid reads `{'2': 10, '1': 1}` before trusting it.
 - Cascade projects are named canonically — `<Game> <Short name>
   <Sleeved|Unsleeved> (<model>).3mf` (`components.cascade_filename`, `/`→`-`);
   Innovation/Compile/Dominion match. `--standardize-names` git-renames legacy
