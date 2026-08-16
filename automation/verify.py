@@ -8,12 +8,21 @@ notices until make_cascade happens to refuse the layout, and only then if the
 wrong part is the wrong SIZE in a way that overflows the bed.
 
   footprint  the exported Box's measured W x D must match the cascade's
-             parts.csv W/D. Measured over every box in individual/: parts.csv is
-             the mesh bbox + 2.0-2.1 mm on both axes (the box's outer wall).
-             WIDTH is the tight discriminator — 2.00-2.10 with no exceptions
-             across 33 correct boxes — so a width mismatch is fatal. DEPTH has a
-             handful of parts.csv rows that have drifted from the model, so a
-             depth mismatch only warns.
+             parts.csv W/D. Those columns are the ASSEMBLED, CLOSED cascade —
+             the LID's outer size, since the box fits inside it. Over the 33
+             built cascades the lid measures parts.csv to within 0.02 mm in
+             depth and a flat -0.10 mm in width (the width column rounds 270.90
+             up to 271.0), and the box measures the lid MINUS 2.00 mm on both
+             axes, with no exceptions. WALL below is that 2.00 plus the 0.1
+             rounding, which is why it is not a round number and why it is not
+             "the box's wall": the 2 mm is the lid wrapping the box, 1 mm a
+             side. WIDTH is the tight discriminator, so a width mismatch is
+             fatal. DEPTH has a handful of parts.csv rows that have drifted from
+             the model, so a depth mismatch only warns — D_TOL is 1.2 mm, wide
+             enough that passing this check does NOT confirm a row's depth to
+             better than a millimetre. An unbuilt row's estimated W/D should be
+             replaced with the lid's measurements once its CAD exists, rather
+             than left to ride on that slack.
 
   identity   a new export's mesh hash must not equal one already recorded for a
              DIFFERENT component file, in ANY game (the stale export usually

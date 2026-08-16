@@ -38,6 +38,15 @@ Status, Horizontal, Risers, Cards/Riser slot, Cards/First Riser,
 Front capacity, Box Height / mm, Merged-slot, TokenHolder, 3D printer, Notes,
 Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm`.
 
+**The W/D columns are the ASSEMBLED, CLOSED cascade** — i.e. the LID's outer
+size, because the box fits inside the lid. Across the 33 built cascades the
+relationship holds without exception: lid = parts.csv (to 0.02 mm in depth;
+width rounds 270.90 up to 271.0), box = lid − 2.00 mm on both axes, the lid
+wrapping the box by 1 mm a side. `verify.WALL` is that 2.00 plus the 0.1
+rounding. A row that has never been built carries ESTIMATED W/D; replace them
+with the lid's measurements once its CAD exists, because `check_box`'s depth
+tolerance is 1.2 mm and will not tell you the estimate was off.
+
 Decoded model code: **`<Size><Risers>.<FrontCapacity>.<Cards/RiserSlot>[/<Cards/FirstRiser>]`**;
 `Unsl/Sleeved model` append `.<labelWidth>-Un` / `-Sl`. `Horizontal` = size class
 (S=3, M=4, L=5). Each row yields **two cascades** (`-Un` and `-Sl`).
