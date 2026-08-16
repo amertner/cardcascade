@@ -1,0 +1,61 @@
+# Card Cascade
+
+3D-printed card storage boxes ("cascades") for board games, plus the box
+labels. Everything here generates printable 3MF projects.
+
+## Two separate toolchains — work out which one you're in first
+
+| | Labels | Cascades (the boxes) |
+|---|---|---|
+| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` |
+| Geometry from | build123d, generated locally | Onshape, exported via API |
+| Config | `cc.cfg` | `automation/parts.csv` |
+| Read first | `README.md` | `automation/PIPELINE.md` |
+| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` |
+
+**Read the relevant doc before editing either.** `PIPELINE.md` in particular
+records decisions and their reasoning; it is the design record, not a summary.
+
+## Ground rules
+
+- **Use `.venv/bin/python`**, never system python (build123d + Onshape deps).
+- **Onshape API budget is ~2500 calls per YEAR** (`automation/onshape_api_log.csv`
+  has the running total). Every export path defaults to a 0-call dry run —
+  keep it that way, and never re-fetch what `individual/<Game>/_raw/` can
+  re-split. Deduplication is why the budget works, not an optimisation.
+- **`cd` is blocked by a hook.** Use absolute paths, `git -C`, `PYTHONPATH=`.
+- Paths contain spaces — quote them.
+- Label generation takes minutes per game. Run it in the background.
+- Commits go straight to `main`, with a message body that explains *why* and
+  what was verified. Match the existing log's depth.
+
+## Facts that are easy to get wrong
+
+- `parts.csv` W/D columns are the **assembled, closed cascade** — the lid's
+  outer size. The box is lid − 2.00 mm on both axes. `verify.check_lid` holds
+  a lid to 0.2 mm of its row; `check_box`'s depth tolerance is 1.2 mm and
+  proves much less.
+- **The CAD is the authority on a box's model code**, not `parts.csv`.
+- Every generated project carries exactly **two filament slots: white 1,
+  black 2**, and `wall_generator: arachne` (forced by
+  `make_cascade.PRINT_SETTINGS` on every path).
+- **Never re-save a project in Bambu Studio to fix a MakerWorld rejection** —
+  that converts a rejected upload into a failed verification. Use
+  `automation/filaments.py --makerworld`.
+- The big `.config` files are Studio JSON: sorted keys, 4-space indent. Edit
+  values, don't re-dump with different formatting.
+- `refresh_cascades.py` refreshes existing cascades; it **cannot first-build**
+  one (both modes write in place). New cascade = `make_cascade.py` called
+  directly with a donor project, and the donor needs at least as many
+  instances of every object as the new box — `--count` only ever drops.
+- FCM's project filenames are deliberately non-canonical. **Never run
+  `--standardize-names` on FCM.**
+- `Status` in `parts.csv` is informational except `Parked`, which skips the
+  row. FCM records published rows as `Pub 6.5`, Dominion as `Published`.
+
+## Verify, don't assume
+
+Both toolchains have real guards (`automation/verify.py`,
+`filaments.py --check`, `make_cascade`'s layout refusals). When something
+passes, check what the tolerance actually proves before reporting it as
+confirmation.
