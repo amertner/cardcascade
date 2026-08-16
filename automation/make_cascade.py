@@ -30,6 +30,8 @@ Usage:
 
 Objects stay on their template plates and are re-laid out axis-aligned
 in centred rows (largest first), keeping clear of the wipe tower.
+The template's print settings carry over except for PRINT_SETTINGS,
+which every project this script writes is normalised to.
 Thumbnails are removed (Bambu Studio regenerates them on save).
 The script refuses on any ambiguity; it never guesses.
 """
@@ -63,9 +65,47 @@ BED_MARGIN = 8.0         # bed-fit slack: an object's 45°-rotated span must cle
 #                          (auto is deliberately conservative; a cascade the user
 #                          knows fits a tighter bed can force it with --bed p1)
 
+# Process settings this repo insists on, whatever the template/profile says.
+# Arachne varies the wall width to fill what it is given; classic lays down
+# fixed-width walls and leaves the remainder as gap filler, which on these
+# boxes is exactly where the thin slot dividers and the lid lettering are.
+PRINT_SETTINGS = {"wall_generator": "arachne"}
+
 
 def fail(msg):
     sys.exit(f"REFUSING: {msg}")
+
+
+def force_print_settings(ps):
+    """(settings, notes) — PRINT_SETTINGS applied, each override recorded as a
+    deviation from the stock process preset.
+
+    A project inherits its whole config from whichever donor built it, so a
+    value set only in profiles/ reaches just those projects whose bed profile
+    was swapped: the four Innovation projects carry arachne and every other
+    project classic for exactly that reason. Forcing it here instead covers
+    every path, including --keep-layout, which otherwise leaves
+    project_settings.config exactly as the donor wrote it.
+
+    `different_settings_to_system[0]` is the PROCESS entry — Studio lists
+    there, semicolon-separated, the keys this project changed from its stock
+    preset (in this repo: enable_arc_fitting, sparse_infill_pattern,
+    ironing_type). A changed key missing from that list is what makes Studio
+    display the stock value while the project prints its own."""
+    changed = sorted(k for k, v in PRINT_SETTINGS.items() if ps.get(k) != v)
+    if not changed:
+        return ps, []
+    out = dict(ps)
+    out.update(PRINT_SETTINGS)
+    # [process, printer, one per filament]; absent in projects that deviate
+    # from nothing, so size it rather than assume it is there.
+    dev = list(out.get("different_settings_to_system")
+               or [""] * (2 + FIL.slots(out)))
+    keys = [k for k in dev[0].split(";") if k]
+    dev[0] = ";".join(sorted(set(keys) | set(PRINT_SETTINGS)))
+    out["different_settings_to_system"] = dev
+    return out, [f"print settings: {k} {ps.get(k, '<unset>')!r} -> "
+                 f"{PRINT_SETTINGS[k]!r}" for k in changed]
 
 
 def parse_meshes(text, scale=1.0):
@@ -1278,12 +1318,21 @@ def main():
     # left to `filaments.py --order/--extruder-map`.
     used = FIL.used_extruders(cfg)
     got, _ = FIL.drop_unused_order(ps, used)
+    dirty = False
     if got:
         order, _map = got
         before = FIL.slots(ps)
         ps, _notes = FIL.remap(ps, order)
         print(f"filaments: {before} slots -> {len(order)} "
               f"(dropped unused {list(range(len(order) + 1, before + 1))})")
+        dirty = True
+
+    # Same reasoning, same place: normalise on every path rather than only
+    # where a profile swap happens to rewrite the settings.
+    ps, notes = force_print_settings(ps)
+    for note in notes:
+        print(note)
+    if dirty or notes:
         (work / "Metadata/project_settings.config").write_text(
             json.dumps(ps, ensure_ascii=False, indent=4))
 

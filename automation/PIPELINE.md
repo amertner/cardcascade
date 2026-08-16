@@ -299,6 +299,28 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   keep-layout cannot ADD an object, so a cascade missing a new object's slot
   (e.g. a pre-HalfTokenHolder Mat template) is skipped for manual layout.
 
+## Process settings — `make_cascade.PRINT_SETTINGS`
+
+Every project this repo writes uses the **Arachne** wall generator
+(`wall_generator: arachne`). It varies wall width to fill the space it is
+given; classic lays fixed-width walls and leaves the remainder to gap fill,
+which on these boxes is precisely where the thin slot dividers and the lid
+lettering are.
+
+Setting it in `profiles/*.config` alone is not enough — a project inherits its
+whole config from its donor, and the profile is only consulted when
+`--auto-plates` actually *swaps* the bed. That is why the four Innovation
+projects (built from an arachne donor) carried it while every other project
+carried classic. `make_cascade.force_print_settings` therefore applies
+`PRINT_SETTINGS` on **every** path, including `--keep-layout`, and records each
+override in `different_settings_to_system[0]` — the process entry, where Studio
+lists (semicolon-separated) the keys a project changed from its stock preset.
+A changed key missing from that list makes Studio show the stock value while
+the project prints its own.
+
+Existing projects pick this up the next time they pass through `make_cascade`,
+i.e. on any `refresh_cascades.py` run; two keys change and nothing else.
+
 ## Filament slots — `filaments.py`
 
 Every cascade project should carry exactly **two** filament slots: **white in
