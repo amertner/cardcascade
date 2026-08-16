@@ -611,17 +611,21 @@ def main():
         # centred meshes into the shared sub-model files
         centres, faces = {}, {}
         files = dict.fromkeys(f for f, _ in comps[oid])
+        # A part id (model_settings.config) and the object id inside the mesh
+        # sub-model it points at (the component's objectid) are USUALLY equal,
+        # but not always: splitting an instance onto its own mesh file renumbers
+        # the object there and leaves the part id alone, which is how Dominion's
+        # older projects end up with part 15 pointing at object 24. Pair them
+        # positionally — every object here is single-part, so the pairing is
+        # forced — and look each one up by the id that its own file uses.
         cid_of = {pid_: cid for (_, cid), (pid_, _) in
                   zip(comps[oid], plist)}
-        for pid_, cid in ((p, c) for p, c in cid_of.items()):
-            if pid_ != cid:
-                fail(f"{name}: part id {pid_} != component id {cid}; "
-                     "unexpected template structure")
+        pid_of_cid = {cid: pid_ for pid_, cid in cid_of.items()}
         for f in files:
             fp = work / f.lstrip("/")
             s = fp.read_text()
             def repl(m):
-                pid_ = m.group(2)
+                pid_ = pid_of_cid.get(m.group(2), m.group(2))
                 if pid_ not in mapping:
                     return m.group(0)
                 _, verts, tris = mapping[pid_]
@@ -640,6 +644,8 @@ def main():
 
         # per-instance updates: component transforms, settings block
         for t in targets:
+            # this instance's own part -> component ids (see cid_of above)
+            t_cid = {p: c for (_, c), (p, _) in zip(comps[t], parts[t])}
             for pid_, _ in parts[t]:
                 c = centres[pid_]
                 tr = tuple(a - b for a, b in zip(c, origin))
@@ -647,7 +653,7 @@ def main():
                     tr = (0.0, 0.0, 0.0)   # single part: frame = its centre
                 xml = re.sub(
                     rf'(<object id="{t}"[^>]*>\s*<components>.*?'
-                    rf'objectid="{pid_}"[^>]*transform=")[^"]+(")',
+                    rf'objectid="{t_cid.get(pid_, pid_)}"[^>]*transform=")[^"]+(")',
                     lambda m: m.group(1)
                     + f"1 0 0 0 1 0 0 0 1 {tr[0]:.9g} {tr[1]:.9g} {tr[2]:.9g}"
                     + m.group(2), xml, count=1, flags=re.S)

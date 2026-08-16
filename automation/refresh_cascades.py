@@ -202,6 +202,39 @@ def object_specs(template_path):
     return out
 
 
+def split_mesh_names(template_path):
+    """{object name: instance count} for names whose instances DON'T all share
+    one mesh file inside the 3MF.
+
+    make_cascade patches a name's instances through the first one, so it refuses
+    a bare `--part NAME=FILE` when they point at different meshes and tells you
+    to target them individually. Most projects store repeated parts once and
+    reference it N times (Dominion's holders all share one mesh), but the older
+    Dominion projects give each pusher its own copy even though all three are
+    the same part — so those need `NAME#1..#N` specs instead of one bare spec.
+
+    Emit per-instance specs ONLY for these names: doing it for a name whose
+    instances share a mesh would make make_cascade split off a private copy per
+    instance, growing the project for nothing."""
+    z = zipfile.ZipFile(template_path)
+    cfg = z.read("Metadata/model_settings.config").decode()
+    names = {}
+    for om in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):
+        oid, body = om.groups()
+        nm = re.search(r'key="name" value="([^"]*)"', body.split("<part", 1)[0])
+        names[oid] = nm.group(1) if nm else ""
+    xml = z.read("3D/3dmodel.model").decode()
+    meshes = {}
+    for om in re.finditer(r'<object id="(\d+)"[^>]*>\s*<components>(.*?)'
+                          r'</components>', xml, re.S):
+        oid, body = om.groups()
+        meshes[oid] = tuple(re.findall(r'p:path="([^"]+)"', body))
+    by_name = {}
+    for oid, nm in names.items():
+        by_name.setdefault(nm, []).append(meshes.get(oid, ()))
+    return {nm: len(v) for nm, v in by_name.items() if len(set(v)) > 1}
+
+
 def role_key(name):
     """A (role, discriminator) key that pairs a template object name with the
     component that should refill it. Templates suffix names by cascade/size
@@ -314,8 +347,15 @@ def assemble_one(game, spec, casc, dry):
 
     cmd = [sys.executable, str(HERE / "make_cascade.py"), str(template),
            "-o", str(template), "--keep-layout"]
+    split = split_mesh_names(template)
     for obj, file in swap.items():
-        cmd += ["--part", f"{obj}={ROOT / 'individual' / folder / file}"]
+        path = ROOT / "individual" / folder / file
+        if obj in split:
+            # instances don't share a mesh — reach each one by index
+            cmd += [arg for i in range(1, split[obj] + 1)
+                    for arg in ("--part", f"{obj}#{i}={path}")]
+        else:
+            cmd += ["--part", f"{obj}={path}"]
     note = f"  (left untouched: {unmatched})" if unmatched else ""
     if dry:
         return "ok", "would run: " + " ".join(
