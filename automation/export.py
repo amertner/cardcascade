@@ -169,11 +169,17 @@ def cached_studio(folder, comp):
     return p if p.exists() else None
 
 
-def export_studio(auth, comp, folder, game, when, verify=True, use_cache=False):
+def export_studio(auth, comp, folder, game, when, verify=True, use_cache=False,
+                  ctx=None):
     """One part-studio component (Lid, Topper, Label): translate -> strip imports
     -> file + provenance. With use_cache, re-strip the cached raw studio export
     (0 API calls) instead of translating when one is on disk — the studio
-    counterpart of export_assembly's cache path."""
+    counterpart of export_assembly's cache path.
+
+    A Lid is checked against its cascade's parts.csv W/D before it is written
+    (verify.check_lid), the studio counterpart of export_assembly's check_box —
+    tighter, because those columns describe the closed cascade and so are the
+    lid's own size."""
     typ = comp["type"]
     cached = cached_studio(folder, comp) if use_cache else None
     if cached:
@@ -192,6 +198,20 @@ def export_studio(auth, comp, folder, game, when, verify=True, use_cache=False):
             body, reason=typ.lower())
         raw = cache_raw(folder, comp["file"][:-4], mesh.unwrap(data))
     clean, dropped = mesh.strip_objects(data, {t for t in OC.ELEMENTS if t != typ})
+    fatal = (V.check_lid(clean, ctx)[0]
+             if verify and typ == "Lid" and ctx else None)
+    if fatal:
+        wait = O.bump_settle() if raw else 0
+        sys.exit(
+            f"\n✗ REFUSING {comp['file']}: {fatal}.\n"
+            f"  Either Onshape served a translation cached from the PREVIOUS "
+            f"parameter set, or that parts.csv row's W/D are an estimate "
+            f"rather than a measurement. Nothing was written to individual/"
+            f"{folder}/.\n"
+            + (f"  The settle wait is now {wait}s — re-run.\n" if raw else "")
+            + f"  The download is kept in _raw/, so correcting the row and "
+              f"re-running with --use-cache costs 0 calls. Use --skip-verify "
+              f"if the row is the thing you want to keep.")
     n = _write(clean, comp, folder, game, OC.ELEMENTS[typ], mv, when, verify)
     # The raw studio download is cached BEFORE the write, so a refused export
     # (the identity guard exits) never costs its bytes. Past that point it only
@@ -303,7 +323,7 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
             if comp["type"] not in OC.ELEMENTS:
                 print(f"    ⚠ skip {comp['file']} — no element id"); continue
             n, dropped = export_studio(auth, comp, folder, game, when, verify,
-                                       use_cache=use_cache)
+                                       use_cache=use_cache, ctx=casc["ctx"])
             extra = f", stripped {dropped}" if dropped else ""
             print(f"    ✓ {comp['file']}  ({n} bodies, studio{extra})")
             done += 1

@@ -24,6 +24,12 @@ wrong part is the wrong SIZE in a way that overflows the bed.
              replaced with the lid's measurements once its CAD exists, rather
              than left to ride on that slack.
 
+  lid        the exported Lid's measured W x D must match the same columns
+             DIRECTLY — it is the closed cascade they describe — so it is held
+             to 0.2 mm on both axes, and fatally. This is the check that
+             notices a row whose W/D were estimated rather than measured; the
+             footprint check above cannot, its depth tolerance being 1.2 mm.
+
   identity   a new export's mesh hash must not equal one already recorded for a
              DIFFERENT component file, in ANY game (the stale export usually
              comes from the previous run, which is usually a different game).
@@ -50,6 +56,9 @@ MODEL = "3D/3dmodel.model"
 WALL = 2.05
 W_TOL = 0.6        # fatal beyond this
 D_TOL = 1.2        # warn beyond this (some parts.csv depths have drifted)
+
+# A lid needs no wall constant, so it is checked far tighter — and on both axes.
+L_TOL = 0.2        # fatal beyond this
 
 
 def _model_text(data):
@@ -104,6 +113,39 @@ def check_box(data, ctx):
         return (None, f"Box for {ctx['model']} depth is off by {dd:.1f} mm: "
                       f"{got} — check the parts.csv row")
     return None, None
+
+
+def check_lid(data, ctx):
+    """(fatal message or None, None) for an exported Lid.
+
+    The parts.csv W/D columns measure the closed cascade, so the lid IS that
+    figure — no wall constant in between, and therefore a far tighter check
+    than check_box can manage. Over the 33 built cascades a lid measures its
+    row to within 0.12 mm in depth and 0.00 to -0.10 mm in width (the width
+    column rounds a 270.90 lid up to 271.0), so L_TOL is slack beyond anything
+    the CAD does while still catching a row whose W/D were never measured:
+    Milestones' pre-build guesses of 40/48 mm were out by 0.22 and 0.30.
+
+    Fatal on BOTH axes, unlike check_box, which has to tolerate a drifted
+    depth because its own comparison is looser. Here a mismatch is either a
+    stale translation or an estimate that wants replacing with these
+    measurements, and both are worth stopping for.
+
+    Skips silently when the row carries no W/D, as check_box does."""
+    want_w, want_d = ctx.get("box_w"), ctx.get("box_d")
+    if not (want_w and want_d):
+        return None, None
+    w, d, _h = footprint(data)
+    off = [(axis, got, want)
+           for axis, got, want in (("width", w, want_w), ("depth", d, want_d))
+           if abs(got - want) > L_TOL]
+    if not off:
+        return None, None
+    detail = ", ".join(f"{axis} {got:.2f} vs parts.csv {want:g} ({got - want:+.2f})"
+                       for axis, got, want in off)
+    return (f"Lid for {ctx['model']} disagrees with its parts.csv row by more "
+            f"than {L_TOL} mm: {detail}. Those columns are the closed cascade, "
+            f"which a lid should match exactly"), None
 
 
 def duplicate(sha, file, provenance_rows):
