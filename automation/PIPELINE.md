@@ -404,6 +404,60 @@ Stale `filament_nozzle_map` / `filament_volume_map` lengths (9 or 7 entries for
 2 filaments) are reported but deliberately NOT changed: Dominion 560/650 carry
 them and upload fine, so they are drift from an older Studio, not a gate.
 
+### The prime tower has to clear BOTH nozzles (`towers.py`)
+
+A second, unrelated upload rejection:
+
+> [Plate 3]: Found G-code in unprintable area of multi-extruder printers after
+> slicing.
+
+The H2C is dual-nozzle and its nozzles do not reach the same bed —
+`extruder_printable_area` is `x 0..325` for extruder 1 and `x 25..330` for
+extruder 2, so only **x 25..325 is reachable by both**. Objects are unaffected
+(each is printed by one extruder and only has to fit that one's area), but every
+filament in use purges into the **prime tower**, so on a two-filament plate the
+tower must sit in the intersection. Only lid plates carry two filaments — the
+lid's lettering is the sole black geometry — so this is a lid-plate defect
+exclusively.
+
+`make_cascade` seeds every plate's tower at (15, 200) and moves it only when it
+*collides* with an object, and both its bounds test and `replace_parts`' allowed
+the whole bed. A lid big enough to need the 45° rotation lies as a diagonal band
+and leaves the bottom-left corner empty, so (15, 200) never collided and the
+illegal seed survived on exactly the plates where it was illegal. Both placers
+now bound the tower by `make_cascade.tower_bounds(ps)`, which is the intersection
+of the extruder areas (and the plain bed on single-nozzle printers, so P1 output
+is unchanged).
+
+Nothing upstream catches this: Studio's 3D view shows the plate as fine, and it
+surfaces only after slicing. Ground truth is Studio's own CLI, which is what
+MakerWorld runs:
+
+```
+/Applications/BambuStudio.app/Contents/MacOS/BambuStudio \
+    --slice 0 --outputdir <dir> <project.3mf>     # 0 = every plate
+```
+
+then read `return_code` from `result.json` — `0`, not `-102`. Worth running on
+any H2C project before upload; it takes about 20 s a plate and it is the same
+check that rejected the upload.
+
+Found on Dominion 560S and repaired with `towers.py --fix`, which relocates by
+`make_cascade`'s own rule (4 mm grid, 15 mm clearance, furthest from the bed
+centre) and writes back through `filaments.write_settings` — so every other zip
+member is copied byte-for-byte and, as above, nothing goes near Studio. Four
+published projects were affected, all H2C: **Dominion 560S/560U** (plate 3),
+**Dominion 472S** (plate 2) and **Innovation 360S** (plates 2 and 4), each tower
+moved to (265, 0) and each project then verified to slice clean on every plate.
+The single-filament plates of those projects still carry x=0/15 towers; they are
+inert (no tower is generated) and were left alone to keep the diff to the
+setting that was actually wrong.
+
+The bound is ~2 mm stricter than the slicer — on 560S plate 3, x=22 is rejected
+and x=24 slices clean, the tower's purge geometry sitting slightly inside its
+nominal origin. Holding the nominal rectangle to the declared area keeps that
+difference as margin rather than depending on it.
+
 ### Identifying per-filament keys
 
 Identifying which of the ~500 settings keys are per-filament is the subtle

@@ -169,6 +169,32 @@ def plate_columns(n):
     return round(value) + 1 if value > round(value) else round(value)
 
 
+def tower_bounds(ps):
+    """The rectangle a prime tower must lie inside: the INTERSECTION of every
+    extruder's printable area, not the bed.
+
+    A dual-nozzle printer's nozzles reach different parts of the bed — the H2C
+    declares extruder 1 over x 0..325 and extruder 2 over x 25..330 — and every
+    filament in use purges into the tower, so a tower legal for one nozzle can
+    be unreachable for the other. Bambu only notices after slicing ("Found
+    G-code in unprintable area of multi-extruder printers"), and MakerWorld
+    slices on upload, so the symptom is a rejected upload. Single-nozzle
+    printers declare no extruder_printable_area and get the bed.
+
+    See towers.py, which checks finished projects and repairs published ones."""
+    boxes = []
+    for spec in ps.get("extruder_printable_area") or []:
+        pts = [tuple(map(float, p.split("x"))) for p in spec.split(",")]
+        boxes.append((min(p[0] for p in pts), min(p[1] for p in pts),
+                      max(p[0] for p in pts), max(p[1] for p in pts)))
+    if not boxes:
+        pts = [tuple(map(float, p.split("x"))) for p in ps["printable_area"]]
+        boxes.append((min(p[0] for p in pts), min(p[1] for p in pts),
+                      max(p[0] for p in pts), max(p[1] for p in pts)))
+    return (max(b[0] for b in boxes), max(b[1] for b in boxes),
+            min(b[2] for b in boxes), min(b[3] for b in boxes))
+
+
 # ---- auto plate scheme (Stage 3): group objects into the standard plates ----
 # One plate per role group, in this order. Pushers ride with the Box.
 PLATE_SCHEME = [
@@ -1154,11 +1180,14 @@ def main():
                         fail(f"plate {pid}: {objects[oid]} overlaps "
                              f"{objects[oid2]}")
 
-            # wipe tower: relocate to the nearest free spot if it collides
+            # wipe tower: relocate to the nearest free spot if it collides, or
+            # if it sits where some extruder cannot reach it
             if idx < len(wx):
+                tx0, ty0, tx1, ty1 = tower_bounds(ps)
+
                 def tower_free(x, y, gap):
-                    if x < 0 or y < 0 or x + tower_w > bed_w \
-                            or y + tower_w > bed_d:
+                    if x < tx0 or y < ty0 or x + tower_w > tx1 \
+                            or y + tower_w > ty1:
                         return False
                     t_obb = rect_obb(x, y, x + tower_w, y + tower_w)
                     if ex_obb and sat_overlap(t_obb, ex_obb, gap):
@@ -1169,10 +1198,10 @@ def main():
                 if not tower_free(wx[idx], wy[idx], WIPE_GAP):
                     best = None
                     for gap in (WIPE_GAP, 5.0):      # prefer clearance, then any fit
-                        gy = 0.0
-                        while gy + tower_w <= bed_d:
-                            gx = 0.0
-                            while gx + tower_w <= bed_w:
+                        gy = ty0
+                        while gy + tower_w <= ty1:
+                            gx = tx0
+                            while gx + tower_w <= tx1:
                                 if tower_free(gx, gy, gap):
                                     # emptiest spot: furthest from centre (parts are
                                     # centred) so the tower sits in a free corner

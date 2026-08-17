@@ -47,6 +47,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from make_cascade import tower_bounds
+
 TOLERANCE_MM = 1.0       # bbox gate for replacements
 MATCH_MM = 0.5           # CAD-centre part matching tolerance
 
@@ -598,10 +600,14 @@ def main():
                         return False
         return True
 
+    # the tower must clear every extruder, not just the bed: on a dual-nozzle
+    # printer the two nozzles reach different areas and both purge here
+    tx0, ty0, tx1, ty1 = tower_bounds(ps)
+
     def tower_ok(pre, x, y, m):
-        # tower body must sit on the bed (Bambu's own default is flush to
+        # tower body must sit inside that area (Bambu's own default is flush to
         # the back edge); the clearance margin applies to objects only
-        if x < 0 or y < 0 or x + tower_w > bed_w or y + tower_w > bed_d:
+        if x < tx0 or y < ty0 or x + tower_w > tx1 or y + tower_w > ty1:
             return False
         return rect_free(pre, x - m, y - m,
                          x + tower_w + m, y + tower_w + m)
@@ -619,10 +625,10 @@ def main():
         best = None
         for m in (place_margin, margin):
             step = CELL
-            gx = 0.0
-            while gx + tower_w <= bed_w:
-                gy = 0.0
-                while gy + tower_w <= bed_d:
+            gx = tx0
+            while gx + tower_w <= tx1:
+                gy = ty0
+                while gy + tower_w <= ty1:
                     if tower_ok(pre, gx, gy, m):
                         d2 = (gx - x) ** 2 + (gy - y) ** 2
                         if best is None or d2 < best[0]:

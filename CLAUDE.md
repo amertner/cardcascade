@@ -42,6 +42,12 @@ records decisions and their reasoning; it is the design record, not a summary.
 - **Never re-save a project in Bambu Studio to fix a MakerWorld rejection** —
   that converts a rejected upload into a failed verification. Use
   `automation/filaments.py --makerworld`.
+- On the **dual-nozzle H2C the two extruders reach different parts of the bed**
+  (only x 25..325 is common), and the prime tower is purged into by both — so a
+  two-filament plate, i.e. any lid plate, can slice into unprintable space and
+  be rejected on upload. `automation/towers.py` checks and repairs it. Studio's
+  3D view shows nothing; only slicing does — `BambuStudio --slice 0 --outputdir
+  <dir> <project.3mf>`, then `result.json` `return_code` must be 0.
 - The big `.config` files are Studio JSON: sorted keys, 4-space indent. Edit
   values, don't re-dump with different formatting.
 - `refresh_cascades.py` refreshes existing cascades; it **cannot first-build**
