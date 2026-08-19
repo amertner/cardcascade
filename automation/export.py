@@ -355,7 +355,7 @@ def main():
     ap.add_argument("--sleeving", choices=["un", "sl"],
                     help="restrict to unsleeved or sleeved cascades")
     ap.add_argument("--name", help="restrict to one cascade (Short name, "
-                                   "e.g. '360 Card')")
+                                   "e.g. '300 Card')")
     ap.add_argument("--limit", type=int, default=0,
                     help="export at most N components")
     ap.add_argument("--use-cache", action="store_true",

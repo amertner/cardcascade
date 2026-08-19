@@ -78,11 +78,13 @@ def game_by_name(name):
 
 
 def cascade_filename(game, short_name, sleeved, model):
-    """Canonical output name for an assembled cascade project. The standard is
-    the Innovation/Compile convention:
+    """Canonical output name for an assembled cascade project:
 
         "<Game> <Short name> <Sleeved|Unsleeved> (<model>).3mf"
-        e.g. "Innovation 270 Card Sleeved (S5.15.15.45-Sl).3mf"
+        e.g. "Compile 126 Card Sleeved (S5.7.7.45-Sl).3mf"
+
+    The Short name need not be a card count — Innovation's rows are named for
+    what a box holds ("3 Ages 5 Expansions"), which is what its buyers look for.
 
     `sleeved` is "Sl"/"Un" (as in the cascade context); `model` is the row's
     per-sleeving model code (e.g. "M8.40.10.62-Sl")."""

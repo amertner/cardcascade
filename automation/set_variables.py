@@ -2,7 +2,7 @@
 """Test: set the Primary Variable Studio for one cascade via the Onshape API.
 
 Builds the FULL set of Primary input variables for a chosen cascade (default:
-Innovation "270 Card", sleeved) from parts.csv and POSTs them in ONE call. This
+Innovation "3 Ages 5 Expansions", sleeved) from parts.csv and POSTs them in ONE call. This
 is the Stage-2 variable step: because we specify every primary input, no GET of
 current state is needed. Inputs not distinguished by parts.csv (Version) get
 sensible defaults.
@@ -76,8 +76,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("url")
     ap.add_argument("--game", default="Innovation")
-    ap.add_argument("--name", default="270 Card",
-                    help="Short name in parts.csv (default '270 Card')")
+    ap.add_argument("--name", default="3 Ages 5 Expansions",
+                    help="Short name in parts.csv "
+                         "(default '3 Ages 5 Expansions')")
     ap.add_argument("--unsleeved", action="store_true",
                     help="build the unsleeved variant (default: sleeved)")
     ap.add_argument("--csv", default=str(HERE / "parts.csv"))
