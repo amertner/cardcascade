@@ -372,6 +372,11 @@ def read_config_file(path: Path, game: str) -> list:
                 labels = [t.strip() for t in labels_part.split("|")]
                 if len(labels) < 2 or any(not t for t in labels):
                     sys.exit(f"{where}: parts= needs 2 or more non-empty labels")
+                if any(len(prev) == len(labels) for _, prev in nsplits):
+                    # each grouping is named for its part count and gets a
+                    # 3MF of its own, so two of the same count would collide
+                    sys.exit(f"{where}: two parts= groupings of "
+                             f"{len(labels)} parts; each needs its own count")
                 nsplits.append((widths, labels))
             elif key == "logo" and sep:
                 logo = find_art_file(game, value.strip())
@@ -973,6 +978,13 @@ def render_project_settings(n_plates: int):
     return json.dumps(settings, indent=4)
 
 
+def parts_profile(labels) -> str:
+    """The profile (and so the 3MF) a parts= grouping goes in, named for the
+    number of cascades it builds the set into: '3 Cascades'. Shared with
+    make_label_covers so a cover always sits next to the print it shows."""
+    return f"{len(labels)} Cascades"
+
+
 def set_plate_specs(record: dict, cfg: dict) -> list:
     """Plates for one set's own 3MF, from its cc.cfg record: single cascade
     (unsleeved), single cascade (sleeved), split cascade (unsleeved), split
@@ -984,8 +996,11 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     combination (see read_config_file).
 
     Returns {profile: [(plate name, labels), ...]}, one profile per 3MF
-    the set needs: "" for the set's own file and "Logo" for its artwork
-    labels, which are a print of their own. A label is
+    the set needs: "" for the set's own file, "<n> Cascades" per parts=
+    grouping (which replaces "", since the groupings are alternative ways
+    to build the same set, and each file repeats the shared plates so it
+    is a complete print on its own), and "Logo" for artwork labels, which
+    are a print of their own. A label is
     (name, width, artwork | None, box number)."""
     name = record["name"]
     display = name or "Blank"
@@ -1050,15 +1065,24 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             plates = [(f"{display} split{boxes_title(split_entries(UNSLEEVED))}",
                        plates[0][1])]
         specs += plates
+    # Each parts= grouping is a separate print — you build the game into
+    # three cascades or into four, never both — so it becomes a profile of
+    # its own rather than more plates in one shared file. Its plates slot in
+    # where the grouping sits in cc.cfg order; box/split/plate=/spares
+    # plates are shared, so every parts file is a complete print.
+    parts_at = len(specs)
+    parts_groups = []
     for widths, labels in record.get("nsplits", []):
         # one plate per width, each holding every part at that width. The
         # front width prefixes the set name ("Innovation Ages 1-4"); the
         # narrower side widths carry just the label ("Ages 1-4").
+        plates = []
         for w in widths:
             tag = "front" if w == front else f"{w:g}mm"
             rows = [((f"{name} {lab}" if w == front else lab), w, None)
                     for lab in labels]
-            specs.append((f"{display} {tag} {len(labels)}-part", rows))
+            plates.append((f"{display} {tag} {len(labels)}-part", rows))
+        parts_groups.append((parts_profile(labels), plates))
     logo = record.get("logo")
     numbers = [""] + [str(i) for i in range(1, record.get("numbers", 0) + 1)]
     art_specs = []
@@ -1087,7 +1111,11 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
                        for w in cfg["split_widths"] if w not in used]
     if spares:
         specs.append((f"{display} spares", spares))
-    return {"": specs, "Logo": art_specs} if art_specs else {"": specs}
+    files = {prof: specs[:parts_at] + plates + specs[parts_at:]
+             for prof, plates in parts_groups} or {"": specs}
+    if art_specs:
+        files["Logo"] = art_specs
+    return files
 
 
 PROJECT_PLATE_ROWS = 7    # rows a centred stack can hold below the wipe tower

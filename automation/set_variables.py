@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Test: set the Primary Variable Studio for one cascade via the Onshape API.
 
-Builds the FULL set of Primary input variables for a chosen cascade (default:
-Innovation "3 Ages 5 Expansions", sleeved) from parts.csv and POSTs them in ONE call. This
-is the Stage-2 variable step: because we specify every primary input, no GET of
-current state is needed. Inputs not distinguished by parts.csv (Version) get
-sensible defaults.
+Builds the FULL set of Primary input variables for a chosen cascade
+(default: Innovation "3 Ages 5 Expansions", sleeved) from parts.csv and
+POSTs them in ONE call. This is the Stage-2 variable step: because we
+specify every primary input, no GET of current state is needed. Inputs not
+distinguished by parts.csv (Version) get sensible defaults.
 
 NOTE: the POST replaces the studio's variable set, so this assumes the 10
 Primary inputs below are the COMPLETE set (as seen in the screenshots). If the
