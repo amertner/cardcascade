@@ -77,6 +77,7 @@ matching `--game` are used:
 | `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
 | `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
 | `plate=<title>:<w1>+<w2>+...` | an extra plate in the set's 3MF with exactly these label widths — free-form, not limited to the standard widths (used for the Blank set's legacy CC 5.1 sizes); repeatable |
+| `parts=<w1>+...@<l1>\|<l2>\|...` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set, each with a different part count — every grouping becomes a 3MF of its own (see `--sets`) |
 | none | line is skipped |
 
 Widths are validated against the game's standard width lists — a
@@ -117,6 +118,17 @@ one, so a set like Alchemy (`box=32`) has just two plates. Extra
 `plate=` plates follow the split plates; labels always sit one per
 row, and plates with more than 7 labels overflow onto continuation
 plates.
+
+A set with `parts=` groupings is a special case. The groupings are
+*alternative* ways to build one set — Innovation goes into three
+cascades or into four, never both — so each gets a **file** of its own,
+`<Set> <n> Cascades Labels.3mf`, rather than more plates in a shared
+one. Its plates (one per width, holding every part at that width) slot
+in where the grouping sits in cc.cfg order, and the set's other plates
+are repeated in each file so every one is a complete print on its own.
+Two groupings of the same part count would collide on the file name and
+are rejected when `cc.cfg` is read. There is no plain `<Set>
+Labels.3mf` for such a set.
 
 ## The multi-plate project files (`--plates`)
 

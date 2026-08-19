@@ -285,12 +285,51 @@ def front_row(rec, game_cfg):
     return (f"FRONT LABEL ([X] IS {listed})", f"{name} [X]", front)
 
 
+def parts_rows(rec, game_cfg, profile):
+    """Rows for a "<n> Cascades" cover, or None if the profile isn't one.
+
+    These sets don't fit one box, so the fronts are the story: one per
+    cascade, naming the part it holds. The side labels repeat those same
+    names at every side width, which would double the stack and shrink
+    every label to say nothing new — so only the first cascade's sides are
+    shown, captioned to say which cascade they belong to."""
+    grouping = next(((widths, labels)
+                     for widths, labels in rec.get("nsplits", [])
+                     if dl.parts_profile(labels) == profile), None)
+    if grouping is None:
+        return None
+    widths, labels = grouping
+    front = game_cfg["front"]
+    name = rec["name"]
+    rows = [(f"FRONT LABEL · CASCADE {i}", [(f"{name} {lab}", front)])
+            for i, lab in enumerate(labels, 1)]
+    sides = sorted((w for w in widths if w != front), reverse=True)
+    if sides:
+        # the sides share one row: side by side they cost a single row of
+        # the stack, which keeps the fronts big enough to read
+        listed = " & ".join(f"{w:g}" for w in sides)
+        rows.append((f"SIDE LABELS · {listed} MM · CASCADE 1",
+                     [(labels[0], w) for w in sides]))
+    return rows
+
+
 def stack_rows(rec, game_cfg, profile=""):
-    """[(caption, label text, width_mm)] for one cc.cfg record.
+    """[(caption, [(label text, width_mm), ...])] for one cc.cfg record —
+    one entry per row of the stack. A row holds more than one label only
+    where they are narrow enough to sit side by side.
 
     The "Logo" profile shows the same widths carrying the set's artwork
     instead of its name, so the pair of covers reads as two versions of
     one print."""
+    rows = parts_rows(rec, game_cfg, profile)
+    if rows is not None:
+        return rows
+    return [(caption, [(text, wmm)])
+            for caption, text, wmm in single_rows(rec, game_cfg, profile)]
+
+
+def single_rows(rec, game_cfg, profile=""):
+    """[(caption, label text, width_mm)] for the one-label-per-row sets."""
     name = rec["name"] or "Blank"
     side_text = rec.get("side") or name
     if profile == "Logo":
@@ -367,7 +406,11 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
     d.text((70, 560), "SLIDE-IN", font=fb, fill=GREEN)
     d.text((70, 690), "LABELS", font=fb, fill=GREEN)
     d.text((70, 850), "Two-colour 3D printable", font=F(MONO_R, 46), fill=INK)
-    d.text((70, 910), "for every box size", font=F(MONO_R, 46), fill=INK)
+    # a parts cover is one whole way to build the set, so it says which
+    # rather than the generic every-box-size line
+    scope = (f"for all {profile.lower()}" if profile and profile != "Logo"
+             else "for every box size")
+    d.text((70, 910), scope, font=F(MONO_R, 46), fill=INK)
 
     # right-hand stack: large labels by default, shrink to fit if many rows
     rows = stack_rows(rec, game_cfg, profile)
@@ -376,20 +419,28 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
     x_right = W - 90
     y = STACK_TOP + max(0, (STACK_BOTTOM - STACK_TOP - total_h) // 2)
     fcap = F(MONO_B, 34)
-    for caption, text, wmm in rows:
-        lab = render_label(text, wmm, scale, caps, art)
+    for caption, items in rows:
+        labs = [render_label(text, wmm, scale, caps, art) for text, wmm in items]
         cw = d.textlength(caption, font=fcap)
         d.text((x_right - cw - 12, y), caption, font=fcap, fill=GREY)
         y += 44
-        img.paste(lab, (x_right - lab.width, y), lab)
-        y += lab.height + 6
+        x = x_right                     # a shared row runs right to left
+        for lab in labs:
+            img.paste(lab, (x - lab.width, y), lab)
+            x -= lab.width + 12
+        y += max(lab.height for lab in labs) + 6
 
     # bottom band
     d.polygon([(0, H - 340), (W * 0.72, H - 340), (W * 0.66, H - 200),
                (0, H - 200)], fill=GREEN)
-    band = display if not rec["name"] else f"{game_disp}: {display}"
+    # "<game>: <set>", but not "Innovation: Innovation" for a set that is
+    # the whole game
+    band = (display if not rec["name"] or display == game_disp
+            else f"{game_disp}: {display}")
     if profile == "Logo":
         band += " logo"
+    elif profile:
+        band += f" in {profile.lower()}"
     fb2 = F(MONO_B, 84)
     while d.textlength(band, font=fb2) > 1160 and fb2.size > 40:
         fb2 = F(MONO_B, fb2.size - 4)
