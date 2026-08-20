@@ -313,6 +313,52 @@ def parts_rows(rec, game_cfg, profile):
     return rows
 
 
+# Two 156.4 mm fronts sit side by side in the stack band; three would force
+# the scale below what the caption type can carry.
+FRONTS_PER_ROW = 2
+
+
+def names_rows(rec, game_cfg):
+    """Rows for a names= record, or None if it has none.
+
+    Every name is a box of its own, so the fronts ARE the list of what this
+    print makes and all of them belong on the cover. One per row would put
+    the stack at eight rows and drive fit_scale under its floor, so they
+    pair up — a front is 156.4 mm and two fit the band side by side — and
+    only the first pair is captioned, so the block reads as one list rather
+    than four unrelated rows.
+
+    The side labels are the same text at the same two widths on every one
+    of those boxes, so a single row stands for all of them; showing them
+    per name would add twelve rows that say nothing new. The narrowest
+    width carries the short form, as it does in the print itself."""
+    names = rec.get("names") or []
+    if not names:
+        return None
+    front = game_cfg["front"]
+    widths = rec.get("name_widths", [])
+    rows = []
+    for i in range(0, len(names), FRONTS_PER_ROW):
+        chunk = [(full, front) for full, _ in names[i:i + FRONTS_PER_ROW]]
+        # An odd final name would otherwise sit alone against the stack's
+        # right edge, in the second column, breaking the grid the reader is
+        # following. Pad the row with a blank slot so it keeps its place in
+        # the sequence; make_cover leaves a (None, width) slot empty.
+        chunk += [(None, front)] * (FRONTS_PER_ROW - len(chunk))
+        # a row is pasted right to left, so reverse to read in list order
+        rows.append(("FRONT LABELS · ONE PER SET" if not rows else "",
+                     list(reversed(chunk))))
+    sides = sorted((w for w in widths if w != front), reverse=True)
+    if sides:
+        full, short = names[0]
+        narrowest = min(widths)
+        listed = " & ".join(f"{w:g}" for w in sides)
+        rows.append((f"SIDE LABELS · {listed} MM · EVERY SET",
+                     [((short or full) if w == narrowest else full, w)
+                      for w in sides]))
+    return rows
+
+
 def stack_rows(rec, game_cfg, profile=""):
     """[(caption, [(label text, width_mm), ...])] for one cc.cfg record —
     one entry per row of the stack. A row holds more than one label only
@@ -322,6 +368,9 @@ def stack_rows(rec, game_cfg, profile=""):
     instead of its name, so the pair of covers reads as two versions of
     one print."""
     rows = parts_rows(rec, game_cfg, profile)
+    if rows is not None:
+        return rows
+    rows = names_rows(rec, game_cfg)
     if rows is not None:
         return rows
     return [(caption, [(text, wmm)])
@@ -359,24 +408,41 @@ def single_rows(rec, game_cfg, profile=""):
 
 # right-hand label stack lives in this vertical band on every cover
 STACK_TOP, STACK_BOTTOM = 350, H - 370
+# ...and in this horizontal one. The left column shares the band's height:
+# its longest line ("Two-colour 3D printable") ends at x=714, so the stack
+# starts clear of that. Only rows carrying several labels ever reach the
+# limit; a lone 156.4 mm front is 1016 px at full scale against 1180 available.
+STACK_LEFT, STACK_RIGHT = 740, W - 90
 
 
 def row_height(scale):
     return 44 + int(LABEL_H_MM * scale) + 2 * (int(0.35 * scale) + 6) + 6
 
 
+def row_width(items, scale):
+    """Pixel width of one rendered row, matching render_label's padding and
+    make_cover's 12 px gap between labels."""
+    return (sum(int(w * scale) + 2 * (int(0.35 * scale) + 6) for _, w in items)
+            + 12 * (len(items) - 1))
+
+
 LABEL_SCALE_MAX = 6.4           # large default; shrinks only if rows overflow
 
 
-def fit_scale(n_rows):
-    """Largest label scale (0.2 steps) that fits n_rows in the stack band.
+def fit_scale(rows):
+    """Largest label scale (0.2 steps) that fits `rows` in the stack band.
 
+    Height and WIDTH both bind: a row holding several labels can overflow
+    into the left column long before the stack runs out of vertical room,
+    which is what a names= cover does with two 156.4 mm fronts to a row.
     Labels stay large by default and only scale down for busier sets; the
     22.2 mm height and width are always in proportion at whatever scale wins.
     """
-    avail = STACK_BOTTOM - STACK_TOP
+    avail_h, avail_w = STACK_BOTTOM - STACK_TOP, STACK_RIGHT - STACK_LEFT
     scale = LABEL_SCALE_MAX
-    while scale > 3.0 and n_rows * row_height(scale) > avail:
+    while scale > 3.0 and (
+            len(rows) * row_height(scale) > avail_h
+            or max(row_width(items, scale) for _, items in rows) > avail_w):
         scale -= 0.2
     return round(scale, 1)
 
@@ -409,26 +475,34 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
     # a parts cover is one whole way to build the set, so it says which
     # rather than the generic every-box-size line
     scope = (f"for all {profile.lower()}" if profile and profile != "Logo"
+             else "for every expansion" if rec.get("names")
              else "for every box size")
     d.text((70, 910), scope, font=F(MONO_R, 46), fill=INK)
 
     # right-hand stack: large labels by default, shrink to fit if many rows
     rows = stack_rows(rec, game_cfg, profile)
-    scale = fit_scale(len(rows))
+    scale = fit_scale(rows)
     total_h = sum(row_height(scale) for _ in rows)
     x_right = W - 90
     y = STACK_TOP + max(0, (STACK_BOTTOM - STACK_TOP - total_h) // 2)
     fcap = F(MONO_B, 34)
     for caption, items in rows:
-        labs = [render_label(text, wmm, scale, caps, art) for text, wmm in items]
+        # a (None, width) item is an empty slot: it holds a place in the row
+        # so a short final row still lines up with the ones above it
+        labs = [(None if text is None else render_label(text, wmm, scale, caps,
+                                                        art), wmm)
+                for text, wmm in items]
         cw = d.textlength(caption, font=fcap)
         d.text((x_right - cw - 12, y), caption, font=fcap, fill=GREY)
         y += 44
         x = x_right                     # a shared row runs right to left
-        for lab in labs:
-            img.paste(lab, (x - lab.width, y), lab)
-            x -= lab.width + 12
-        y += max(lab.height for lab in labs) + 6
+        for lab, wmm in labs:
+            slot = (lab.width if lab is not None
+                    else int(wmm * scale) + 2 * (int(0.35 * scale) + 6))
+            if lab is not None:
+                img.paste(lab, (x - slot, y), lab)
+            x -= slot + 12
+        y += max(lab.height for lab, _ in labs if lab is not None) + 6
 
     # bottom band
     d.polygon([(0, H - 340), (W * 0.72, H - 340), (W * 0.66, H - 200),

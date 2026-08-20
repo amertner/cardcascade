@@ -77,10 +77,12 @@ GAMES = {
         "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
     "Innovation": {
+        # 32 and 20 are the Single Set box's side widths (S3.15.10 lids are
+        # 50.6 and 39.3 mm deep); caps match FCM and Compile at those sizes.
         "front": 156.4,
-        "widths": [156.4, 62.0, 45.0],
-        "split_widths": [156.4, 62.0, 45.0],
-        "caps": {156.4: 6.5, 62.0: 5.0, 45.0: 4.5},
+        "widths": [156.4, 62.0, 45.0, 32.0, 20.0],
+        "split_widths": [156.4, 62.0, 45.0, 32.0, 20.0],
+        "caps": {156.4: 6.5, 62.0: 5.0, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
 }
 
@@ -288,6 +290,14 @@ def read_config_file(path: Path, game: str) -> list:
                front width reads "<name> <label>", narrower widths just
                "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
                -> a front, a 45mm and a 62mm plate). Repeatable.
+      names=<w1>+...@<name1>[:<short>]|<name2>[:<short>]|...  the
+               TRANSPOSE of parts=: one plate PER NAME, each holding
+               every width. For a box design that ships once per
+               expansion, so a plate is exactly one box's labels. The
+               NARROWEST width takes the short form when one is given
+               and every other width the full name (a long name shrinks
+               until it will not print only at the bottom of the width
+               range). '(BLANK)' is the blank label.
 
       side=<text>  short text used on side labels instead of the set
                name (front labels keep the full name), e.g. FCM/O
@@ -311,6 +321,7 @@ def read_config_file(path: Path, game: str) -> list:
     "split": [half1, half2] | None, "side": str | None,
     "plates": [(title, [widths]), ...],
     "nsplits": [([widths], [labels]), ...],
+    "names": [(full, short), ...], "name_widths": [widths],
     "logo": Path | None, "numbers": int}."""
     cfg = GAMES[game]
     records = []
@@ -330,6 +341,7 @@ def read_config_file(path: Path, game: str) -> list:
             name = ""
         box, split, halves, side, plates = None, None, {}, None, []
         nsplits, logo, numbers = [], None, 0
+        names, name_widths = [], []
         for field in parts[2:]:
             if not field:
                 continue
@@ -378,6 +390,25 @@ def read_config_file(path: Path, game: str) -> list:
                     sys.exit(f"{where}: two parts= groupings of "
                              f"{len(labels)} parts; each needs its own count")
                 nsplits.append((widths, labels))
+            elif key == "names" and sep:
+                widths_part, at, labels_part = value.partition("@")
+                if not at:
+                    sys.exit(f"{where}: names= must be '<w1>+<w2>+...@"
+                             f"<name1>[:<short>]|<name2>...', got {value!r}")
+                name_widths = [parse_width(w, cfg["widths"], where, "names")
+                               for w in widths_part.split("+")]
+                if not name_widths or any(w == 0 for w in name_widths):
+                    sys.exit(f"{where}: names= needs standard widths before '@'")
+                for item in labels_part.split("|"):
+                    full, _, short = item.partition(":")
+                    full, short = full.strip(), short.strip()
+                    if not full:
+                        sys.exit(f"{where}: names= has an empty name")
+                    if full.upper() == "(BLANK)":
+                        full, short = "", ""
+                    names.append((full, short))
+                if len(names) < 2:
+                    sys.exit(f"{where}: names= needs 2 or more names")
             elif key == "logo" and sep:
                 logo = find_art_file(game, value.strip())
             elif key == "numbers" and sep:
@@ -388,16 +419,18 @@ def read_config_file(path: Path, game: str) -> list:
             else:
                 sys.exit(f"{where}: unknown field {field!r} (expected box=U[/S], "
                          f"split=U[/S], split1=/split2=, parts=<w>@<labels>, "
-                         f"side=, plate=, logo= or numbers=)")
+                         f"names=<w>@<names>, side=, plate=, logo= or "
+                         f"numbers=)")
         if halves:
             if split is not None or set(halves) != {"split1", "split2"}:
                 sys.exit(f"{where}: split1= and split2= must be given "
                          f"together (and not combined with split=)")
             split = [halves["split1"], halves["split2"]]
-        if box is not None or split is not None or plates or nsplits:
+        if box is not None or split is not None or plates or nsplits or names:
             records.append({"name": name, "box": box, "split": split,
                             "side": side, "plates": plates, "nsplits": nsplits,
-                            "logo": logo, "numbers": numbers})
+                            "logo": logo, "numbers": numbers,
+                            "names": names, "name_widths": name_widths})
     return records
 
 
@@ -990,8 +1023,8 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     (unsleeved), single cascade (sleeved), split cascade (unsleeved), split
     cascade (sleeved) — collapsing sleeved/unsleeved pairs that use the
     same widths — plus, for each parts= grouping, one plate per width
-    holding all its parts at that width — and every other label as
-    spares. Split plates carry one front and one side per half-box. A
+    holding all its parts at that width, plus one plate per names= entry
+    holding every width — and every other label as spares. Split plates carry one front and one side per half-box. A
     plate= plate with logo= and/or numbers= expands into one plate per
     combination (see read_config_file).
 
@@ -1065,6 +1098,28 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             plates = [(f"{display} split{boxes_title(split_entries(UNSLEEVED))}",
                        plates[0][1])]
         specs += plates
+    # names=: one plate per NAME, each holding every width. This is the
+    # TRANSPOSE of parts=, which gives one plate per WIDTH holding every part.
+    # Use it where one box design ships once per expansion (Innovation's
+    # Single Set): the print is then organised by which box you are labelling
+    # rather than by label size, so a plate is exactly one box's labels.
+    #
+    # The short form is used on the NARROWEST width only; every other width,
+    # front and side alike, gets the full name. It exists because a long name
+    # on the smallest label shrinks to the point of being unprintable
+    # ("Innovation" reaches 1.61 mm capitals on a 20 mm label against a 2.8 mm
+    # standard), and that only bites at the bottom of the range — the same
+    # name still sets at 3.11 mm on a 32 mm label. Applying it to every side
+    # width, as side= does for a whole set, would needlessly shorten labels
+    # that had room for the real name.
+    name_widths = record.get("name_widths", [])
+    narrowest = min(name_widths) if name_widths else None
+    short_at = narrowest if narrowest != front else None
+    for full, short in record.get("names", []):
+        specs.append((full or "Blank",
+                      [((short or full) if w == short_at else full, w, None)
+                       for w in name_widths]))
+
     # Each parts= grouping is a separate print — you build the game into
     # three cascades or into four, never both — so it becomes a profile of
     # its own rather than more plates in one shared file. Its plates slot in

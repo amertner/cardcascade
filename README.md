@@ -54,7 +54,9 @@ label widths for a set (`widths`), for split-box `<name> 1/2` labels
 (`split_widths`), and the standard text size per width (`caps`,
 capital height in mm). Dominion: 156.4 (front), 62, 45, 32 at
 6.5/5.0/4.5/3.5 mm caps; FCM: 156.4 (front), 45, 32, 20 at
-6.5/4.5/3.5/2.8 mm.
+6.5/4.5/3.5/2.8 mm; Innovation: 156.4 (front), 62, 45, 32, 20 at
+6.5/5.0/4.5/3.5/2.8 mm — the 32 and 20 serve the Single Set box, whose
+lids are 50.6 and 39.3 mm deep.
 
 ## The cc.cfg configuration file
 
@@ -78,6 +80,7 @@ matching `--game` are used:
 | `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
 | `plate=<title>:<w1>+<w2>+...` | an extra plate in the set's 3MF with exactly these label widths — free-form, not limited to the standard widths (used for the Blank set's legacy CC 5.1 sizes); repeatable |
 | `parts=<w1>+...@<l1>\|<l2>\|...` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set, each with a different part count — every grouping becomes a 3MF of its own (see `--sets`) |
+| `names=<w1>+...@<n1>[:<short>]\|<n2>...` | the **transpose** of `parts=`: one plate per *name*, each holding every width, so a plate is exactly one box's labels. For a box design that ships once per expansion. The **narrowest** width takes the short form when one is given; every other width, front and side alike, takes the full name — a long name only shrinks past legibility at the bottom of the range ("Innovation" sets at 1.61 mm on a 20 mm label but 3.11 mm on a 32 mm one), so shortening every side label the way `side=` does for a whole set would waste the room the wider ones have. `(BLANK)` is the blank label |
 | none | line is skipped |
 
 Widths are validated against the game's standard width lists — a
