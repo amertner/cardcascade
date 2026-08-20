@@ -53,6 +53,15 @@ GAMES = {
         # TODO confirm the exact expansion labels.
         "toppers": ["Cities", "Echoes", "Artifacts", "Figures", "Unseen",
                     "Blank"],
+
+        # Rows that carry NO toppers, by Short name. A topper names which
+        # expansion a riser holds, so a box built for ONE set has nothing for
+        # it to say. This has to live here rather than being handled with
+        # `--count Topper=0` at build time: compose() is what refresh_cascades
+        # diffs a project against, so a row listing toppers the project does
+        # not have makes build_swap report them as unfillable and SKIP the
+        # cascade on every future refresh.
+        "no_toppers": {"Single Set"},
     },
 }
 

@@ -149,7 +149,8 @@ def compose(ctx, spec, labels):
                           "key": ("HalfTokenHolder", cap, ctx["merged"], slv),
                           "file": f"HalfTokenHolder {cap}-{slv}{mtag}.3mf",
                           "object": "HalfTokenHolder", "count": 1})
-    if "Toppers" in spec["extras"]:
+    if "Toppers" in spec["extras"] and \
+            ctx["short_name"] not in spec.get("no_toppers", ()):
         # Each topper is a separate export (Topper studio configured per
         # expansion). Toppers vary by (expansion, size, sleeved) only, so they
         # dedup across cascades of the same size+sleeving and future Innovation
