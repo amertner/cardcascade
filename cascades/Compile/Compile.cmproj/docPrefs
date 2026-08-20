@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>DocPrefHorizontalScrollBarValue</key>
+	<string>0</string>
+	<key>DocPrefIsAssetPanelOpen</key>
+	<integer>1</integer>
+	<key>DocPrefIsCanvasRulersEnabled</key>
+	<integer>0</integer>
+	<key>DocPrefIsCaptionEditorOpen</key>
+	<integer>0</integer>
+	<key>DocPrefIsPropertiesOpen</key>
+	<integer>1</integer>
+	<key>DocPrefIsTocOpen</key>
+	<integer>0</integer>
+	<key>DocPrefMainSplitterValue</key>
+	<string>1301.00000000000000000000</string>
+	<key>DocPrefPlayheadTime</key>
+	<string>14676480000</string>
+	<key>DocPrefPreviewAutoFit</key>
+	<integer>0</integer>
+	<key>DocPrefPreviewScaleValue</key>
+	<string>1.00000000000000000000</string>
+	<key>DocPrefTrackHeaderWidth</key>
+	<string>80.00000000000000000000</string>
+	<key>DocPrefTrackHeights</key>
+	<array>
+		<integer>78</integer>
+		<integer>78</integer>
+		<integer>78</integer>
+	</array>
+	<key>DocPrefWindowSizePos</key>
+	<string>0 79 3008 1583 0 0 3008 1662 {"tilingState":{"tilingPosition":9,"normalizedSize":1,"untiledFrame":"{{233, 72}, {2448, 1583}}"}}</string>
+	<key>DocPrefZoomValue</key>
+	<string>2.68282131104271082123</string>
+	<key>SaveAsStandaloneProject</key>
+	<real>1</real>
+</dict>
+</plist>

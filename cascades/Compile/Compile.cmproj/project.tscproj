@@ -1,0 +1,1455 @@
+{
+  "title" : "", 
+  "description" : "", 
+  "author" : "", 
+  "targetLoudness" : -18.0, 
+  "shouldApplyLoudnessNormalization" : true, 
+  "videoFormatFrameRate" : 30, 
+  "audioFormatSampleRate" : 44100, 
+  "allowSubFrameEditing" : false, 
+  "width" : 2560.0, 
+  "height" : 1440.0, 
+  "version" : "10.0", 
+  "editRate" : 705600000, 
+  "authoringClientName" : {
+    "name" : "Camtasia", 
+    "platform" : "Mac", 
+    "version" : "2026.2.0"
+  }, 
+  "sourceBin" : [
+    {
+      "id" : 1, 
+      "src" : "./media/1787258002.897657/IMG_1547.mov", 
+      "rect" : [0, 0, 1920, 1080], 
+      "lastMod" : "20260820T195003", 
+      "loudnessNormalization" : true, 
+      "sourceTracks" : [
+        {
+          "range" : [0, 24360], 
+          "type" : 2, 
+          "editRate" : 600, 
+          "trackRect" : [0, 0, 0, 0], 
+          "sampleRate" : 48000, 
+          "bitDepth" : 0, 
+          "numChannels" : 2, 
+          "integratedLUFS" : -24.5957026453509, 
+          "peakLevel" : 0.710900068283081, 
+          "tag" : 0, 
+          "metaData" : "IMG_1547.mov;", 
+          "parameters" : {
+          }
+        }, 
+        {
+          "range" : [0, 24360], 
+          "type" : 2, 
+          "editRate" : 600, 
+          "trackRect" : [0, 0, 0, 0], 
+          "sampleRate" : 48000, 
+          "bitDepth" : 0, 
+          "numChannels" : 4, 
+          "integratedLUFS" : -1.79769313486232e+308, 
+          "peakLevel" : 0.0, 
+          "tag" : 0, 
+          "metaData" : "IMG_1547.mov;", 
+          "parameters" : {
+          }
+        }, 
+        {
+          "range" : [0, 24361], 
+          "type" : 0, 
+          "editRate" : 600, 
+          "trackRect" : [0, 0, 1920, 1080], 
+          "sampleRate" : "14999/500", 
+          "bitDepth" : 0, 
+          "numChannels" : 0, 
+          "integratedLUFS" : 100.0, 
+          "peakLevel" : -1.0, 
+          "tag" : 0, 
+          "metaData" : "IMG_1547.mov;", 
+          "parameters" : {
+          }
+        }
+      ], 
+      "metadata" : {
+        "timeAdded" : "20260820T195006.345683"
+      }
+    }, 
+    {
+      "id" : 2, 
+      "src" : "./media/1787258002.897935/IMG_1546.mov", 
+      "rect" : [0, 0, 1920, 1080], 
+      "lastMod" : "20260820T195000", 
+      "loudnessNormalization" : true, 
+      "sourceTracks" : [
+        {
+          "range" : [0, 15820], 
+          "type" : 2, 
+          "editRate" : 600, 
+          "trackRect" : [0, 0, 0, 0], 
+          "sampleRate" : 48000, 
+          "bitDepth" : 0, 
+          "numChannels" : 2, 
+          "integratedLUFS" : -20.9587126770514, 
+          "peakLevel" : 0.993680357933044, 
+          "tag" : 0, 
+          "metaData" : "IMG_1546.mov;", 
+          "parameters" : {
+          }
+        }, 
+        {
+          "range" : [0, 15820], 
+          "type" : 2, 
+          "editRate" : 600, 
+          "trackRect" : [0, 0, 0, 0], 
+          "sampleRate" : 48000, 
+          "bitDepth" : 0, 
+          "numChannels" : 4, 
+          "integratedLUFS" : -1.79769313486232e+308, 
+          "peakLevel" : 0.0, 
+          "tag" : 0, 
+          "metaData" : "IMG_1546.mov;", 
+          "parameters" : {
+          }
+        }, 
+        {
+          "range" : [0, 15820], 
+          "type" : 0, 
+          "editRate" : 600, 
+          "trackRect" : [0, 0, 1920, 1080], 
+          "sampleRate" : 30, 
+          "bitDepth" : 0, 
+          "numChannels" : 0, 
+          "integratedLUFS" : 100.0, 
+          "peakLevel" : -1.0, 
+          "tag" : 0, 
+          "metaData" : "IMG_1546.mov;", 
+          "parameters" : {
+          }
+        }
+      ], 
+      "metadata" : {
+        "timeAdded" : "20260820T195006.361575"
+      }
+    }
+  ], 
+  "timeline" : {
+    "id" : 3, 
+    "sceneTrack" : {
+      "scenes" : [
+        {
+          "csml" : {
+            "tracks" : [
+              {
+                "trackIndex" : 0, 
+                "medias" : [
+                ], 
+                "parameters" : {
+                }
+              }, 
+              {
+                "trackIndex" : 1, 
+                "medias" : [
+                  {
+                    "id" : 4, 
+                    "_type" : "StitchedMedia", 
+                    "minMediaStart" : 0.0, 
+                    "attributes" : {
+                      "ident" : "IMG_1547", 
+                      "gain" : 1.0, 
+                      "mixToMono" : false, 
+                      "loudnessNormalization" : true, 
+                      "sourceFileOffset" : 0
+                    }, 
+                    "parameters" : {
+                      "translation0" : -167.387965170089, 
+                      "translation1" : 91.5857285581918, 
+                      "scale0" : 1.51460277416088, 
+                      "scale1" : 1.51460277416088, 
+                      "geometryCrop0" : 0.0, 
+                      "geometryCrop1" : 0.0, 
+                      "geometryCrop2" : 0.0, 
+                      "geometryCrop3" : 0.0, 
+                      "volume" : 1.0, 
+                      "smoothCursorAcrossEditDuration" : 0
+                    }, 
+                    "medias" : [
+                      {
+                        "id" : 5, 
+                        "_type" : "UnifiedMedia", 
+                        "video" : 
+                          {
+                            "id" : 6, 
+                            "_type" : "VMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 2, 
+                            "attributes" : {
+                              "ident" : "IMG_1547"
+                            }, 
+                            "parameters" : {
+                              "geometryCrop0" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop1" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop2" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop3" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 0, 
+                            "duration" : 2748038476, 
+                            "mediaStart" : 0, 
+                            "mediaDuration" : 2748038476, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "audio" : 
+                          {
+                            "id" : 7, 
+                            "_type" : "AMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 0, 
+                            "attributes" : {
+                              "ident" : "", 
+                              "gain" : 1.0, 
+                              "mixToMono" : false, 
+                              "loudnessNormalization" : true, 
+                              "sourceFileOffset" : 0
+                            }, 
+                            "channelNumber" : "0,1", 
+                            "parameters" : {
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 0, 
+                            "duration" : 2748038476, 
+                            "mediaStart" : 0, 
+                            "mediaDuration" : 2748038476, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "effects" : [
+                        ], 
+                        "start" : 0, 
+                        "duration" : 2748038476, 
+                        "mediaStart" : 0, 
+                        "mediaDuration" : 2748038476, 
+                        "scalar" : 1, 
+                        "metadata" : {
+                          "audiateLinkedSession" : "", 
+                          "clipSpeedAttribute" : 
+                            {
+                              "type" : "bool", 
+                              "value" : true
+                            }, 
+                          "colorAttribute" : 
+                            {
+                              "type" : "color", 
+                              "value" : [ 0, 0, 0, 0]
+                            }, 
+                          "default-anchor0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-height" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1080.0
+                            }, 
+                          "default-rotation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-scale" : "1", 
+                          "default-scale0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-shear0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-width" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1920.0
+                            }, 
+                          "effectApplied" : "none"
+                        }
+                      }, 
+                      {
+                        "id" : 8, 
+                        "_type" : "UnifiedMedia", 
+                        "video" : 
+                          {
+                            "id" : 9, 
+                            "_type" : "VMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 2, 
+                            "attributes" : {
+                              "ident" : "IMG_1547"
+                            }, 
+                            "parameters" : {
+                              "geometryCrop0" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop1" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop2" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop3" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 2748038476, 
+                            "duration" : 941109067, 
+                            "mediaStart" : 3162126465, 
+                            "mediaDuration" : 941109067, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "audio" : 
+                          {
+                            "id" : 10, 
+                            "_type" : "AMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 0, 
+                            "attributes" : {
+                              "ident" : "", 
+                              "gain" : 1.0, 
+                              "mixToMono" : false, 
+                              "loudnessNormalization" : true, 
+                              "sourceFileOffset" : 0
+                            }, 
+                            "channelNumber" : "0,1", 
+                            "parameters" : {
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 2748038476, 
+                            "duration" : 941109067, 
+                            "mediaStart" : 3162126465, 
+                            "mediaDuration" : 941109067, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "effects" : [
+                        ], 
+                        "start" : 2748038476, 
+                        "duration" : 941109067, 
+                        "mediaStart" : 3162126465, 
+                        "mediaDuration" : 941109067, 
+                        "scalar" : 1, 
+                        "metadata" : {
+                          "audiateLinkedSession" : "", 
+                          "clipSpeedAttribute" : 
+                            {
+                              "type" : "bool", 
+                              "value" : true
+                            }, 
+                          "colorAttribute" : 
+                            {
+                              "type" : "color", 
+                              "value" : [ 0, 0, 0, 0]
+                            }, 
+                          "default-anchor0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-height" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1080.0
+                            }, 
+                          "default-rotation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-scale" : "1", 
+                          "default-scale0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-shear0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-width" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1920.0
+                            }, 
+                          "effectApplied" : "none"
+                        }
+                      }, 
+                      {
+                        "id" : 11, 
+                        "_type" : "UnifiedMedia", 
+                        "video" : 
+                          {
+                            "id" : 12, 
+                            "_type" : "VMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 2, 
+                            "attributes" : {
+                              "ident" : "IMG_1547"
+                            }, 
+                            "parameters" : {
+                              "geometryCrop0" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop1" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop2" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop3" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 3689147543, 
+                            "duration" : 188221813, 
+                            "mediaStart" : 4404390433, 
+                            "mediaDuration" : 188221813, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "audio" : 
+                          {
+                            "id" : 13, 
+                            "_type" : "AMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 0, 
+                            "attributes" : {
+                              "ident" : "", 
+                              "gain" : 1.0, 
+                              "mixToMono" : false, 
+                              "loudnessNormalization" : true, 
+                              "sourceFileOffset" : 0
+                            }, 
+                            "channelNumber" : "0,1", 
+                            "parameters" : {
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 3689147543, 
+                            "duration" : 188221813, 
+                            "mediaStart" : 4404390433, 
+                            "mediaDuration" : 188221813, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "effects" : [
+                        ], 
+                        "start" : 3689147543, 
+                        "duration" : 188221813, 
+                        "mediaStart" : 4404390433, 
+                        "mediaDuration" : 188221813, 
+                        "scalar" : 1, 
+                        "metadata" : {
+                          "audiateLinkedSession" : "", 
+                          "clipSpeedAttribute" : 
+                            {
+                              "type" : "bool", 
+                              "value" : true
+                            }, 
+                          "colorAttribute" : 
+                            {
+                              "type" : "color", 
+                              "value" : [ 0, 0, 0, 0]
+                            }, 
+                          "default-anchor0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-height" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1080.0
+                            }, 
+                          "default-rotation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-scale" : "1", 
+                          "default-scale0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-shear0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-width" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1920.0
+                            }, 
+                          "effectApplied" : "none"
+                        }
+                      }, 
+                      {
+                        "id" : 14, 
+                        "_type" : "UnifiedMedia", 
+                        "video" : 
+                          {
+                            "id" : 15, 
+                            "_type" : "VMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 2, 
+                            "attributes" : {
+                              "ident" : "IMG_1547"
+                            }, 
+                            "parameters" : {
+                              "geometryCrop0" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop1" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop2" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop3" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 3877369356, 
+                            "duration" : 3275059553, 
+                            "mediaStart" : 4780834060, 
+                            "mediaDuration" : 3275059553, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "audio" : 
+                          {
+                            "id" : 16, 
+                            "_type" : "AMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 0, 
+                            "attributes" : {
+                              "ident" : "", 
+                              "gain" : 1.0, 
+                              "mixToMono" : false, 
+                              "loudnessNormalization" : true, 
+                              "sourceFileOffset" : 0
+                            }, 
+                            "channelNumber" : "0,1", 
+                            "parameters" : {
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 3877369356, 
+                            "duration" : 3275059553, 
+                            "mediaStart" : 4780834060, 
+                            "mediaDuration" : 3275059553, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "effects" : [
+                        ], 
+                        "start" : 3877369356, 
+                        "duration" : 3275059553, 
+                        "mediaStart" : 4780834060, 
+                        "mediaDuration" : 3275059553, 
+                        "scalar" : 1, 
+                        "metadata" : {
+                          "audiateLinkedSession" : "", 
+                          "clipSpeedAttribute" : 
+                            {
+                              "type" : "bool", 
+                              "value" : true
+                            }, 
+                          "colorAttribute" : 
+                            {
+                              "type" : "color", 
+                              "value" : [ 0, 0, 0, 0]
+                            }, 
+                          "default-anchor0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-height" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1080.0
+                            }, 
+                          "default-rotation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-scale" : "1", 
+                          "default-scale0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-shear0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-width" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1920.0
+                            }, 
+                          "effectApplied" : "none"
+                        }
+                      }, 
+                      {
+                        "id" : 17, 
+                        "_type" : "UnifiedMedia", 
+                        "video" : 
+                          {
+                            "id" : 18, 
+                            "_type" : "VMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 2, 
+                            "attributes" : {
+                              "ident" : "IMG_1547"
+                            }, 
+                            "parameters" : {
+                              "geometryCrop0" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop1" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop2" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop3" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 7152428909, 
+                            "duration" : 9109935769, 
+                            "mediaStart" : 11406241892, 
+                            "mediaDuration" : 9109935769, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "audio" : 
+                          {
+                            "id" : 19, 
+                            "_type" : "AMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 0, 
+                            "attributes" : {
+                              "ident" : "", 
+                              "gain" : 1.0, 
+                              "mixToMono" : false, 
+                              "loudnessNormalization" : true, 
+                              "sourceFileOffset" : 0
+                            }, 
+                            "channelNumber" : "0,1", 
+                            "parameters" : {
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 7152428909, 
+                            "duration" : 9109935769, 
+                            "mediaStart" : 11406241892, 
+                            "mediaDuration" : 9109935769, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "effects" : [
+                        ], 
+                        "start" : 7152428909, 
+                        "duration" : 9109935769, 
+                        "mediaStart" : 11406241892, 
+                        "mediaDuration" : 9109935769, 
+                        "scalar" : 1, 
+                        "metadata" : {
+                          "audiateLinkedSession" : "", 
+                          "clipSpeedAttribute" : 
+                            {
+                              "type" : "bool", 
+                              "value" : true
+                            }, 
+                          "colorAttribute" : 
+                            {
+                              "type" : "color", 
+                              "value" : [ 0, 0, 0, 0]
+                            }, 
+                          "default-anchor0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-height" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1080.0
+                            }, 
+                          "default-rotation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-scale" : "1", 
+                          "default-scale0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-shear0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-width" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1920.0
+                            }, 
+                          "effectApplied" : "none"
+                        }
+                      }, 
+                      {
+                        "id" : 20, 
+                        "_type" : "UnifiedMedia", 
+                        "video" : 
+                          {
+                            "id" : 21, 
+                            "_type" : "VMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 2, 
+                            "attributes" : {
+                              "ident" : "IMG_1547"
+                            }, 
+                            "parameters" : {
+                              "geometryCrop0" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop1" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop2" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }, 
+                              "geometryCrop3" : {
+                                "type" : "double", 
+                                "defaultValue" : 0.0, 
+                                "interp" : "eioe"
+                              }
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 16262364678, 
+                            "duration" : 7754738712, 
+                            "mediaStart" : 20892621288, 
+                            "mediaDuration" : 7754738712, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "audio" : 
+                          {
+                            "id" : 22, 
+                            "_type" : "AMFile", 
+                            "src" : 1, 
+                            "trackNumber" : 0, 
+                            "attributes" : {
+                              "ident" : "", 
+                              "gain" : 1.0, 
+                              "mixToMono" : false, 
+                              "loudnessNormalization" : true, 
+                              "sourceFileOffset" : 0
+                            }, 
+                            "channelNumber" : "0,1", 
+                            "parameters" : {
+                            }, 
+                            "effects" : [
+                            ], 
+                            "start" : 16262364678, 
+                            "duration" : 7754738712, 
+                            "mediaStart" : 20892621288, 
+                            "mediaDuration" : 7754738712, 
+                            "scalar" : 1, 
+                            "animationTracks" : {
+                            }
+                          }, 
+                        "effects" : [
+                        ], 
+                        "start" : 16262364678, 
+                        "duration" : 7754738712, 
+                        "mediaStart" : 20892621288, 
+                        "mediaDuration" : 7754738712, 
+                        "scalar" : 1, 
+                        "metadata" : {
+                          "audiateLinkedSession" : "", 
+                          "clipSpeedAttribute" : 
+                            {
+                              "type" : "bool", 
+                              "value" : true
+                            }, 
+                          "colorAttribute" : 
+                            {
+                              "type" : "color", 
+                              "value" : [ 0, 0, 0, 0]
+                            }, 
+                          "default-anchor0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-anchor2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-height" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1080.0
+                            }, 
+                          "default-rotation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-rotation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-scale" : "1", 
+                          "default-scale0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-scale2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1.0
+                            }, 
+                          "default-shear0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-shear2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation0" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation1" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-translation2" : 
+                            {
+                              "type" : "double", 
+                              "value" : 0.0
+                            }, 
+                          "default-width" : 
+                            {
+                              "type" : "double", 
+                              "value" : 1920.0
+                            }, 
+                          "effectApplied" : "none"
+                        }
+                      }
+                    ], 
+                    "effects" : [
+                    ], 
+                    "start" : 0, 
+                    "duration" : 14676480000, 
+                    "mediaStart" : 0, 
+                    "mediaDuration" : 23490082313, 
+                    "scalar" : "14676480000/23490082313", 
+                    "metadata" : {
+                      "audiateLinkedSession" : "", 
+                      "clipSpeedAttribute" : 
+                        {
+                          "type" : "bool", 
+                          "value" : true
+                        }, 
+                      "colorAttribute" : 
+                        {
+                          "type" : "color", 
+                          "value" : [ 0, 0, 0, 0]
+                        }, 
+                      "default-anchor0" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-anchor1" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-anchor2" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-height" : 
+                        {
+                          "type" : "double", 
+                          "value" : 1080.0
+                        }, 
+                      "default-rotation0" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-rotation1" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-rotation2" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-scale" : "1", 
+                      "default-scale0" : 
+                        {
+                          "type" : "double", 
+                          "value" : 1.0
+                        }, 
+                      "default-scale1" : 
+                        {
+                          "type" : "double", 
+                          "value" : 1.0
+                        }, 
+                      "default-scale2" : 
+                        {
+                          "type" : "double", 
+                          "value" : 1.0
+                        }, 
+                      "default-shear0" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-shear1" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-shear2" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-translation0" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-translation1" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-translation2" : 
+                        {
+                          "type" : "double", 
+                          "value" : 0.0
+                        }, 
+                      "default-width" : 
+                        {
+                          "type" : "double", 
+                          "value" : 1920.0
+                        }, 
+                      "effectApplied" : "none"
+                    }, 
+                    "animationTracks" : {
+                    }
+                  }
+                ], 
+                "parameters" : {
+                }
+              }, 
+              {
+                "trackIndex" : 2, 
+                "medias" : [
+                ], 
+                "parameters" : {
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }, 
+    "trackAttributes" : [
+      {
+        "ident" : "", 
+        "audioMuted" : false, 
+        "videoHidden" : false, 
+        "magnetic" : false, 
+        "matte" : 0, 
+        "solo" : false, 
+        "metadata" : {
+          "IsLocked" : "False", 
+          "trackHeight" : "78"
+        }
+      }, 
+      {
+        "ident" : "", 
+        "audioMuted" : false, 
+        "videoHidden" : false, 
+        "magnetic" : false, 
+        "matte" : 0, 
+        "solo" : false, 
+        "metadata" : {
+          "IsLocked" : "False", 
+          "trackHeight" : "78"
+        }
+      }, 
+      {
+        "ident" : "", 
+        "audioMuted" : false, 
+        "videoHidden" : false, 
+        "magnetic" : false, 
+        "matte" : 0, 
+        "solo" : false, 
+        "metadata" : {
+          "IsLocked" : "False", 
+          "trackHeight" : "78"
+        }
+      }
+    ], 
+    "parameters" : {
+    }, 
+    "captionAttributes" : {
+      "enabled" : true, 
+      "fontName" : "Arial", 
+      "fontSize" : 32, 
+      "backgroundColor" : [ 0, 0, 0, 204], 
+      "foregroundColor" : [ 255, 255, 255, 255], 
+      "lang" : "en", 
+      "alignment" : 0, 
+      "defaultFontSize" : true, 
+      "opacity" : 0.5, 
+      "backgroundEnabled" : true, 
+      "backgroundOnlyAroundText" : true
+    }, 
+    "gain" : 1.0, 
+    "legacyAttenuateAudioMix" : false, 
+    "backgroundColor" : [ 0, 0, 0, 255]
+  }, 
+  "metadata" : {
+    "ProjectThumbnail" : "iVBORw0KGgoAAAANSUhEUgAAAoAAAAFoCAYAAADHMkpRAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAACgKADAAQAAAABAAABaAAAAACeojBPAAASf0lEQVR4Ae3WsREAIAwDscD+OwMFW7y4YwDLKbxm5rzvESBAgAABAgQIRAR2JKeYBAgQIECAAAECX8AAdAoECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAgagGyBAgAABAgQIxAQMwFjh4hIgQIAAAQIEDEA3QIAAAQIECBCICRiAscLFJUCAAAECBAgYgG6AAAECBAgQIBATMABjhYtLgAABAgQIEDAA3QABAgQIECBAICZgAMYKF5cAAQIECBAgYAC6AQIECBAgQIBATMAAjBUuLgECBAgQIEDAAHQDBAgQIECAAIGYgAEYK1xcAgQIECBAgIAB6AYIECBAgAABAjEBAzBWuLgECBAgQIAAAQPQDRAgQIAAAQIEYgIGYKxwcQkQIECAAAECBqAbIECAAAECBAjEBAzAWOHiEiBAgAABAgQMQDdAgAABAgQIEIgJGICxwsUlQIAAAQIECBiAboAAAQIECBAgEBMwAGOFi0uAAAECBAgQMADdAAECBAgQIEAgJmAAxgoXlwABAgQIECBgALoBAgQIECBAgEBMwACMFS4uAQIECBAgQMAAdAMECBAgQIAAgZiAARgrXFwCBAgQIECAgAHoBggQIECAAAECMQEDMFa4uAQIECBAgAABA9ANECBAgAABAgRiAgZgrHBxCRAgQIAAAQIGoBsgQIAAAQIECMQEDMBY4eISIECAAAECBAxAN0CAAAECBAgQiAkYgLHCxSVAgAABAgQIGIBugAABAgQIECAQEzAAY4WLS4AAAQIECBAwAN0AAQIECBAgQCAmYADGCheXAAECBAgQIGAAugECBAgQIECAQEzAAIwVLi4BAgQIECBAwAB0AwQIECBAgACBmIABGCtcXAIECBAgQICAAegGCBAgQIAAAQIxAQMwVri4BAgQIECAAAED0A0QIECAAAECBGICBmCscHEJECBAgAABAhfaGQPPRmdxkAAAAABJRU5ErkJggg==", 
+    "RulerGuidesX" : [], 
+    "RulerGuidesY" : [], 
+    "RulerShowing" : 
+      {
+        "type" : "bool", 
+        "value" : false
+      }, 
+    "activeThemeId" : "e59eeb42-ccf0-4a36-bdf9-e630fdab686d", 
+    "commandCount" : 
+      {
+        "type" : "int", 
+        "value" : 30
+      }, 
+    "firstMedia" : 
+      {
+        "type" : "bool", 
+        "value" : true
+      }, 
+    "hasNotifiedAboutHFRMedia" : 
+      {
+        "type" : "bool", 
+        "value" : false
+      }, 
+    "projectDuration" : "00:20"
+  }
+}

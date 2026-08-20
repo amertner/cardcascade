@@ -14,3 +14,8 @@ tmp/
 # ignoring a path does not untrack what is already in.)
 # (a mid-pattern slash anchors to the repo root, hence the leading **/)
 **/*.cmproj/media/
+# Camtasia's autosave copy of the timeline. It churns on every save and is
+# never the file you want — the one committed in 3627c5b turned into an
+# 823-line deletion the next time Camtasia touched it. No **/ needed: a
+# pattern with no slash in it already matches at any depth.
+~*.tscproj
