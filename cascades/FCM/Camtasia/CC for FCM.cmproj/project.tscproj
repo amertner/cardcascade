@@ -717,6 +717,9 @@
                           "type" : "color", 
                           "value" : [ 0, 0, 0, 0]
                         }, 
+                      "default-BackgroundRemoval-backgroundOpacity" : "0", 
+                      "default-BackgroundRemoval-blurBackgroundSigma" : "0", 
+                      "default-BackgroundRemoval-featherMaskSigma" : "0", 
                       "default-height" : 
                         {
                           "type" : "double", 
@@ -743,7 +746,7 @@
                           "type" : "double", 
                           "value" : 1920.0
                         }, 
-                      "effectApplied" : "none"
+                      "effectApplied" : "BackgroundRemoval"
                     }, 
                     "animationTracks" : {
                     }
@@ -803,7 +806,7 @@
     "commandCount" : 
       {
         "type" : "int", 
-        "value" : 19
+        "value" : 25
       }, 
     "firstMedia" : 
       {
