@@ -4,3 +4,13 @@ __pycache__/
 .onshape_cache.json
 manifest.json
 tmp/
+
+# Camtasia bundles carry their raw source FOOTAGE beside a small .tscproj
+# timeline — Compile.cmproj is 85 MB, of which 85 MB is two .mov files and
+# 0.1 MB is the edit. Video does not delta-compress, so every re-edit would
+# add its full size to history permanently, and history cannot be slimmed
+# by deleting later. Keep the timeline in git, the footage in your backups.
+# (cascades/FCM/Camtasia/'s .MOV predates this rule and stays tracked —
+# ignoring a path does not untrack what is already in.)
+# (a mid-pattern slash anchors to the repo root, hence the leading **/)
+**/*.cmproj/media/
