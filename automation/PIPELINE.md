@@ -179,6 +179,59 @@ it never came from. Only `--adopt` ever got this wrong, and only for
 assembly-sourced types — its previous callers were all `--types Lid`, which
 `ELEMENTS` answers correctly.
 
+### Verifying a bulk re-export — diff the mesh, don't trust the version
+
+`individual/` is committed, so `git show HEAD:<component>` is a free before-image
+and the only honest way to check that a sweeping re-export did what was
+intended. Measure per-FACE (min and max of each axis), not the span: a span
+folds a real design move together with tessellation drift and hides both.
+
+Two numbers make the check readable. A **design change lands on exactly one
+face, at a round value** — the 6.6 holder fix moved `Y-min` by −0.4000 mm on 31
+of 35 holders, to four decimals, every time. **Tessellation drift is 0.01–0.07
+mm and sits on curved faces**, recognisable because the coordinate is non-round
+both before and after (a holder's `Y-max` fillet reads 0.8867 → 0.9486). That is
+why the holders' Y SPAN reads +0.446 rather than +0.400 and why the span alone
+would have looked wrong.
+
+For a part that should NOT have changed shape, the vertex-set difference
+localises what did: the 6.6 box's entire change was 155 vertices inside a
+0.97 × 1.18 × 0.40 mm box — one embossed version glyph — with every face
+identical to 0.0000 mm.
+
+**Embossing is not confined to the Box and Lid.** The Pusher carries a raised
+version string too, in a ~2.5 × 15.6 × 0.4 mm strip; `VERSIONS` had pinned
+Pusher at 6.3 on the belief that it embossed nothing, so pushers were never
+re-fetched and every one on disk still read 6.4 while its box read 6.5. If a
+component is monochrome, assume it may carry the version until a vertex diff
+says otherwise — it rides the assembly export anyway, so re-exporting it costs
+nothing beyond the parameter set.
+
+**The first-riser holder is separate geometry, so a holder change need not
+apply to it.** `(first)` holders are driven by `FirstSlidingSlot`; a change to
+the standard holder reaches them only if the CAD edit covers both. At 6.6 it
+deliberately did not — the defect was in the DEFAULT holder alone, so all 31
+standard holders moved 0.4 mm while all four `(first)` holders were already
+correct and stayed put (`Holder M-60-Sl (first)` came back byte-identical to its
+6.5 export). Expect a holder change to split along this line, and establish
+which side it was meant to land on before reading an unchanged `(first)` holder
+as a missed fix — the two first-riser rows (Dominion 246 `S2.40.12/30` and 472
+`M2.60.18/40`) are where the distinction shows up.
+
+### `--keep-layout` does not re-check clearance between objects
+
+`make_cascade --keep-layout` guards a plate's total SPAN against the bed, so a
+swapped mesh that outgrew its slot cannot overhang. It does not test whether
+neighbouring objects still clear each other — positions are fixed, so a part
+that grows eats the gap to its neighbour silently. After any dimensional change
+to a repeated part, slice the affected projects: the same Studio CLI MakerWorld
+runs is the ground truth, and it is cheap (~11 s for a whole project, all
+plates, not the ~20 s per plate an H2C tower check costs).
+
+```
+BambuStudio --slice 0 --outputdir <dir> <project.3mf>   # 0 = every plate
+```
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row

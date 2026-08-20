@@ -101,7 +101,7 @@ def is_imported(part_name, component_type):
 # Per-studio design version. Bump the entry for a studio you have edited in
 # Onshape; components exported at an older version go stale and are re-exported
 # (see provenance.py). No API calls — you control these.
-# The embossed version number (set_variables.build_primary) is now 6.5. The Box
+# The embossed version number (set_variables.build_primary) is now 6.6. The Box
 # and Holder studios changed at 6.5, so both are 6.5. The Lid is 6.5 as well, but
 # for a fix that reached exactly ONE file: a singularity in the CAD stopped
 # Onshape extruding the pusher slot out of the lid's foot, so the sleeved FCM 180
@@ -109,8 +109,9 @@ def is_imported(part_name, component_type):
 # Every other lid was checked against that defect's signature — the slot's cut
 # faces are simply absent when the extrude fails — and all 33 carry their full
 # cut, so they were adopted at 6.5 rather than re-exported (they already match
-# the studio). Pushers emboss nothing, so their geometry is version-independent
-# and they stay at their own design version (no needless re-exports).
+# the studio). Pushers were ASSUMED to emboss nothing, hence to be version-
+# independent, and were left at their own design version — see the 6.6 note
+# below, where measuring one showed that assumption was false.
 #
 # Token holders were in that same "version-independent" group until 6.5, when
 # the design narrowed them (Dominion 168 sleeved: 74.80 -> 63.10 mm wide) and
@@ -119,9 +120,35 @@ def is_imported(part_name, component_type):
 # one still on 6.3 is genuinely stale — a 6.3 holder is too wide for a 6.5
 # pocket. Token holders are Dominion-only, so this marks nothing stale in the
 # other three games.
+#
+# 6.6 fixes a defect in the holder: every holder is 0.4 mm thicker than at 6.5.
+# Only the Holder studio changed SHAPE, but the whole MONOCHROME set moves to
+# 6.6 — Box, Pusher, Holder and both token holders. They share one assembly
+# export, so re-exporting them costs nothing beyond the parameter sets the
+# holders already need, and it puts 6.6 on the boxes rather than leaving a 6.6
+# holder inside a box embossed 6.5.
+#
+# "Everything but the Holder is only a version bump" was checked rather than
+# assumed, by diffing the first export of the run (Compile 105 Un) against its
+# predecessor vertex by vertex:
+#   Box     every face identical to 0.0000 mm; the ONLY changed geometry is a
+#           0.97 x 1.18 x 0.40 mm blob at x=82, z=1.2..1.6 — one version glyph.
+#   Holder  Y-min moves exactly -0.4000 mm and nothing else does. X is identical;
+#           Y-max +0.046 and Z-max -0.010 are tessellation of curved faces, which
+#           is why the SPAN reads +0.446 rather than +0.400. The fix lands
+#           entirely on one face.
+#   Pusher  bounding box identical on every axis, yet 353 vertices changed inside
+#           a 2.5 x 15.6 x 0.4 mm strip — a raised version string. So pushers DO
+#           emboss the version and the note above was wrong; because VERSIONS
+#           pinned them at 6.3 they were never re-exported, and every pusher on
+#           disk still read 6.4. Including them here is what fixes that, and is
+#           why Pusher now tracks the design version like the rest.
+# The LID is deliberately left at 6.5 (Allan's call), so a refreshed cascade has
+# a box reading 6.6 under a lid that still embosses 6.4 — the adopted-lid
+# discrepancy PIPELINE.md records under `--changed Lid`.
 VERSIONS = {
-    "Box": "6.5", "Lid": "6.5", "Holder": "6.5", "Pusher": "6.3",
-    "Topper": "6.4", "TokenHolder": "6.5", "HalfTokenHolder": "6.5",
+    "Box": "6.6", "Lid": "6.5", "Holder": "6.6", "Pusher": "6.6",
+    "Topper": "6.4", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
     "Label": "6.3",
 }
 # Innovation lid + toppers changed at 6.4; the Blank topper is exempt (no logo)
