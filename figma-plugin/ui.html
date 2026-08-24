@@ -6,25 +6,44 @@
   fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 10px; padding: 8px 10px; }
   legend { font-weight: 600; padding: 0 4px; }
   label { display: block; margin: 2px 0; }
-  .modes { color: #888; margin-left: 20px; }
   input[type=text], input[type=number] { width: 100%; box-sizing: border-box; padding: 5px 6px;
     border: 1px solid #ccc; border-radius: 4px; font: inherit; }
   .row { display: flex; gap: 8px; }
   .row > div { flex: 1; }
   button { width: 100%; padding: 8px; border: 0; border-radius: 6px; background: #18a058;
     color: #fff; font: inherit; font-weight: 600; cursor: pointer; margin-top: 6px; }
-  button:disabled { background: #bbb; }
+  button:disabled { background: #bbb; cursor: default; }
   #log { margin-top: 8px; max-height: 130px; overflow-y: auto; color: #555;
     font-family: ui-monospace, monospace; font-size: 11px; white-space: pre-wrap; }
   a#dl { display: none; margin-top: 8px; text-align: center; padding: 8px; border-radius: 6px;
     background: #2456a6; color: #fff; text-decoration: none; font-weight: 600; }
   .hint { color: #888; }
+
+  #colbox { max-height: 210px; overflow-y: auto; }
+  .col + .col { border-top: 1px solid #eee; margin-top: 4px; padding-top: 4px; }
+  .chead { display: flex; align-items: center; gap: 5px; }
+  .chead .cname { font-weight: 600; }
+  .chead .count { margin-left: auto; color: #888; }
+  .tw { width: 9px; color: #999; cursor: pointer; user-select: none; font-size: 9px; }
+  .lnk { color: #2456a6; cursor: pointer; font-size: 11px; }
+  .lnk:hover { text-decoration: underline; }
+  .acts { display: flex; gap: 6px; }
+  .modes { display: flex; flex-wrap: wrap; gap: 1px 10px; margin: 3px 0 2px 15px; }
+  .modes label { display: inline-flex; align-items: center; gap: 3px; margin: 0; }
+  .modes.hid { display: none; }
 </style>
 
 <h3>Selected: <span id="selname" class="warn">nothing — select the Card</span></h3>
 
-<fieldset id="cols"><legend>Iterate these variable collections</legend>
-  <div class="hint">loading…</div>
+<fieldset>
+  <legend>Iterate these modes</legend>
+  <div class="chead" style="margin-bottom:4px">
+    <span class="hint">tick the modes to export</span>
+    <span class="acts" style="margin-left:auto">
+      <span class="lnk" id="allall">all</span><span class="lnk" id="allnone">none</span>
+    </span>
+  </div>
+  <div id="colbox"><div class="hint">loading…</div></div>
 </fieldset>
 
 <fieldset><legend>Output</legend>
@@ -40,7 +59,7 @@
   </div>
 </fieldset>
 
-<button id="go">Export all combinations</button>
+<button id="go">Export</button>
 <a id="dl">Download zip</a>
 <div id="log"></div>
 
@@ -49,17 +68,17 @@ const files = [];
 const $ = (id) => document.getElementById(id);
 const log = (t) => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
 
+let COLS = [];            // [{id, name, modes: [{id, name}]}]
+const picked = {};        // collection id -> [mode id] in collection order
+const open = {};          // collection id -> expanded?
+
 onmessage = (e) => {
   const m = e.data.pluginMessage;
   if (!m) return;
   if (m.type === "init") {
-    const box = $("cols"); box.innerHTML = "";
-    for (const c of m.collections) {
-      const lab = document.createElement("label");
-      lab.innerHTML = `<input type="checkbox" value="${c.id}" data-name="${c.name}"> ${c.name}` +
-        `<div class="modes">${c.modes.map(x => x.name).join(" · ")}</div>`;
-      box.appendChild(lab);
-    }
+    COLS = m.collections;
+    restore(m.saved);
+    render();
     setSel(m.selection);
   }
   if (m.type === "selection") setSel(m.selection);
@@ -67,8 +86,8 @@ onmessage = (e) => {
     files.push({ name: m.name, bytes: new Uint8Array(m.bytes) });
     log(`${m.done}/${m.total}  ${m.name}`);
   }
-  if (m.type === "done") { buildZip(); $("go").disabled = false; }
-  if (m.type === "error") { log("ERROR: " + m.text); $("go").disabled = false; }
+  if (m.type === "done") { buildZip(); render(); }
+  if (m.type === "error") { log("ERROR: " + m.text); render(); }
 };
 
 function setSel(name) {
@@ -77,12 +96,145 @@ function setSel(name) {
   else { el.textContent = "nothing — select the Card"; el.className = "warn"; }
 }
 
+// ---- selection state ----
+// Default is everything ticked, so the common "export the lot" run is
+// open-and-go. A remembered subset wins over that, but only for the modes
+// that still exist; a collection whose modes all vanished falls back to all.
+function restore(saved) {
+  const savedAxes = (saved && saved.axes) || {};
+  for (const c of COLS) {
+    const ids = c.modes.map((m) => m.id);
+    const want = savedAxes[c.id];
+    picked[c.id] = Array.isArray(want)
+      ? ids.filter((id) => want.indexOf(id) !== -1)
+      : ids.slice();
+    if (Array.isArray(want) && !picked[c.id].length && want.length) picked[c.id] = ids.slice();
+    // open the ones that are a partial pick, so a remembered subset is visible
+    open[c.id] = picked[c.id].length > 0 && picked[c.id].length < ids.length;
+  }
+  if (saved) {
+    if (saved.pattern) $("pattern").value = saved.pattern;
+    if (saved.scale) $("scale").value = saved.scale;
+    if (saved.settleMs != null) $("settle").value = saved.settleMs;
+  }
+}
+
+const setPick = (c, ids) => {
+  const want = {};
+  for (const id of ids) want[id] = 1;
+  picked[c.id] = c.modes.map((m) => m.id).filter((id) => want[id]);
+};
+
+function comboCount() {
+  let n = 0;
+  for (const c of COLS) {
+    const k = (picked[c.id] || []).length;
+    if (!k) continue;
+    n = n ? n * k : k;
+  }
+  return n;
+}
+
+function render() {
+  const box = $("colbox"), scroll = box.scrollTop;
+  box.innerHTML = "";
+  for (const c of COLS) {
+    const sel = picked[c.id] || [];
+    const all = c.modes.length, k = sel.length;
+
+    const wrap = document.createElement("div");
+    wrap.className = "col";
+
+    const head = document.createElement("div");
+    head.className = "chead";
+
+    const tw = document.createElement("span");
+    tw.className = "tw";
+    tw.textContent = open[c.id] ? "▼" : "▶";
+    tw.onclick = () => { open[c.id] = !open[c.id]; render(); };
+
+    const master = document.createElement("input");
+    master.type = "checkbox";
+    master.checked = k === all && k > 0;
+    master.indeterminate = k > 0 && k < all;
+    // Matches what the browser does to the box visually: a partial pick
+    // fills in, a full one clears. The all/none links cover the rest.
+    master.onclick = () => { setPick(c, k === all ? [] : c.modes.map((m) => m.id)); changed(); };
+
+    const name = document.createElement("span");
+    name.className = "cname";
+    name.textContent = c.name;
+    name.onclick = () => { open[c.id] = !open[c.id]; render(); };
+
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = !k ? "not iterated" : k === all ? "all " + all : k + " of " + all;
+
+    const acts = document.createElement("span");
+    acts.className = "acts";
+    for (const [text, ids] of [["all", c.modes.map((m) => m.id)], ["none", []]]) {
+      const a = document.createElement("span");
+      a.className = "lnk";
+      a.textContent = text;
+      a.onclick = () => { setPick(c, ids); changed(); };
+      acts.appendChild(a);
+    }
+
+    head.append(tw, master, name, count, acts);
+    wrap.appendChild(head);
+
+    const modes = document.createElement("div");
+    modes.className = "modes" + (open[c.id] ? "" : " hid");
+    for (const mo of c.modes) {
+      const lab = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = sel.indexOf(mo.id) !== -1;
+      cb.onclick = () => {
+        const next = cb.checked ? sel.concat([mo.id]) : sel.filter((id) => id !== mo.id);
+        setPick(c, next);
+        changed();
+      };
+      const t = document.createElement("span");
+      t.textContent = mo.name;
+      lab.append(cb, t);
+      modes.appendChild(lab);
+    }
+    wrap.appendChild(modes);
+    box.appendChild(wrap);
+  }
+  box.scrollTop = scroll;
+
+  const n = comboCount();
+  $("go").disabled = !n;
+  $("go").textContent = !n ? "Pick at least one mode"
+    : n === 1 ? "Export 1 combination" : "Export " + n + " combinations";
+}
+
+// Any change re-renders (counts and tri-states are derived) and is remembered.
+function changed() { render(); save(); }
+
+function save() {
+  const axes = {};
+  for (const c of COLS) axes[c.id] = picked[c.id] || [];
+  parent.postMessage({ pluginMessage: { type: "save", state: {
+    axes, pattern: $("pattern").value,
+    scale: parseFloat($("scale").value) || 1,
+    settleMs: parseInt($("settle").value) || 150 } } }, "*");
+}
+
+$("allall").onclick = () => { for (const c of COLS) setPick(c, c.modes.map((m) => m.id)); changed(); };
+$("allnone").onclick = () => { for (const c of COLS) setPick(c, []); changed(); };
+for (const id of ["pattern", "scale", "settle"]) $(id).onchange = save;
+
 $("go").onclick = () => {
-  const ids = [...document.querySelectorAll("#cols input:checked")].map(i => i.value);
+  const axes = COLS.filter((c) => (picked[c.id] || []).length)
+    .map((c) => ({ collectionId: c.id, modeIds: picked[c.id] }));
   files.length = 0; $("dl").style.display = "none"; $("log").textContent = "";
-  $("go").disabled = true;
+  $("go").disabled = true; $("go").textContent = "Exporting…";
+  save();
   parent.postMessage({ pluginMessage: {
-    type: "export", collectionIds: ids, pattern: $("pattern").value,
+    type: "export", axes, pattern: $("pattern").value,
     scale: parseFloat($("scale").value) || 1,
     settleMs: parseInt($("settle").value) || 150 } }, "*");
 };
