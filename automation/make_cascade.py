@@ -58,8 +58,9 @@ CLEARANCE = 1.0          # validation: min distance between objects
 # profiles/) that the output is switched to when that bed is chosen.
 PROFILES = Path(__file__).parent / "profiles"
 BED_TABLE = [
-    ("P1",  256.0, 256.0, "p1p", "Bambu Lab P1P"),
-    ("H2C", 330.0, 320.0, "h2c", "Bambu Lab H2C"),
+    ("Mini", 180.0, 180.0, "a1mini", "Bambu Lab A1 mini"),
+    ("P1",   256.0, 256.0, "p1p", "Bambu Lab P1P"),
+    ("H2C",  330.0, 320.0, "h2c", "Bambu Lab H2C"),
 ]
 BED_MARGIN = 8.0         # bed-fit slack: an object's 45°-rotated span must clear this
 #                          (auto is deliberately conservative; a cascade the user
@@ -292,12 +293,13 @@ def main():
                          "object positions, plates and wipe towers (for updating "
                          "a hand-crafted layout with same-design components); "
                          "refuses a swapped mesh that outgrew its slot")
-    ap.add_argument("--bed", choices=["auto", "p1", "h2c", "template"],
+    ap.add_argument("--bed",
+                    choices=["auto", "mini", "p1", "h2c", "template"],
                     help="with --auto-plates, the print bed: 'auto' (default) "
-                         "picks the smallest that fits parts rotated 45° (P1 "
-                         "256mm, else H2C 330mm) and swaps the printer profile "
-                         "to match; 'p1'/'h2c' force one; 'template' keeps the "
-                         "template's bed")
+                         "picks the smallest that fits parts rotated 45° (A1 "
+                         "mini 180mm, else P1 256mm, else H2C 330mm) and swaps "
+                         "the printer profile to match; 'mini'/'p1'/'h2c' force "
+                         "one; 'template' keeps the template's bed")
     args = ap.parse_args()
     if args.keep_layout and args.auto_plates:
         fail("--keep-layout and --auto-plates are mutually exclusive")
@@ -386,8 +388,12 @@ def main():
         xml = re.sub(rf'\s*<item objectid="{oid}" [^>]*/>', "", xml, count=1)
         cfg = re.sub(rf'\s*<object id="{oid}">.*?</object>', "",
                      cfg, count=1, flags=re.S)
+        # NOT count=1: a project may list an object more than once in its
+        # <assemble> block (the A1 Mini Innovation donor lists each twice),
+        # and a single surviving reference to a purged object makes Studio
+        # refuse the file outright — "can not find object for assemble item".
         cfg = re.sub(rf'\s*<assemble_item object_id="{oid}" [^>]*/>',
-                     "", cfg, count=1)
+                     "", cfg)
         cfg = re.sub(rf'\s*<model_instance>\s*<metadata key="object_id" '
                      rf'value="{oid}"/>.*?</model_instance>', "",
                      cfg, count=1, flags=re.S)
@@ -936,7 +942,7 @@ def main():
                 if choice is None:
                     fail("no candidate bed fits every part even rotated 45 deg")
             else:
-                want = "p1p" if bed_mode == "p1" else "h2c"
+                want = {"mini": "a1mini", "p1": "p1p", "h2c": "h2c"}[bed_mode]
                 choice = next(b for b in BED_TABLE if b[3] == want)
                 if not _fits(choice[1], choice[2]):
                     print(f"  warning: forced bed {choice[0]} may not fit all parts")

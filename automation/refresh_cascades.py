@@ -8,8 +8,9 @@ Refreshes a filtered set of cascades:
     ASSEMBLE make_cascade — by default --keep-layout (swap refreshed meshes into
              each cascade's project, preserving its hand-tuned plates). With
              --rebuild, --auto-plates instead: regenerate the layout from the
-             box's own project as donor, bed chosen from parts.csv (Standard→P1,
-             Large→H2C, Mixed→P1 unsleeved/H2C sleeved) — the general "auto-build"
+             box's own project as donor, bed chosen from parts.csv (Mini→A1 mini,
+             Standard→P1, Large→H2C, Mixed→P1 unsleeved/H2C sleeved) — the
+             general "auto-build"
              for first-building a box whose only project is stale/mislabeled.
 
 Each step asks for confirmation. `--auto` skips the two OFFLINE prompts (PLAN and
@@ -369,9 +370,16 @@ def assemble_one(game, spec, casc, dry):
 
 def bed_for(casc):
     """make_cascade --bed for a cascade, from parts.csv's `3D printer` column:
-    Standard→p1, Large→h2c, Mixed→p1 unsleeved / h2c sleeved (the sleeved box is
-    deeper and needs the big bed), blank/unknown→auto (let make_cascade decide)."""
+    Mini→a1mini, Standard→p1, Large→h2c, Mixed→p1 unsleeved / h2c sleeved (the
+    sleeved box is deeper and needs the big bed), blank/unknown→auto (let
+    make_cascade decide).
+
+    Mini is the 180 mm A1 mini bed, which only the XS boxes fit — every other
+    box/lid in the repo exceeds make_cascade's 45°-rotated fit rule for it, so
+    a Mini row is always an explicit choice rather than something auto lands on."""
     kind = (casc["row"].get("3D printer") or "").strip().lower()
+    if kind == "mini":
+        return "mini"
     if kind == "standard":
         return "p1"
     if kind == "large":

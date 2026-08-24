@@ -269,8 +269,9 @@ builds a standard set of plates per cascade:
 4. Toppers (Innovation only)
 5. TokenHolders (Dominion only)
 
-Each plate is sized to fit a **P1 build plate (256×256 mm)**, rotating parts to
-fit where needed; if a plate still won't fit, it goes to an **H2C-size** plate.
+Each plate is sized to fit the smallest candidate bed, rotating parts to fit
+where needed: **A1 mini (180×180 mm)**, else **P1 (256×256)**, else **H2C
+(330×320)** — `make_cascade.BED_TABLE`, smallest first.
 This means Stage 3 generates the plate layout rather than reusing a fixed
 template — `make_cascade.py` currently *requires* a template, so this stage will
 either supply a standard per-scheme template or extend the layout code.
@@ -337,8 +338,9 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
 - **`--rebuild`** switches ASSEMBLE to `make_cascade --auto-plates`: regenerate
   the plate layout from the box's own project as donor (swap every mesh by role,
   normalise the token-holder object name — donors often leave it `Part 1`), with
-  the bed chosen from parts.csv's `3D printer` column (**Standard→P1, Large→H2C,
-  Mixed→P1 unsleeved / H2C sleeved**). This is the general "auto-build" for
+  the bed chosen from parts.csv's `3D printer` column (**Mini→A1 mini,
+  Standard→P1, Large→H2C, Mixed→P1 unsleeved / H2C sleeved**). This is the
+  general "auto-build" for
   first-building a box whose only project is stale/mislabeled — it replaces the
   old per-box shell scripts.
 - **A cascade with no project at all** is outside `refresh_cascades`: both its
@@ -373,6 +375,30 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   isn't on disk, or for first-riser cascades (need a `Holder#N` override).
   keep-layout cannot ADD an object, so a cascade missing a new object's slot
   (e.g. a pre-HalfTokenHolder Mat template) is skipped for manual layout.
+
+### The `Mini` bed class (A1 mini)
+
+Innovation's XS boxes are the only cascades small enough for the 180 mm A1 mini,
+so `parts.csv` gained a **`Mini`** value in the `3D printer` column and
+`profiles/a1mini.config` the matching reference profile.
+
+Adding a bed SMALLER than P1 changes what `--bed auto` picks, since it takes the
+first entry in `BED_TABLE` that fits — so it was checked before landing rather
+than assumed: against make_cascade's rule (an object's 45°-rotated span
+`(w+d)/√2` must clear `min(bed) - BED_MARGIN` = 172 mm) the smallest box or lid
+in every other game is 176.0 mm (Dominion `S4.16.10`), 178.7 (FCM `S4.18.12`)
+and 181.4 (Compile `S4.7.7`). All are above the bar, so no existing cascade can
+be re-routed onto the Mini bed; `XS5.15.10` reaches 142.1 and does fit. Only one
+row uses `auto` at all (Dominion's blank `290 Card (Mat)`), and it is a Mat box,
+larger still.
+
+The profile was taken from the A1 mini cascade project itself rather than hand
+written, with two corrections: `wipe_tower_x`/`wipe_tower_y` dropped (make_cascade
+sets those per plate, and neither sibling profile carries them) and
+`filament_nozzle_map`/`filament_volume_map` cut from Studio's 9 entries to the
+2 that `p1p`/`h2c` carry. A profile REPLACES a project's whole settings on a bed
+swap, so leaving the 9-entry drift in would have propagated it to every future
+Mini rebuild instead of just the projects that already inherited it.
 
 ## Process settings — `make_cascade.PRINT_SETTINGS`
 

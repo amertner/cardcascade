@@ -328,10 +328,11 @@ def names_rows(rec, game_cfg):
     only the first pair is captioned, so the block reads as one list rather
     than four unrelated rows.
 
-    The side labels are the same text at the same two widths on every one
+    The side labels are the same text at the same side widths on every one
     of those boxes, so a single row stands for all of them; showing them
-    per name would add twelve rows that say nothing new. The narrowest
-    width carries the short form, as it does in the print itself."""
+    per name would add a row per name per width, all saying nothing new.
+    The narrowest width carries the short form, as it does in the print
+    itself."""
     names = rec.get("names") or []
     if not names:
         return None
