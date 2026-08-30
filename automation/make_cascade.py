@@ -66,6 +66,65 @@ BED_MARGIN = 8.0         # bed-fit slack: an object's 45°-rotated span must cle
 #                          (auto is deliberately conservative; a cascade the user
 #                          knows fits a tighter bed can force it with --bed p1)
 
+# --- packing 45° strips (holders, toppers) ---------------------------------
+# A w x d strip turned 45° has a SQUARE bounding box of side (w + d)/√2, so its
+# centre must stay inside a square inset from the bed by half of that. Step a
+# strip along the bed's x or y axis by (d + gap)·√2 and it moves exactly
+# (d + gap) across its own width — the separation neighbours need — while also
+# sliding (d + gap) along its own length, which costs nothing because the strips
+# are parallel. So a column down one edge plus a row along the next packs them
+# at the right pitch, the two arms sharing their corner strip.
+#
+# This replaces a diagonal band through the plate centre. The band was the same
+# pitch but held fewer, because its capacity was estimated as
+# (bed - 20)·√2 - longest: that drops the strip's own depth and hard-codes a
+# 10 mm margin, and it put 5 Innovation M holders (285.80 x 9.39 on a P1) onto
+# two plates when they fit one. Both arrangements were sliced; both are legal.
+STRIP_MARGIN = 4.0       # bed edge clearance for a 45° strip's bounding box
+
+
+def strip_inset(w, d):
+    """Half-side of a w x d strip's bounding box once turned 45°."""
+    return (w + d) / (2 * math.sqrt(2))
+
+
+def strip_arm(bed, longest, depth, gap):
+    """How many 45° strips fit along ONE bed edge, corner strip included."""
+    side = bed - 2 * STRIP_MARGIN - 2 * strip_inset(longest, depth)
+    if side < 0:
+        return 0
+    return int(side / ((depth + gap) * math.sqrt(2))) + 1
+
+
+def strip_arms(bed, longest, depth, gap):
+    """How many 45° strips fit ONE plate as two arms sharing their corner."""
+    return max(1, 2 * strip_arm(bed, longest, depth, gap) - 1)
+
+
+def strip_band(bed, longest, depth, gap):
+    """How many 45° strips fit ONE plate as a single centred diagonal band.
+
+    The strips sit at a common position along their length and are separated
+    only across it, so their centres run the full half-width of the bed's
+    diamond: (bed - 2*margin)/√2 less the strip's own half-diagonal."""
+    half = (bed - 2 * STRIP_MARGIN) / math.sqrt(2) \
+        - strip_inset(longest, depth) * math.sqrt(2)
+    if half < 0:
+        return 1
+    return int(2 * half / (depth + gap)) + 1
+
+
+def strip_capacity(bed, longest, depth, gap):
+    """How many 45° strips fit ONE plate, whichever arrangement holds more.
+
+    Two arms is the better shape and is what a plate of holders or toppers
+    gets, but it is NOT universally better: an arm advances by (depth+gap)*√2
+    along a bed axis, so once a strip is thick relative to the bed a single arm
+    holds one and the centred band holds more. Dominion's 270 x 27.80 mm
+    first-riser holder is that case (band 2, arms 1)."""
+    return max(strip_arms(bed, longest, depth, gap),
+               strip_band(bed, longest, depth, gap))
+
 # Process settings this repo insists on, whatever the template/profile says.
 # Arachne varies the wall width to fill what it is given; classic lays down
 # fixed-width walls and leaves the remainder as gap filler, which on these
@@ -1022,9 +1081,7 @@ def main():
                 # diagonal band; if too many for one bed, split across plates.
                 thin = depth < 30 and all(max(_dims(o)) > bed - 20 for o in oids)
                 if thin and len(oids) > 1:
-                    g = obj_gap(oids[0])
-                    band = (bed - 20) * math.sqrt(2) - longest
-                    per = max(1, int((band + g) / (depth + g)))
+                    per = strip_capacity(bed, longest, depth, obj_gap(oids[0]))
                 else:
                     per = len(oids)
                 if per >= len(oids):
@@ -1066,19 +1123,56 @@ def main():
                          f"(diagonal bounding box {need:.1f} mm)")
             placed = []     # (object id, obb)
             if rot_ids:
-                # 45-deg strips along the bed diagonal, centred as a band,
-                # then everything else grid-searched into the free corners
-                n_hat = (-1 / math.sqrt(2), 1 / math.sqrt(2))
+                # 45° strips packed along two bed edges from a shared corner —
+                # a column down the +x edge, then a row along the +y edge (see
+                # STRIP_MARGIN). Everything else is grid-searched into the free
+                # corners afterwards.
                 _sr = sorted(rot_ids, key=lambda o: -dims2(o)[1])
-                _rg = [obj_gap(o) for o in _sr[:-1]]      # per-strip gaps
-                band = sum(dims2(o)[1] for o in _sr) + sum(_rg)
-                off = -band / 2
-                for _i, oid in enumerate(_sr):
+                _bed = min(bed_w, bed_d)
+                _long = max(max(dims2(o)) for o in _sr)
+                _deep = max(min(dims2(o)) for o in _sr)
+                _gap = obj_gap(_sr[0])
+
+                def _pitch(prev_d, oid):
+                    """Centre-to-centre separation two neighbouring strips need
+                    ACROSS their width."""
+                    return prev_d / 2 + obj_gap(oid) + dims2(oid)[1] / 2
+
+                # Positions relative to a local origin, later centred on the
+                # plate. Two arms around a shared corner — one running in -y,
+                # the other in -x — unless they cannot hold this plate's strips,
+                # in which case the centred band can (see strip_capacity).
+                # Stepping along a bed axis by pitch*√2 separates neighbours by
+                # pitch across their width; the band instead steps along n_hat,
+                # which separates them without sliding them along their length.
+                rel, prev = {}, None
+                if strip_arms(_bed, _long, _deep, _gap) >= len(_sr):
+                    arm, cy = strip_arm(_bed, _long, _deep, _gap), 0.0
+                    for oid in _sr[:arm]:
+                        if prev is not None:
+                            cy -= _pitch(prev, oid) * math.sqrt(2)
+                        rel[oid] = (0.0, cy)
+                        prev = dims2(oid)[1]
+                    cx, prev = 0.0, dims2(_sr[0])[1]
+                    for oid in _sr[arm:]:
+                        cx -= _pitch(prev, oid) * math.sqrt(2)
+                        rel[oid] = (cx, 0.0)
+                        prev = dims2(oid)[1]
+                else:
+                    n_hat, cn = (-1 / math.sqrt(2), 1 / math.sqrt(2)), 0.0
+                    for oid in _sr:
+                        if prev is not None:
+                            cn += _pitch(prev, oid)
+                        rel[oid] = (n_hat[0] * cn, n_hat[1] * cn)
+                        prev = dims2(oid)[1]
+                ins = {o: strip_inset(*dims2(o)) for o in _sr}
+                dx = bed_w / 2 - (min(rel[o][0] - ins[o] for o in _sr)
+                                  + max(rel[o][0] + ins[o] for o in _sr)) / 2
+                dy = bed_d / 2 - (min(rel[o][1] - ins[o] for o in _sr)
+                                  + max(rel[o][1] + ins[o] for o in _sr)) / 2
+                for oid in _sr:
                     w, d = dims2(oid)
-                    cn = off + d / 2
-                    off += d + (_rg[_i] if _i < len(_rg) else 0.0)
-                    cx = bed_w / 2 + n_hat[0] * cn
-                    cy = bed_d / 2 + n_hat[1] * cn
+                    cx, cy = rel[oid][0] + dx, rel[oid][1] + dy
                     placements[oid] = (ROT, cx, cy)
                     placed.append((oid, (cx, cy, w / 2, d / 2, ROT)))
                 flat = sorted((o for o in objs if o not in rot_ids),

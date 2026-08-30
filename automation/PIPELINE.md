@@ -284,6 +284,35 @@ which side it was meant to land on before reading an unchanged `(first)` holder
 as a missed fix — the two first-riser rows (Dominion 246 `S2.40.12/30` and 472
 `M2.60.18/40`) are where the distinction shows up.
 
+### Packing 45° strips — two arms, not one band
+
+Holders and toppers are long thin strips that only fit a plate turned 45°.
+`--auto-plates` used to stack them as a single diagonal BAND through the plate
+centre, with capacity estimated as `(bed - 20)·√2 - longest`. That estimate drops
+the strip's own depth and hard-codes a 10 mm margin, and it split five Innovation
+M holders (285.80 × 9.39 on a P1) across two plates when they fit one — Allan
+rearranged them by hand and both plates sliced, which is what exposed it.
+
+The geometry: a `w × d` strip turned 45° has a SQUARE bounding box of side
+`(w + d)/√2`, so its centre must stay in a square inset from the bed by half of
+that. Stepping along a bed AXIS by `(d + gap)·√2` moves a strip exactly
+`(d + gap)` across its own width — the separation neighbours need — while also
+sliding it along its own length, which is free because the strips are parallel.
+So a column down one edge plus a row along the next packs them at the right
+pitch, the two arms sharing their corner strip. The arrangement is built around
+a local origin and then CENTRED on the plate: anchoring it to a bed corner pushes
+a single wide strip (a Box, a Lid) off-centre and into the P1's excluded corner,
+which `make_cascade` then refuses.
+
+**Two arms is not universally better, so the code takes whichever holds more.**
+An arm advances by `(d + gap)·√2` along a bed axis, where the band advances by
+`(d + gap)` across the strip only; once a strip is thick relative to the bed, one
+arm holds a single strip while the band still holds several. Dominion's
+270 × 27.80 mm first-riser holder is exactly that (arms 1, band 2), and it is why
+`strip_capacity()` is a `max` of the two and the placement picks its arrangement
+to match. Measured over every holder and topper on disk against every candidate
+bed: 89 capacities up, 55 unchanged, 0 reduced.
+
 ### `--keep-layout` does not re-check clearance between objects
 
 `make_cascade --keep-layout` guards a plate's total SPAN against the bed, so a
