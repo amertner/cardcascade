@@ -291,8 +291,10 @@ def read_config_file(path: Path, game: str) -> list:
                width. The front width reads "<name> <label>", narrower widths
                just "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
                -> a front, a 45mm and a 62mm plate). Repeatable. Each grouping
-               becomes its own 3MF, named "<n> Cascades" or "<n> <tag>
-               Cascades"; give a tag when two groupings share a part count.
+               becomes its own 3MF, named "<part count> Cascades", or
+               "<tag> Cascades" when a #<tag> is given. Tag a grouping when two
+               share a part count, or when the count to show is not the number
+               of boxes (Innovation names its builds by AGES per cascade).
       names=<w1>+...@<name1>[:<short>]|<name2>[:<short>]|...  the
                TRANSPOSE of parts=: one plate PER NAME, each holding
                every width. For a box design that ships once per
@@ -1033,17 +1035,22 @@ def render_project_settings(n_plates: int):
 
 
 def parts_profile(labels, tag=None) -> str:
-    """The profile (and so the 3MF) a parts= grouping goes in, named for the
-    number of cascades it builds the set into: '3 Cascades', or
-    '3 Later Ages Cascades' when the grouping carries a #<tag>. The tag is what
-    lets two groupings of the same part count coexist.
+    """The profile (and so the 3MF) a parts= grouping goes in: '<tag> Cascades'
+    when the grouping carries a #<tag>, else '<part count> Cascades'.
 
-    The count leads and the tag qualifies it, rather than the other way round,
-    because make_label_covers lowercases this straight into prose — "for all 3
-    later ages cascades" reads, "for all later ages 3 cascades" does not.
-    Shared with make_label_covers so a cover always sits next to the print it
-    shows."""
-    return f"{len(labels)} {tag} Cascades" if tag else f"{len(labels)} Cascades"
+    A tagged grouping states its own number because the useful one — AGES PER
+    cascade — cannot be derived. Counting the labels gives the number of BOXES,
+    which is the other half of the same 12 columns and reads as its opposite:
+    the 3-box build holds 4 ages each, the 4-box build 3. Nor can it be read off
+    the label text, because an open range hides the specials column ("Ages 9+"
+    is 9, 10, 11 AND the specials, four slots; "Ages 10+" is three). So the tag
+    carries it: '#4 Later Ages' -> '4 Later Ages Cascades'.
+
+    The number leads because make_label_covers lowercases this straight into
+    prose — "for all 4 later ages cascades" reads, "for all later ages 4
+    cascades" does not. Shared with make_label_covers so a cover always sits
+    next to the print it shows."""
+    return f"{tag} Cascades" if tag else f"{len(labels)} Cascades"
 
 
 def set_plate_specs(record: dict, cfg: dict) -> list:
