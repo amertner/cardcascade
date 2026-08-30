@@ -382,10 +382,11 @@ tabs have merged into one 5.84 mm boss, and it is the NOTCH's clamp (see above)
 that lands its edge mid-boss — 2.04 mm of the boss hangs over the notch, but
 3.80 mm of it is still solidly rooted, so it is an overhang, not a flag.
 
-**Ten built projects ship an affected pusher**, all unsleeved: Innovation Single
-Set; Dominion 246, 168, 202 (Mat), 244; Compile 105, 126, 210; FCM Milestones 1U
-and Occ 2U. `verify.py --pushers` lists them, reading the pushers back out of the
-built projects as well as out of `individual/`.
+A pusher's dedup key is `(risers, cards, sleeved)`, so those seven files reach
+**ten built projects**, all unsleeved: Innovation Single Set; Dominion 246, 168,
+202 (Mat), 244; Compile 105, 126, 210; FCM Milestones 1U and Occ 2U. The audit
+reads `individual/` only — a project instances one pusher 2-3 times, so walking
+`cascades/` re-reports the same seven meshes under project names.
 
 The fix belongs in Onshape — give tab B the same clamp against the notch that
 tab A has, or drive both tabs off the mid-line so they track the notch. Until

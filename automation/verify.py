@@ -388,89 +388,41 @@ def check_pusher(data, ctx=None):
 # CLI: audit every Pusher on disk
 # ---------------------------------------------------------------------------
 
-def _bambu_pushers(path):
-    """[3MF bytes] for each distinct Pusher mesh in a BUILT project.
-
-    make_cascade writes Studio's layout — named objects in
-    Metadata/model_settings.config, geometry in per-object sub-models — so the
-    pushers a project actually ships have to be lifted back out that way rather
-    than read as a plain single-object export. Repeated instances of one pusher
-    are collapsed; a project carries 2 or 3 identical copies."""
-    import assembly_split as ASM
-    z = zipfile.ZipFile(path)
-    names = {}
-    if "Metadata/model_settings.config" in z.namelist():
-        cfg = z.read("Metadata/model_settings.config").decode()
-        for m in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):
-            nm = re.search(r'key="name" value="([^"]*)"', m.group(2))
-            names[m.group(1)] = nm.group(1) if nm else ""
-    submeshes = {}
-    for entry in z.namelist():
-        if entry.startswith("3D/Objects/"):
-            text = z.read(entry).decode()
-            unit = re.search(r'unit="(\w+)"', text)
-            for om in re.finditer(r'<object id="(\d+)"[^>]*>(.*?)</object>',
-                                  text, re.S):
-                block = re.search(r"<mesh>.*?</mesh>", om.group(2), re.S)
-                if block:
-                    submeshes[(entry, om.group(1))] = (
-                        unit.group(1) if unit else "millimeter", block.group(0))
-    root = z.read(MODEL).decode()
-    out, seen = [], set()
-    for om in re.finditer(r'<object id="(\d+)"[^>]*>(.*?)</object>', root, re.S):
-        if "pusher" not in names.get(om.group(1), "").lower():
-            continue
-        for c in re.finditer(r'<component\b([^>]*)/>', om.group(2)):
-            path_attr = re.search(r'p:path="([^"]*)"', c.group(1))
-            cid = re.search(r'objectid="(\d+)"', c.group(1))
-            key = (path_attr.group(1).lstrip("/"), cid.group(1)) if path_attr else None
-            if key not in submeshes:
-                continue
-            unit, block = submeshes[key]
-            # A project's 2-3 pushers are separate sub-model objects holding the
-            # same geometry, so dedupe on the mesh, not on the object id.
-            sha = hashlib.sha256(re.sub(r"\s+", " ", block).encode()).hexdigest()
-            if sha in seen:
-                continue
-            seen.add(sha)
-            out.append(ASM.build_component_3mf(unit, "Pusher", block))
-    return out
-
-
 def audit_pushers(root, verbose=False):
-    """Print a tab-support line for every Pusher under `root` — the exported
-    components in individual/ and the ones actually shipped in cascades/ — and
-    return the number that carry an unbacked tab."""
+    """Print a tab-support line for every exported Pusher under `root`, and
+    return the number that carry an unbacked tab.
+
+    individual/ only. A built cascade carries copies of these exact files (the
+    2-3 pushers in a project are one component instanced), so walking cascades/
+    as well only re-reports the same seven meshes under project names — and
+    costs 20x the time to unpack them out of Studio's layout. Which projects a
+    flagged pusher reaches follows from its dedup key: (risers, cards,
+    sleeved)."""
     from pathlib import Path
     root = Path(root)
-    jobs = [(p, None) for p in sorted(root.glob("individual/*/Pusher*.3mf"))]
-    jobs += [(p, "project") for p in sorted(root.glob("cascades/*/*.3mf"))]
     rows = []
-    for path, kind in jobs:
-        blobs = (_bambu_pushers(path) if kind == "project"
-                 else [path.read_bytes()])
-        for blob in blobs:
-            try:
-                tabs = pusher_tabs(blob)
-            except (ValueError, KeyError, ZeroDivisionError, IndexError):
-                continue
-            loose = [t for t in tabs if t["fraction"] < 0.999]
-            worst = min(loose, key=lambda t: t["anchor"]) if loose else None
-            rows.append((path.relative_to(root), len(tabs), worst))
-    rows.sort(key=lambda r: (r[2]["anchor"] if r[2] else 99.0, str(r[0])))
-    bad = 0
-    for name, ntabs, worst in rows:
+    for path in sorted(root.glob("individual/*/Pusher*.3mf")):
+        try:
+            tabs = pusher_tabs(path.read_bytes())
+        except (ValueError, KeyError, ZeroDivisionError, IndexError):
+            continue
+        loose = [t for t in tabs if t["fraction"] < 0.999]
+        rows.append((path.relative_to(root),
+                     min(loose, key=lambda t: t["anchor"]) if loose else None))
+    rows.sort(key=lambda r: (r[1]["anchor"] if r[1] else 99.0, str(r[0])))
+    bad = sunk = 0
+    for name, worst in rows:
         if worst is None:
             if verbose:
                 print(f"    ok  {'':>6s} {'':>6s}  {name}")
             continue
         bad += 1
+        sunk += worst["anchor"] < TAB_ANCHOR_MIN
         mark = "✗" if worst["anchor"] < TAB_ANCHOR_MIN else "⚠"
         print(f"    {mark}  {worst['fraction'] * 100:5.1f}% "
               f"{worst['anchor']:5.2f}mm  {name}")
-    print(f"\n  {bad} of {len(rows)} pushers have a tab hanging over the notch; "
-          f"{sum(1 for _n, _t, w in rows if w and w['anchor'] < TAB_ANCHOR_MIN)} "
-          f"of those have under {TAB_ANCHOR_MIN} mm of root.")
+    print(f"\n  {bad} of {len(rows)} pushers have a tab hanging over the "
+          f"notch; {sunk} of those have under {TAB_ANCHOR_MIN} mm of root.")
     return bad
 
 
