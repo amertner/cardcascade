@@ -79,7 +79,7 @@ matching `--game` are used:
 | `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
 | `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
 | `plate=<title>:<w1>+<w2>+...` | an extra plate in the set's 3MF with exactly these label widths — free-form, not limited to the standard widths (used for the Blank set's legacy CC 5.1 sizes); repeatable |
-| `parts=<w1>+...@<l1>\|<l2>\|...[#<tag>]` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set — every grouping becomes a 3MF of its own (see `--sets`), named for its part count, or `<tag> <n> Cascades` when a `#<tag>` is given. A tag is what lets two groupings split the set into the same NUMBER of cascades. A label may contain a comma; only a comma that begins another `key=` splits a field |
+| `parts=<w1>+...@<l1>\|<l2>\|...[#<tag>]` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set — every grouping becomes a 3MF of its own (see `--sets`), named for its part count, or `<n> <tag> Cascades` when a `#<tag>` is given. A tag is what lets two groupings split the set into the same NUMBER of cascades. A label may contain a comma; only a comma that begins another `key=` splits a field |
 | `names=<w1>+...@<n1>[:<short>]\|<n2>...` | the **transpose** of `parts=`: one plate per *name*, each holding every width, so a plate is exactly one box's labels. For a box design that ships once per expansion. The **narrowest** width takes the short form when one is given; every other width, front and side alike, takes the full name — a long name only shrinks past legibility at the bottom of the range ("Innovation" sets at 1.61 mm on a 20 mm label but 3.11 mm on a 32 mm one), so shortening every side label the way `side=` does for a whole set would waste the room the wider ones have. `(BLANK)` is the blank label |
 | none | line is skipped |
 
@@ -131,7 +131,8 @@ in where the grouping sits in cc.cfg order, and the set's other plates
 are repeated in each file so every one is a complete print on its own.
 Two groupings that resolve to the same file name are rejected when
 `cc.cfg` is read; add a `#<tag>` to one of them, which names it
-`<Set> <tag> <n> Cascades Labels.3mf`. Innovation needs that because its
+`<Set> <n> <tag> Cascades Labels.3mf` — count first, so the covers'
+generated prose reads "for all 3 later ages cascades". Innovation needs that because its
 original age split and its Later Ages split are both a 3-cascade and a
 4-cascade build. There is no plain `<Set> Labels.3mf` for such a set.
 

@@ -291,7 +291,7 @@ def read_config_file(path: Path, game: str) -> list:
                width. The front width reads "<name> <label>", narrower widths
                just "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
                -> a front, a 45mm and a 62mm plate). Repeatable. Each grouping
-               becomes its own 3MF, named "<n> Cascades" or "<tag> <n>
+               becomes its own 3MF, named "<n> Cascades" or "<n> <tag>
                Cascades"; give a tag when two groupings share a part count.
       names=<w1>+...@<name1>[:<short>]|<name2>[:<short>]|...  the
                TRANSPOSE of parts=: one plate PER NAME, each holding
@@ -1035,10 +1035,15 @@ def render_project_settings(n_plates: int):
 def parts_profile(labels, tag=None) -> str:
     """The profile (and so the 3MF) a parts= grouping goes in, named for the
     number of cascades it builds the set into: '3 Cascades', or
-    'Later Ages 3 Cascades' when the grouping carries a #<tag>. The tag is what
-    lets two groupings of the same part count coexist. Shared with
-    make_label_covers so a cover always sits next to the print it shows."""
-    return f"{tag} {len(labels)} Cascades" if tag else f"{len(labels)} Cascades"
+    '3 Later Ages Cascades' when the grouping carries a #<tag>. The tag is what
+    lets two groupings of the same part count coexist.
+
+    The count leads and the tag qualifies it, rather than the other way round,
+    because make_label_covers lowercases this straight into prose — "for all 3
+    later ages cascades" reads, "for all later ages 3 cascades" does not.
+    Shared with make_label_covers so a cover always sits next to the print it
+    shows."""
+    return f"{len(labels)} {tag} Cascades" if tag else f"{len(labels)} Cascades"
 
 
 def set_plate_specs(record: dict, cfg: dict) -> list:
