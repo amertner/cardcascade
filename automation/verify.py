@@ -30,12 +30,15 @@ wrong part is the wrong SIZE in a way that overflows the bed.
              notices a row whose W/D were estimated rather than measured; the
              footprint check above cannot, its depth tolerance being 1.2 mm.
 
-  pusher     the raised tabs on a Pusher's top face must sit on solid plate,
-             not over the U-notch cut into the same end. Unlike the two checks
-             above this is not about a stale translation — it is a CAD sizing
-             defect that only shows on NARROW pushers, and it is a warning, not
-             a refusal, because the export itself is exactly what the CAD says.
-             See pusher_tabs() for the geometry and PIPELINE.md for the rule.
+  pusher     a Pusher must carry two raised tabs of the nominal width, and
+             each must sit on solid plate rather than over the U-notch cut into
+             the same end. Unlike the two checks above this is not about a stale
+             translation — it is a CAD sizing defect that only shows on NARROW
+             pushers, and it is a warning, not a refusal, because the export is
+             exactly what the CAD says. The count is checked FIRST: past a
+             point the notch swallows a tab outright, and the survivor's
+             support looks perfect. See pusher_tabs() for the geometry and
+             PIPELINE.md for the rule.
 
   identity   a new export's mesh hash must not equal one already recorded for a
              DIFFERENT component file, in ANY game (the stale export usually
@@ -205,6 +208,15 @@ def duplicate(sha, file, provenance_rows):
 # 2.31 / 3.01 / 3.61 / 3.80, and a correctly backed tab anchors its full 5.00.
 TAB_ANCHOR_MIN = 2.0
 
+# Every pusher in the catalogue carries exactly two tabs of this width. Anything
+# else is the same collision one stage further on: at D = 18.00 tab B's whole
+# footprint falls inside the notch and the CAD emits no tab at all (one tab
+# survives, fully backed, so a support check alone reports the pusher clean);
+# at D = 14.04 the two tabs overlap and fuse into a single 5.84 mm boss.
+TABS_EXPECTED = 2
+TAB_W_NOMINAL = 3.80
+TAB_W_TOL = 0.60
+
 
 def _meshes(data):
     """[(verts_mm, tris)] for every mesh in a plain (Onshape/split) 3MF."""
@@ -364,24 +376,39 @@ def check_pusher(data, ctx=None):
     Never fatal. The two checks above refuse an export because the BYTES are
     wrong — the wrong component under the right name. This one says the bytes
     are right and the CAD is wrong, and refusing would only block work on
-    everything else in the same assembly. It has to be acted on in Onshape."""
+    everything else in the same assembly. It has to be acted on in Onshape.
+
+    Reports the tab COUNT before tab support, because a pusher that lost a tab
+    to the notch has perfect support on the one that is left."""
     try:
         tabs = pusher_tabs(data)
     except (ValueError, KeyError, ZeroDivisionError):
         return None, None            # not a shape this check understands
+    who = f" for {ctx['model']}" if ctx and ctx.get("model") else ""
+    tail = ("The plate is too narrow for where the CAD puts the second tab; "
+            "fix it in Onshape (see PIPELINE.md, \"The pusher's second tab\")")
+
+    wide = [t for t in tabs if t["w"] > TAB_W_NOMINAL + TAB_W_TOL]
+    if len(tabs) != TABS_EXPECTED or wide:
+        what = (f"only {len(tabs)} raised tab" + ("s" if len(tabs) != 1 else "")
+                if len(tabs) != TABS_EXPECTED else
+                f"{len(wide)} tab(s) {max(t['w'] for t in wide):.2f} mm wide "
+                f"instead of {TAB_W_NOMINAL}")
+        return None, (f"Pusher{who} has {what}, not {TABS_EXPECTED} of "
+                      f"{TAB_W_NOMINAL} mm — the notch has swallowed or merged "
+                      f"one of them. {tail}")
+
     loose = [t for t in tabs if t["fraction"] < 0.999]
     if not loose:
         return None, None
     worst = min(loose, key=lambda t: t["anchor"])
-    who = f" for {ctx['model']}" if ctx and ctx.get("model") else ""
     how = ("has almost nothing holding it"
            if worst["anchor"] < TAB_ANCHOR_MIN else "overhangs the notch")
     return None, (
         f"Pusher{who}: {len(loose)} of {len(tabs)} raised tab(s) sit partly over "
         f"the end notch — the worst is {worst['fraction'] * 100:.0f}% backed "
         f"with {worst['anchor']:.2f} mm of root on a {worst['w']:.1f} mm tab, so "
-        f"it {how}. The plate is too narrow for where the CAD puts the second "
-        f"tab; fix it in Onshape (see PIPELINE.md, 'The pusher's second tab')")
+        f"it {how}. {tail}")
 
 
 # ---------------------------------------------------------------------------
@@ -389,15 +416,14 @@ def check_pusher(data, ctx=None):
 # ---------------------------------------------------------------------------
 
 def audit_pushers(root, verbose=False):
-    """Print a tab-support line for every exported Pusher under `root`, and
-    return the number that carry an unbacked tab.
+    """Print a lock line for every exported Pusher under `root`, and return the
+    number that carry a defective lock.
 
     individual/ only. A built cascade carries copies of these exact files (the
     2-3 pushers in a project are one component instanced), so walking cascades/
-    as well only re-reports the same seven meshes under project names — and
-    costs 20x the time to unpack them out of Studio's layout. Which projects a
-    flagged pusher reaches follows from its dedup key: (risers, cards,
-    sleeved)."""
+    as well only re-reports the same meshes under project names — and costs 20x
+    the time to unpack them out of Studio's layout. Which projects a flagged
+    pusher reaches follows from its dedup key: (risers, cards, sleeved)."""
     from pathlib import Path
     root = Path(root)
     rows = []
@@ -406,23 +432,33 @@ def audit_pushers(root, verbose=False):
             tabs = pusher_tabs(path.read_bytes())
         except (ValueError, KeyError, ZeroDivisionError, IndexError):
             continue
+        wide = [t for t in tabs if t["w"] > TAB_W_NOMINAL + TAB_W_TOL]
         loose = [t for t in tabs if t["fraction"] < 0.999]
-        rows.append((path.relative_to(root),
-                     min(loose, key=lambda t: t["anchor"]) if loose else None))
-    rows.sort(key=lambda r: (r[1]["anchor"] if r[1] else 99.0, str(r[0])))
+        worst = min(loose, key=lambda t: t["anchor"]) if loose else None
+        rows.append((path.relative_to(root), len(tabs), bool(wide), worst))
+    # gone/merged tabs first, then by how little root is left
+    rows.sort(key=lambda r: (r[1] == TABS_EXPECTED and not r[2],
+                             r[3]["anchor"] if r[3] else 99.0, str(r[0])))
     bad = sunk = 0
-    for name, worst in rows:
-        if worst is None:
+    for name, ntabs, merged, worst in rows:
+        if ntabs == TABS_EXPECTED and not merged and worst is None:
             if verbose:
-                print(f"    ok  {'':>6s} {'':>6s}  {name}")
+                print(f"    ok  {'':>16s}  {name}")
             continue
         bad += 1
-        sunk += worst["anchor"] < TAB_ANCHOR_MIN
-        mark = "✗" if worst["anchor"] < TAB_ANCHOR_MIN else "⚠"
-        print(f"    {mark}  {worst['fraction'] * 100:5.1f}% "
-              f"{worst['anchor']:5.2f}mm  {name}")
-    print(f"\n  {bad} of {len(rows)} pushers have a tab hanging over the "
-          f"notch; {sunk} of those have under {TAB_ANCHOR_MIN} mm of root.")
+        if ntabs != TABS_EXPECTED or merged:
+            sunk += 1
+            note = f"{ntabs} tab" + ("s" if ntabs != 1 else "")
+            note += ", merged" if merged else ""
+            print(f"    ✗  {note:>24s}  {name}")
+        else:
+            sunk += worst["anchor"] < TAB_ANCHOR_MIN
+            mark = "✗" if worst["anchor"] < TAB_ANCHOR_MIN else "⚠"
+            status = (f"{worst['fraction'] * 100:.0f}% backed, "
+                      f"{worst['anchor']:.2f}mm root")
+            print(f"    {mark}  {status:>24s}  {name}")
+    print(f"\n  {bad} of {len(rows)} pushers have a defective lock; {sunk} of "
+          f"those have lost a tab or have under {TAB_ANCHOR_MIN} mm of root.")
     return bad
 
 
@@ -433,12 +469,12 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--pushers", action="store_true",
-                    help="audit tab support on every Pusher in the repo")
+                    help="audit the lock on every Pusher in the repo")
     ap.add_argument("--all", action="store_true",
                     help="with --pushers, list the passing ones too")
     args = ap.parse_args()
     if not args.pushers:
         ap.error("nothing to do — try --pushers")
-    print("  Pusher tab support (backed fraction, widest backed strip):")
+    print("  Pusher lock (tab count, backed fraction, widest backed strip):")
     sys.exit(1 if audit_pushers(Path(__file__).resolve().parent.parent,
                                 verbose=args.all) else 0)

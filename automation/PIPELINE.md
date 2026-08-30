@@ -332,6 +332,14 @@ BambuStudio --slice 0 --outputdir <dir> <project.3mf>   # 0 = every plate
 *(Open CAD defect — found from a print, measured off the meshes, not yet fixed
 in Onshape.)*
 
+**What the features are for.** The pusher's leading end slides into a socket in
+the LID — one per pusher, `9.20` wide × `D − 0.40` across × `5.0` deep, whose
+inner wall steps between `3.27` and `5.11` mm of free channel. The two raised
+tabs drop into the two wide steps (the recesses) and hold the pusher in; the
+U-notch straddles a rib that blocks the channel outright, so the pusher can only
+enter where its notch is and bottoms on the rib, which sets insertion depth.
+Every mating feature is therefore placed from the same `D` the pusher's are.
+
 A Pusher is a flat 4.5 mm plate printed FACE DOWN, and its leading end carries
 three features that the CAD sizes from the pusher's own depth `D` — the
 card-stack dimension, i.e. the width of the leading end the features are cut
@@ -369,7 +377,8 @@ Measured over the 32 pushers in `individual/` (`verify.py --pushers`):
 | `FCM/Pusher 5x6-Un` | 23.40 | 60 % | 2.31 mm |
 | `Dominion/Pusher 4x10-Un` | 24.80 | 79 % | 3.01 mm |
 | `Compile/Pusher 5x7-Un` | 26.00 | 95 % | 3.61 mm |
-| `FCM/Pusher 3x6-Un` | 14.04 | 65 % | 3.80 mm |
+| `FCM/Pusher 3x6-Un` | 14.04 | 65 % | 3.80 mm (tabs fused) |
+| `FCM/Pusher 3x6-Sl` | 18.00 | — | **tab B absent** |
 
 `Pusher 3x10-Un` — Innovation "Single Set" unsleeved, the narrowest two-tab
 pusher in the catalogue — is the one that fails in the hand: 0.2 mm of root
@@ -377,22 +386,69 @@ under a 3.8 mm tab, and it prints as a loose flag that snaps off. It is also
 the only one where the tab is a pure cantilever rather than a partial one: the
 notch's far side is 1.8 mm past the tab, so nothing bridges.
 
-`Pusher 3x6-Un` is the other shape of the same problem. At `D = 14.04` the two
-tabs have merged into one 5.84 mm boss, and it is the NOTCH's clamp (see above)
-that lands its edge mid-boss — 2.04 mm of the boss hangs over the notch, but
-3.80 mm of it is still solidly rooted, so it is an overhang, not a flag.
+**The lid loses the same millimetres, on two features.** The rib eats into tab
+B's recess and the recess eats into the rib, by the same `13.2 − D/2`. On
+Innovation's unsleeved Single Set lid the recess measures `0.56` long instead of
+`3.97` and the key rib `1.58` wide instead of `4.96`; Compile's 105 unsleeved
+lid (`D = 20.80`) reads `1.36` and `2.35` against a predicted `1.15` and `2.15`.
+So a narrow cascade has no working lock at that end even if the pusher's tab
+were intact, and any fix has to land on both parts.
 
-A pusher's dedup key is `(risers, cards, sleeved)`, so those seven files reach
-**ten built projects**, all unsleeved: Innovation Single Set; Dominion 246, 168,
-202 (Mat), 244; Compile 105, 126, 210; FCM Milestones 1U and Occ 2U. The audit
-reads `individual/` only — a project instances one pusher 2-3 times, so walking
-`cascades/` re-reports the same seven meshes under project names.
+**Two further stages of the same collision, which a support check alone misses.**
+At `D = 18.00` (`FCM/Pusher 3x6-Sl`) tab B's whole footprint falls inside the
+notch and the CAD emits NO tab there — one tab survives, perfectly backed, so
+`check_pusher` counts tabs before it measures support. At `D = 14.04`
+(`Pusher 3x6-Un`) the two tabs overlap and fuse into one 5.84 mm boss; the
+notch's own clamp lands its edge mid-boss, so 2.04 mm hangs over the notch while
+3.80 mm stays rooted — an overhang, not a flag. **Eight of the 32 pushers have a
+defective lock, not seven.**
+
+A pusher's dedup key is `(risers, cards, sleeved)`, so those eight files reach
+**eleven built projects**: Innovation Single Set Un; Dominion 246, 168,
+202 (Mat), 244 Un; Compile 105, 126, 210 Un; FCM 144 Un, and FCM 180 in BOTH
+sleevings (the sleeved one is the missing-tab case, which is why it is the only
+sleeved row on the list). The audit reads `individual/` only — a project
+instances one pusher 2-3 times, so walking `cascades/` re-reports the same
+meshes under project names.
 
 The fix belongs in Onshape — give tab B the same clamp against the notch that
 tab A has, or drive both tabs off the mid-line so they track the notch. Until
 then `verify.check_pusher` WARNS on every affected export rather than refusing
 it: unlike `check_box`/`check_lid` the bytes are not wrong, the CAD is, and
 refusing would only block the rest of the assembly.
+
+### Standardising the lock into classes — analysed, not decided
+
+The collision is a symptom: the three lock features are placed from three
+different datums (two edges and the mid-line), so 32 pushers carry **30
+distinct lock geometries** and 30 distinct lid sockets, none of them
+interchangeable, and nothing declares which are legal. Allan asked what a fixed
+catalogue would look like. The arithmetic, for whenever this is taken up:
+
+- Put the notch permanently on the centreline and the tabs symmetrically at
+  ±`s`. A class is then just `s`, and it fits any `D ≥ 2(s + 1.90 + m)` for an
+  edge land `m`; the land between tab and notch is `s − 4.60`.
+- Keeping today's feature sizes, `m = 2.5` and a 2.0 mm inner land put the floor
+  at **`D ≥ 22.0`** for a full two-tab class. Five pushers are below it, so the
+  narrow band needs reduced features (tab 3.0, notch 4.4 fits from `D ≥ 17.4`)
+  and `D = 14.04` (`Pusher 3x6-Un`, FCM 180 unsleeved) fits no two-tab lock at
+  all.
+- Tab spread is the only reason to have more than one class. Over the 27
+  pushers at `D ≥ 22`, worst-case spread (tab centre distance ÷ D) runs
+  17 % → 38 % → 44 % → 47 % → 47 % for 1 → 5 classes. The third class is the
+  last that earns its keep.
+- **Four classes** — `P0` W 18 (tabs ±5.20, reduced features, 4 parts),
+  `P1` W 22 (±6.60, 8), `P2` W 32 (±11.60, 11), `P3` W 48 (±19.60, 8) — cover
+  31 of 32.
+- Standardising the coordinates alone still leaves the socket cut per box
+  (`D − 0.40`). Necking the last ~10 mm of the pusher to the class tongue width
+  is what makes sockets class-constant and drops distinct socket geometries
+  from 30 to 4.
+
+Either way it is a breaking change: 32 pushers and the 46 lids that socket them
+are re-cut, and a printed pusher stops fitting a reprinted lid. The cheaper
+alternative is to fix only the missing clamp on tab B and hold the
+standardisation for the next breaking revision.
 
 ## Build policies (decided)
 
