@@ -284,6 +284,55 @@ which side it was meant to land on before reading an unchanged `(first)` holder
 as a missed fix — the two first-riser rows (Dominion 246 `S2.40.12/30` and 472
 `M2.60.18/40`) are where the distinction shows up.
 
+### An unversioned CAD change is invisible to provenance — date the geometry
+
+A holder change landed in Onshape between 2026-08-20 and 2026-08-24 with no
+`VERSIONS["Holder"]` bump: the spanning holder's `X-min` moved from -38.5000 to
+-38.4000 (and `X-max` the same 0.1 mm the other way, so the strip is 0.2 mm
+shorter, centred). Because the version did not move, `PROV.is_current` kept
+calling every Aug-20 holder current, and they were never re-fetched. That is the
+failure mode `--changed` exists for, but nothing tells you to reach for it.
+
+**Do not read a component's mtime or its provenance date as its geometry.** Date
+the GEOMETRY instead: a round coordinate shared by every file exported after
+some day, and a different round coordinate shared by every file before it, is an
+unversioned CAD change. Here, sorting every spanning holder by `X-min` splits
+them exactly on the export date:
+
+| X-min (Un / Sl) | files | exported |
+|---|---|---|
+| -38.5000 / -39.5000 | `Holder 3x15`, `Holder 4x15` | 2026-08-20 |
+| -38.4000 / -39.4000 | `Holder 2x10`, `Holder 3x10`, `Holder 4x10` | 2026-08-24 onward |
+
+**Two confounds sit on top of that split, and both are refuted by one file.**
+The Aug-20 group is also exactly the 15-card group, and it was tempting to read
+the shift as a `Cards/Riser slot` axis, or — because `Holder 3x10` is the one
+Innovation holder shared across differing riser counts — as a missing
+`RisingSliders` axis in the spanning-holder key. The old `Holder 3x10-Un` kills
+both: it is a **10-card, 3-riser** holder exported on Aug 20 and it reads
+-38.5000, where the cards hypothesis wants -38.4000 and the riser hypothesis
+wants a value no 5-riser holder shares. Same date, different risers
+(`Holder 3x10` 3 vs `Holder 3x15` 5) agree exactly; same cards, different date
+disagree. **Only the date explains it.**
+
+So the spanning-holder key `(horizontal, cards_per_slot, sleeved)` is CORRECT and
+must not grow a riser axis — that would split files that are genuinely identical
+and buy a re-export of each duplicate. Compile is the independent check: its
+4-riser (`S4.7.7`) and 5-riser (`S5.7.7`) assemblies are both cached in `_raw/`,
+and splitting both locally (0 calls) gives holders identical in X with `Y-max`
+apart by 0.017-0.024 mm and `Z-max` by 0.004-0.010 mm — non-round, on curved
+faces, i.e. the tessellation band of the section above, not a design difference.
+
+**`_raw/` is what makes this checkable for free.** Any question of the form "does
+component C depend on input I" is answered by splitting two cached assemblies
+that differ only in I. Reach for that before spending a call on a hypothesis.
+
+Still carrying the pre-change holder, therefore, and NOT fixed by anything above:
+`Holder 3x15-{Un,Sl}` and `Holder 4x15-{Un,Sl}` (the 3 Ages and 4 Ages projects).
+Compile's four and Dominion's twenty are all Aug-20 exports as well; whether the
+same edit reaches them is unverified, because there is no post-change export of
+either to date the geometry against, and both games are published.
+
 ### Packing 45° strips — two arms, not one band
 
 Holders and toppers are long thin strips that only fit a plate turned 45°.
