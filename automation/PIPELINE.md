@@ -446,53 +446,78 @@ refusing would only block the rest of the assembly.
 The collision is a symptom: the three lock features are placed from three
 different datums (two plate edges and the mid-line), so nothing guarantees they
 stay apart, and 32 pushers carry **30 distinct lock geometries** with 30 lid
-sockets and 30 box slots to match. Allan asked what a fixed catalogue would look
-like. Two results, for whenever this is taken up.
+sockets and 30 box slots to match — 90 mating geometries, none interchangeable.
+Allan asked what a fixed catalogue would look like. The arithmetic, for whenever
+this is taken up.
 
-**A ladder of fixed-coordinate classes is expensive, because the tabs hang the
-pusher.** Fixed coordinates pull the tabs inboard of the plate edges on
-everything but the narrowest member of each band, and the hang base — tab centre
-to tab centre — is what stops the pusher rocking in its slot. Measuring each
-ladder against the base the plate could have given (`D − 11.80`, i.e. tabs 4 mm
-in from each edge) and choosing the class widths optimally over the real 30
-depths:
+**The tabs have two jobs, and the second one drives the answer.** In use they
+hold the pusher in the lid socket; out of use they hang it in the box slot. The
+hang base — tab centre to tab centre — is what stops it rocking, so the tabs want
+to be near the plate's edges, not near its middle.
+
+**That rules out the obvious way to build a catalogue.** If a class fixes the
+tabs at absolute coordinates cut OUT of a plate that is still `D` wide, then
+every part above the bottom of its band carries its tabs inboard of its own
+edges. Measured against the base the plate could have given (`D − 11.80`, tabs
+4 mm in from each edge), with class widths chosen optimally over the real 30
+depths, the worst case runs:
 
 | classes | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|
 | worst hang base, % of achievable | 4 | 19 | 34 | 47 | 57 | 69 |
 
-About 12 points per class, with no knee. (An earlier pass measured spread
-against `D` rather than against the achievable base and so read a knee at three
-classes; that comparison flattered the short ladders and is wrong.)
+About 12 points per class, no knee. (An earlier pass measured spread against `D`
+rather than against the achievable base and read a knee at three classes that is
+not there.)
 
-**Fixing the datums costs nothing and is enough.** Reference both tabs to their
-own plate edge at a single inset, put the notch on the centreline, and emit the
-notch only where it provably clears a tab:
+**But the tabs can move OUTWARD instead.** Nothing requires the tongue to be cut
+out of the plate: the leading ~10 mm can be **flared out** to the class width `W`
+by `(W − D)/2` a side. The tabs then sit 4.00 mm in from the tongue's own edges
+and the hang base is `W − 11.80` for every member of the class — which, since
+`W ≥ D`, is WIDER than the plate could have given alone. The spread objection
+was an objection to one implementation, not to the catalogue.
 
-```
-tabs    3.80 x 5.00, e mm in from each plate edge   ->  hang base D - 2e - 3.80
-notch   5.40 on the centreline, only when  D >= 2*(e + 3.80 + land) + 5.40
-```
+With the tongue flared the smallest class can be `W = 24.0`, the narrowest tongue
+the full three-feature lock fits in, so nothing loses its notch and the lid keeps
+one rib design. The box slot becomes `W + 2.40` and the lid socket `W − 0.40`,
+both class constants — which is the interchangeability that is otherwise
+unavailable, since both are sized to the pusher that goes in them.
 
-At `e = 4.00` and a 1.5 mm land that threshold is `D ≥ 24.0`: 26 pushers keep
-the notch, 5 drop it and carry two tabs alone, and only `Pusher 3x6-Un`
-(`D = 14.04`) needs `e` cut to 2.72 to fit two tabs at all. Two patterns for the
-catalogue instead of 30 geometries, the collision impossible by construction
-rather than caught by a check, and full hang base everywhere. Dropping the notch
-costs those five lids their key rib, so the socket needs its depth stop moved to
-the floor — the one piece of new CAD.
+The class count is then set by the affordable flare, the worst case in a band
+being about half the band's width:
 
-**Interchangeability is not available through the lock.** The box slot is
-`D + 2.40` and the lid socket `D − 0.40`, both sized to the pusher that goes in
-them, so a pusher only ever fits parts built for its own `D` whatever the tabs
-do. Buying it means standardising the slot and socket widths too — a tongue-width
-ladder, at the hang cost tabled above.
+| flare per side | 2.0 | 3.0 | 4.0 | 5.0 | 5.6 | 8.0 | 10.0 |
+|---|---|---|---|---|---|---|---|
+| classes needed | 11 | 8 | 7 | 6 | 5 | 4 | 3 |
 
-**The cheap version of the fix.** Leave the notch where the CAD already puts it,
-leave both insets alone, and simply omit the notch when it would not clear
-tab B — today `D < 26.4`. The eight pushers below that line are exactly the
-eight that are broken, so the other 24 re-export byte-identical and nothing that
-works today is touched.
+`Pusher 3x6-Un` (`D = 14.04`) needs 4.98 mm a side just to reach a 24.0 tongue,
+so it is the binding case for any budget under 5 mm.
+
+**Five tongues at a 5.57 mm worst flare** covers the catalogue:
+
+| tongue `W` | covers `D` | parts | tabs | hang base | worst flare/side | box slot / lid socket |
+|---|---|---|---|---|---|---|
+| 24.00 | 14.04–23.40 | 6 | ±6.10 | 12.20 | 4.98 | 26.40 / 23.60 |
+| 34.80 | 24.80–34.80 | 11 | ±11.50 | 23.00 | 5.00 | 37.20 / 34.40 |
+| 48.00 | 37.20–48.00 | 8 | ±18.10 | 36.20 | 5.40 | 50.40 / 47.60 |
+| 60.75 | 49.60–60.75 | 5 | ±24.48 | 48.95 | 5.57 | 63.15 / 60.35 |
+| 75.60 | 67.20–75.60 | 2 | ±31.90 | 63.80 | 4.20 | 78.00 / 75.20 |
+
+15 geometries instead of 90, and the hang base rises on all 32 — from 2.24 to
+12.20 on today's worst, +10.00 on Dominion 168, +11.15 on the 400 Card.
+
+**The open question is whether the flare is physically available** — whether the
+leading end may be wider than the card stack it pushes, given where it sits as it
+travels. That cannot be settled from the meshes. If the flare is capped at
+2–3 mm the catalogue needs 8–11 tongues and stops being simple; the fallback is
+then to leave the geometry parametric and only fix the datums — both tabs
+4.00 mm in from their own edge, the notch on the centreline and present only from
+`D ≥ 24.0` — which makes the collision impossible but buys no interchangeability.
+
+**There is no cheap corner either way.** Even the smallest fix that removes the
+defect — omitting the notch on the eight narrow pushers — takes the key rib out
+of eight lids and needs a new depth stop on the socket floor, so the lid changes
+regardless.
 
 ## Build policies (decided)
 
