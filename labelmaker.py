@@ -25,6 +25,7 @@ Font: Orbitron-Bold.ttf lives in the fonts/ directory.
 import argparse
 import json
 import math
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -285,11 +286,13 @@ def read_config_file(path: Path, game: str) -> list:
                '<name> 2' labels
       split1=/split2=  like split= but for halves of different sizes
                (must be given together)
-      parts=<w1>+...@<label1>|<label2>|...  one part per label; emits one
-               plate PER WIDTH, each holding all parts at that width. The
-               front width reads "<name> <label>", narrower widths just
-               "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
-               -> a front, a 45mm and a 62mm plate). Repeatable.
+      parts=<w1>+...@<label1>|<label2>|...[#<tag>]  one part per label;
+               emits one plate PER WIDTH, each holding all parts at that
+               width. The front width reads "<name> <label>", narrower widths
+               just "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
+               -> a front, a 45mm and a 62mm plate). Repeatable. Each grouping
+               becomes its own 3MF, named "<n> Cascades" or "<tag> <n>
+               Cascades"; give a tag when two groupings share a part count.
       names=<w1>+...@<name1>[:<short>]|<name2>[:<short>]|...  the
                TRANSPOSE of parts=: one plate PER NAME, each holding
                every width. For a box design that ships once per
@@ -320,7 +323,7 @@ def read_config_file(path: Path, game: str) -> list:
     Returns dicts {"name": str, "box": parse_box() | None,
     "split": [half1, half2] | None, "side": str | None,
     "plates": [(title, [widths]), ...],
-    "nsplits": [([widths], [labels]), ...],
+    "nsplits": [([widths], [labels], tag | None), ...],
     "names": [(full, short), ...], "name_widths": [widths],
     "logo": Path | None, "numbers": int}."""
     cfg = GAMES[game]
@@ -330,11 +333,18 @@ def read_config_file(path: Path, game: str) -> list:
         if not line or line.startswith("#"):
             continue
         where = f"{path.name}:{lineno}"
-        parts = [p.strip() for p in line.split(",")]
-        if len(parts) < 2 or not parts[0] or not parts[1]:
+        # Game and set name are the first two comma-separated fields; the rest
+        # are key=value and are split only on a comma that STARTS another key.
+        # A plain split(",") would break any value holding one, which the
+        # Innovation labels do ("Ages Sp,1-3" — specials plus a range).
+        head = [p.strip() for p in line.split(",", 2)]
+        if len(head) < 2 or not head[0] or not head[1]:
             sys.exit(f"{where}: cannot parse {raw!r} "
                      f"(expected '<game>,<set name>[,box=U[/S]][,split=U[/S]]')")
-        line_game, name = parts[0], parts[1]
+        line_game, name = head[0], head[1]
+        parts = head[:2] + [f.strip() for f in
+                            re.split(r",(?=\s*[A-Za-z][A-Za-z0-9_]*\s*=)",
+                                     head[2])] if len(head) > 2 else head
         if line_game.lower() != game.lower():
             continue
         if name.upper() == "(BLANK)":
@@ -372,10 +382,19 @@ def read_config_file(path: Path, game: str) -> list:
                     sys.exit(f"{where}: plate= widths must be positive")
                 plates.append((title, widths))
             elif key == "parts" and sep:
+                # trailing '#<tag>' qualifies the grouping's 3MF name, so two
+                # ways of splitting a set into the SAME number of cascades can
+                # coexist (Innovation's original age split and its Later Ages
+                # one are both 3-part and 4-part)
+                before, hashed, tag = value.rpartition("#")
+                if hashed and "@" in before:
+                    value, tag = before, tag.strip()
+                else:
+                    tag = None
                 widths_part, at, labels_part = value.partition("@")
                 if not at:
                     sys.exit(f"{where}: parts= must be "
-                             f"'<w1>+<w2>+...@<label1>|<label2>|...', "
+                             f"'<w1>+<w2>+...@<label1>|<label2>|...[#<tag>]', "
                              f"got {value!r}")
                 widths = [parse_width(w, cfg["widths"], where, "parts")
                           for w in widths_part.split("+")]
@@ -384,12 +403,14 @@ def read_config_file(path: Path, game: str) -> list:
                 labels = [t.strip() for t in labels_part.split("|")]
                 if len(labels) < 2 or any(not t for t in labels):
                     sys.exit(f"{where}: parts= needs 2 or more non-empty labels")
-                if any(len(prev) == len(labels) for _, prev in nsplits):
-                    # each grouping is named for its part count and gets a
-                    # 3MF of its own, so two of the same count would collide
-                    sys.exit(f"{where}: two parts= groupings of "
-                             f"{len(labels)} parts; each needs its own count")
-                nsplits.append((widths, labels))
+                prof = parts_profile(labels, tag)
+                if any(parts_profile(pl, pt) == prof
+                       for _, pl, pt in nsplits):
+                    # each grouping gets a 3MF of its own, named for its part
+                    # count and any tag, so two of the same name would collide
+                    sys.exit(f"{where}: two parts= groupings both named "
+                             f"{prof!r}; give one a different #<tag>")
+                nsplits.append((widths, labels, tag))
             elif key == "names" and sep:
                 widths_part, at, labels_part = value.partition("@")
                 if not at:
@@ -1011,11 +1032,13 @@ def render_project_settings(n_plates: int):
     return json.dumps(settings, indent=4)
 
 
-def parts_profile(labels) -> str:
+def parts_profile(labels, tag=None) -> str:
     """The profile (and so the 3MF) a parts= grouping goes in, named for the
-    number of cascades it builds the set into: '3 Cascades'. Shared with
+    number of cascades it builds the set into: '3 Cascades', or
+    'Later Ages 3 Cascades' when the grouping carries a #<tag>. The tag is what
+    lets two groupings of the same part count coexist. Shared with
     make_label_covers so a cover always sits next to the print it shows."""
-    return f"{len(labels)} Cascades"
+    return f"{tag} {len(labels)} Cascades" if tag else f"{len(labels)} Cascades"
 
 
 def set_plate_specs(record: dict, cfg: dict) -> list:
@@ -1127,17 +1150,17 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     # plates are shared, so every parts file is a complete print.
     parts_at = len(specs)
     parts_groups = []
-    for widths, labels in record.get("nsplits", []):
+    for widths, labels, group_tag in record.get("nsplits", []):
         # one plate per width, each holding every part at that width. The
         # front width prefixes the set name ("Innovation Ages 1-4"); the
         # narrower side widths carry just the label ("Ages 1-4").
         plates = []
         for w in widths:
-            tag = "front" if w == front else f"{w:g}mm"
+            wtag = "front" if w == front else f"{w:g}mm"
             rows = [((f"{name} {lab}" if w == front else lab), w, None)
                     for lab in labels]
-            plates.append((f"{display} {tag} {len(labels)}-part", rows))
-        parts_groups.append((parts_profile(labels), plates))
+            plates.append((f"{display} {wtag} {len(labels)}-part", rows))
+        parts_groups.append((parts_profile(labels, group_tag), plates))
     logo = record.get("logo")
     numbers = [""] + [str(i) for i in range(1, record.get("numbers", 0) + 1)]
     art_specs = []
@@ -1327,7 +1350,7 @@ def main():
                 if rec["split"]:
                     entries += [(f"{rec['name']} 1", f"{side_base} 1", True),
                                 (f"{rec['name']} 2", f"{side_base} 2", True)]
-                for _, labels in rec.get("nsplits", []):
+                for _, labels, _ in rec.get("nsplits", []):
                     entries += [(f"{rec['name']} {lab}", lab, True)
                                 for lab in labels]
         else:

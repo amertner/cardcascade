@@ -273,7 +273,7 @@ def front_row(rec, game_cfg):
         if rec.get("split"):
             variants = [str(i) for i, _ in enumerate(rec["split"], 1)]
         else:
-            variants = [lab for _, labels in rec.get("nsplits", [])
+            variants = [lab for _, labels, _ in rec.get("nsplits", [])
                         for lab in labels]
     if not variants:
         return ("FRONT LABEL", name, front)
@@ -294,8 +294,8 @@ def parts_rows(rec, game_cfg, profile):
     every label to say nothing new — so only the first cascade's sides are
     shown, captioned to say which cascade they belong to."""
     grouping = next(((widths, labels)
-                     for widths, labels in rec.get("nsplits", [])
-                     if dl.parts_profile(labels) == profile), None)
+                     for widths, labels, tag in rec.get("nsplits", [])
+                     if dl.parts_profile(labels, tag) == profile), None)
     if grouping is None:
         return None
     widths, labels = grouping
