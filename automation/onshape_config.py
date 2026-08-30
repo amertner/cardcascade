@@ -49,7 +49,16 @@ ASSEMBLY = "f27edbc7a0f89c28092f18d4"
 # monochrome assembly, whose parts are named after their component type. Which
 # instance is which expansion is recovered from the lettering geometry; see
 # topper_split.py, which owns that and refuses rather than guessing.
-TOPPER_ASSEMBLY = "35aa82c92603710330ba2207"
+# The first topper assembly (35aa82c92603710330ba2207) instanced the plate and
+# the name inlays but NOT the logo inlay, so every topper split out of it printed
+# with the logo as an empty recess in the white. The plate's logo recess was
+# untouched — same vertex and triangle count as the studio export — and the
+# splitter was lossless (44 objects in, 44 out), which is how the omission was
+# traced to the assembly rather than to the export or the split. This element is
+# the corrected assembly: 54 objects, +10 being Unseen's six-solid logo and one
+# each for Cities, Echoes, Artifacts and Figures. Blank has no logo and is
+# unchanged.
+TOPPER_ASSEMBLY = "96b9b447b0cd4d8aef5f4c77"
 
 # Which component types come from an assembly export vs a per-part-studio export.
 # Membership decides how plan_exports/export route each component.

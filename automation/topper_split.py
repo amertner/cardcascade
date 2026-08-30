@@ -34,13 +34,10 @@ leaves {Echoes, Unseen} and {Cities, Figures} tied — so both are used: the cou
 narrows, the widths decide, and the result must be a clean bijection or this
 module refuses rather than guessing (see identify()).
 
-SIGNATURES was calibrated from the unsleeved 15-card studio exports, whose
-values are identical for S and M. Regenerate with --calibrate over a directory of
-KNOWN-GOOD per-expansion files. Note the calibrator strips a leading logo body by
-x-position, which is exact for five of the six but clips Unseen's multi-part logo
-inconsistently on the SLEEVED exports — that is a calibration artifact of the
-15-card files (which emboss a logo); the 10-card toppers carry no logo body at
-all, so the split path never strips anything.
+SIGNATURES was calibrated from the unsleeved 15-card studio exports, whose values
+are identical for S and M. Regenerate with --calibrate over a directory of
+KNOWN-GOOD per-expansion files; both paths strip the logo the same way, through
+split_logo, so a calibration and a split always see the same inlays.
 
 Makes NO API calls.
 """
@@ -72,6 +69,18 @@ SIGNATURES = {
 # that gap, and MARGIN insists the runner-up is genuinely worse.
 TOL = 0.005
 MARGIN = 0.010
+
+# A topper's inlays are its LOGO followed by its expansion name, and only the
+# name identifies the expansion — so the logo has to come off before
+# fingerprinting. It is NOT separated by a gap threshold. The logo/name gap beats
+# the widest gap inside a name by 8.5x on a 10-card Cities but only 2.6x on the
+# 15-card Unseen, whose logo is six overlapping solids, so any single cutoff is a
+# guess — and guessing wrong either keeps the logo or eats the first letter.
+#
+# Instead both readings are offered to identify() and SIGNATURES decides. That is
+# a far sharper instrument: a correct match measures 0.0000 where the nearest
+# wrong one measures 0.034, and no with-logo solid count collides with a name's
+# (9, 11, 7, 9, 12 against 8, 10, 6, 8, 6), so a mis-split cannot match anything.
 
 # Topper outer width, in mm per HorizontalSlot (measured: S=3 -> 201.0/207.0,
 # M=4 -> 268.0/276.0). Used to derive the size class from the mesh.
@@ -176,26 +185,56 @@ def _bbox_mm(mesh, scale):
     return (min(xs), max(xs), min(ys), max(ys), min(zs), max(zs))
 
 
-def signature(bodies, scale, logo_cut_mm=None):
-    """Normalised glyph widths for one topper's lettering, left to right.
+def widest_gap(spans):
+    """Index of the span that starts after the widest horizontal gap, or None.
 
-    `bodies` is the group's parts; the one named "Topper" is the base plate and
-    is excluded. logo_cut_mm, when given, drops solids starting nearer than that
-    to the plate's left edge — only the calibrator needs it, because the 15-card
-    toppers emboss a logo ahead of the text.
-    """
-    base = [b for b in bodies if b["name"] == "Topper"]
-    letters = [b for b in bodies if b["name"] != "Topper"]
-    if len(base) != 1:
-        raise SplitError(f"group has {len(base)} bodies named 'Topper', expected 1")
-    spans = sorted(_bbox_mm(b["mesh"], scale)[:2] for b in letters)
-    if logo_cut_mm is not None:
-        x0 = _bbox_mm(base[0]["mesh"], scale)[0]
-        spans = [s for s in spans if s[0] - x0 >= logo_cut_mm]
+    Reach, not the previous span's end: a multi-solid logo's parts overlap in x
+    (the 15-card Unseen's six do), and comparing against the running maximum is
+    what stops one of those overlaps reading as the widest gap."""
+    if len(spans) < 2:
+        return None
+    gaps, reach = [], spans[0][1]
+    for i in range(1, len(spans)):
+        gaps.append((spans[i][0] - reach, i))
+        reach = max(reach, spans[i][1])
+    widest, at = max(gaps)
+    return at if widest > 0 else None
+
+
+def _norm(spans):
+    """Span widths as fractions of the run's total width."""
     if not spans:
         return []
     width = max(hi for _, hi in spans) - spans[0][0]
     return [(hi - lo) / width for lo, hi in spans]
+
+
+def inlay_spans(bodies, scale):
+    """One topper's inlay x-spans, sorted left to right. Excludes the plate."""
+    base = [b for b in bodies if b["name"] == "Topper"]
+    if len(base) != 1:
+        raise SplitError(f"group has {len(base)} bodies named 'Topper', expected 1")
+    return sorted(_bbox_mm(b["mesh"], scale)[:2]
+                  for b in bodies if b["name"] != "Topper")
+
+
+def signatures(bodies, scale):
+    """Candidate name fingerprints for one topper: the inlays as they come, and
+    again with a leading logo run removed at the widest gap. identify() picks."""
+    spans = inlay_spans(bodies, scale)
+    out = [_norm(spans)]
+    at = widest_gap(spans)
+    if at is not None and len(spans) - at >= 2:
+        out.append(_norm(spans[at:]))
+    return out
+
+
+def signature(bodies, scale, strip_logo=True):
+    """One fingerprint, for the calibrator: the name with its logo removed at the
+    widest gap (strip_logo=False for exports that carry no logo)."""
+    spans = inlay_spans(bodies, scale)
+    at = widest_gap(spans) if strip_logo else None
+    return _norm(spans[at:] if at is not None else spans)
 
 
 def _distance(a, b):
@@ -206,22 +245,29 @@ def _distance(a, b):
     return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
 
 
-def identify(sigs, table=None):
-    """{expansion: index into sigs}, or raise. Refuses rather than guessing.
+def identify(cands, table=None):
+    """{expansion: index into cands}, or raise. Refuses rather than guessing.
 
-    A group is assigned only when exactly one expansion of the same solid count
-    is within TOL and every other candidate is at least MARGIN worse; the result
-    must also be a bijection onto the table.
+    `cands` is one list of candidate fingerprints per group (see signatures). A
+    group is assigned only when exactly one expansion is within TOL across ALL
+    its candidates and every other is at least MARGIN worse; the result must also
+    be a bijection onto the table.
     """
     table = table or SIGNATURES
     chosen = {}
-    for i, s in enumerate(sigs):
-        scored = sorted((d, e) for e, ref in table.items()
-                        if (d := _distance(s, ref)) is not None)
+    for i, sigs in enumerate(cands):
+        best = {}
+        for s in sigs:
+            for e, ref in table.items():
+                d = _distance(s, ref)
+                if d is not None and d < best.get(e, float("inf")):
+                    best[e] = d
+        scored = sorted((d, e) for e, d in best.items())
         if not scored:
             raise SplitError(
-                f"group {i} has {len(s)} lettering solid(s); no expansion in the "
-                f"table has that count ({ {e: len(r) for e, r in table.items()} })")
+                f"group {i}: no expansion in the table matches any reading of "
+                f"its {[len(s) for s in sigs]} inlay solid(s) "
+                f"({ {e: len(r) for e, r in table.items()} })")
         best_d, best_e = scored[0]
         if best_d > TOL:
             raise SplitError(f"group {i}: closest expansion {best_e!r} is "
@@ -297,8 +343,7 @@ def split(assembly_bytes, sleeved=None, cards=None):
                          f"expected {len(SIGNATURES)}")
 
     bodies = [[parts[i] for i in g if i in parts] for g in groups]
-    sigs = [signature(b, scale) for b in bodies]
-    order = identify(sigs)
+    order = identify([signatures(b, scale) for b in bodies])
 
     plate = [b for b in bodies[0] if b["name"] == "Topper"][0]
     x0, x1, y0, y1, _, _ = _bbox_mm(plate["mesh"], scale)
@@ -335,7 +380,7 @@ def split(assembly_bytes, sleeved=None, cards=None):
 
 
 # ---------------------------------------------------------------- calibrate
-def calibrate(directory, pattern="Topper * *-Un.3mf", logo_cut_mm=12.0):
+def calibrate(directory, pattern="Topper * *-Un.3mf", strip_logo=True):
     """Rebuild SIGNATURES from known-good per-expansion exports."""
     import mesh as M
     out = {}
@@ -343,8 +388,7 @@ def calibrate(directory, pattern="Topper * *-Un.3mf", logo_cut_mm=12.0):
         exp = p.name.split()[1]
         model = _model_text(M.unwrap(p.read_bytes()))
         _, scale = _unit_scale(model)
-        sig = signature(list(_parts(model).values()), scale,
-                        logo_cut_mm=logo_cut_mm)
+        sig = signature(list(_parts(model).values()), scale, strip_logo)
         prev = out.get(exp)
         if prev and _distance(prev, sig) is None:
             raise SplitError(f"{exp}: inconsistent solid count across sizes")
@@ -364,6 +408,9 @@ def main():
                     help="output filename template")
     ap.add_argument("--calibrate", metavar="DIR",
                     help="print a SIGNATURES table rebuilt from DIR, then exit")
+    ap.add_argument("--no-logo", action="store_true",
+                    help="with --calibrate: the files carry no logo body, so "
+                         "take every inlay as part of the name")
     ap.add_argument("--dry-run", action="store_true",
                     help="identify and measure, but write nothing")
     args = ap.parse_args()
@@ -372,7 +419,8 @@ def main():
     import mesh as M
 
     if args.calibrate:
-        for exp, sig in sorted(calibrate(args.calibrate).items()):
+        for exp, sig in sorted(calibrate(args.calibrate,
+                                        strip_logo=not args.no_logo).items()):
             print(f'    "{exp}": {sig},')
         return
 
