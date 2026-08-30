@@ -34,16 +34,29 @@ ELEMENTS = {
 # component at once (see assembly_split.py) — far fewer API calls than one
 # part-studio export per component.
 #
-# The Lid and Toppers are NOT in this assembly: the Lid can't be reconfigured
-# per-game reliably, and toppers are Innovation-only + would collide with lid
-# lettering names. Both stay on the per-part-studio path.
+# The Lid is NOT in this assembly: it can't be reconfigured per-game reliably,
+# and its lettering body names would collide. It stays on the part-studio path.
 ASSEMBLY = "f27edbc7a0f89c28092f18d4"
 
-# Which component types come from the ONE assembly export vs a per-part-studio
-# export. Membership decides how plan_exports/export route each component.
+# Assembly holding all SIX Innovation toppers at once, driven by the same Primary
+# variable studio. Toppers used to be six separate part-studio exports (one per
+# Expansion configuration value) = six translate ops per (size, cards, sleeving);
+# this collapses them to one, which is ~15 calls saved per parameter set and made
+# toppers the largest single consumer of the Innovation budget.
+#
+# The six instances are the same part studio at six configuration values, so they
+# all carry the SAME body names ("Topper", "Part 3"...) — nothing like the
+# monochrome assembly, whose parts are named after their component type. Which
+# instance is which expansion is recovered from the lettering geometry; see
+# topper_split.py, which owns that and refuses rather than guessing.
+TOPPER_ASSEMBLY = "35aa82c92603710330ba2207"
+
+# Which component types come from an assembly export vs a per-part-studio export.
+# Membership decides how plan_exports/export route each component.
 ASSEMBLY_SOURCED = frozenset({"Box", "Pusher", "Holder", "TokenHolder",
                               "HalfTokenHolder"})
-STUDIO_SOURCED = frozenset({"Lid", "Topper", "Label"})
+TOPPER_SOURCED = frozenset({"Topper"})
+STUDIO_SOURCED = frozenset({"Lid", "Label"})
 
 
 def source_element(comp_type):
@@ -56,6 +69,8 @@ def source_element(comp_type):
     well, so keying off it alone silently produces that wrong answer."""
     if comp_type in ASSEMBLY_SOURCED:
         return ASSEMBLY
+    if comp_type in TOPPER_SOURCED:
+        return TOPPER_ASSEMBLY
     return ELEMENTS.get(comp_type, "")
 
 # Object names inside the assembly export map 1:1 to component types. A distinct
@@ -65,10 +80,16 @@ def source_element(comp_type):
 ASSEMBLY_ROLE_NAMES = {"Box", "Pusher", "Holder", "FirstHolder", "TokenHolder",
                        "HalfTokenHolder"}
 
-# The Topper studio uses a CONFIGURATION input for the embossed expansion name,
-# so each topper is a separate export (one per expansion, via
-# configurationencodings like onshape_test.py --set). Toppers vary by
-# (expansion, size, sleeved) only — modeled that way in plan_exports/export.
+# The Topper PART STUDIO uses a CONFIGURATION input for the embossed expansion
+# name. That was the old export path — one call per expansion. TOPPER_ASSEMBLY
+# above replaces it, so nothing in the export path sets this any more; it is kept
+# because it documents the studio and is what a one-off manual export would need.
+#
+# Toppers vary by (expansion, size, CARDS PER SLIDING SLOT, sleeved). The
+# cards-per-slot axis was missing until the 10-card boxes were designed: the
+# embossed text sits in the topper's depth, which is 2.00 mm + one card thickness
+# per card, so a 15-card topper is 8.00 mm (Un) and a 10-card one 6.00 mm, and
+# the text scales to 65%. A 15-card topper does not fit a 10-card slot.
 #
 # Confirmed from the studio's Configuration table: a single list input with 6
 # options — Echoes, Cities, Unseen, Artifacts, Figures, Blank (matches
@@ -148,33 +169,34 @@ def is_imported(part_name, component_type):
 # discrepancy PIPELINE.md records under `--changed Lid`.
 VERSIONS = {
     "Box": "6.6", "Lid": "6.5", "Holder": "6.6", "Pusher": "6.6",
-    "Topper": "6.4", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
+    "Topper": "6.6", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
     "Label": "6.3",
 }
-# Innovation lid + toppers changed at 6.4; the Blank topper is exempt (no logo)
-# and stays 6.3 — see expected_version() below, which every reader and writer of
-# a provenance version must go through.
+# The Innovation lid + toppers changed at 6.4. Toppers moved again at 6.6, and
+# it is a real geometry change, not an embossed string: the expansion name is no
+# longer preceded by a logo body, the plate's depth now tracks
+# CardsPerSlidingSlot (2.00 mm + a card thickness per card), and the text scales
+# with it. Every 6.4 topper is therefore genuinely stale.
+#
+# The Blank topper used to be exempt at 6.3, because the 6.4 change was "add an
+# expansion logo" and Blank has no expansion to name. That reasoning ends at 6.6:
+# no topper carries a logo now, and Blank is no longer the 6 mm taller odd one
+# out (45.20 mm, same as its siblings). It is an ordinary topper again, so the
+# exemption is gone and expected_version() is a plain lookup.
 
 
 def expected_version(comp_type, files):
-    """The version a component of `comp_type` SHOULD be at — VERSIONS, plus the
-    per-file exemptions.
+    """The version a component of `comp_type` SHOULD be at — VERSIONS, plus any
+    per-file exemptions (there are none at present; see the 6.6 note above).
 
     This must be the ONE place the rule lives. It is read when deciding whether
     a component is stale (plan_exports.needs_export) AND when writing a
     provenance row (export._record, --adopt); if those two disagree, a component
     is recorded at a version the staleness check never expects and goes stale
-    the instant it is written. Innovation's Blank topper is exactly that case:
-    the lid + toppers changed at 6.4, but the Blank one has no expansion logo
-    and stays at 6.3.
-
-    `files` is the component's file name, or the set of files sharing its key.
+    the instant it is written. `files` — the component's file name, or the set of
+    files sharing its key — is what an exemption would key on, and is kept in the
+    signature so reinstating one stays a change to this function alone.
     """
-    if isinstance(files, str):
-        files = (files,)
-    files = tuple(files)
-    if comp_type == "Topper" and files and all("Blank" in f for f in files):
-        return "6.3"
     return VERSIONS.get(comp_type)
 
 

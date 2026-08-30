@@ -151,14 +151,23 @@ def compose(ctx, spec, labels):
                           "object": "HalfTokenHolder", "count": 1})
     if "Toppers" in spec["extras"] and \
             ctx["short_name"] not in spec.get("no_toppers", ()):
-        # Each topper is a separate export (Topper studio configured per
-        # expansion). Toppers vary by (expansion, size, sleeved) only, so they
-        # dedup across cascades of the same size+sleeving and future Innovation
-        # cascades reuse them.
+        # All six ride ONE assembly export per parameter set, but each stays its
+        # own component with its own key, so the planner still dedups them across
+        # cascades and export.py collapses the six keys into a single translate.
+        #
+        # CARDS PER SLOT is part of the identity. The embossed name sits in the
+        # topper's depth, which is 2.00 mm plus a card thickness per card — 8.00
+        # mm at 15 unsleeved cards, 6.00 at 10 — and the text scales with it
+        # (exactly 65% at 10 vs 15). A 15-card topper is 2 mm too thick for a
+        # 10-card slot, so keying on (expansion, size, sleeved) alone would have
+        # handed the 10-card boxes toppers that cannot fit. The files carry the
+        # count (`Topper Cities S15-Un.3mf`) for the same reason.
         for exp in spec["toppers"]:
             items.append({"type": "Topper",
-                          "key": ("Topper", exp, ctx["size"], slv),
-                          "file": f"Topper {exp} {ctx['size']}-{slv}.3mf",
+                          "key": ("Topper", exp, ctx["size"],
+                                  ctx["cards_per_slot"], slv),
+                          "file": f"Topper {exp} {ctx['size']}"
+                                  f"{ctx['cards_per_slot']}-{slv}.3mf",
                           "object": f"Topper {exp}", "count": 1})
     if labels and spec.get("onshape_label"):
         items.append({"type": "Label", "key": ("Label", m),
@@ -239,7 +248,14 @@ def main():
     p = compute_plan(game, spec, args.csv, args.labels, changed)
 
     total_slots = sum(it["count"] for c in p.cascades for it in c["components"])
-    n_export_ops = len(p.to_export)               # toppers = 1 op (shared key)
+
+    def op_key(k, u):
+        """Export keys that share ONE translate op. The six toppers of a given
+        (size, cards, sleeving) come out of a single assembly export, so they
+        must not be counted as six."""
+        return ("Toppers",) + k[2:] if u["type"] == "Topper" else k
+
+    n_export_ops = len({op_key(k, u) for k, u in p.to_export.items()})
     est_calls = n_export_ops * CALLS_PER_EXPORT
 
     # ---- report ----

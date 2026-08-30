@@ -85,7 +85,7 @@ Game-specific additions:
 | Game | Extra components | Labels |
 |---|---|---|
 | Dominion | Token holders per-row (`TokenHolder` column: `full`/`none`) — only sets whose expansions need them. Full holder always; every **merged-slot (Mat)** cascade also gets a HalfTokenHolder (the mat pocket always splits into full + half) | via `labelmaker.py` (not Onshape) |
-| Innovation | **6 Toppers** — same dims, different embedded text (one per expansion + a blank); one whole-studio Onshape export per sleeving yields all 6 | via `labelmaker.py` |
+| Innovation | **6 Toppers** — same plate, different embedded text (one per expansion + a blank); ONE assembly export per parameter set yields all 6 (see "The topper assembly") | via `labelmaker.py` |
 | Compile | — | **special label with logo → from Onshape**, only when `--labels` given |
 | Food Chain Magnate | — | via `labelmaker.py` |
 
@@ -104,7 +104,7 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 | Holder (first-riser) | `(size, front_capacity, sleeved, first=True)` | deeper sibling of the standard holder in the same box; replaces one standard holder; file `Holder <size>-<cap>-<slv> (first)` |
 | TokenHolder (Dominion) | `(front capacity, merged, sleeved)` | fits the box's front pocket, so it varies by capacity, Mat-ness and sleeving; file `TokenHolder <cap>-<slv>[ merged]` |
 | HalfTokenHolder (Dominion) | `(front capacity, merged, sleeved)` | Mat-only; same key as the full holder |
-| Toppers (Innovation) | `(sleeved,)` | one export → 6 files; shared across all Innovation cascades of that sleeving |
+| Toppers (Innovation) | `(expansion, size, cards/slot, sleeved)` | one assembly export → 6 files; shared across Innovation cascades matching all four |
 | Label (Compile) | `(model,)` | logo label; TODO confirm dependency |
 
 ## Incremental / change detection
@@ -118,6 +118,72 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 - A sidecar `individual/<Game>/.export_state.json` will record, per file, the
   Onshape element + configuration + document microversion it came from
   (idempotency + audit). *(Stage 2.)*
+
+### The topper assembly — and why cards/slot is part of a topper's identity
+
+Toppers were six part-studio exports per parameter set, one per value of the
+studio's Expansion configuration input. `onshape_config.TOPPER_ASSEMBLY` holds
+all six instead, so a parameter set's toppers cost **one** translate op, not six
+— ~15 calls saved per set, which made toppers the largest single consumer of
+Innovation's budget.
+
+`assembly_split.py` cannot do this split. The monochrome assembly names its parts
+after their component type (`Box`, `Pusher`), so that splitter maps object→role
+BY NAME. A topper assembly is six instances of ONE part studio at six
+configuration values, so every instance carries the SAME body names (`Topper`,
+plus `Part 3`…`Part 12`). What separates the instances is the assembly component
+transform — grouping components by their translation recovers exactly six groups
+— but which group is which EXPANSION has to come from the geometry.
+`topper_split.py` owns that:
+
+- the **count of lettering solids** is a property of the word (Echoes 6, Cities 8
+  — two dotted i's — Unseen 6, Artifacts 10, Figures 8, Blank 0). It narrows but
+  does not decide: it ties {Echoes, Unseen} and {Cities, Figures};
+- each glyph's width **as a fraction of the whole word's width** decides. That
+  ratio is a property of the word and the font and nothing else, so it survives a
+  change of scale — which is exactly what happens here, and is what makes the
+  fingerprints reusable rather than per-size tables.
+
+A correct match measures 0.0000; the nearest wrong one with the same solid count
+measures 0.034. `identify()` requires a unique match inside `TOL` with the
+runner-up at least `MARGIN` worse AND a clean bijection onto all six, and raises
+otherwise — the topper counterpart of `check_box`, catching a translation cached
+from the previous parameter set before anything reaches disk or provenance. The
+assignment was cross-checked against glyph POSITIONS, a feature the matcher never
+uses; all five agree to ~1e-5. Assembly ROW ORDER is not usable: the six sit in a
+row, but Blank and Figures are swapped relative to `TOPPER_OPTIONS`.
+
+**Cards per sliding slot is part of a topper's identity**, and was missing until
+the 10-card boxes were designed. The embossed name sits in the topper's depth,
+and that depth is `2.00 mm + one card thickness per card` — 8.00 mm at 15
+unsleeved cards, 6.00 at 10 (exact on all three measured points, Un and Sl), with
+the text scaling to precisely 65%. A 15-card topper is 2 mm too thick for a
+10-card slot, so the old `(expansion, size, sleeved)` key would have handed the
+10-card boxes toppers that cannot fit. Files carry the count for the same reason:
+`Topper Cities S15-Un.3mf`. The 24 pre-existing files were git-renamed to the
+`S15`/`M15` form and their provenance rows re-keyed; nothing was re-exported,
+because the rename does not change what they are.
+
+The 6.6 topper is a real geometry change, not an embossed string, and
+`VERSIONS["Topper"]` is 6.6 accordingly: the expansion name is no longer preceded
+by a **logo body** (the 6.4 toppers lead with one — six solids in Unseen's case),
+so body counts drop by one across the board; the plate's depth tracks
+CardsPerSlidingSlot; and **Blank is no longer 6 mm taller** than its siblings.
+That last point is what the `expected_version()` exemption pinning Blank to 6.3
+existed for — the 6.4 change was "add an expansion logo" and Blank had no
+expansion to name — so at 6.6 the exemption is gone and the function is a plain
+lookup. Every 6.4 topper on disk is genuinely stale, which is why the bump pulls
+the four 15-card cascades back into the worklist for one topper op each.
+
+**A re-exported topper changes a built project.** `individual/` is only half of
+it: the four 3/4 Ages projects still embed their 6.4 topper meshes, logos and
+all, until `refresh_cascades.py --game Innovation` swaps them in. Bumping a
+component that a published project already carries is a two-step job.
+
+`no_toppers` lists parts.csv **Short names** and must track that column. The XS
+row was listed as `Inno 130` while parts.csv called it `Single Mini`, so the
+entry never matched and both XS cascades composed 12 toppers that do not exist
+and that their projects have no slot for — ~38 calls on any full-game export.
 
 ### `_raw/` — what a cached download is for
 

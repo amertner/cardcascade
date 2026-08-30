@@ -42,6 +42,7 @@ import onshape_config as OC
 import plan_exports as P
 import provenance as PROV
 import set_variables as SV
+import topper_split as TS
 import verify as V
 
 # One combined 3MF (grouping=true) with all parts as named objects, Z-up, mm.
@@ -52,15 +53,20 @@ MESH_BODY = {"formatName": "3MF", "storeInDocument": False, "notifyUser": False,
 
 
 def comp_config(comp):
-    """Human-readable config for provenance (toppers select an expansion)."""
-    return f"Expansion={comp['key'][1]}" if comp["type"] == "Topper" else ""
+    """Onshape configuration recorded in provenance for a component.
+
+    Empty for everything now. Toppers were the only configured component — one
+    studio export per Expansion value — and they come from TOPPER_ASSEMBLY under
+    the Primary variable set instead, with no configuration of their own; which
+    expansion a file holds is carried by its `key`. Rows written before the move
+    keep their `Expansion=...`, which is what they really were exported with."""
+    return ""
 
 
 def api_config(comp):
-    """Onshape configuration string for the export. A single list input encodes
-    as 'parameterId=value', so we build it locally (no configurationencodings)."""
-    if comp["type"] == "Topper":
-        return f"{OC.TOPPER_CONFIG_PARAM}={comp['key'][1]}"
+    """Onshape configuration string to send with a studio export. Nothing sets
+    one today (see comp_config); kept as the hook for a configured component,
+    since a single list input encodes simply as 'parameterId=value'."""
     return ""
 
 
@@ -272,6 +278,64 @@ def export_assembly(auth, ctx, use_cache=False, verify=True):
     return parts, mv
 
 
+def topper_tag(ctx):
+    """Cache name for a (size, cards, sleeving) parameter set's raw topper
+    assembly. Unlike the monochrome assembly this is NOT per model code — the
+    toppers of every cascade sharing those three are the same six parts."""
+    return f"Toppers {ctx['size']}{ctx['cards_per_slot']}-{ctx['sleeved']}"
+
+
+def cached_toppers(folder, ctx):
+    """The cached raw topper assembly for a parameter set, or None."""
+    p = P.ROOT / "individual" / folder / "_raw" / f"{topper_tag(ctx)}.3mf"
+    return p if p.exists() else None
+
+
+def export_toppers(auth, ctx, use_cache=False, verify=True):
+    """ONE assembly translation -> {expansion: clean 3mf bytes} for all six
+    toppers (split locally), plus the shared documentMicroversion.
+
+    topper_split identifies each instance from its lettering and refuses on
+    anything it cannot pin down, so its SplitError is the topper counterpart of
+    check_box: a translation cached from the PREVIOUS parameter set is caught
+    before anything reaches individual/ or provenance. The raw download is kept
+    either way — under a REJECTED prefix when refused, so --use-cache cannot
+    later re-split a download we already know is wrong."""
+    cached = cached_toppers(ctx["folder"], ctx) if use_cache else None
+    if cached:
+        print(f"    ↻ re-split from cache: {cached.name}  (0 calls)")
+        raw, mv, fresh = mesh.unwrap(cached.read_bytes()), "", False
+    else:
+        data, mv = O.translate(
+            auth, "assembly", OC.DID,
+            f"/api/assemblies/d/{OC.DID}/w/{OC.WID}/e/{OC.TOPPER_ASSEMBLY}"
+            f"/translations",
+            dict(MESH_BODY), reason="toppers")
+        raw, fresh = mesh.unwrap(data), True
+    try:
+        parts, info = TS.split(
+            raw,
+            sleeved=ctx["sleeved"] if verify else None,
+            cards=ctx["cards_per_slot"] if verify else None)
+    except TS.SplitError as e:
+        bad = cache_raw(ctx["folder"], f"REJECTED {topper_tag(ctx)}", raw)
+        wait = O.bump_settle() if fresh else 0
+        sys.exit(
+            f"\n✗ REFUSING the {topper_tag(ctx)} assembly: {e}\n"
+            f"  Nothing was written to individual/{ctx['folder']}/.\n"
+            f"  The download is kept at {bad.name} for inspection (the "
+            f"'REJECTED ' prefix keeps --use-cache away from it)."
+            + (f"\n  The settle wait is now {wait}s — re-run." if fresh else
+               "\n  Delete it and re-export without --use-cache.")
+            + "\n  Use --skip-verify to take the split without the dimension "
+              "checks.")
+    for w in info["warnings"]:
+        print(f"    ⚠ {w}")
+    if fresh:
+        cache_raw(ctx["folder"], topper_tag(ctx), raw)
+    return parts, mv
+
+
 def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
     O.begin()
     auth = O.LazyAuth()      # resolved only if a call is actually made
@@ -286,14 +350,17 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
             bykey.setdefault(c["key"], c)
         needed = [bykey[k] for k in keys if k in bykey]
         asm = [c for c in needed if c["type"] in OC.ASSEMBLY_SOURCED]
+        topper = [c for c in needed if c["type"] in OC.TOPPER_SOURCED]
         studio = [c for c in needed if c["type"] in OC.STUDIO_SOURCED]
         asm_cached = bool(use_cache and asm and cached_assembly(
+            folder, casc["ctx"]))
+        top_cached = bool(use_cache and topper and cached_toppers(
             folder, casc["ctx"]))
         studio_live = [c for c in studio
                        if not (use_cache and cached_studio(folder, c))]
         # Setting the Primary variables is itself an API call; skip it when
         # every needed part comes from the local cache.
-        if (asm and not asm_cached) or studio_live:
+        if (asm and not asm_cached) or (topper and not top_cached) or studio_live:
             set_primary(auth, casc["row"], casc["sleeved"] == "Sl",
                         spec.get("onshape_name", spec["folder"]))
             print(f"● SET PARAMETERS  [{casc['name']}]")
@@ -316,7 +383,24 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
                            verify)
                 print(f"    ✓ {comp['file']}  ({n} body, assembly)")
                 done += 1
-        # Lid / toppers / labels stay on the per-part-studio path
+        # ONE assembly export supplies all six of this cascade's toppers
+        if topper and not (limit and done >= limit):
+            parts, mv = export_toppers(auth, casc["ctx"], use_cache=use_cache,
+                                       verify=verify)
+            for comp in topper:
+                if limit and done >= limit:
+                    break
+                exp = comp["key"][1]
+                data = parts.get(exp)
+                if data is None:
+                    print(f"    ⚠ {comp['file']} — expansion {exp!r} absent "
+                          f"from the topper assembly")
+                    continue
+                n = _write(data, comp, folder, game, OC.TOPPER_ASSEMBLY, mv,
+                           when, verify)
+                print(f"    ✓ {comp['file']}  ({n} bodies, topper assembly)")
+                done += 1
+        # Lid / labels stay on the per-part-studio path
         for comp in studio:
             if limit and done >= limit:
                 break
@@ -450,16 +534,18 @@ def main():
     batches, skipped = batch(selected(plan.cascades), to_export_keys)
 
     def classify(keys):
-        """(assembly-sourced keys, studio-sourced keys) for one cascade."""
-        asm = [k for k in keys if plan.unique[k]["type"] in OC.ASSEMBLY_SOURCED]
-        studio = [k for k in keys if plan.unique[k]["type"] in OC.STUDIO_SOURCED]
-        return asm, studio
+        """(assembly, topper-assembly, studio) keys for one cascade."""
+        def of(group):
+            return [k for k in keys if plan.unique[k]["type"] in group]
+        return of(OC.ASSEMBLY_SOURCED), of(OC.TOPPER_SOURCED), \
+            of(OC.STUDIO_SOURCED)
 
     # translate operations per cascade: ONE assembly export covers all its
-    # monochrome parts; each lid/topper/label is its own studio export.
+    # monochrome parts, a second covers all six toppers, and each lid/label is
+    # its own studio export.
     def translate_ops(keys):
-        asm, studio = classify(keys)
-        return (1 if asm else 0) + len(studio)
+        asm, topper, studio = classify(keys)
+        return (1 if asm else 0) + (1 if topper else 0) + len(studio)
 
     PER = 3          # per translate op with adaptive polling: translate + 1 poll + download
     sets = len(batches)
@@ -482,8 +568,7 @@ def main():
     scope = f", {args.sleeving} only" if args.sleeving else ""
     print(f"EXPORT PLAN — {game}   (dry run, 0 API calls; {cache}{scope})\n")
     for casc, keys in batches:
-        asm, studio = classify(keys)
-        ncalls = 1 + translate_ops(keys)
+        asm, topper, studio = classify(keys)
         print(f"● SET PARAMETERS  [{casc['name']}]   (~{1 + translate_ops(keys) * PER} calls)")
         print(f"      {param_summary(casc['ctx'])}")
         if asm:
@@ -492,22 +577,20 @@ def main():
             st = "new" if nnew == len(files) else f"{nnew} new, {len(files) - nnew} stale"
             print(f"      ├─ 1 ASSEMBLY export → {len(asm)} monochrome part(s) "
                   f"[{st}]: {', '.join(files)}")
-        toppers = [k for k in studio if plan.unique[k]["type"] == "Topper"]
-        other = [k for k in studio if plan.unique[k]["type"] != "Topper"]
-        for k in other:
+        for k in studio:
             u = plan.unique[k]
             f = sorted(u["files"])[0]
             state = "new" if f not in plan.present else "stale"
             tag = "" if u["type"] in OC.ELEMENTS else "  ⚠ no element id"
             print(f"      ├─ studio export {f}   [{u['type']} · {state}]{tag}")
-        if toppers:
-            exps = [k[1] for k in toppers]
-            files = [sorted(plan.unique[k]["files"])[0] for k in toppers]
+        if topper:
+            exps = [k[1] for k in topper]
+            files = [sorted(plan.unique[k]["files"])[0] for k in topper]
             nnew = sum(1 for f in files if f not in plan.present)
             st = ("new" if nnew == len(files)
                   else f"{nnew} new, {len(files) - nnew} stale")
-            print(f"      └─ {len(exps)} studio topper export(s) [{st}]: "
-                  f"{', '.join(exps)}")
+            print(f"      └─ 1 TOPPER ASSEMBLY export → {len(exps)} topper(s) "
+                  f"[{st}]: {', '.join(exps)}")
         print()
 
     if skipped:
@@ -521,7 +604,8 @@ def main():
                       if plan.unique[k]["type"] in OC.STUDIO_SOURCED
                       and plan.unique[k]["type"] not in OC.ELEMENTS})
     print(f"Parameter sets: {sets}   Translate ops: {ops}   "
-          f"(1 assembly export replaces all of a cascade's monochrome parts)")
+          f"(1 assembly export replaces all of a cascade's monochrome parts, "
+          f"1 more replaces all six toppers)")
     print(f"Estimated API calls: {sets} set + {ops}×~{PER} = ~{est}")
     if unknown:
         print(f"  ⚠ no element id yet for {unknown}")

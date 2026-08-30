@@ -48,20 +48,26 @@ GAMES = {
         "onshape_label": False,
         "pushers": {"S": 2, "M": 2, "L": 3},   # Innovation M uses 2, not 3
 
-        # 6 toppers: one per expansion + a blank; same dims, different text.
-        # ONE whole-studio Onshape export per sleeving yields all of them.
-        # TODO confirm the exact expansion labels.
+        # 6 toppers: one per expansion + a blank; same plate, different text.
+        # ONE Onshape ASSEMBLY export per parameter set yields all six
+        # (onshape_config.TOPPER_ASSEMBLY, split by topper_split.py).
         "toppers": ["Cities", "Echoes", "Artifacts", "Figures", "Unseen",
                     "Blank"],
 
         # Rows that carry NO toppers, by Short name. A topper names which
-        # expansion a riser holds, so a box built for ONE set (Single Set, and
-        # the XS Inno 130) has nothing for it to say. This has to live here
-        # rather than being handled with `--count Topper=0` at build time:
-        # compose() is what refresh_cascades diffs a project against, so a row
-        # listing toppers the project does not have makes build_swap report
-        # them as unfillable and SKIP the cascade on every future refresh.
-        "no_toppers": {"Single Set", "Inno 130"},
+        # expansion a riser holds, so a box built for ONE set — either single
+        # box — has nothing for it to say. This has to live here rather than
+        # being handled with `--count Topper=0` at build time: compose() is what
+        # refresh_cascades diffs a project against, so a row listing toppers the
+        # project does not have makes build_swap report them as unfillable and
+        # SKIP the cascade on every future refresh.
+        #
+        # These are SHORT NAMES from parts.csv and must track it: the XS row was
+        # listed here as "Inno 130" while parts.csv called it "Single Mini", so
+        # the entry never matched and the XS cascades composed 12 toppers that do
+        # not exist and that its projects have no slot for — ~38 wasted API calls
+        # on any full-game export.
+        "no_toppers": {"Single Set", "Single Mini"},
     },
 }
 
