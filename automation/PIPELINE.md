@@ -441,63 +441,80 @@ then `verify.check_pusher` WARNS on every affected export rather than refusing
 it: unlike `check_box`/`check_lid` the bytes are not wrong, the CAD is, and
 refusing would only block the rest of the assembly.
 
-### Standardising the lock — analysed, not decided
+### The five-design lock catalogue
+
+*(Specified, not yet cut. `verify.LOCK_CLASSES` holds it; `verify.py --catalogue`
+prints the per-pusher worksheet. Nothing enforces it — the CAD still places the
+features parametrically.)*
 
 The collision is a symptom: the three lock features are placed from three
 different datums (two plate edges and the mid-line), so nothing guarantees they
-stay apart, and 32 pushers carry **30 distinct lock geometries** with 30 lid
-sockets and 30 box slots to match — 90 mating geometries, none interchangeable.
-Allan asked what a fixed catalogue would look like. The arithmetic, for whenever
-this is taken up.
+stay apart, and 32 pushers carry **30 distinct lock geometries**. Allan asked for
+at most five designs covering the range, with backwards compatibility a
+nice-to-have.
 
-**The tabs have two jobs, and the second one drives the answer.** In use they
-hold the pusher in the lid socket; out of use they hang it in the box slot. The
-hang base — tab centre to tab centre — is what stops it rocking, so the tabs want
-to be near the plate's edges, not near its middle.
+**A design is one number** — `s`, the distance from the pusher's centreline to
+each tab's centre. Tabs and notch keep today's sizes and sit symmetrically about
+that centreline, so a design is legal on a pusher of depth `D` when there is at
+least `EDGE_MIN` of plate outboard of each tab, and can carry the notch when the
+land between tab and notch holds up:
 
-**That rules out the obvious way to build a catalogue.** If a class fixes the
-tabs at absolute coordinates cut OUT of a plate that is still `D` wide, then
-every part above the bottom of its band carries its tabs inboard of its own
-edges. Measured against the base the plate could have given (`D − 11.80`, tabs
-4 mm in from each edge), with class widths chosen optimally over the real 30
-depths, the worst case runs:
+```
+fits when   D >= 2 * (s + 1.90 + EDGE_MIN)          EDGE_MIN = 2.00
+hang base   = 2s
+notch when  s >= 1.90 + 2.70 + LAND_MIN             LAND_MIN = 1.20, so s >= 5.80
+```
 
-| classes | 1 | 2 | 3 | 4 | 5 | 6 |
+| design | `s` | covers `D` | parts | hang base | notch | worst in band |
 |---|---|---|---|---|---|---|
-| worst hang base, % of achievable | 4 | 19 | 34 | 47 | 57 | 69 |
+| C1 | ±3.10 | 14.00–17.99 | 1 | 6.20 | none (2.40 between the tabs) | exact fit |
+| C2 | ±5.10 | 18.00–24.79 | 5 | 10.20 | none at 5.40; 4.00 would fit at a 1.20 land | 65 % at 23.40 |
+| C3 | ±8.50 | 24.80–34.79 | 10 | 17.00 | 5.40 on the centreline | 63 % at 33.60 |
+| C4 | ±13.50 | 34.80–55.79 | 11 | 27.00 | 5.40 on the centreline | 63 % at 50.40 |
+| C5 | ±24.00 | 55.80 and up | 5 | 48.00 | 5.40 on the centreline | 71 % at 75.60 |
 
-About 12 points per class, no knee. (An earlier pass measured spread against `D`
-rather than against the achievable base and read a knee at three classes that is
-not there.)
+The offsets were chosen to maximise the WORST hang base as a fraction of the
+widest the plate could give (`D − 2·EDGE_MIN − 3.80`). All 32 covered, worst case
+**63 %**, and **15 of the 32 end up with a wider base than they have today** —
+today's 4.00 mm inset is more generous than the 2.00 the catalogue allows at the
+bottom of a band. The parts that lose are the wide ones at the top of a band;
+the worst is `Pusher 9x10-Sl`, 48.00 against 63.80.
 
-**~~But the tabs can move OUTWARD instead.~~ — ruled out.** The leading end could in
-principle be flared out to the class width, putting the tabs 4.00 mm in from the
-tongue's own edges and giving `W − 11.80` of hang base to every member. Allan has
-ruled it out: **the pusher cannot be made wider than `D`.** The five-tongue
-catalogue built on it is withdrawn.
+**The boxes survive.** The box slot is `D + 2.40` wide and, as exported, carries
+no tab cutouts — the tabs rest on its rim. Every catalogue tab sits at least
+2.00 mm inboard of the plate edge, so it is always inside the slot: existing
+boxes keep working with re-cut pushers. That holds unless the current CAD has
+cutouts these exports do not, which is worth checking before relying on it. The
+lids all change — the recesses move on every one, and six lose the rib.
 
-**So the choice is between two things, and they answer different questions.**
+**Three things to settle before this is cut.**
 
-- *If the goal is interchangeability* — a pusher reprintable against any lid and
-  box of its class — then a class ladder is the only thing that delivers it, with
-  the box slot and lid socket fixed to the class as well. Its cost is the hang
-  base tabled above: keeping the worst case above two-thirds of what the plate
-  could give needs six classes, not three, so it is not the small catalogue that
-  was asked for.
-- *If the goal is that the geometry can never generate a broken part again* —
-  reference both tabs to their own plate edge at one inset, put the notch on the
-  centreline, and emit it only where it provably clears a tab (`D ≥ 24.0` at a
-  4.00 mm inset and a 1.5 mm land). Full hang base on every pusher, collision
-  impossible by construction, no interchangeability, and the six sizes that lose
-  the notch still need the lid's depth stop moved to the socket floor.
+1. **Is a 2.00 mm edge inset acceptable?** It is half today's 4.00 and it lands on
+   the narrowest pusher in every band. 2.50 costs about a point of worst case;
+   3.00 costs three points and 8 mm more on the largest loss.
+2. **C1 serves one pusher** — `FCM/Pusher 3x6-Un` at `D = 14.04`, the only part
+   below 18 mm, and the only depth where two 3.80 tabs will not fit at a 4.00
+   inset at all. Spending a fifth of the catalogue on it costs the other 31 about
+   7 points: five designs for `D ≥ 18` alone would run
+   ±5.10 / 7.80 / 11.10 / 15.30 / 24.00 and reach 71 % worst case.
+3. **C1 and C2 have no notch**, so on those six sizes the lid loses its key rib
+   and needs its depth stop on the socket floor. A 4.00 mm notch fits C2 at a
+   1.20 mm land if a second rib width is preferable to a second lid family.
 
-The second is worth doing whatever else happens: it costs nothing on the hang and
-removes the failure mode outright.
+**Cost.** 32 pushers and 46 lids re-cut — a full re-export, real API budget — and
+printed pushers stop matching printed lids, so a cascade is re-made as a pair.
+Eleven published projects carry the defect and need re-cutting anyway.
 
-**There is no cheap corner either way.** Even the smallest fix that removes the
-defect — omitting the notch on the eight narrow pushers — takes the key rib out
-of eight lids and needs a new depth stop on the socket floor, so the lid changes
-regardless.
+**Rejected on the way here.** A ladder is only worth its price because the tabs
+do double duty: they hold the pusher in the lid socket AND hang it in the box
+slot, and a fixed design pulls them inboard of the plate edges on everything but
+the narrowest member of its band. Measured against the achievable base that costs
+about 12 points per class you decline to add, with no knee — 4 / 19 / 34 / 47 /
+57 / 69 % worst case for 1 to 6 classes at a 4.00 inset. Flaring the leading end
+OUT to a class width would have removed the cost entirely and made the slot and
+socket class-constant too; **the pusher cannot be made wider than `D`**, so that
+is closed. What makes five designs viable at all is dropping the edge inset from
+4.00 to 2.00, which buys back most of what the fixed positions cost.
 
 ## Build policies (decided)
 

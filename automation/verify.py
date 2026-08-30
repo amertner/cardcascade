@@ -48,6 +48,11 @@ wrong part is the wrong SIZE in a way that overflows the bed.
              occur, because every export is keyed on the parameters that
              determine its geometry.
 
+Beyond the checks, LOCK_CLASSES / target_lock() hold the proposed five-design
+lock catalogue and `verify.py --catalogue` prints the per-pusher worksheet for
+it (PIPELINE.md, "Standardising the lock"). Nothing enforces it yet — the CAD
+still places the features parametrically — so it reports, it does not refuse.
+
 All of them are cheap and local, so they run on every export by default;
 export.py --skip-verify turns them off for the case where parts.csv is the
 thing that's wrong.
@@ -370,6 +375,102 @@ def pusher_tabs(data, grid=80):
     return out
 
 
+# ---------------------------------------------------------------------------
+# The five-design lock catalogue (proposed — see PIPELINE.md)
+# ---------------------------------------------------------------------------
+#
+# A design is one number: s, the distance from the pusher's centreline to each
+# tab's centre. Tabs and notch keep today's sizes and sit symmetrically about
+# that centreline, so a design is legal on a pusher of depth D when there is at
+# least EDGE_MIN of plate outboard of each tab:
+#
+#     D >= 2 * (s + TAB_W_NOMINAL/2 + EDGE_MIN)
+#
+# and it can carry the notch when the land between tab and notch holds up:
+#
+#     s >= TAB_W_NOMINAL/2 + NOTCH_W/2 + LAND_MIN
+#
+# The five values below were chosen to maximise the WORST hang base (2s) as a
+# fraction of the widest base the plate could give (D - 2*EDGE_MIN - TAB_W).
+# Over the 32 pushers on disk that worst case is 63%, and 15 of the 32 come out
+# with a wider base than they have today, because today's 4.00 mm inset is more
+# generous than the 2.00 the catalogue allows at the bottom of a band.
+NOTCH_W = 5.40
+EDGE_MIN = 2.00
+LAND_MIN = 1.20
+LOCK_CLASSES = [("C1", 3.10), ("C2", 5.10), ("C3", 8.50),
+                ("C4", 13.50), ("C5", 24.00)]
+
+
+def class_min_depth(s):
+    """Narrowest pusher a design with tab offset `s` is legal on."""
+    return 2 * (s + TAB_W_NOMINAL / 2 + EDGE_MIN)
+
+
+def lock_class(depth):
+    """(name, s, has_notch) for a pusher of this depth, or None if nothing fits."""
+    # 0.01 of slack: a depth like 18.00 arrives from the mesh as 17.99999 and
+    # must still take the design whose floor is exactly 18.00.
+    fits = [(n, s) for n, s in LOCK_CLASSES if class_min_depth(s) <= depth + 0.01]
+    if not fits:
+        return None
+    name, s = max(fits, key=lambda c: c[1])
+    return name, s, s >= TAB_W_NOMINAL / 2 + NOTCH_W / 2 + LAND_MIN
+
+
+def target_lock(depth):
+    """Where the catalogue puts a pusher's features, as distances from its
+    D = 0 plate edge: {'class', 's', 'tabs': [(lo, hi), (lo, hi)], 'notch'}."""
+    got = lock_class(depth)
+    if not got:
+        return None
+    name, s, notched = got
+    mid, half = depth / 2, TAB_W_NOMINAL / 2
+    return {"class": name, "s": s,
+            "tabs": [(mid - s - half, mid - s + half),
+                     (mid + s - half, mid + s + half)],
+            "notch": (mid - NOTCH_W / 2, mid + NOTCH_W / 2) if notched else None}
+
+
+def pusher_lock(data):
+    """As-built lock geometry: {'depth', 'tabs', 'notch'} with every position a
+    distance from the pusher's D = 0 plate edge, so it compares directly with
+    target_lock(). `notch` is None when the end carries no through-cut."""
+    verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
+    spans = [(max(c) - min(c), a) for a, c in enumerate(zip(*verts))]
+    axis = min(spans)[1]
+    lo, hi = (min(v[axis] for v in verts), max(v[axis] for v in verts))
+    span = hi - lo
+
+    def area(at):
+        return sum((u1 - u0) * (w1 - w0)
+                   for u0, u1, w0, w1, _ in _loops(_section(verts, tris, axis, at)))
+
+    top = hi if area(hi - 0.2) < area(lo + 0.2) else lo
+    sign = 1 if top == hi else -1
+    tabs = _loops(_section(verts, tris, axis, top - sign * 0.2))
+    plate = _section(verts, tris, axis, top - sign * 0.75 * span)
+    w = [a for a in (0, 1, 2) if a != axis][1]
+    w0 = min(v[w] for v in verts)
+    depth = max(v[w] for v in verts) - w0
+    # the notch is the run along the leading edge with no plate behind it
+    u0 = min(p[0] for seg in plate for p in seg)
+    runs, cur = [], None
+    for j in range(1200):
+        y = w0 + (j + 0.5) * depth / 1200
+        if not _inside(plate, u0 + 0.05, y):
+            cur = [y, y] if cur is None else [cur[0], y]
+        elif cur:
+            runs.append(cur)
+            cur = None
+    if cur:
+        runs.append(cur)
+    runs = [r for r in runs if r[1] - r[0] > 0.3]
+    return {"depth": depth,
+            "tabs": sorted((t[2] - w0, t[3] - w0) for t in tabs),
+            "notch": (runs[0][0] - w0, runs[0][1] - w0) if runs else None}
+
+
 def check_pusher(data, ctx=None):
     """(None, warning message or None) for an exported Pusher.
 
@@ -462,6 +563,38 @@ def audit_pushers(root, verbose=False):
     return bad
 
 
+def audit_catalogue(root):
+    """Print the per-pusher worksheet for the five-design catalogue: which class
+    each pusher takes, where its features have to move to, and what that does to
+    the hang base. A conformance test the day the CAD lands; a to-do list until
+    then."""
+    from pathlib import Path
+    root = Path(root)
+    print(f"    {'pusher':32s} {'D':>6s} {'cls':>4s} {'inset':>6s} "
+          f"{'tabs, from the D=0 edge':>25s} {'notch':>13s} {'base':>6s} {'vs now':>7s}")
+    tally = {}
+    for path in sorted(root.glob("individual/*/Pusher*.3mf")):
+        try:
+            got = pusher_lock(path.read_bytes())
+        except (ValueError, KeyError, ZeroDivisionError, IndexError):
+            continue
+        d = got["depth"]
+        want = target_lock(d)
+        if not want:
+            print(f"    {path.stem:32s} {d:6.2f}   --   no design fits")
+            continue
+        tally[want["class"]] = tally.get(want["class"], 0) + 1
+        tabs = " / ".join(f"{a:.2f}-{b:.2f}" for a, b in want["tabs"])
+        notch = (f"{want['notch'][0]:.2f}-{want['notch'][1]:.2f}"
+                 if want["notch"] else "none")
+        base, now = 2 * want["s"], d - 11.80
+        print(f"    {path.stem:32s} {d:6.2f} {want['class']:>4s} "
+              f"{d / 2 - want['s'] - TAB_W_NOMINAL / 2:6.2f} {tabs:>25s} {notch:>13s} "
+              f"{base:6.2f} {base - now:+7.2f}")
+    print("\n  " + "  ".join(f"{n}: {tally.get(n, 0)}" for n, _s in LOCK_CLASSES)
+          + f"   ({sum(tally.values())} pushers)")
+
+
 if __name__ == "__main__":
     import argparse
     import sys
@@ -472,9 +605,15 @@ if __name__ == "__main__":
                     help="audit the lock on every Pusher in the repo")
     ap.add_argument("--all", action="store_true",
                     help="with --pushers, list the passing ones too")
+    ap.add_argument("--catalogue", action="store_true",
+                    help="print the five-design lock catalogue worksheet")
     args = ap.parse_args()
+    root = Path(__file__).resolve().parent.parent
+    if args.catalogue:
+        print("  Lock catalogue — where each pusher's features would move to:")
+        audit_catalogue(root)
+        sys.exit(0)
     if not args.pushers:
-        ap.error("nothing to do — try --pushers")
+        ap.error("nothing to do — try --pushers or --catalogue")
     print("  Pusher lock (tab count, backed fraction, widest backed strip):")
-    sys.exit(1 if audit_pushers(Path(__file__).resolve().parent.parent,
-                                verbose=args.all) else 0)
+    sys.exit(1 if audit_pushers(root, verbose=args.all) else 0)
