@@ -453,6 +453,17 @@ stay apart, and 32 pushers carry **30 distinct lock geometries**. Allan asked fo
 at most five designs covering the range, with backwards compatibility a
 nice-to-have.
 
+**Every lock dimension is already a constant** — measured across all 32 exported
+pushers, not assumed: overall thickness `4.500`, plate `3.000`, tab proudness
+`1.500` (one face only), tab `3.800 × 5.000` flush with the leading edge, notch
+`5.400 × 5.200` (to 0.07 of tessellation drift), lid recess step `1.840`, box
+slot depth `3.200`. The only two parts that deviate are the known defects:
+`3x6-Un`'s tabs have fused into one 5.84 boss and `3x6-Sl` has lost one
+altogether. **So the catalogue moves positions and keeps every size**, with three
+exceptions: the edge inset shrinks from 4.00/4.20 to as little as 2.00; C1 and C2
+carry no notch at all; and C1's two tabs sit 2.40 apart, tight enough that a
+single 10.00 tab — same outer span, more material — is worth considering instead.
+
 **A design is one number** — `s`, the distance from the pusher's centreline to
 each tab's centre. Tabs and notch keep today's sizes and sit symmetrically about
 that centreline, so a design is legal on a pusher of depth `D` when there is at
@@ -500,6 +511,13 @@ lids all change — the recesses move on every one, and six lose the rib.
 3. **C1 and C2 have no notch**, so on those six sizes the lid loses its key rib
    and needs its depth stop on the socket floor. A 4.00 mm notch fits C2 at a
    1.20 mm land if a second rib width is preferable to a second lid family.
+
+**Validating it is cheap, because the boxes do not change.** The hang can be
+tested with a re-cut pusher in an existing box, no new lid needed. Two parts
+cover the range: `Pusher 6x10-Sl` (D 50.40, C4, tabs 9.80–13.60 / 36.80–40.60 —
+the catalogue's worst hang base and a 9.80 inset) and `Pusher 3x6-Un` (D 14.04,
+C1, tabs 2.02–5.82 / 8.22–12.02 — the tightest geometry in it). If both hang
+solidly, the only mechanical question left is the lid's depth stop for C1 and C2.
 
 **Cost.** 32 pushers and 46 lids re-cut — a full re-export, real API budget — and
 printed pushers stop matching printed lids, so a cascade is re-made as a pair.
