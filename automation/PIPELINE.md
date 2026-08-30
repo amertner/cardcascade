@@ -332,13 +332,37 @@ BambuStudio --slice 0 --outputdir <dir> <project.3mf>   # 0 = every plate
 *(Open CAD defect — found from a print, measured off the meshes, not yet fixed
 in Onshape.)*
 
-**What the features are for.** The pusher's leading end slides into a socket in
-the LID — one per pusher, `9.20` wide × `D − 0.40` across × `5.0` deep, whose
-inner wall steps between `3.27` and `5.11` mm of free channel. The two raised
-tabs drop into the two wide steps (the recesses) and hold the pusher in; the
-U-notch straddles a rib that blocks the channel outright, so the pusher can only
-enter where its notch is and bottoms on the rib, which sets insertion depth.
-Every mating feature is therefore placed from the same `D` the pusher's are.
+**What the features are for — two jobs, not one.** In use, the pusher's leading
+end slides into a socket in the LID — one per pusher, `9.20` wide × `D − 0.40`
+across × `5.0` deep, whose inner wall steps between `3.27` and `5.11` mm of free
+channel. The two raised tabs drop into the two wide steps (the recesses) and
+hold the pusher in; the U-notch straddles a rib that blocks the channel
+outright, so the pusher can only enter where its notch is and bottoms on the
+rib, which sets insertion depth.
+
+Out of use, **the same two tabs hang the pusher in a slot in the BOX's back
+wall** — one slot per pusher, `D + 4.00` wide for the first (it absorbs the end
+wall's margin) and `D + 2.40` for the rest, `3.20` deep, running `z 24` to
+`84.75`. Measured on four boxes across three games, including a three-pusher
+Dominion box with three slots:
+
+| box | pusher `D` | slots | slot widths |
+|---|---|---|---|
+| `Innovation S3.15.10.20-Un` | 19.20 | 2 | 23.20 / 21.60 |
+| `Dominion S2.40.12-30.32-Un` | 20.76 | 2 | 24.76 / 23.16 |
+| `Dominion M6.21.10.45-Un` | 37.20 | 3 | 41.20 / 39.60 / 39.60 |
+| `Innovation S5.15.15.45-Un` | 42.00 | 2 | 46.00 / 44.40 |
+
+`3.20` takes the pusher's 3 mm plate but not its 4.5 mm tab section, so the tabs
+stop at the slot's rim and the pusher hangs from them. **No tab-shaped cutouts
+were found in those slot walls** — probed at 1 mm steps in `x` and 2–8 mm in
+`z`, the free depth is a flat `3.20` throughout apart from the sliding-slot rails
+at their 12–13 mm pitch. Either the tabs rest on the rim, or the boxes on disk
+predate cutouts that exist in the current CAD; worth checking, because the second
+reading means the box exports are stale.
+
+Every mating feature — lid socket and box slot alike — is therefore sized from
+the same `D` the pusher's features are.
 
 A Pusher is a flat 4.5 mm plate printed FACE DOWN, and its leading end carries
 three features that the CAD sizes from the pusher's own depth `D` — the
@@ -417,38 +441,58 @@ then `verify.check_pusher` WARNS on every affected export rather than refusing
 it: unlike `check_box`/`check_lid` the bytes are not wrong, the CAD is, and
 refusing would only block the rest of the assembly.
 
-### Standardising the lock into classes — analysed, not decided
+### Standardising the lock — analysed, not decided
 
 The collision is a symptom: the three lock features are placed from three
-different datums (two edges and the mid-line), so 32 pushers carry **30
-distinct lock geometries** and 30 distinct lid sockets, none of them
-interchangeable, and nothing declares which are legal. Allan asked what a fixed
-catalogue would look like. The arithmetic, for whenever this is taken up:
+different datums (two plate edges and the mid-line), so nothing guarantees they
+stay apart, and 32 pushers carry **30 distinct lock geometries** with 30 lid
+sockets and 30 box slots to match. Allan asked what a fixed catalogue would look
+like. Two results, for whenever this is taken up.
 
-- Put the notch permanently on the centreline and the tabs symmetrically at
-  ±`s`. A class is then just `s`, and it fits any `D ≥ 2(s + 1.90 + m)` for an
-  edge land `m`; the land between tab and notch is `s − 4.60`.
-- Keeping today's feature sizes, `m = 2.5` and a 2.0 mm inner land put the floor
-  at **`D ≥ 22.0`** for a full two-tab class. Five pushers are below it, so the
-  narrow band needs reduced features (tab 3.0, notch 4.4 fits from `D ≥ 17.4`)
-  and `D = 14.04` (`Pusher 3x6-Un`, FCM 180 unsleeved) fits no two-tab lock at
-  all.
-- Tab spread is the only reason to have more than one class. Over the 27
-  pushers at `D ≥ 22`, worst-case spread (tab centre distance ÷ D) runs
-  17 % → 38 % → 44 % → 47 % → 47 % for 1 → 5 classes. The third class is the
-  last that earns its keep.
-- **Four classes** — `P0` W 18 (tabs ±5.20, reduced features, 4 parts),
-  `P1` W 22 (±6.60, 8), `P2` W 32 (±11.60, 11), `P3` W 48 (±19.60, 8) — cover
-  31 of 32.
-- Standardising the coordinates alone still leaves the socket cut per box
-  (`D − 0.40`). Necking the last ~10 mm of the pusher to the class tongue width
-  is what makes sockets class-constant and drops distinct socket geometries
-  from 30 to 4.
+**A ladder of fixed-coordinate classes is expensive, because the tabs hang the
+pusher.** Fixed coordinates pull the tabs inboard of the plate edges on
+everything but the narrowest member of each band, and the hang base — tab centre
+to tab centre — is what stops the pusher rocking in its slot. Measuring each
+ladder against the base the plate could have given (`D − 11.80`, i.e. tabs 4 mm
+in from each edge) and choosing the class widths optimally over the real 30
+depths:
 
-Either way it is a breaking change: 32 pushers and the 46 lids that socket them
-are re-cut, and a printed pusher stops fitting a reprinted lid. The cheaper
-alternative is to fix only the missing clamp on tab B and hold the
-standardisation for the next breaking revision.
+| classes | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| worst hang base, % of achievable | 4 | 19 | 34 | 47 | 57 | 69 |
+
+About 12 points per class, with no knee. (An earlier pass measured spread
+against `D` rather than against the achievable base and so read a knee at three
+classes; that comparison flattered the short ladders and is wrong.)
+
+**Fixing the datums costs nothing and is enough.** Reference both tabs to their
+own plate edge at a single inset, put the notch on the centreline, and emit the
+notch only where it provably clears a tab:
+
+```
+tabs    3.80 x 5.00, e mm in from each plate edge   ->  hang base D - 2e - 3.80
+notch   5.40 on the centreline, only when  D >= 2*(e + 3.80 + land) + 5.40
+```
+
+At `e = 4.00` and a 1.5 mm land that threshold is `D ≥ 24.0`: 26 pushers keep
+the notch, 5 drop it and carry two tabs alone, and only `Pusher 3x6-Un`
+(`D = 14.04`) needs `e` cut to 2.72 to fit two tabs at all. Two patterns for the
+catalogue instead of 30 geometries, the collision impossible by construction
+rather than caught by a check, and full hang base everywhere. Dropping the notch
+costs those five lids their key rib, so the socket needs its depth stop moved to
+the floor — the one piece of new CAD.
+
+**Interchangeability is not available through the lock.** The box slot is
+`D + 2.40` and the lid socket `D − 0.40`, both sized to the pusher that goes in
+them, so a pusher only ever fits parts built for its own `D` whatever the tabs
+do. Buying it means standardising the slot and socket widths too — a tongue-width
+ladder, at the hang cost tabled above.
+
+**The cheap version of the fix.** Leave the notch where the CAD already puts it,
+leave both insets alone, and simply omit the notch when it would not clear
+tab B — today `D < 26.4`. The eight pushers below that line are exactly the
+eight that are broken, so the other 24 re-export byte-identical and nothing that
+works today is touched.
 
 ## Build policies (decided)
 
