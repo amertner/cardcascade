@@ -327,6 +327,72 @@ plates, not the ~20 s per plate an H2C tower check costs).
 BambuStudio --slice 0 --outputdir <dir> <project.3mf>   # 0 = every plate
 ```
 
+### The pusher's second tab collides with the end notch on narrow pushers
+
+*(Open CAD defect — found from a print, measured off the meshes, not yet fixed
+in Onshape.)*
+
+A Pusher is a flat 4.5 mm plate printed FACE DOWN, and its leading end carries
+three features that the CAD sizes from the pusher's own depth `D` — the
+card-stack dimension, i.e. the width of the leading end the features are cut
+into (not necessarily the plate's shorter axis: `Pusher 2x18-Sl` is 39.6 across
+a 32 mm long plate):
+
+| feature | size | placed |
+|---|---|---|
+| tab A | 3.8 wide × 5.0 deep, 1.5 mm proud of the top face | 4.0 mm in from the `D = 0` edge |
+| tab B | the same | 4.2 mm in from the `D` edge |
+| notch | 5.4 × 5.2 mm, cut clean THROUGH the plate from the leading end | centred 2.5 mm off the plate's mid-line — edges at `D/2 − 0.2` and `D/2 + 5.2` |
+
+Tab A is placed from an edge and the notch from the mid-line, and the CAD
+already clamps the notch so it can never reach tab A (below `D ≈ 16` the notch
+stops dead at tab A's edge, −7.8: `Pusher 3x6-Un` is the one case on disk).
+**Tab B has no such clamp**, so as `D` shrinks the notch walks straight into it.
+Tab B is fully backed only while
+
+```
+D − 8.0  ≥  D/2 + 5.2      i.e.   D ≥ 26.4 mm
+```
+
+and below that it loses `13.2 − D/2` mm of its 3.8 mm root, left cantilevered
+over a 3 mm void the slicer has to start in mid-air. Everything ≥ 26.4 mm is
+backed to the full 3.8 mm, so this is invisible on all but the narrowest boxes —
+`D` is a card-stack thickness, so it is the UNSLEEVED pushers that are narrow.
+
+Measured over the 32 pushers in `individual/` (`verify.py --pushers`):
+
+| pusher | `D` | tab B backed | root |
+|---|---|---|---|
+| `Innovation/Pusher 3x10-Un` | 19.20 | 5 % | **0.19 mm** |
+| `Dominion/Pusher 2x12-Un` | 20.76 | 26 % | **0.98 mm** |
+| `Compile/Pusher 4x7-Un` | 20.80 | 26 % | **1.01 mm** |
+| `FCM/Pusher 5x6-Un` | 23.40 | 60 % | 2.31 mm |
+| `Dominion/Pusher 4x10-Un` | 24.80 | 79 % | 3.01 mm |
+| `Compile/Pusher 5x7-Un` | 26.00 | 95 % | 3.61 mm |
+| `FCM/Pusher 3x6-Un` | 14.04 | 65 % | 3.80 mm |
+
+`Pusher 3x10-Un` — Innovation "Single Set" unsleeved, the narrowest two-tab
+pusher in the catalogue — is the one that fails in the hand: 0.2 mm of root
+under a 3.8 mm tab, and it prints as a loose flag that snaps off. It is also
+the only one where the tab is a pure cantilever rather than a partial one: the
+notch's far side is 1.8 mm past the tab, so nothing bridges.
+
+`Pusher 3x6-Un` is the other shape of the same problem. At `D = 14.04` the two
+tabs have merged into one 5.84 mm boss, and it is the NOTCH's clamp (see above)
+that lands its edge mid-boss — 2.04 mm of the boss hangs over the notch, but
+3.80 mm of it is still solidly rooted, so it is an overhang, not a flag.
+
+**Ten built projects ship an affected pusher**, all unsleeved: Innovation Single
+Set; Dominion 246, 168, 202 (Mat), 244; Compile 105, 126, 210; FCM Milestones 1U
+and Occ 2U. `verify.py --pushers` lists them, reading the pushers back out of the
+built projects as well as out of `individual/`.
+
+The fix belongs in Onshape — give tab B the same clamp against the notch that
+tab A has, or drive both tabs off the mid-line so they track the notch. Until
+then `verify.check_pusher` WARNS on every affected export rather than refusing
+it: unlike `check_box`/`check_lid` the bytes are not wrong, the CAD is, and
+refusing would only block the rest of the assembly.
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row

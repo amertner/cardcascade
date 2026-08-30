@@ -16,7 +16,9 @@ must match the cascade's parts.csv footprint and must not be byte-identical to
 another component. Both guard the same failure — Onshape serving a translation
 cached from the PREVIOUS parameter set, which otherwise lands silently under the
 right filename. run_export also waits after setting variables for the same
-reason; see onshape.settle.
+reason; see onshape.settle. A third check, on the pusher's raised tabs, WARNS
+rather than refuses: it reports a defect in the CAD, not a wrong download, so
+stopping the export would not help (verify.check_pusher).
 
 Usage:
     export.py <Game> [--all] [--changed Box,Holder] [--labels]     # plan only
@@ -273,6 +275,12 @@ def export_assembly(auth, ctx, use_cache=False, verify=True):
                                      "--use-cache.")
             + "\n  If parts.csv is the thing that's wrong, re-run with "
               "--skip-verify.")
+    # A design check, not a stale-download one, so it only warns — see
+    # verify.check_pusher.
+    if verify and "Pusher" in parts:
+        _, tab_warn = V.check_pusher(parts["Pusher"], ctx)
+        if tab_warn:
+            print(f"    ⚠ {tab_warn}")
     if fresh:
         cache_raw(ctx["folder"], assembly_tag(ctx), raw)
     return parts, mv

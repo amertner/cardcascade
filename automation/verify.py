@@ -30,6 +30,13 @@ wrong part is the wrong SIZE in a way that overflows the bed.
              notices a row whose W/D were estimated rather than measured; the
              footprint check above cannot, its depth tolerance being 1.2 mm.
 
+  pusher     the raised tabs on a Pusher's top face must sit on solid plate,
+             not over the U-notch cut into the same end. Unlike the two checks
+             above this is not about a stale translation — it is a CAD sizing
+             defect that only shows on NARROW pushers, and it is a warning, not
+             a refusal, because the export itself is exactly what the CAD says.
+             See pusher_tabs() for the geometry and PIPELINE.md for the rule.
+
   identity   a new export's mesh hash must not equal one already recorded for a
              DIFFERENT component file, in ANY game (the stale export usually
              comes from the previous run, which is usually a different game).
@@ -38,9 +45,9 @@ wrong part is the wrong SIZE in a way that overflows the bed.
              occur, because every export is keyed on the parameters that
              determine its geometry.
 
-Both are cheap and local, so they run on every export by default; export.py
---skip-verify turns them off for the case where parts.csv is the thing that's
-wrong.
+All of them are cheap and local, so they run on every export by default;
+export.py --skip-verify turns them off for the case where parts.csv is the
+thing that's wrong.
 """
 import hashlib
 import io
@@ -155,3 +162,331 @@ def duplicate(sha, file, provenance_rows):
         if row.get("sha") == sha and row.get("file") != file:
             return f"{game}/{row['file']}"
     return None
+
+
+# ---------------------------------------------------------------------------
+# Pusher tab support
+# ---------------------------------------------------------------------------
+#
+# A Pusher is a flat plate, 4.5 mm thick, printed FACE DOWN (make_cascade lays
+# every pusher on the bed with an identity rotation). Its leading end carries
+# three interlocking features, all sized in the CAD from the pusher's own depth
+# D — the card-stack dimension, i.e. the width of the leading end the features
+# are cut into:
+#
+#   tab A     3.8 mm wide x 5.0 deep, raised 1.5 mm above the plate's top face,
+#             set 4.0 mm in from the D=0 edge
+#   tab B     the same, set 4.2 mm in from the D edge — so its inner edge lands
+#             at 8.0 mm from that edge, wherever that edge is
+#   notch     a 5.4 x 5.2 mm U cut clean THROUGH the plate from the leading end,
+#             centred 2.5 mm off the plate's mid-line (edges at D/2 - 0.2 and
+#             D/2 + 5.2 from the D=0 edge), with the near edge clamped so it
+#             never runs into tab A
+#
+# Tab A is placed from one edge and the notch from the mid-line, and the CAD
+# clamps the notch to keep those two apart. Tab B gets no such clamp, so as D
+# shrinks the notch walks INTO it: tab B is fully backed only while
+#
+#     D - 8.0  >=  D/2 + 5.2      i.e.   D >= 26.4 mm
+#
+# and below that it loses (13.2 - D/2) mm of its 3.8 mm root, cantilevered over
+# a 3 mm void that the slicer has to start in mid-air. At D = 19.2 mm
+# (Innovation "Single Set" unsleeved, the narrowest two-tab pusher in the
+# catalogue) 0.2 mm of root is left and the tab prints as a loose flag.
+#
+# The check measures rather than recomputes that inequality, so it also holds
+# for pushers whose CAD has moved on: slice the tabs off the top face, slice the
+# plate below them, and ask how much of each tab's footprint has plate under it.
+
+# A tab is meant to be fully backed, so ANY unbacked footprint is a warning.
+# Below this much continuous backing it is not a print artefact to live with —
+# the tab has no root worth the name. The 32 pushers on disk split cleanly
+# either side: the three worst anchor 0.19 / 0.98 / 1.01 mm, the next ones
+# 2.31 / 3.01 / 3.61 / 3.80, and a correctly backed tab anchors its full 5.00.
+TAB_ANCHOR_MIN = 2.0
+
+
+def _meshes(data):
+    """[(verts_mm, tris)] for every mesh in a plain (Onshape/split) 3MF."""
+    text = _model_text(data)
+    scale = {"meter": 1000.0, "millimeter": 1.0}.get(
+        re.search(r'unit="(\w+)"', text).group(1), 1.0)
+    out = []
+    for block in re.findall(r"<mesh>.*?</mesh>", text, re.S):
+        v = [(float(a) * scale, float(b) * scale, float(c) * scale)
+             for a, b, c in re.findall(
+                 r'<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"', block)]
+        t = [(int(a), int(b), int(c)) for a, b, c in re.findall(
+            r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', block)]
+        if v and t:
+            out.append((v, t))
+    return out
+
+
+def _section(verts, tris, axis, at):
+    """Cross-section of a mesh at `axis` = `at`, as segments in the other two
+    axes. One segment per crossed triangle; the mesh is closed, so the segments
+    close into loops."""
+    u, w = [a for a in (0, 1, 2) if a != axis]
+    segs = []
+    for t in tris:
+        p = [verts[i] for i in t]
+        d = [q[axis] - at for q in p]
+        hits = []
+        for i in range(3):
+            j = (i + 1) % 3
+            if (d[i] > 0) != (d[j] > 0):
+                f = d[i] / (d[i] - d[j])
+                hits.append((p[i][u] + f * (p[j][u] - p[i][u]),
+                             p[i][w] + f * (p[j][w] - p[i][w])))
+        if len(hits) == 2:
+            segs.append((hits[0], hits[1]))
+    return segs
+
+
+def _loops(segs):
+    """Group a section's segments into connected loops: [(u0, u1, w0, w1, segs)]."""
+    parent = {}
+
+    def key(p):
+        return (round(p[0], 4), round(p[1], 4))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for s in segs:
+        for p in s:
+            parent.setdefault(key(p), key(p))
+        ra, rb = find(key(s[0])), find(key(s[1]))
+        if ra != rb:
+            parent[ra] = rb
+    groups = {}
+    for s in segs:
+        groups.setdefault(find(key(s[0])), []).append(s)
+    out = []
+    for ss in groups.values():
+        us = [p[0] for s in ss for p in s]
+        ws = [p[1] for s in ss for p in s]
+        out.append((min(us), max(us), min(ws), max(ws), ss))
+    return out
+
+
+def _inside(segs, u, w):
+    """Even-odd point-in-section test, casting along +u."""
+    crossings = 0
+    for a, b in segs:
+        if (a[1] > w) != (b[1] > w):
+            if a[0] + (w - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) > u:
+                crossings += 1
+    return crossings % 2 == 1
+
+
+def _anchor(tab, plate, u0, u1, w0, w1, n=120, across=24):
+    """Widest continuous strip of the tab that is backed by plate along its
+    whole length, measured along whichever in-plane axis gives the larger
+    answer. This is the tab's root: the tab's full 5.00 mm depth when it is
+    properly backed, 0.19 mm on the Innovation Single Set unsleeved."""
+    best = 0.0
+    for along, other in (((w0, w1), (u0, u1)), ((u0, u1), (w0, w1))):
+        flip = along == (u0, u1)
+        step = (along[1] - along[0]) / n
+        run = 0.0
+        for i in range(n):
+            a = along[0] + (i + 0.5) * step
+            pts = [(a, b) if flip else (b, a)
+                   for b in (other[0] + (j + 0.5) * (other[1] - other[0]) / across
+                             for j in range(across))]
+            on_tab = [p for p in pts if _inside(tab, *p)]
+            if on_tab and all(_inside(plate, *p) for p in on_tab):
+                run += step
+                best = max(best, run)
+            else:
+                run = 0.0
+    return best
+
+
+def pusher_tabs(data, grid=80):
+    """Per-tab support measurements for a Pusher 3MF:
+    [{'w', 'd', 'fraction', 'anchor'}], one entry per raised tab.
+
+    'fraction' is how much of the tab's footprint has plate directly under it,
+    sampled on a `grid` x `grid` lattice (so it is good to about one cell);
+    'anchor' is the widest continuous fully-backed strip, in mm. A correct tab
+    reads 1.00 and 5.00 — its whole 5 mm depth.
+
+    Orientation-agnostic: the plate normal is the mesh's thinnest axis, and the
+    tabs are whichever face's near-surface section is the smaller of the two, so
+    this reads a Pusher straight out of Onshape and one lifted back out of a
+    built project alike."""
+    verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
+    spans = [(max(c) - min(c), a) for a, c in enumerate(zip(*verts))]
+    axis = min(spans)[1]
+    lo = min(v[axis] for v in verts)
+    hi = max(v[axis] for v in verts)
+    span = hi - lo
+
+    def area(at):
+        return sum((u1 - u0) * (w1 - w0)
+                   for u0, u1, w0, w1, _ in _loops(_section(verts, tris, axis, at)))
+
+    # The tab face is the one whose near-surface section is the smaller.
+    top = hi if area(hi - 0.2) < area(lo + 0.2) else lo
+    sign = 1 if top == hi else -1
+    tabs = _loops(_section(verts, tris, axis, top - sign * 0.2))
+    # 3/4 of the way down from the tab face: clear of the 1.5 mm tabs and of
+    # the version string embossed just under the top face.
+    plate = _section(verts, tris, axis, top - sign * 0.75 * span)
+
+    out = []
+    for u0, u1, w0, w1, tab in sorted(tabs, key=lambda l: -l[3]):
+        total = backed = 0
+        for i in range(grid):
+            u = u0 + (i + 0.5) * (u1 - u0) / grid
+            for j in range(grid):
+                w = w0 + (j + 0.5) * (w1 - w0) / grid
+                if not _inside(tab, u, w):
+                    continue
+                total += 1
+                if _inside(plate, u, w):
+                    backed += 1
+        out.append({"w": w1 - w0, "d": u1 - u0,
+                    "fraction": backed / total if total else 0.0,
+                    "anchor": _anchor(tab, plate, u0, u1, w0, w1)})
+    return out
+
+
+def check_pusher(data, ctx=None):
+    """(None, warning message or None) for an exported Pusher.
+
+    Never fatal. The two checks above refuse an export because the BYTES are
+    wrong — the wrong component under the right name. This one says the bytes
+    are right and the CAD is wrong, and refusing would only block work on
+    everything else in the same assembly. It has to be acted on in Onshape."""
+    try:
+        tabs = pusher_tabs(data)
+    except (ValueError, KeyError, ZeroDivisionError):
+        return None, None            # not a shape this check understands
+    loose = [t for t in tabs if t["fraction"] < 0.999]
+    if not loose:
+        return None, None
+    worst = min(loose, key=lambda t: t["anchor"])
+    who = f" for {ctx['model']}" if ctx and ctx.get("model") else ""
+    how = ("has almost nothing holding it"
+           if worst["anchor"] < TAB_ANCHOR_MIN else "overhangs the notch")
+    return None, (
+        f"Pusher{who}: {len(loose)} of {len(tabs)} raised tab(s) sit partly over "
+        f"the end notch — the worst is {worst['fraction'] * 100:.0f}% backed "
+        f"with {worst['anchor']:.2f} mm of root on a {worst['w']:.1f} mm tab, so "
+        f"it {how}. The plate is too narrow for where the CAD puts the second "
+        f"tab; fix it in Onshape (see PIPELINE.md, 'The pusher's second tab')")
+
+
+# ---------------------------------------------------------------------------
+# CLI: audit every Pusher on disk
+# ---------------------------------------------------------------------------
+
+def _bambu_pushers(path):
+    """[3MF bytes] for each distinct Pusher mesh in a BUILT project.
+
+    make_cascade writes Studio's layout — named objects in
+    Metadata/model_settings.config, geometry in per-object sub-models — so the
+    pushers a project actually ships have to be lifted back out that way rather
+    than read as a plain single-object export. Repeated instances of one pusher
+    are collapsed; a project carries 2 or 3 identical copies."""
+    import assembly_split as ASM
+    z = zipfile.ZipFile(path)
+    names = {}
+    if "Metadata/model_settings.config" in z.namelist():
+        cfg = z.read("Metadata/model_settings.config").decode()
+        for m in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):
+            nm = re.search(r'key="name" value="([^"]*)"', m.group(2))
+            names[m.group(1)] = nm.group(1) if nm else ""
+    submeshes = {}
+    for entry in z.namelist():
+        if entry.startswith("3D/Objects/"):
+            text = z.read(entry).decode()
+            unit = re.search(r'unit="(\w+)"', text)
+            for om in re.finditer(r'<object id="(\d+)"[^>]*>(.*?)</object>',
+                                  text, re.S):
+                block = re.search(r"<mesh>.*?</mesh>", om.group(2), re.S)
+                if block:
+                    submeshes[(entry, om.group(1))] = (
+                        unit.group(1) if unit else "millimeter", block.group(0))
+    root = z.read(MODEL).decode()
+    out, seen = [], set()
+    for om in re.finditer(r'<object id="(\d+)"[^>]*>(.*?)</object>', root, re.S):
+        if "pusher" not in names.get(om.group(1), "").lower():
+            continue
+        for c in re.finditer(r'<component\b([^>]*)/>', om.group(2)):
+            path_attr = re.search(r'p:path="([^"]*)"', c.group(1))
+            cid = re.search(r'objectid="(\d+)"', c.group(1))
+            key = (path_attr.group(1).lstrip("/"), cid.group(1)) if path_attr else None
+            if key not in submeshes:
+                continue
+            unit, block = submeshes[key]
+            # A project's 2-3 pushers are separate sub-model objects holding the
+            # same geometry, so dedupe on the mesh, not on the object id.
+            sha = hashlib.sha256(re.sub(r"\s+", " ", block).encode()).hexdigest()
+            if sha in seen:
+                continue
+            seen.add(sha)
+            out.append(ASM.build_component_3mf(unit, "Pusher", block))
+    return out
+
+
+def audit_pushers(root, verbose=False):
+    """Print a tab-support line for every Pusher under `root` — the exported
+    components in individual/ and the ones actually shipped in cascades/ — and
+    return the number that carry an unbacked tab."""
+    from pathlib import Path
+    root = Path(root)
+    jobs = [(p, None) for p in sorted(root.glob("individual/*/Pusher*.3mf"))]
+    jobs += [(p, "project") for p in sorted(root.glob("cascades/*/*.3mf"))]
+    rows = []
+    for path, kind in jobs:
+        blobs = (_bambu_pushers(path) if kind == "project"
+                 else [path.read_bytes()])
+        for blob in blobs:
+            try:
+                tabs = pusher_tabs(blob)
+            except (ValueError, KeyError, ZeroDivisionError, IndexError):
+                continue
+            loose = [t for t in tabs if t["fraction"] < 0.999]
+            worst = min(loose, key=lambda t: t["anchor"]) if loose else None
+            rows.append((path.relative_to(root), len(tabs), worst))
+    rows.sort(key=lambda r: (r[2]["anchor"] if r[2] else 99.0, str(r[0])))
+    bad = 0
+    for name, ntabs, worst in rows:
+        if worst is None:
+            if verbose:
+                print(f"    ok  {'':>6s} {'':>6s}  {name}")
+            continue
+        bad += 1
+        mark = "✗" if worst["anchor"] < TAB_ANCHOR_MIN else "⚠"
+        print(f"    {mark}  {worst['fraction'] * 100:5.1f}% "
+              f"{worst['anchor']:5.2f}mm  {name}")
+    print(f"\n  {bad} of {len(rows)} pushers have a tab hanging over the notch; "
+          f"{sum(1 for _n, _t, w in rows if w and w['anchor'] < TAB_ANCHOR_MIN)} "
+          f"of those have under {TAB_ANCHOR_MIN} mm of root.")
+    return bad
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+    from pathlib import Path
+
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--pushers", action="store_true",
+                    help="audit tab support on every Pusher in the repo")
+    ap.add_argument("--all", action="store_true",
+                    help="with --pushers, list the passing ones too")
+    args = ap.parse_args()
+    if not args.pushers:
+        ap.error("nothing to do — try --pushers")
+    print("  Pusher tab support (backed fraction, widest backed strip):")
+    sys.exit(1 if audit_pushers(Path(__file__).resolve().parent.parent,
+                                verbose=args.all) else 0)
