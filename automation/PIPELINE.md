@@ -994,8 +994,10 @@ the same version; holders and toppers carry over.*
 
 ## Generations — holding cascades back from the current version
 
-*(In use. 20 cascades build at 7.0, 28 stay at 6.6, 0 conflicts — Allan's call,
-the set below.)*
+*(In use, and the 7.0 wave is COMPLETE. 20 cascades build at 7.0, 28 stay at 6.6,
+0 conflicts — Allan's call, the set below. Every one of the 20 is exported,
+assembled and sliced; `export.py` wants 0 calls in all four games, and
+`verify.py --pushers` reads 0 of 32 defective.)*
 
 `VERSIONS` is one global table, so bumping it to 7.0 makes EVERY cascade in
 every game stale at once. That is wrong: 7.0 is a whole-cascade change with a
