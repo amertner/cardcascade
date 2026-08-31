@@ -623,6 +623,59 @@ socket class-constant too; **the pusher cannot be made wider than `D`**, so that
 is closed. What makes five designs viable at all is dropping the edge inset from
 4.00 to 2.00, which buys back most of what the fixed positions cost.
 
+### Migrating to the lock catalogue — 7.0
+
+*(Planned, not started.)*
+
+**Bump `VERSIONS` for `Pusher` and `Lid` only.** Nothing else changes: the Box's
+back slot is `D + 2.40` with no tab cutouts, so any tab position hangs in any
+box; holders, toppers, token holders and labels never touch the lock. And
+`run_export` writes only the components a cascade actually needs, so an assembly
+re-export fetched for a new pusher leaves that cascade's box and holder files
+byte-identical on disk — no tessellation drift to review.
+
+| component | 7.0 | why |
+|---|---|---|
+| Pusher | **changes** | new tab and notch positions |
+| Lid | **changes** | socket recesses move; six lose the key rib |
+| Box | unchanged | slot is a plain rim; the largest print anyone has made |
+| Holder, first-riser holder | unchanged | no lock features |
+| Topper, TokenHolder, HalfTokenHolder, Label | unchanged | no lock features |
+
+Cost, from the planner with both versions bumped (0 API calls to measure):
+Innovation ~66, Dominion ~128, Compile ~36, FCM ~50 — **~280 calls** for the
+whole migration, against 2500 a year.
+
+**Do the broken five first.** Their lock does not work now, so nothing is lost by
+re-cutting them, and it is ~35 calls (5 parameter sets, 5 assemblies, 5 lids):
+
+| project | status | pusher | fault |
+|---|---|---|---|
+| FCM 180 Card Sl | Pub 6.5 | `3x6-Sl` | no second tab at all |
+| FCM 180 Card Un | Pub 6.5 | `3x6-Un` | tabs fused, 2.04 over the notch |
+| Innovation Single Set Un | Drafting | `3x10-Un` | 0.19 mm of root |
+| Dominion 246 Card Un | Published | `2x12-Un` | 0.98 mm of root |
+| Compile 105 Card Un | Pub 6.5 | `4x7-Un` | 1.01 mm of root |
+
+Six more are under-rooted but usable and can ride the general migration:
+Dominion 168, 202 (Mat), 244 Un (3.01 mm), FCM 144 Un (2.31), Compile 126 and
+210 Un (3.61, 0.19 overhang).
+
+**A backwards-compatible pusher is not possible**, and the two measurements that
+close it off are worth keeping: the lid socket's key rib blocks the channel
+outright, so the notch position is a hard key rather than a preference; and away
+from a recess the socket wall leaves `3.27` of free channel against the `4.50` a
+tab needs, so a tab anywhere but a recess jams. A pusher that works in an old lid
+must therefore carry the old notch AND the old tabs — it must be the old pusher.
+Tabs at both old and new positions jam; a notch wide enough to clear both ribs
+would take 8 mm of plate and still not lock. A tabless notch-only pusher would
+slide into either lid (the 3.00 plate passes everywhere) and sit in the box slot
+without hanging, but it never locks and is a third variant to explain.
+
+So compatibility lives in distribution, not geometry: **keep the 6.x downloads
+available**, and publish one rule — *a pusher and a lid must come from the same
+version; everything else already printed still fits.*
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row
