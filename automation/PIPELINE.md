@@ -629,6 +629,45 @@ socket class-constant too; **the pusher cannot be made wider than `D`**, so that
 is closed. What makes five designs viable at all is dropping the edge inset from
 4.00 to 2.00, which buys back most of what the fixed positions cost.
 
+### Cutting the catalogue in CAD
+
+*(Not started. This is the build recipe for the section above.)*
+
+Add a **`LockClass`** configuration input (C1–C5) and drive all three parts from
+it. Pick the largest class whose minimum depth fits; nothing else about the lock
+changes — tab `3.80 × 5.00` standing `1.50` proud, plate `3.00`, notch
+`5.40 × 5.20`, lid recess step `1.84`, box slot depth `3.20` all stay.
+
+| class | tab centres | use when D ≥ | hang base | notch | parts |
+|---|---|---|---|---|---|
+| C1 | ±3.10 | 14.00 | 6.20 | no | 1 |
+| C2 | ±5.10 | 18.00 | 10.20 | no | 5 |
+| C3 | ±8.50 | 24.80 | 17.00 | yes | 10 |
+| C4 | ±13.50 | 34.80 | 27.00 | yes | 11 |
+| C5 | ±24.00 | 55.80 | 48.00 | yes | 5 |
+
+Three edits, one per part, all in the same frame:
+
+1. **Pusher** — replace both tab insets (`4.00` from one edge, `4.20` from the
+   other) with `centreline ± s`. Move the notch from `D/2 − 2.50` **onto the
+   centreline**, and suppress it for C1 and C2.
+2. **Lid** — mirror it: socket recesses to `centreline ± s`, key rib onto the
+   centreline, rib suppressed for C1/C2 (six lids lose it).
+3. **Box** — the two rim cutouts per pusher move to `centreline ± s`. Same
+   `4.40` wide × `5.25` deep, same position in the top of the slot's inner lip.
+
+**Putting the notch on the centreline is the actual fix**, not a tidy-up: it
+collapses three datums into one, so the tab-into-notch collision cannot recur at
+any `D`. C1 and C2 have no room for a `5.40` notch between tabs `6.20`/`10.20`
+apart — the lands would be `−1.50` and `0.50` — so those lock by tabs alone.
+
+**Guard when adding a new box size:** a tab must keep `EDGE_MIN` of plate
+outboard, i.e. `s <= D/2 - 3.90`. A size that violates it takes the next class
+down; it never takes a tweaked `s`, or the catalogue stops being a catalogue.
+
+Then `verify.py --pushers` on the re-exported parts: it checks tab count, width
+and root, and exits 1 while any lock is defective.
+
 ### Migrating to the lock catalogue — 7.0
 
 *(Planned, not started.)*
