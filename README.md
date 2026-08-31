@@ -79,7 +79,7 @@ matching `--game` are used:
 | `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
 | `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
 | `plate=<title>:<w1>+<w2>+...` | an extra plate in the set's 3MF with exactly these label widths — free-form, not limited to the standard widths (used for the Blank set's legacy CC 5.1 sizes); repeatable |
-| `parts=<w1>+...@<l1>\|<l2>\|...[#<tag>]` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set — every grouping becomes a 3MF of its own (see `--sets`), named for its part count, or `<n> <tag> Cascades` when a `#<tag>` is given. A tag is what lets two groupings split the set into the same NUMBER of cascades. A label may contain a comma; only a comma that begins another `key=` splits a field |
+| `parts=<w1>+...@<l1>\|<l2>\|...[#<tag>]` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set — every grouping becomes a 3MF of its own (see `--sets`), named `<part count> Cascades`, or `<tag> Cascades` when a `#<tag>` is given. Tag a grouping when two would otherwise share a file name, or when the number worth showing is not the box count. A label may contain a comma; only a comma that begins another `key=` splits a field |
 | `names=<w1>+...@<n1>[:<short>]\|<n2>...` | the **transpose** of `parts=`: one plate per *name*, each holding every width, so a plate is exactly one box's labels. For a box design that ships once per expansion. The **narrowest** width takes the short form when one is given; every other width, front and side alike, takes the full name — a long name only shrinks past legibility at the bottom of the range ("Innovation" sets at 1.61 mm on a 20 mm label but 3.11 mm on a 32 mm one), so shortening every side label the way `side=` does for a whole set would waste the room the wider ones have. `(BLANK)` is the blank label |
 | none | line is skipped |
 
@@ -130,19 +130,32 @@ one. Its plates (one per width, holding every part at that width) slot
 in where the grouping sits in cc.cfg order, and the set's other plates
 are repeated in each file so every one is a complete print on its own.
 Two groupings that resolve to the same file name are rejected when
-`cc.cfg` is read; add a `#<tag>` to one of them, which names it
-`<Set> <n> <tag> Cascades Labels.3mf` — count first, so the covers'
-generated prose reads "for all 3 later ages cascades". Innovation needs that because its
-original age split and its Later Ages split are both a 3-cascade and a
-4-cascade build. There is no plain `<Set> Labels.3mf` for such a set.
+`cc.cfg` is read; give one a `#<tag>`, which names it
+`<Set> <tag> Cascades Labels.3mf`. There is no plain `<Set> Labels.3mf`
+for such a set.
+
+**A tag also fixes a name that counts the wrong thing.** Innovation's
+two builds put the same 12 columns into 3 boxes of 4 ages or 4 boxes of
+3, so the part count and the ages per cascade are opposite halves of one
+split and naming by parts put a "3" on the set whose labels all read four
+ages wide. The tags are `#4-Age` and `#3-Age`. They are hyphenated on
+purpose: `make_label_covers` lowercases the profile straight into prose,
+so `4-Age Cascades` reads "for all 4-age cascades" beside captions saying
+CASCADE 1, 2, 3, where `4 Ages Cascades` would put a bare "4" back next
+to the word it must not modify. The number has to be stated rather than
+derived — counting labels gives boxes, and an open range hides the
+specials column, `Ages 9+` being four slots and `Ages 10+` three.
 
 A grouping applies ONE width list to every part, so where the cascades
 in a grouping are different box designs, list every width they need
 between them and print each box's side off the plate that matches it.
-Innovation's Later Ages builds do this: the first cascade is a 15-card
-box (45 mm unsleeved / 62 sleeved) and the rest are 10-card ones
-(32 / 45), so all four widths are listed and each plate carries every
-part at that width.
+Innovation does this: the first cascade is a 15-card box (45 mm
+unsleeved / 62 sleeved) and the rest are 10-card ones (32 / 45), so all
+four widths are listed and each plate carries every part at that width.
+Because slot 1 always holds the specials and slot k age k-1 whatever
+design fills it, the label text depends only on how WIDE a box is, so
+those two groupings also cover an all-15-card build — which is why the
+earlier specials-last groupings were retired rather than renamed.
 
 **Label geometry is not reproducible run to run.** The same code and
 config regenerated twice differ by a few dozen vertices out of tens of

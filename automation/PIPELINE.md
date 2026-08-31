@@ -284,6 +284,95 @@ which side it was meant to land on before reading an unchanged `(first)` holder
 as a missed fix — the two first-riser rows (Dominion 246 `S2.40.12/30` and 472
 `M2.60.18/40`) are where the distinction shows up.
 
+### An unversioned CAD change is invisible to provenance — date the geometry
+
+A holder change landed in Onshape between 2026-08-20 and 2026-08-24 with no
+`VERSIONS["Holder"]` bump: the spanning holder's `X-min` moved from -38.5000 to
+-38.4000 (and `X-max` the same 0.1 mm the other way, so the strip is 0.2 mm
+shorter, centred). It is Allan's fix for holders that users reported sticking,
+and it is deliberately rolled out **without fanfare** — folded into whatever gets
+re-exported next rather than swept across the repo. So expect holders of both
+lengths to coexist for a while; that is intended, not drift to chase.
+
+What is NOT intended is that provenance cannot see it. Because the version did
+not move, `PROV.is_current` kept calling every Aug-20 holder current and none
+were re-fetched. That is the failure mode `--changed` exists for, but nothing
+tells you to reach for it.
+
+**Do not read a component's mtime or its provenance date as its geometry.** Date
+the GEOMETRY instead: a round coordinate shared by every file exported after some
+day, and a different round coordinate shared by every file before it, is an
+unversioned CAD change. Sorting every spanning holder by `X-min` splits them
+exactly on the export date:
+
+| X-min (Un / Sl) | files | exported |
+|---|---|---|
+| -38.5000 / -39.5000 | `Holder 3x15`, `Holder 4x15` | 2026-08-20 |
+| -38.4000 / -39.4000 | `Holder 2x10`, `Holder 3x10`, `Holder 4x10` | 2026-08-24 onward |
+
+**A confound sits on top of that split.** The Aug-20 group is also exactly the
+15-card group, so the shift reads equally well as a `Cards/Riser slot` axis. The
+old `Holder 3x10-Un` refutes that: it is a **10-card** holder exported Aug 20 and
+it reads -38.5000, where a cards axis wants -38.4000. Length tracks the date and
+nothing else.
+
+### A holder's tab protrusion DOES depend on RisingSliders
+
+Separately from the length change, and easy to conflate with it: the 6 wedges
+along the holder's top edge (the top 2 mm, ~11.2 mm wide, two per card slot)
+stand proud of the back face by an amount that varies with the RISER COUNT.
+Nothing else in the part varies with it — slot depth, height and length are
+identical.
+
+Isolating it needs care, because the obvious Innovation pair (Single Set vs
+3 Later Ages) differs in TWO Primary inputs, `RisingSliders` 3->5 AND
+`FrontPocketCardCapacity` 15->10, and proves nothing on its own. Two comparisons
+do isolate it, both at 0 API calls:
+
+| game | comparison | result |
+|---|---|---|
+| Innovation | horizontal 2/3/4 at 5 risers | all 0.6347 — horizontal is not a factor |
+| Innovation | front pocket 15 vs 10 at 5 risers | both 0.6347 — front pocket is not a factor |
+| Innovation | Single Set (3 risers) vs Single Mini (5), same 10 cards and 15 front pocket | 0.5048 vs 0.6347 |
+| Compile | 105 Card vs 126 Card — `RisingSliders` is the ONLY differing input | 0.4810 vs 0.4976 |
+
+Compile settles it: 4 vs 5 risers, everything else equal, and the 210 Card holder
+(horizontal 5, risers 5) reads 0.4976 too. The effect is small — 0.13 mm across
+Innovation's 3->5, 0.017 mm across Compile's 4->5 — but it is reproducible, not
+tessellation: the Aug-24 CAD edit RETESSELLATED `Holder 3x15-Sl` (7896 -> 7929
+vertices) and its `Y-max` still came back bit-identical. Tessellation reproduces
+exactly for fixed inputs, so a `Y-max` that moves means an input moved.
+
+**Whether that dependence is intended is an open question for Allan**, and the
+fix forks on the answer: if the wedge is meant to track riser count, the holder
+keys are missing an axis and the FILENAMES must carry it; if it is not, this is a
+leaked dependency in the CAD and the keys are fine as they stand. Do not rename
+anything until that is settled — the sub-0.15 mm magnitude means nothing printed
+is wrong either way (the slicer's own elephant-foot compensation is larger).
+
+Holder files currently shared across differing riser counts, i.e. one filename
+holding two meshes, whichever way the question resolves:
+
+| game | file | rows (risers) |
+|---|---|---|
+| Innovation | `Holder 3x10-{Un,Sl}` | Single Set (3), 3 Later Ages (5) |
+| Compile | `Holder 3x7-{Un,Sl}` | 105 Card (4), 126 Card (5) |
+| Dominion | `Holder M-21-{Un,Sl}` | 202/244 Card (4), 324 Card (6) |
+| Dominion | `Holder S-40-{Un,Sl}` | 246 Card (2), 300 Card (5) |
+
+FCM is clean. Which variant is on disk depends on which cascade was exported
+LAST, so a refresh of the other consumer silently swaps its holder and provenance
+calls the file current either way. `Holder 3x10` is in that state now, holding
+the 5-riser mesh while Single Set's project embeds the 3-riser one.
+
+**`_raw/` is what makes all of this checkable for free.** Any question of the
+form "does component C depend on input I" is answered by splitting two cached
+assemblies that differ only in I — `assembly_split.split()` on
+`mesh.unwrap(raw)`, 0 calls. Every pair named in the table above is already
+cached. Reach for that before spending a call on a hypothesis, and before writing
+a conclusion down: the riser finding above was asserted, retracted and reinstated
+across three commits because the confounds were not separated first.
+
 ### Packing 45° strips — two arms, not one band
 
 Holders and toppers are long thin strips that only fit a plate turned 45°.
