@@ -113,13 +113,18 @@ def set_primary(auth, row, sleeved, game_name):
           "set-primary", json=SV.build_primary(row, sleeved, game_name))
 
 
-def _record(comp, game, element, mv, when, sha):
+def _record(comp, game, element, mv, when, sha, gen=None):
+    """`gen` is the GENERATION this cascade builds at (parts.csv `Build`). It
+    must be the same one plan_exports.needs_export judged the component by, or
+    the row is written at a version the staleness check never expects and the
+    component goes stale the instant it is written."""
     PROV.record(game, PROV.make_row(
         comp["file"], comp["type"], comp["key"], element, comp_config(comp),
-        OC.expected_version(comp["type"], comp["file"]) or "", mv, when, sha))
+        OC.expected_version(comp["type"], comp["file"], gen) or "",
+        mv, when, sha))
 
 
-def _write(data, comp, folder, game, element, mv, when, verify=True):
+def _write(data, comp, folder, game, element, mv, when, verify=True, gen=None):
     """Write export bytes to the component's file, validate, record provenance.
 
     The identity guard runs BEFORE the write: a stale export must never reach
@@ -140,7 +145,7 @@ def _write(data, comp, folder, game, element, mv, when, verify=True):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(data)
     bodies = MC.load_export(str(out))            # validate it parses cleanly
-    _record(comp, game, element, mv, when, sha)
+    _record(comp, game, element, mv, when, sha, gen)
     return len(bodies)
 
 
@@ -220,7 +225,8 @@ def export_studio(auth, comp, folder, game, when, verify=True, use_cache=False,
             + f"  The download is kept in _raw/, so correcting the row and "
               f"re-running with --use-cache costs 0 calls. Use --skip-verify "
               f"if the row is the thing you want to keep.")
-    n = _write(clean, comp, folder, game, OC.ELEMENTS[typ], mv, when, verify)
+    n = _write(clean, comp, folder, game, OC.ELEMENTS[typ], mv, when, verify,
+               gen=(ctx or {}).get("generation"))
     # The raw studio download is cached BEFORE the write, so a refused export
     # (the identity guard exits) never costs its bytes. Past that point it only
     # earns its keep if stripping removed parts the component doesn't carry —
@@ -388,7 +394,7 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
                     print(f"    ⚠ {comp['file']} — role {role!r} absent from assembly")
                     continue
                 n = _write(data, comp, folder, game, OC.ASSEMBLY, mv, when,
-                           verify)
+                           verify, gen=casc["ctx"]["generation"])
                 print(f"    ✓ {comp['file']}  ({n} body, assembly)")
                 done += 1
         # ONE assembly export supplies all six of this cascade's toppers
@@ -405,7 +411,7 @@ def run_export(game, spec, plan, batches, limit, use_cache=False, verify=True):
                           f"from the topper assembly")
                     continue
                 n = _write(data, comp, folder, game, OC.TOPPER_ASSEMBLY, mv,
-                           when, verify)
+                           when, verify, gen=casc["ctx"]["generation"])
                 print(f"    ✓ {comp['file']}  ({n} bodies, topper assembly)")
                 done += 1
         # Lid / labels stay on the per-part-studio path
@@ -617,7 +623,28 @@ def main():
     print(f"Estimated API calls: {sets} set + {ops}×~{PER} = ~{est}")
     if unknown:
         print(f"  ⚠ no element id yet for {unknown}")
+    _print_conflicts(plan)
     print(f"\nYear-to-date {_ytd()}/2500.  Re-run with --execute to perform it.")
+
+
+def _print_conflicts(plan):
+    """Components wanted at two generations at once.
+
+    A component deduped across cascades exists ONCE on disk, so it cannot be at
+    two generations: if `300 Card` builds at 7.0 and `246 Card` is pinned to 6.6,
+    their shared pusher can only be one of them, and whichever exported last
+    wins silently. Report it instead — the fix is to move the cascades together,
+    or to accept that the pinned one keeps the built project it already has and
+    is not refreshed."""
+    conflicts = getattr(plan, "conflicts", None)
+    if not conflicts:
+        return
+    print(f"\n⚠ {len(conflicts)} component(s) wanted at more than one generation "
+          f"— one file cannot be both:")
+    for u in sorted(conflicts.values(), key=lambda u: sorted(u["files"])[0]):
+        print(f"    {sorted(u['files'])[0]}")
+        for gen, who in sorted(u["generations"].items()):
+            print(f"        {gen}: {', '.join(sorted(set(who)))}")
 
 
 def _ytd():

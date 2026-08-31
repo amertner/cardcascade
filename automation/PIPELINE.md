@@ -992,6 +992,121 @@ So compatibility lives in distribution, not geometry: **keep the 6.x downloads
 available**, and publish one rule — *a pusher, a lid and a box must all come from
 the same version; holders and toppers carry over.*
 
+## Generations — holding cascades back from the current version
+
+*(In use. 20 cascades build at 7.0, 28 stay at 6.6, 0 conflicts — Allan's call,
+the set below.)*
+
+`VERSIONS` is one global table, so bumping it to 7.0 makes EVERY cascade in
+every game stale at once. That is wrong: 7.0 is a whole-cascade change with a
+real print cost, and most cascades should stay where they are until their owner
+is ready. What was needed is a way to say *these* cascades are v7 and the rest
+are v6 — per cascade, not by reading a rule off box depth.
+
+**A GENERATION is one self-consistent set of per-type versions**
+(`onshape_config.GENERATIONS`), and `CURRENT` names the default. `7.0` is the
+lock catalogue; `6.6` is everything as it stood before it. `VERSIONS` is now just
+`GENERATIONS[CURRENT]`, so every existing reader is unaffected.
+
+**parts.csv's `Build` column names a row's generation**, blank meaning `CURRENT`.
+It is per SLEEVING, because a row's two sleevings are separate cascades that move
+independently — the broken-eleven wave is mostly the unsleeved halves:
+
+```
+(blank)          both sleevings at CURRENT
+6.6              both at 6.6
+Un:6.6           unsleeved held at 6.6, sleeved at CURRENT
+Un:6.6 Sl:7.0    each named explicitly
+```
+
+An unknown name fails at planning time, not after calls have been spent.
+`expected_version(type, files, gen)` is still the ONE place the rule lives, and
+the generation is threaded through every provenance write — assembly, studio and
+topper paths alike — so a component is recorded at the version the staleness
+check will expect.
+
+**Rebuilding a pinned cascade offline falls out of this rather than needing new
+machinery.** Its components are current AT ITS generation, so the planner asks
+for nothing, and `refresh_cascades` reports `components: all current` and goes
+straight to a keep-layout assemble from `individual/`. Where a component IS
+wanted, `export.py --use-cache` re-splits it from `_raw/` for 0 calls. Both paths
+already existed; the generation is what stops the planner dragging the cascade
+forward.
+
+**The one real constraint: components dedup ACROSS cascades, and a file exists
+once.** A pusher's key is `(risers, cards, sleeved)`, so one file serves up to
+three cascades. If one builds at 7.0 and another is pinned to 6.6, the file
+cannot be both, and whichever exported last would win silently. `export.py` now
+reports those instead:
+
+```
+⚠ 1 component(s) wanted at more than one generation — one file cannot be both:
+    Pusher 5x10-Sl.3mf
+        6.6: 3 Later Ages 5 Expansions Sl, Single Mini Sl
+        7.0: 4 Later Ages 5 Expansions Sl
+```
+
+Measured against reality — pin everything to 6.6 except the two Innovation
+cascades actually built at 7.0 — that is the **only** conflict in the catalogue.
+Box and Lid are keyed per model so they never conflict; only the shared types
+can. The fix is to move the conflicting cascades together, or to leave the pinned
+one unrefreshed on the project it already has.
+
+**DECIDED — the 7.0 set is 14 cascades** (Allan). It is the broken eleven, plus
+`Innovation 4 Later Ages 5 Expansions Sl` (hand-exported and already built), plus
+the two the closure pulls in:
+
+| pulled in | via | shared with |
+|---|---|---|
+| `Innovation 3 Later Ages 5 Expansions Sl` | `Pusher 5x10-Sl` | `4 Later Ages Sl` |
+| `Innovation Single Mini Sl` | `Pusher 5x10-Sl` | `4 Later Ages Sl` |
+
+Growing the set over shared components until no conflict remains is the general
+move, and it converges in two rounds here. Note the closure must be taken over
+components whose VERSION actually differs between the two generations, not over
+shared components generally: an earlier cut compared generation names and dragged
+in three Dominion cascades over a shared `TokenHolder` that reads `6.6` in both.
+Only Box, Lid and Pusher move at 7.0, and Box and Lid are keyed per model, so in
+practice the closure only ever follows a shared Pusher.
+
+**Then five more, because a 6.6 export is no longer possible.** The first pass
+left five cascades pinned at 6.6 that still needed a holder — `Compile 126 Sl`,
+`Dominion 246 Sl`, `Dominion 324 Un/Sl`, `Innovation Single Set Sl` — because the
+riser axis is orthogonal to the generation and those files never existed at any
+version. Allan's point: those are exactly the ones to promote, and there are
+three reasons rather than one.
+
+- The parameter-set call is spent either way, and ONE assembly export carries
+  Box + Holder + Pusher together, so the 7.0 box and pusher come down in the same
+  download the holder does. Only the Lid studio export is extra, ~3 calls.
+- **The CAD has moved.** Onshape holds one model, and it is at 7.0. Exporting a
+  "6.6" holder today writes 7.0 geometry and records it as 6.6 — a provenance row
+  that is simply false. Confirmed on the 4 Later Ages holder, which differs from
+  its 6.6 predecessor only in a 0.2 mm version-stamp band.
+- A cascade whose box, lid and pusher read 6.6 under a holder stamped 7.0 is the
+  mixed-version state the whole `Build` column exists to prevent.
+
+Promoting those five pulls in `Compile 210 Card Sl` (shared `Pusher 5x7-Sl`) and
+nothing else. `Dominion 290 Card (Mat)` looks like it should be dragged in too,
+and is not: the planner skips it for an incomplete parts.csv row, so it is never
+built and cannot conflict. Take the closure over the cascades the PLANNER builds,
+not over every row.
+
+What the pinning bought, measured: the planner's whole-catalogue estimate falls
+from **~316 calls to ~123** with 20 cascades at 7.0 (it was ~101 with 14, so the
+six extra cost ~22), and **30 of the 48 buildable cascades need nothing at all** —
+`refresh_cascades` reports `components: all current` for each and assembles from
+`individual/` with no Onshape at all. Of the ~123, FCM's ~21 can be 0: its three
+7.0 cascades were hand-exported and the assemblies and lids are still in `tmp/`,
+so `--use-cache` re-splits them for nothing.
+
+**Pinning does not remove the nine missing holders.** The riser axis is
+orthogonal to the generation: `Holder 3x7-r5-Un` was never exported at ANY
+version, because no 5-riser Compile cascade was ever the one that wrote the file.
+Under a full 6.6 pinning the planner still asks for 7 components (Compile 2,
+Dominion 4, Innovation 1); FCM asks for none, so its pinned cascades are already
+fully rebuildable offline.
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row

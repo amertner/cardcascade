@@ -24,7 +24,7 @@ import onshape_config as OC
 import provenance as PROV
 
 Plan = namedtuple("Plan", "game spec rows cascades unique to_export skipped "
-                          "parked present all_files")
+                          "parked present all_files conflicts")
 
 HERE = Path(__file__).parent          # automation/
 ROOT = HERE.parent                    # repo root — data dirs (individual/) live here
@@ -62,6 +62,10 @@ def build_context(row, sleeved, game, spec):
         "merged": col(row, "Merged-slot").upper() == "TRUE",
         "tokens": col(row, "TokenHolder").lower(),   # ''/none/full/full+half
         "sleeved": sleeved, "sl": "S" if sleeved == "Sl" else "U",
+        # Which generation this cascade is built at — parts.csv `Build`, blank
+        # meaning onshape_config.CURRENT. Validated here so an unknown name
+        # fails at planning time rather than after spending calls.
+        "generation": OC.generation_for(col(row, "Build"), sleeved),
         "pushers": C.pushers_for(spec, size),
         "box_w": _mm(col(row, wcol)), "box_d": _mm(col(row, dcol)),
     }
@@ -228,10 +232,14 @@ def compute_plan(game, spec, csv_path, labels=False, changed=frozenset()):
             for it in items:
                 u = unique.setdefault(it["key"], {
                     "type": it["type"], "files": set(), "objects": set(),
-                    "cascades": []})
+                    "cascades": [], "generations": {}})
                 u["files"].add(it["file"])
                 u["objects"].add(it["object"])
                 u["cascades"].append(name)
+                # A component deduped across cascades can only exist at ONE
+                # generation on disk. Record who wants what so the conflict is
+                # reported instead of resolved by whoever exported last.
+                u["generations"].setdefault(ctx["generation"], []).append(name)
 
     outdir = ROOT / "individual" / spec["folder"]
     present = {p.name for p in outdir.glob("*.3mf")} if outdir.exists() else set()
@@ -240,18 +248,37 @@ def compute_plan(game, spec, csv_path, labels=False, changed=frozenset()):
 
     def needs_export(u):
         # Version-aware: a component is cached only if its file is recorded in
-        # provenance AT THE CURRENT per-studio version. Missing file, no
-        # provenance, or an older version -> re-export.
+        # provenance AT THE per-studio version of the generation that wants it.
+        # Missing file, no provenance, or a different version -> re-export.
         if u["type"] in changed:
             return True
         # Per-file exemptions (the Blank topper) live in onshape_config so that
-        # the exporter records the same version this check expects.
-        ver = OC.expected_version(u["type"], u["files"])
+        # the exporter records the same version this check expects. A component
+        # wanted at two generations is a conflict, reported separately; here it
+        # is judged against the CURRENT one so the plan stays deterministic.
+        gen = (OC.CURRENT if len(u["generations"]) != 1
+               else next(iter(u["generations"])))
+        ver = OC.expected_version(u["type"], u["files"], gen)
         return not all(PROV.is_current(prov, f, ver) for f in u["files"])
 
     to_export = {k: u for k, u in unique.items() if needs_export(u)}
+
+    def conflicted(u):
+        """A component wanted by cascades at two GENERATIONS only conflicts if
+        those generations disagree about ITS version. Most types are identical
+        across 6.6 and 7.0 — only Box, Lid and Pusher move — and Box and Lid are
+        keyed per model, so in practice only a shared Pusher can conflict.
+        Comparing generation NAMES instead would drag whole cascades into a
+        migration over a token holder that never changed."""
+        if len(u["generations"]) < 2:
+            return False
+        vers = {OC.expected_version(u["type"], u["files"], g)
+                for g in u["generations"]}
+        return len(vers) > 1
+
+    conflicts = {k: u for k, u in unique.items() if conflicted(u)}
     return Plan(game, spec, rows, cascades, unique, to_export, skipped,
-                parked, present, all_files)
+                parked, present, all_files, conflicts)
 
 
 def main():

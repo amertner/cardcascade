@@ -186,11 +186,41 @@ def is_imported(part_name, component_type):
 # The Lid moving is what closes the adopted-lid discrepancy noted below: it sat
 # at 6.5 while everything else went to 6.6, so a refreshed cascade carried a box
 # and a lid reading different versions. At 7.0 they agree again.
-VERSIONS = {
-    "Box": "7.0", "Lid": "7.0", "Holder": "6.6", "Pusher": "7.0",
-    "Topper": "6.6", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
-    "Label": "6.3",
+# A GENERATION is one self-consistent set of per-type versions — what "a v7
+# cascade" or "a v6 cascade" actually means, spelled out. A cascade is built at
+# one generation and never a mixture, because the 7.0 lock spans three
+# components: a pusher, a lid and a box must come from the same version.
+#
+# parts.csv's `Build` column names the generation a row is built at; blank means
+# CURRENT. That is how "these cascades move to 7.0, the rest stay at 6.x for now"
+# is expressed, and it replaces reading a rule off box depth.
+#
+# CAUTION — components dedup ACROSS cascades, so a generation is not free to
+# pick per cascade. A pusher's key is (risers, cards, sleeved), so one file
+# serves up to three cascades; if one of them is pinned to 6.6 and another
+# builds at 7.0, the single file on disk cannot be both. plan_exports reports
+# those as generation conflicts rather than silently giving one of them the
+# wrong part. Box and Lid are keyed per model, so they never conflict.
+GENERATIONS = {
+    "7.0": {
+        "Box": "7.0", "Lid": "7.0", "Holder": "6.6", "Pusher": "7.0",
+        "Topper": "6.6", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
+        "Label": "6.3",
+    },
+    # Everything as it stood before the lock catalogue. Kept so a cascade can be
+    # held back deliberately, and so what "v6" means stays written down rather
+    # than being recoverable only from git history.
+    "6.6": {
+        "Box": "6.6", "Lid": "6.5", "Holder": "6.6", "Pusher": "6.6",
+        "Topper": "6.6", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
+        "Label": "6.3",
+    },
 }
+CURRENT = "7.0"
+
+# The default generation's table, kept under its old name: every caller that has
+# no cascade in hand (and every existing reader) still sees the current set.
+VERSIONS = GENERATIONS[CURRENT]
 # The Innovation lid + toppers changed at 6.4. Toppers moved again at 6.6, and
 # it is a real geometry change, not an embossed string: the expansion name is no
 # longer preceded by a logo body, the plate's depth now tracks
@@ -204,9 +234,49 @@ VERSIONS = {
 # exemption is gone and expected_version() is a plain lookup.
 
 
-def expected_version(comp_type, files):
-    """The version a component of `comp_type` SHOULD be at — VERSIONS, plus any
-    per-file exemptions (there are none at present; see the 6.6 note above).
+def generation_name(name):
+    """Validate a generation name; blank means CURRENT. Fails here, at planning
+    time, rather than after calls have been spent on a typo."""
+    g = (name or "").strip() or CURRENT
+    if g not in GENERATIONS:
+        raise KeyError(f"unknown generation {g!r} in parts.csv `Build`; "
+                       f"known: {sorted(GENERATIONS)}")
+    return g
+
+
+def generation(name):
+    """The per-type version table for a generation name; CURRENT if blank."""
+    return GENERATIONS[generation_name(name)]
+
+
+def generation_for(build, sleeved):
+    """Resolve a parts.csv `Build` cell for ONE sleeving.
+
+    A row's two sleevings are separate cascades and move independently — the
+    broken-eleven wave is mostly the UNSLEEVED halves — so the cell may be
+    per-sleeving. Accepted forms:
+
+        ''              both sleevings at CURRENT
+        '6.6'           both sleevings at 6.6
+        'Un:6.6'        unsleeved at 6.6, sleeved at CURRENT
+        'Un:6.6 Sl:7.0' each named explicitly (comma or space separated)
+
+    `sleeved` is 'Un' or 'Sl'.
+    """
+    text = (build or "").strip()
+    if ":" not in text:
+        return generation_name(text)
+    for part in text.replace(",", " ").split():
+        tag, _, val = part.partition(":")
+        if tag.strip().lower() == sleeved.lower():
+            return generation_name(val)
+    return CURRENT
+
+
+def expected_version(comp_type, files, gen=None):
+    """The version a component of `comp_type` SHOULD be at, in generation `gen`
+    (CURRENT when omitted), plus any per-file exemptions (there are none at
+    present; see the 6.6 note above).
 
     This must be the ONE place the rule lives. It is read when deciding whether
     a component is stale (plan_exports.needs_export) AND when writing a
@@ -216,7 +286,7 @@ def expected_version(comp_type, files):
     files sharing its key — is what an exemption would key on, and is kept in the
     signature so reinstating one stays a change to this function alone.
     """
-    return VERSIONS.get(comp_type)
+    return generation(gen).get(comp_type)
 
 
 def part_url(eid):
