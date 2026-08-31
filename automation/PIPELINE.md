@@ -535,9 +535,14 @@ refusing would only block the rest of the assembly.
 
 ### The five-design lock catalogue
 
-*(Specified, not yet cut. `verify.LOCK_CLASSES` holds it; `verify.py --catalogue`
-prints the per-pusher worksheet. Nothing enforces it — the CAD still places the
-features parametrically.)*
+*The standard itself lives in [`LOCK_STANDARD.md`](LOCK_STANDARD.md) — the rule,
+the class table and the constants, without the history. This section is the
+reasoning that produced it and the record of what it cost.*
+
+*(CUT IN CAD and measured — see "Verifying the cut catalogue" below.
+`verify.LOCK_CLASSES` holds the catalogue; `verify.py --catalogue` prints the
+per-pusher worksheet. Nothing in code enforces it; the conformance test is to
+measure an export against `target_lock()`.)*
 
 The collision is a symptom: the three lock features are placed from three
 different datums (two plate edges and the mid-line), so nothing guarantees they
@@ -548,7 +553,9 @@ nice-to-have.
 **Every lock dimension is already a constant** — measured across all 32 exported
 pushers, not assumed: overall thickness `4.500`, plate `3.000`, tab proudness
 `1.500` (one face only), tab `3.800 × 5.000` flush with the leading edge, notch
-`5.400 × 5.200` (to 0.07 of tessellation drift), lid recess step `1.840`, box
+`5.400 × 5.200` (to 0.07 of tessellation drift), lid recess step `1.840` as
+recorded here but `1.800` when measured on the FCM lids — and `1.700` from 7.0,
+see the test-print note below — box
 slot depth `3.200`. The only two parts that deviate are the known defects:
 `3x6-Un`'s tabs have fused into one 5.84 boss and `3x6-Sl` has lost one
 altogether. **So the catalogue moves positions and keeps every size**, with three
@@ -580,14 +587,20 @@ The offsets were chosen to maximise the WORST hang base as a fraction of the
 widest the plate could give (`D − 2·EDGE_MIN − 3.80`). All 32 covered, worst case
 **63 %**, and **15 of the 32 end up with a wider base than they have today** —
 today's 4.00 mm inset is more generous than the 2.00 the catalogue allows at the
-bottom of a band. The parts that lose are the wide ones at the top of a band;
+bottom of a band. **Today's base is `D − 12.00`, not `D − 11.80`**: the CAD sets
+tab A 4.00 in from one edge and tab B 4.20 in from the other, so the centres are
+`6.10` and `D − 5.90` and their separation carries tab B's extra 0.20. Confirmed
+against the old boxes' cutout pitch — 11.400 at D 23.40, 6.000 at D 18.00, both
+exactly `D − 12.00`. The parts that lose are the wide ones at the top of a band;
 the worst is `Pusher 9x10-Sl`, 48.00 against 63.80.
 
 **The boxes do NOT survive, and a catalogue cannot make them.** The box's rim
-cutouts are `4.40` wide for a `3.80` tab, so a tab may shift `±0.30` and still
-drop in. The old tab centres are `6.10` and `D − 5.90`, so a class of offset `s`
-stays box-compatible only while `D ∈ [2s + 11.60, 2s + 12.40]` — a 0.80 mm window
-per class, which none of the 32 depths lands in except `D = 18.00` under C1.
+cutouts are `4.50` wide for a `3.80` tab (measured to 0.002 on six FCM boxes,
+old and new — the `4.40` this used to say was a coarse reading), so a tab may
+shift `±0.35` and still drop in. The old tab centres are `6.10` and `D − 5.90`,
+so a class of offset `s` stays box-compatible only while
+`D ∈ [2s + 11.50, 2s + 12.90]` — a 1.40 mm window per class, which just two of
+the 32 depths land in: `D = 39.60` under C4 and `D = 60.75` under C5.
 Making every pusher land in its window means `s = D/2 − 6.00`, which IS today's
 parametric rule. **A fixed catalogue and box compatibility are mutually
 exclusive.** The lids all change too — the recesses move on every one, and six
@@ -607,12 +620,14 @@ lose the rib.
    and needs its depth stop on the socket floor. A 4.00 mm notch fits C2 at a
    1.20 mm land if a second rib width is preferable to a second lid family.
 
-**Validating it is cheap, because the boxes do not change.** The hang can be
-tested with a re-cut pusher in an existing box, no new lid needed. Two parts
-cover the range: `Pusher 6x10-Sl` (D 50.40, C4, tabs 9.80–13.60 / 36.80–40.60 —
-the catalogue's worst hang base and a 9.80 inset) and `Pusher 3x6-Un` (D 14.04,
-C1, tabs 2.02–5.82 / 8.22–12.02 — the tightest geometry in it). If both hang
-solidly, the only mechanical question left is the lid's depth stop for C1 and C2.
+**Validating the hang needs a re-cut BOX as well as a re-cut pusher**, because
+the rim cutouts move with the tabs — this paragraph used to say the opposite and
+was wrong; see the box-compatibility note above. So a hang test costs the long
+print. Two pairs cover the range: `Pusher 6x10-Sl` (D 50.40, C4, tabs
+9.80–13.60 / 36.80–40.60 — the catalogue's worst hang base and a 9.80 inset) and
+`Pusher 3x6-Un` (D 14.04, C1, tabs 2.02–5.82 / 8.22–12.02 — the tightest
+geometry in it). If both hang solidly, the only mechanical question left is the
+lid's depth stop for C1 and C2.
 
 **Cost.** 32 pushers and 46 lids re-cut — a full re-export, real API budget — and
 printed pushers stop matching printed lids, so a cascade is re-made as a pair.
@@ -631,12 +646,16 @@ is closed. What makes five designs viable at all is dropping the edge inset from
 
 ### Cutting the catalogue in CAD
 
-*(Not started. This is the build recipe for the section above.)*
+*(DONE — Allan cut this in Onshape and exported three FCM cascades by hand;
+measured in "Verifying the cut catalogue" below. This is the recipe that was
+followed.)*
 
 Add a **`LockClass`** configuration input (C1–C5) and drive all three parts from
 it. Pick the largest class whose minimum depth fits; nothing else about the lock
 changes — tab `3.80 × 5.00` standing `1.50` proud, plate `3.00`, notch
-`5.40 × 5.20`, lid recess step `1.84`, box slot depth `3.20` all stay.
+`5.40 × 5.20`, box slot depth `3.20` all stay. The lid recess step is the ONE
+running clearance that does change, to `1.700` — set on a test print, not
+calculated.
 
 | class | tab centres | use when D ≥ | hang base | notch | parts |
 |---|---|---|---|---|---|
@@ -668,9 +687,102 @@ down; it never takes a tweaked `s`, or the catalogue stops being a catalogue.
 Then `verify.py --pushers` on the re-exported parts: it checks tab count, width
 and root, and exits 1 while any lock is defective.
 
+### Verifying the cut catalogue
+
+*(Done, on three hand-exported FCM cascades — 0 API calls, the files were
+exported from Onshape by hand into `tmp/`. Assemblies split with
+`assembly_split.split()`; every figure below is measured off the meshes.)*
+
+The three cover C1 and C2 — the two classes with no notch, and the tightest
+geometry in the catalogue — and all three are on the broken-five list:
+
+| cascade | pusher | D | class | old fault |
+|---|---|---|---|---|
+| FCM 180 Card Un | `3x6-Un` | 14.040 | C1 | tabs fused into one 5.84 boss |
+| FCM 180 Card Sl | `3x6-Sl` | 18.000 | C2 | second tab absent altogether |
+| FCM 144 Card Un | `5x6-Un` | 23.400 | C2 | 2.31 mm of root |
+
+**The pushers land on `target_lock()` exactly** — not to a tolerance, to 0.00 on
+every edge:
+
+| pusher | tabs, from the D=0 edge | inset | root | backed |
+|---|---|---|---|---|
+| `3x6-Un` | 2.02–5.82 / 8.22–12.02 | 2.02 | 5.00 | 100 % |
+| `3x6-Sl` | 2.00–5.80 / 12.20–16.00 | 2.00 | 5.00 | 100 % |
+| `5x6-Un` | 4.70–8.50 / 14.90–18.70 | 4.70 | 5.00 | 100 % |
+
+Every size the catalogue promised to keep is kept: overall thickness `4.500`,
+plate `3.000`, tabs `1.500` proud, and a tab footprint of exactly `38.00` mm² =
+2 × 3.80 × 5.00 on all three. No through-notch on any of them, which is right for
+C1 and C2. `check_pusher` returns clean on all three; it flagged all three before.
+
+**The boxes' rim cutouts moved to `2s`**, measured on all nine pairs:
+
+| box | old pitch | new pitch | target | land between the pair |
+|---|---|---|---|---|
+| `L3.18.6.20-Un` | *merged* | 6.199 / 6.201 / 6.199 | 6.20 | 1.701 |
+| `L3.18.6.20-Sl` | 6.000 | 10.200 / 10.199 / 10.200 | 10.20 | 5.701 |
+| `M5.6.6.20-Un` | 11.400 | 10.200 / 10.200 / 10.200 | 10.20 | 5.701 |
+
+Cutout width is `4.499` new and `4.497–4.499` old — unchanged, and 4.50 rather
+than the 4.40 recorded above. **The old `L3.18.6.20-Un` box has only THREE
+cutouts, each 6.538 wide**: at D 14.04 the two 4.50 cutouts overlap and merge,
+exactly as the pusher's two tabs merge into one 5.84 boss. The defect reached the
+box as well as the pusher, which is worth knowing — it is independent evidence
+that box and pusher are cut from the same numbers.
+
+C1's `1.701` land is the narrowest bridge anywhere in the new set: a
+1.70 × 1.26 × 5.25 post standing between the two cutouts. It is not a new risk —
+the old `L3.18.6.20-Sl` box already ships a `1.501` land at the same place — but
+it is the thing to look at first on a test print, and it is the direct
+consequence of C1 keeping two tabs rather than the single 10.00 tab the
+catalogue offered as an alternative.
+
+**The lids mirror it, and the key rib is gone.** Recess centres sit at the socket
+centreline ± `s` to within 0.010; recess length is `3.994–3.998` for a `3.80`
+tab; the socket's own span is `D − 0.40` exactly. No lid carries a key rib, which
+is right for C1 and C2. Changes are confined to `z 1.60–6.60` — the three sockets
+and the version string, nothing else.
+
+**One change the catalogue did not ask for, and it stays: the lid recess step is
+`1.700`, was `1.800`.** The plain channel is unchanged at `3.300` for a `3.000`
+plate, but a recess now opens to `5.000` instead of `5.100`, so the tab's play
+against its `1.500` proudness falls from `0.300` to `0.200`.
+
+**Decided on a test print, which is why it holds.** It arrived as an eyeballed
+value and was queried here on exactly that ground; Allan then fitted a printed
+pusher and lid and found `1.800` gave too much gap. So `1.700` is the measured
+answer to a question the catalogue never asked — the catalogue fixed *positions*
+and assumed the running clearances were already right, and on this one they were
+not. A mesh could not have found it: `1.800` clears, and clearing is all a
+measurement can see. **Do not "restore" it to `1.800`.**
+
+**Mind the name.** In the CAD this dimension is *tab depth*: the room the recess
+gives the tab. In this file `tab depth` is the tab's `5.000` along the insertion
+direction (`tab 3.800 × 5.000`). Two dimensions, one name — say **recess step**
+for the `1.700`.
+
+The three lids in `tmp/` already carry it, so nothing needs re-exporting.
+
+**All three parts emboss `7.0`.** Read off the meshes: the box goes `6.6 → 7.0`
+and the lid `6.5 → 7.0`. The lid moving means the adopted-lid discrepancy
+recorded under `--changed Lid` closes at 7.0 — a refreshed cascade will no longer
+carry a box and a lid reading different versions.
+
+**What this does NOT establish.** Nothing here is a print. The 2.00 mm edge inset
+appears on `3x6-Un` and `3x6-Sl` and cannot be judged from a mesh: the tab root
+is now the full 5.00 (against 0.19–2.31 on the worst parts today) so the load
+path is sound, but 2.00 mm of plate outboard of a tab is about five 0.4 mm
+extrusions and is the part most likely to be knocked off in handling. C1 and C2
+also have no notch, so their lids need the depth stop on the socket floor, and
+whether that stop exists is a fit question a mesh measurement does not answer.
+
 ### Migrating to the lock catalogue — 7.0
 
-*(Planned, not started.)*
+*(CAD done, pipeline not started. The CAD already embosses `7.0` on Box, Lid and
+Pusher; `onshape_config.VERSIONS` still reads `Box 6.6, Lid 6.5, Pusher 6.6` and
+must be bumped before any export run, or provenance records a version the parts
+do not carry.)*
 
 **Bump `VERSIONS` for `Pusher`, `Lid` AND `Box`.** All three carry lock
 geometry: the pusher's tabs and notch, the lid's recesses and key rib, and the

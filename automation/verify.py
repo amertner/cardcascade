@@ -395,6 +395,10 @@ def pusher_tabs(data, grid=80):
 # Over the 32 pushers on disk that worst case is 63%, and 15 of the 32 come out
 # with a wider base than they have today, because today's 4.00 mm inset is more
 # generous than the 2.00 the catalogue allows at the bottom of a band.
+#
+# "Today's base" is D - 12.00, not D - 11.80: tab A is 4.00 in from one edge and
+# tab B 4.20 in from the other, so the centres are 6.10 and D - 5.90 and the
+# separation carries tab B's extra 0.20.
 NOTCH_W = 5.40
 EDGE_MIN = 2.00
 LAND_MIN = 1.20
@@ -587,7 +591,11 @@ def audit_catalogue(root):
         tabs = " / ".join(f"{a:.2f}-{b:.2f}" for a, b in want["tabs"])
         notch = (f"{want['notch'][0]:.2f}-{want['notch'][1]:.2f}"
                  if want["notch"] else "none")
-        base, now = 2 * want["s"], d - 11.80
+        # today's base is the separation of the two tab CENTRES, and the CAD
+        # sets tab A 4.00 in from one edge and tab B 4.20 in from the other:
+        # centres at 6.10 and D - 5.90, so D - 12.00. Confirmed against the old
+        # boxes' rim-cutout pitch (11.400 at D 23.40, 6.000 at D 18.00).
+        base, now = 2 * want["s"], d - 12.00
         print(f"    {path.stem:32s} {d:6.2f} {want['class']:>4s} "
               f"{d / 2 - want['s'] - TAB_W_NOMINAL / 2:6.2f} {tabs:>25s} {notch:>13s} "
               f"{base:6.2f} {base - now:+7.2f}")
