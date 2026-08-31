@@ -652,8 +652,29 @@ the same version. Only the holders and toppers carry over.
 
 Cost, from the planner with all three bumped (0 API calls to measure):
 Innovation ~84, Dominion ~148, Compile ~42, FCM ~56 — **~330 calls** for the
-whole migration, against 2500 a year. Adding the Box costs ~50 over Pusher + Lid
-alone, because the Box's `(model, merged)` key splits the Mat cascades' assemblies.
+whole migration, against 2500 a year.
+
+Adding the Box costs ~50 over Pusher + Lid alone, and it is worth being precise
+about why, because the Box is ASSEMBLY_SOURCED and so rides the same translate
+that already brings the pusher, holders and token holders:
+
+| change set | sets | assembly translates | lid studio translates | est. |
+|---|---|---|---|---|
+| `Pusher,Lid` | 46 | 32 | 46 | ~280 |
+| `Pusher,Lid,Box` | 48 | 48 | 46 | ~330 |
+
+The increment is 16 assembly translates, not 48 — riding the assembly is real
+and is already priced in. What it does not cover is that **pushers dedup across
+cascades and boxes do not**: a pusher key is `(risers, cards/slot, sleeving)`, so
+Dominion's 20 sets share 16 assembly fetches, but a box key is `(model, merged)`,
+unique per cascade, so every set must fetch its own. The Mat split accounts only
+for the 46 → 48 sets.
+
+Note where the bill actually is: 46 lid studio translates ≈ 138 calls, the
+largest single item and the one that cannot ride anything, because Lid is
+STUDIO_SOURCED and keyed per model. Half the assembly cost (96 of 144) was
+already owed to the pushers. If the lid could ever be sourced from the assembly
+it would take ~140 off any future migration.
 
 **Do the broken five first.** Their lock does not work now, so nothing is lost by
 re-cutting them, and it is ~35 calls (5 parameter sets, 5 assemblies, 5 lids):
