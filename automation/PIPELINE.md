@@ -443,12 +443,15 @@ Dominion box with three slots:
 | `Innovation S5.15.15.45-Un` | 42.00 | 2 | 46.00 / 44.40 |
 
 `3.20` takes the pusher's 3 mm plate but not its 4.5 mm tab section, so the tabs
-stop at the slot's rim and the pusher hangs from them. **No tab-shaped cutouts
-were found in those slot walls** — probed at 1 mm steps in `x` and 2–8 mm in
-`z`, the free depth is a flat `3.20` throughout apart from the sliding-slot rails
-at their 12–13 mm pitch. Either the tabs rest on the rim, or the boxes on disk
-predate cutouts that exist in the current CAD; worth checking, because the second
-reading means the box exports are stale.
+have to pass through **cutouts in the top rim of the slot's inner lip**: the top
+`5.25` mm of that lip (`z 99.75 → 105.00`) is cut away `4.40` wide, twice per
+pusher, and the pair sits **at exactly that pusher's tab pitch**. Verified on 14
+boxes across the four games — `L6.40.12.45-Un`'s cutouts are 29.76 apart against
+a 29.76 tab pitch, `M4.21.10.32-Un`'s 12.77–12.82 against 12.80, and so on — with
+16.00 between one pusher's outer cutout and its neighbour's inner one. The outer
+wall is uncut, which is why the cutouts are invisible from behind and why an
+earlier probe of the slot's FACES found nothing: they are in the rim, above the
+`z ≤ 92` the probe covered.
 
 Every mating feature — lid socket and box slot alike — is therefore sized from
 the same `D` the pusher's features are.
@@ -580,12 +583,15 @@ today's 4.00 mm inset is more generous than the 2.00 the catalogue allows at the
 bottom of a band. The parts that lose are the wide ones at the top of a band;
 the worst is `Pusher 9x10-Sl`, 48.00 against 63.80.
 
-**The boxes survive.** The box slot is `D + 2.40` wide and, as exported, carries
-no tab cutouts — the tabs rest on its rim. Every catalogue tab sits at least
-2.00 mm inboard of the plate edge, so it is always inside the slot: existing
-boxes keep working with re-cut pushers. That holds unless the current CAD has
-cutouts these exports do not, which is worth checking before relying on it. The
-lids all change — the recesses move on every one, and six lose the rib.
+**The boxes do NOT survive, and a catalogue cannot make them.** The box's rim
+cutouts are `4.40` wide for a `3.80` tab, so a tab may shift `±0.30` and still
+drop in. The old tab centres are `6.10` and `D − 5.90`, so a class of offset `s`
+stays box-compatible only while `D ∈ [2s + 11.60, 2s + 12.40]` — a 0.80 mm window
+per class, which none of the 32 depths lands in except `D = 18.00` under C1.
+Making every pusher land in its window means `s = D/2 − 6.00`, which IS today's
+parametric rule. **A fixed catalogue and box compatibility are mutually
+exclusive.** The lids all change too — the recesses move on every one, and six
+lose the rib.
 
 **Three things to settle before this is cut.**
 
@@ -627,24 +633,27 @@ is closed. What makes five designs viable at all is dropping the edge inset from
 
 *(Planned, not started.)*
 
-**Bump `VERSIONS` for `Pusher` and `Lid` only.** Nothing else changes: the Box's
-back slot is `D + 2.40` with no tab cutouts, so any tab position hangs in any
-box; holders, toppers, token holders and labels never touch the lock. And
-`run_export` writes only the components a cascade actually needs, so an assembly
-re-export fetched for a new pusher leaves that cascade's box and holder files
-byte-identical on disk — no tessellation drift to review.
+**Bump `VERSIONS` for `Pusher`, `Lid` AND `Box`.** All three carry lock
+geometry: the pusher's tabs and notch, the lid's recesses and key rib, and the
+box's rim cutouts. Only holders, toppers, token holders and labels are untouched.
+`run_export` writes just the components a cascade needs, so those four come back
+byte-identical even though the assembly is re-fetched.
 
 | component | 7.0 | why |
 |---|---|---|
 | Pusher | **changes** | new tab and notch positions |
 | Lid | **changes** | socket recesses move; six lose the key rib |
-| Box | unchanged | slot is a plain rim; the largest print anyone has made |
+| Box | **changes** | the rim cutouts sit at the old tab pitch |
 | Holder, first-riser holder | unchanged | no lock features |
 | Topper, TokenHolder, HalfTokenHolder, Label | unchanged | no lock features |
 
-Cost, from the planner with both versions bumped (0 API calls to measure):
-Innovation ~66, Dominion ~128, Compile ~36, FCM ~50 — **~280 calls** for the
-whole migration, against 2500 a year.
+So 7.0 is a whole-cascade change: a pusher, a lid and a box must all come from
+the same version. Only the holders and toppers carry over.
+
+Cost, from the planner with all three bumped (0 API calls to measure):
+Innovation ~84, Dominion ~148, Compile ~42, FCM ~56 — **~330 calls** for the
+whole migration, against 2500 a year. Adding the Box costs ~50 over Pusher + Lid
+alone, because the Box's `(model, merged)` key splits the Mat cascades' assemblies.
 
 **Do the broken five first.** Their lock does not work now, so nothing is lost by
 re-cutting them, and it is ~35 calls (5 parameter sets, 5 assemblies, 5 lids):
@@ -661,20 +670,25 @@ Six more are under-rooted but usable and can ride the general migration:
 Dominion 168, 202 (Mat), 244 Un (3.01 mm), FCM 144 Un (2.31), Compile 126 and
 210 Un (3.61, 0.19 overhang).
 
-**A backwards-compatible pusher is not possible**, and the two measurements that
-close it off are worth keeping: the lid socket's key rib blocks the channel
-outright, so the notch position is a hard key rather than a preference; and away
-from a recess the socket wall leaves `3.27` of free channel against the `4.50` a
-tab needs, so a tab anywhere but a recess jams. A pusher that works in an old lid
-must therefore carry the old notch AND the old tabs — it must be the old pusher.
-Tabs at both old and new positions jam; a notch wide enough to clear both ribs
-would take 8 mm of plate and still not lock. A tabless notch-only pusher would
-slide into either lid (the 3.00 plate passes everywhere) and sit in the box slot
-without hanging, but it never locks and is a third variant to explain.
+**A backwards-compatible pusher is not possible**, on three counts now. The lid
+socket's key rib blocks the channel outright, so the notch position is a hard key
+rather than a preference. Away from a recess the socket wall leaves `3.27` of
+free channel against the `4.50` a tab needs, so a tab anywhere but a recess jams.
+And the box's rim cutouts are cut at the old tab pitch, so a re-pitched pusher
+will not drop into an old box either. A pusher that works with old parts must
+carry the old notch AND the old tab positions — it must be the old pusher. Tabs
+at both old and new positions jam; a notch wide enough to clear both ribs would
+take 8 mm of plate and still not lock.
+
+The one partial part that IS possible: a **tabless, notch-only pusher** slides
+into either lid (the 3.00 plate passes everywhere) and drops to the bottom of the
+box slot instead of hanging. It never locks, so it is a worse part than either
+version and a third variant per size to explain — not recommended, but recorded
+because it is the only geometry that spans both.
 
 So compatibility lives in distribution, not geometry: **keep the 6.x downloads
-available**, and publish one rule — *a pusher and a lid must come from the same
-version; everything else already printed still fits.*
+available**, and publish one rule — *a pusher, a lid and a box must all come from
+the same version; holders and toppers carry over.*
 
 ## Build policies (decided)
 
