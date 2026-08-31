@@ -76,22 +76,46 @@ def _mm(text):
 
 def holder(ctx, capacity, first=False, spans=False):
     """A per-slot holder. Its size is set by the box's front pocket, so it is
-    keyed by (size, front capacity, sleeved, first) and named e.g. 'Holder
-    M-21-Sl'. (size, front capacity) fixes cards/slot within a game. NB Mat
-    (`merged`) merges the two rightmost FRONT-pocket slots, which resizes the
-    box and token holder but NOT this sliding-slot holder (verified byte-equal),
-    so `merged` is deliberately absent from the key. The first-riser holder is a
-    distinct sibling (same box, deeper) tagged `first`. Compile/Innovation
-    holders instead span `Horizontal` protocols."""
+    keyed by (size, front capacity, RISERS, sleeved, first) and named e.g.
+    'Holder M-21-r4-Sl'. (size, front capacity) fixes cards/slot within a game.
+    NB Mat (`merged`) merges the two rightmost FRONT-pocket slots, which resizes
+    the box and token holder but NOT this sliding-slot holder (verified
+    byte-equal), so `merged` is deliberately absent from the key. The first-riser
+    holder is a distinct sibling (same box, deeper) tagged `first`.
+    Compile/Innovation holders instead span `Horizontal` protocols.
+
+    RISERS is in the key because the holder is NOT invariant with riser count,
+    and that is by design, not a leaked dependency (Allan, after 03c6376 left it
+    open): the diagonal edge has to form one continuous line across the open
+    cascade, and how far a riser may rise is capped by the box height — so more
+    risers means a shallower rise and a shallower diagonal. The ~2 mm lip behind
+    each pocket is extended along that same diagonal, so it stands out further
+    when the angle is shallower.
+
+    The design parameter is really RISE HEIGHT, and riser count is the stand-in
+    for it, for two reasons. It is exact: over all 32 pushers, rise is a function
+    of riser count within a game (Innovation 3->22.0, 5->17.4; Dominion 4->16.0,
+    6->14.5, 8->10.875, 9->9.667), and the game is already implied by the folder.
+    And it is the only one available: this name is computed from parts.csv BEFORE
+    the export exists, so a key measured off a mesh would be circular — the
+    pusher is no help either, since it comes out of the same assembly.
+
+    Rise IS measurable, from the pusher's staircase (tread length = rise), and
+    `verify.py` uses it as a guard on this key rather than as the key. Note it is
+    strictly coarser than riser count — FCM rises 20.0 at both 3 and 4 risers —
+    so keying by rise could merge two holders that must stay apart, while keying
+    by risers can at worst emit two byte-identical files."""
     slv = ctx["sleeved"]
+    ris = int(ctx["risers"])
     if spans:
         label = f"{ctx['horizontal']}x{ctx['cards_per_slot']}"
-        key = ("Holder", "span", ctx["horizontal"], ctx["cards_per_slot"], slv)
-        name = f"Holder {label}-{slv}"
+        key = ("Holder", "span", ctx["horizontal"], ctx["cards_per_slot"],
+               ris, slv)
+        name = f"Holder {label}-r{ris}-{slv}"
     else:
         label = f"{ctx['size']}-{ctx['front_capacity']}"
-        key = ("Holder", ctx["size"], ctx["front_capacity"], slv, first)
-        name = f"Holder {label}-{slv}" + (" (first)" if first else "")
+        key = ("Holder", ctx["size"], ctx["front_capacity"], ris, slv, first)
+        name = f"Holder {label}-r{ris}-{slv}" + (" (first)" if first else "")
     # The first-riser holder is a distinct object named "FirstHolder" in the
     # Onshape export (its own slot); the default holder stays "Holder".
     return {"type": "Holder", "key": key, "file": f"{name}.3mf",

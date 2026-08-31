@@ -343,27 +343,98 @@ tessellation: the Aug-24 CAD edit RETESSELLATED `Holder 3x15-Sl` (7896 -> 7929
 vertices) and its `Y-max` still came back bit-identical. Tessellation reproduces
 exactly for fixed inputs, so a `Y-max` that moves means an input moved.
 
-**Whether that dependence is intended is an open question for Allan**, and the
-fix forks on the answer: if the wedge is meant to track riser count, the holder
-keys are missing an axis and the FILENAMES must carry it; if it is not, this is a
-leaked dependency in the CAD and the keys are fine as they stand. Do not rename
-anything until that is settled — the sub-0.15 mm magnitude means nothing printed
-is wrong either way (the slicer's own elephant-foot compensation is larger).
+**RESOLVED — the dependence is intended, and the key now carries `risers`**
+(Allan, after this section left it open). Two design reasons, both his: the
+diagonal edge has to form ONE continuous line across the open cascade, and how
+far a riser may rise is capped by the box height — so at 5 risers a 22 mm rise
+may have to come down to 20 to leave the rearmost riser enough hold, and the
+angle changes with it. The ~2 mm lip behind each pocket is extended along that
+same diagonal, so it stands proud further when the angle is shallower. All of
+that is deliberate, for usability.
 
-Holder files currently shared across differing riser counts, i.e. one filename
-holding two meshes, whichever way the question resolves:
+The `Y-max` wedge above is therefore a symptom, not the effect. At 7.0 the real
+magnitude is far larger than the 0.13 mm recorded here: the leaves' taper on
+Innovation `3x10-Un` measures `2.299` at 3 risers against `1.795` at 5 — 0.5 mm,
+and the two-thickness structure at z 25 collapses to one. **The "nothing printed
+is wrong either way" conclusion above does not survive 7.0.**
 
-| game | file | rows (risers) |
+**The key gained RISERS, not rise height,** though rise is the real design
+parameter. Rise IS measurable — the pusher is cut as a staircase, one tread per
+riser, each dropping the plate width by `D/risers`, and the tread LENGTH is the
+rise: `22.000` on Innovation at 3 risers, `17.400` at 5, dead flat across treads.
+Two things rule it out as the key anyway:
+
+- **It cannot be assigned, only checked.** `plan_exports.holder()` computes the
+  filename from parts.csv BEFORE the export exists — the name is what decides
+  what to fetch and where to write it. A mesh-derived key is circular, and the
+  pusher is no escape: it comes out of the same assembly.
+- **It is strictly coarser than riser count.** FCM rises 20.0 at BOTH 3 and 4
+  risers. Keying by rise could merge holders that must stay apart; keying by
+  risers can at worst emit two byte-identical files.
+
+Riser count is not a lossy proxy: measured over all 32 pushers, **rise is a
+function of riser count within a game**, and the game is already implied by the
+folder. That is an assumption about the CAD, so it is checked rather than
+trusted — `verify.py --rises` prints the table and exits 1 if any
+`(game, risers)` pair ever yields two rises. It reads 12 pairs, 0 inconsistent.
+
+Rise by game and riser count, for reference:
+
+| | 2 | 3 | 4 | 5 | 6 | 8 | 9 |
+|---|---|---|---|---|---|---|---|
+| Innovation | | 22.0 | | 17.4 | | | |
+| Compile | | | 18.0 | 17.4 | | | |
+| FCM | | 20.0 | 20.0 | 17.4 | | | |
+| Dominion | n/a | | 16.0 | 16.0 | 14.5 | 10.875 | 9.667 |
+
+Dominion at 2 risers has a single tread and no gap, so rise is not measurable
+there at all — another reason the key could not have been mesh-derived, since
+`S-40` `[2, 5]` was one of the collisions that needed resolving.
+
+The four files that each held two meshes, and which mesh each turned out to hold
+— settled from provenance (components sharing an `exported_at` came from one
+parameter set, and the boxes in that batch name the cascade) and, where a batch
+held both consumers, from the mesh against an unambiguous same-game reference:
+
+| game | file | rows (risers) | held | how |
+|---|---|---|---|---|
+| Innovation | `Holder 3x10-{Un,Sl}` | Single Set (3), 3 Later Ages (5) | **5** | provenance |
+| Compile | `Holder 3x7-Un` | 105 Card (4), 126 Card (5) | **4** | provenance |
+| Compile | `Holder 3x7-Sl` | as above | **4** | mesh: 0.7799 ≠ 5-riser 0.8043 |
+| Dominion | `Holder M-21-{Un,Sl}` | 202/244 Card (4), 324 Card (6) | **4** | mesh: matches 4-riser `S-16` exactly |
+| Dominion | `Holder S-40-{Un,Sl}` | 246 Card (2), 300 Card (5) | **5** | mesh: cap-40 trend predicts 19.296@5 vs 25.263@2; measured 19.044 |
+
+FCM is clean. Note the previous paragraph had this backwards for Innovation:
+Single Set's project embedded the **5**-riser mesh, not the 3-riser one — it had
+been getting the wrong holder, which is exactly the failure the key now prevents.
+
+**State of the rename, and what is left.** The key change renamed all 42 holder
+files to carry `-r<N>-` (`Holder 3x10-Un` -> `Holder 3x10-r5-Un`,
+`Holder M-21-Sl` -> `Holder M-21-r4-Sl`), with `git mv` and the provenance `key`
+column widened to match. Every project was then audited by matching the holder
+mesh it embeds against the file it should now use: **45 of 45 carry the right
+holder.** Only Innovation Single Set Un did not, and it was rebuilt from the
+3-riser holder split out of its own cached assembly — 0 calls.
+
+Nine holder files have no mesh on disk, because no cascade with that riser count
+was ever exported. Seven cascades need them, and the exports are NOT extra work:
+one assembly export supplies Box + Holder + Pusher together, and all three are
+stale at 7.0 anyway, so the holder fix and the 7.0 lock migration are the same
+operation at the same price.
+
+| cascade | missing holder | ~calls |
 |---|---|---|
-| Innovation | `Holder 3x10-{Un,Sl}` | Single Set (3), 3 Later Ages (5) |
-| Compile | `Holder 3x7-{Un,Sl}` | 105 Card (4), 126 Card (5) |
-| Dominion | `Holder M-21-{Un,Sl}` | 202/244 Card (4), 324 Card (6) |
-| Dominion | `Holder S-40-{Un,Sl}` | 246 Card (2), 300 Card (5) |
+| Innovation Single Set Sl | `Holder 3x10-r3-Sl` | ~7 |
+| Compile 126 Card Un / Sl | `Holder 3x7-r5-{Un,Sl}` | ~14 |
+| Dominion 324 Card Un / Sl | `Holder M-21-r6-{Un,Sl}` | ~14 |
+| Dominion 246 Card Un / Sl | `Holder S-40-r2-{Un,Sl}` | ~14 |
 
-FCM is clean. Which variant is on disk depends on which cascade was exported
-LAST, so a refresh of the other consumer silently swaps its holder and provenance
-calls the file current either way. `Holder 3x10` is in that state now, holding
-the 5-riser mesh while Single Set's project embeds the 3-riser one.
+~49 calls for all seven, which also brings each to 7.0. `Holder M-21-r6-{Un,Sl}
+(first)` is wanted only by the Speculation row (`290 Card`), which is skipped for
+an incomplete parts.csv row, so it costs nothing until that row is finished.
+
+Three of the seven are already on the broken-eleven list (`246 Card Un`, and both
+sleevings ride the same assembly), so those calls were owed regardless.
 
 **`_raw/` is what makes all of this checkable for free.** Any question of the
 form "does component C depend on input I" is answered by splitting two cached

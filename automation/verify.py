@@ -517,6 +517,94 @@ def check_pusher(data, ctx=None):
 
 
 # ---------------------------------------------------------------------------
+# Rise height, and the invariant the holder key rests on
+# ---------------------------------------------------------------------------
+#
+# A Pusher is cut as a staircase: one tread per riser, each dropping the plate's
+# width by D/risers, and the tread LENGTH is how far that riser travels — the
+# rise height. So rise is measurable off any pusher, exactly.
+#
+# The Holder key carries RISERS (see plan_exports.holder) because the holder is
+# genuinely not invariant with riser count: the diagonal edge has to form one
+# line across the open cascade, and rise is capped by box height, so more risers
+# means a shallower diagonal. Riser count stands in for rise because it is the
+# only one of the two available when the filename is computed — and because,
+# measured over all 32 pushers, RISE IS A FUNCTION OF RISER COUNT WITHIN A GAME.
+#
+# That is an assumption about the CAD, not a fact about the world, so it is
+# checked rather than trusted: `verify.py --rises` refuses if any (game, risers)
+# pair ever yields two different rises. If that fires, the holder key needs a
+# real rise axis and the stand-in has stopped working.
+
+
+def pusher_rise(data, risers):
+    """(rise, treads) for a Pusher: the distance one riser travels, and every
+    tread length measured. `rise` is their mean — they agree exactly except
+    where a fixed travel does not divide evenly (8 risers alternates
+    10.923/10.827 about 10.875)."""
+    verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
+    c = list(zip(*verts))
+    zlo, zhi = min(c[2]), max(c[2])
+    segs = _section(verts, tris, 2, zlo + 0.5 * (zhi - zlo))   # clear of tabs
+    x0, x1 = min(c[0]), max(c[0])
+    y0, y1 = min(c[1]), max(c[1])
+    unit = (y1 - y0) / risers
+    edges, last = [], None
+    for j in range(900):
+        x = x0 + (j + .5) * (x1 - x0) / 900
+        ins = [y for y in (y0 + (k + .5) * (y1 - y0) / 300 for k in range(300))
+               if _inside(segs, x, y)]
+        w = (max(ins) - min(ins)) if ins else 0.0
+        n = round(w / unit)
+        if last is None:
+            last = n
+            continue
+        if abs(w - n * unit) < 0.6:
+            if n < last:
+                edges.append(x - x0)
+            last = n
+    treads = [b - a for a, b in zip(edges, edges[1:])]
+    return (sum(treads) / len(treads) if treads else None), treads
+
+
+def audit_rises(root, tol=0.05):
+    """Print rise height per pusher and check it is a function of riser count
+    within each game. Returns the number of (game, risers) pairs that disagree."""
+    from pathlib import Path
+    root = Path(root)
+    seen = {}
+    print(f"    {'game':12s} {'pusher':20s} {'risers':>6s} {'rise':>9s}   treads")
+    for path in sorted(root.glob("individual/*/Pusher*.3mf")):
+        m = re.match(r"Pusher (\d+)x(\d+)-(Un|Sl)$", path.stem)
+        if not m:
+            continue
+        risers = int(m.group(1))
+        try:
+            rise, treads = pusher_rise(path.read_bytes(), risers)
+        except (ValueError, KeyError, ZeroDivisionError, IndexError):
+            continue
+        game = path.parent.name
+        if rise is None:
+            print(f"    {game:12s} {path.stem:20s} {risers:6d} {'--':>9s}   "
+                  f"(one tread — rise not measurable)")
+            continue
+        print(f"    {game:12s} {path.stem:20s} {risers:6d} {rise:9.3f}   "
+              + " ".join(f"{t:.3f}" for t in treads))
+        seen.setdefault((game, risers), []).append((path.stem, rise))
+    bad = 0
+    for (game, risers), got in sorted(seen.items()):
+        lo, hi = min(r for _n, r in got), max(r for _n, r in got)
+        if hi - lo > tol:
+            bad += 1
+            print(f"\n  ✗ {game} at {risers} risers gives {lo:.3f}..{hi:.3f} — "
+                  f"rise is NOT a function of riser count here, so the Holder "
+                  f"key's riser axis no longer stands in for it: "
+                  + ", ".join(f"{n} {r:.3f}" for n, r in got))
+    print(f"\n  {len(seen)} (game, risers) pairs; {bad} inconsistent.")
+    return bad
+
+
+# ---------------------------------------------------------------------------
 # CLI: audit every Pusher on disk
 # ---------------------------------------------------------------------------
 
@@ -615,13 +703,20 @@ if __name__ == "__main__":
                     help="with --pushers, list the passing ones too")
     ap.add_argument("--catalogue", action="store_true",
                     help="print the five-design lock catalogue worksheet")
+    ap.add_argument("--rises", action="store_true",
+                    help="print rise height per pusher and check it is a "
+                         "function of riser count within each game — the "
+                         "invariant the Holder key's riser axis rests on")
     args = ap.parse_args()
     root = Path(__file__).resolve().parent.parent
+    if args.rises:
+        print("  Rise height per riser, read off each pusher's staircase:")
+        sys.exit(1 if audit_rises(root) else 0)
     if args.catalogue:
         print("  Lock catalogue — where each pusher's features would move to:")
         audit_catalogue(root)
         sys.exit(0)
     if not args.pushers:
-        ap.error("nothing to do — try --pushers or --catalogue")
+        ap.error("nothing to do — try --pushers, --catalogue or --rises")
     print("  Pusher lock (tab count, backed fraction, widest backed strip):")
     sys.exit(1 if audit_pushers(root, verbose=args.all) else 0)

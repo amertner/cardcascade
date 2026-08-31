@@ -176,8 +176,18 @@ def is_imported(part_name, component_type):
 # The LID is deliberately left at 6.5 (Allan's call), so a refreshed cascade has
 # a box reading 6.6 under a lid that still embosses 6.4 — the adopted-lid
 # discrepancy PIPELINE.md records under `--changed Lid`.
+# 7.0 is the lock catalogue (see LOCK_STANDARD.md). Box, Lid and Pusher all
+# carry lock geometry — the pusher's tabs and notch, the lid's recesses and key
+# rib, the box's rim cutouts — so all three move together and a cascade must be
+# built from one version of the three. Holders and toppers carry no lock feature
+# and stay where they are. Confirmed against the meshes before bumping: the CAD
+# embosses "7.0" on Box, Lid and Pusher alike, read off the exported parts.
+#
+# The Lid moving is what closes the adopted-lid discrepancy noted below: it sat
+# at 6.5 while everything else went to 6.6, so a refreshed cascade carried a box
+# and a lid reading different versions. At 7.0 they agree again.
 VERSIONS = {
-    "Box": "6.6", "Lid": "6.5", "Holder": "6.6", "Pusher": "6.6",
+    "Box": "7.0", "Lid": "7.0", "Holder": "6.6", "Pusher": "7.0",
     "Topper": "6.6", "TokenHolder": "6.6", "HalfTokenHolder": "6.6",
     "Label": "6.3",
 }
