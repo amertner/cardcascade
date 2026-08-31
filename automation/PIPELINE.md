@@ -730,6 +730,54 @@ Six more are under-rooted but usable and can ride the general migration:
 Dominion 168, 202 (Mat), 244 Un (3.01 mm), FCM 144 Un (2.31), Compile 126 and
 210 Un (3.61, 0.19 overhang).
 
+**Depth, not size class, is the theme — and box depth is a publishable proxy.**
+The defect is set by the PUSHER's depth (under-rooted below `D = 26.4`), which is
+the card stack's thickness, so it is orthogonal to the S/M/L in a model code —
+that letter is WIDTH. The affected set spans `L3.18.6` (334 wide, 35 deep) to
+`S2.40.12/30` (208 wide, 50 deep), which is why "small cascades" reads as wrong
+even though the intuition behind it is right.
+
+Correlated against each row's assembled depth (`parts.csv` D, the closed
+cascade), the split is clean enough to publish:
+
+- every affected cascade is **50.0 mm deep or less** (range 35.0–50.0);
+- the shallowest unaffected one is **47.7**.
+
+So "roughly 50 mm and under" catches all 11 with three false positives and no
+misses — the safe direction. State it as *roughly*, not a cutoff: it is a proxy
+for the pusher, and a future box size could land in the 47.7–50.0 overlap on the
+other side. The exact criterion stays `pusher D < 26.4`, which
+`verify.py --pushers` tests directly.
+
+**Choosing the first wave.** Each affected cascade needs its own parameter set
+(the box key is unique per cascade), so a wave costs about 7 calls per cascade —
+1 set + 1 assembly + 1 lid.
+
+| scope | cascades | calls | leaves behind |
+|---|---|---|---|
+| broken only | 11 | ~77 | 9 split rows |
+| ≤ 50 mm | 14 | ~98 | 8 split rows |
+| whole rows | 20 | ~140 | nothing split |
+| everything | 50 | ~350 | — |
+
+The ≤ 50 mm sweep adds `FCM 264 Un`, `198 Un` (hang base 16.04 → 17.00) and
+`FCM 144 Sl` (18.20 → **17.00**, a loss). None has a defect, so it buys only that
+the published rule matches what shipped.
+
+**The split-row problem is the real constraint.** 9 of the 11 affected cascades
+are the UNSLEEVED half of a row whose sleeved half is fine, so a broken-only wave
+leaves 9 boxes whose two sleevings lock differently under the same name — e.g.
+`Dominion 244 Un` at 7.0 beside `244 Sl` at 6.x. The 50 mm sweep repairs that for
+FCM 144 only; the other 8 partners are 50.6–68.1 deep. Fixing whole rows is the
+only wave with a rule a user cannot misread, at ~40 % of the full migration.
+
+Its cost, recorded so it is not discovered late: 7 of those 9 partners LOSE hang
+base under the catalogue — `Compile 105 Sl` −3.20, the Dominion sleeved trio
+−4.80 — because their generous depth currently buys a wider spread than a fixed
+class gives. That is the catalogue's known trade (see the 63 % worst case above),
+not a regression the wave introduces, but those users get a slightly less stable
+hang for no visible gain, and the release note should say so.
+
 **A backwards-compatible pusher is not possible**, on three counts now. The lid
 socket's key rib blocks the channel outright, so the notch position is a hard key
 rather than a preference. Away from a recess the socket wall leaves `3.27` of
