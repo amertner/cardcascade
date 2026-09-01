@@ -8,6 +8,8 @@ compares every X-normal face area, the whole mid-plate outline, the tab tops
 and the volume against them, so they need to stay byte-stable: re-export only
 to capture a deliberate CAD change, and say which change in the commit.
 
+### Pusher
+
 | file | cascade | primaries |
 |---|---|---|
 | `Pusher S4.7.7.32-Sl.step` | Compile 105 Card Sleeved | `H3 R4 fc7 cps7` no override, sleeved, 7.0 |
@@ -23,3 +25,19 @@ Both are in **assembly position**: X `+3.000`, Y `0`, and Z at
 Dominion (rise 16.000). The rule is confirmed on all 32 component 3MFs in
 `individual/`, and `pusher.assembly_offset` is it. Tests still align on the
 bounding box, because that stays right if a future part places differently.
+
+### Box
+
+Five, because the Box has more independent axes than the Pusher did. What each
+one splits, and what has been measured off them, is in `spec/BOX.md`.
+
+| file | cascade |
+|---|---|
+| `Box Compile 105S.step` | Compile 105 Card Sl `S4.7.7.32-Sl` — S: 3 slots, 2 pusher slots, and the same cascade as the Pusher STEP above, so the box's rim cutouts can be checked against that pusher's tabs |
+| `Box Dominion 244S.step` | Dominion 244 Card Sl `M4.21.10.45-Sl` — M: 4 slots, 3 pusher slots |
+| `Box Dominion 202S Merged.step` | Dominion 202 Card (Mat) Sl — the SAME model code with `MatPocket = 1`, so the merge is isolated to `758.957 mm³` and 47 faces |
+| `Box Dominion 650S.step` | Dominion 650 Card Sl `L8.50.10.62-Sl` — L: 5 slots, deepest box, the only C5 lock |
+| `Box FCM 72S.step` | **not a parts.csv row** — scratch parameters (FCM Sl, `H3 R3 fc6 cps6`) Allan exported as an extra. Kept: it is the smallest box and the only C2 lock |
+
+At 2.1 MB gzipped for all five they cost the repo almost nothing, and a
+re-export costs an hour of somebody's afternoon rather than any API budget.
