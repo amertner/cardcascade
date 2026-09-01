@@ -945,9 +945,45 @@ way the filter selected `434` edges where Onshape's picks about `60`, the fillet
 removed `312 mm³` against the reference's `129.4`, and one box took `162`
 seconds instead of six.
 
-So `Smooth box edges` needs a GEOMETRIC statement of the same edge set — the
-table above is what it has to reproduce — rather than an attempt to recover the
-feature history. That is the shape of the remaining work.
+### A third attempt: the skeleton, and why it also misses
+
+Build the named features ON THEIR OWN — shell, rear block, `Top of back`,
+dividers, `Lower the front`, `Round top box corners` — take that solid's convex
+edges, and select the finished part's edges that lie on the same pair of
+SURFACES. Matching by surface rather than by midpoint is the right idea and
+solves the splitting problem: the skeleton's rim is one edge where the finished
+box's is twenty-two pieces, and every piece lies on the same two planes.
+
+It is fast (`0.2 s`) and deterministic. It is also wrong: 52 edges selected, 38
+of them right, 14 false and about 18 missed.
+
+The reason is that the skeleton is NOT the solid those features produced:
+
+* **The dividers do not exist in it.** A divider is what is LEFT after the
+  cavities are cut, and the cavities are not shell-level features. Adding
+  divider-shaped boxes into a region that is still solid contributes nothing.
+* **The `z = 85.000` ledge has 4 edges where the real box has 14**, for the
+  same reason — the storage behind it is not hollow yet.
+* **Conversely the skeleton's back rim is unbroken**, so every piece of the real
+  rim BETWEEN the pusher cutouts lies on it and gets selected. The reference
+  leaves those alone.
+
+And the deeper point: Onshape's filter is per-feature PROVENANCE, not a snapshot.
+It cannot be had by building up to a point in the tree either, because
+`Round top box corners` comes after the rear storage — a snapshot there would
+contain the lattice and the cutouts, which the query excludes.
+
+### So the edge set has to be STATED
+
+Not recovered. Everything needed is a model constant: the horizontal levels are
+`0`, `FRONT_TOP`, `REAR_TOP` and `BoxHeight`, the verticals are the wall and
+divider positions, and the arcs are `Round top box corners`. Written that way it
+is fast, deterministic and generalises across the catalogue.
+
+One caveat found the hard way, and the reason this is not yet written: the rim
+cutouts also reach `z = 105.000`, and the reference does NOT fillet the rim
+pieces between them. So a plain "every horizontal edge at these levels" rule
+over-selects, and the statement needs to exclude the back wall's own rim.
 
 ## Still open
 
