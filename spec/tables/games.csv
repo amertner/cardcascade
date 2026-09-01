@@ -1,0 +1,8 @@
+# Per-GameName lookups. GameName drives "logo, height increment and card size"
+# (set_variables.py). One row per game; add columns as needed — this header is a
+# guess and should be replaced by the studio's actual per-game values.
+game,card_w_mm,card_h_mm,card_thickness_un_mm,card_thickness_sl_mm,height_increment_mm,logo
+Compile,,,,,,
+Dominion,,,,,,
+FCM,,,,,,
+Innovation,,,,,,
