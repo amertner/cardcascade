@@ -577,7 +577,7 @@ The corner-round probe is what caught it: `4.600` measured `4.800` of eaten
 material on the build and `4.795` on the STEP, because the probe column sits in
 the end wall and the sliver was in it.
 
-## `Thumb and Lip` — the thumb is settled, the lip's ANGLE is not
+## `Thumb and Lip`
 
 ### `Thumb`
 
@@ -608,49 +608,48 @@ edge is an arc, not a circle. Use `ThreePointArc`, not `RadiusArc`: two points
 and a radius admit four arcs and the one chosen left the hole a plain `12.400`
 cylinder, which the STEP's own profile caught immediately.
 
-### `Lip` — measured in full, one number missing
+### `Lip` — and where its angle comes from
 
-Behind the panel, two per thumb, symmetric about it. Everything about it is
-pinned EXCEPT its angle:
+Two per thumb, symmetric about it, standing proud of the panel's BACK face for
+the front holder to catch on.
 
 ```
-x            thumb centre ± 15.400 .. ± 25.400, so LipLength = 10.000
-             with LipChamfer = 1.200 45-degree chamfers, giving 12.400 overall
-section      a ridge starting at the panel's BACK face at z = 85.475,
-             running LipDepth = 2.100 at an angle from vertical,
-             LipHeight = 2.000 tall in Z
+centre X   thumb centre +- 20.400
+section    a PARALLELOGRAM: from the panel's back face at z = 85.500,
+           LipDepth = 2.100 along the ramp, LipHeight = 2.000 tall in Z
+plan       LipLength = 10.000 with a LipChamfer = 1.200 45-degree chamfer at
+           each end, so the base measures 12.400
+angle      tan = (calFirstSliderDistance - 1.200) / (calHeightIncrement - 1.000)
 ```
 
-`sqrt(protrusion² + rise²) = 2.1000` on all five references, to four decimals —
-so `LipDepth` is confirmed and the shape is a parallelogram in section, not a
-cut. **But the angle varies per box and nothing in the derived set predicts it:**
+**The angle is the HOLDER's diagonal cutout angle** (Allan) — the group opens
+with `Import Holder patterns`, and that is what comes across. It is the one
+thing here that could not be reached from the Box alone, and the reason is
+worth recording: `Box Dominion 244S` and `Box Dominion 650S` have identical
+slot, slider and holder DEPTH — `calSliderDistance 8.400`, `calHolderDepth
+7.900` — and different lip angles, `0.480` against `0.729`. What separates them
+is `calHeightIncrement`, `16.000` against `10.875`, which is a riser-count term
+and has no business in a front-pocket feature until you know the angle is
+imported from a part that does care about it.
 
-| reference | protrusion | tan(angle) | `calSliderDistance` | `calHolderDepth` | `calFrontPocketDepth` |
-|---|---|---|---|---|---|
-| FCM 72 | `0.514` | `0.2525` | `6.000` | `5.500` | `3.600` |
-| Compile 105 | `0.780` | `0.4000` | `8.000` | `7.500` | `5.600` |
-| Dominion 244 | `0.909` | `0.4802` | `8.400` | `7.900` | `12.600` |
-| Dominion 650 | `1.237` | `0.7289` | `8.400` | `7.900` | `30.000` |
-| Dominion 246 | `1.655` | `1.2800` | `9.600` | `9.100` | `24.000` |
+**Confirmed on all 46 canonical Holders in `individual/`** (0 API calls). Their
+diagonal cutout's face normal gives the angle directly, and the formula
+reproduces every one across four games, both sleevings, rises from `9.667` to
+`22.000` and slider distances from `4.800` to `20.400`.
 
-Dominion 244 and 650 have **identical** slot, slider and holder geometry and
-different angles, which rules out everything the holder could contribute — even
-though the group opens with `Import Holder patterns`. And Dominion 246's angle
-is larger than Dominion 650's while its pocket is shallower, which rules out any
-monotonic function of `calFrontPocketDepth` or of the angled cutout's own slope.
-Tried and rejected: the angled plane's slope, its normal, a fixed offset from
-either, `calSliderDistance`, `calSlotDepth`, `calHolderDepth`,
-`calFirstSlotDepth`, `calFrontPocketDepth`, `#BoxDepth`, `HorizontalSlots`,
-`RisingSliders`, `calPusherTotalHeight`.
+It is the FIRST slider distance because the lip meets the FRONT holder.
+`Box Dominion 246S` is the only reference that can tell the two apart —
+`20.400` against `9.600` — and it reads `1.280`, not `0.560`.
 
-**`individual/` cannot settle this.** The 44 canonical Box 3MFs have NO lip at
-all — the feature postdates them — so unlike the pusher rest, there is no
-corpus to fit against. Only the five STEPs have it, and five points across an
-unknown functional form is not enough.
+A shallow lip truncates its own chamfer, so the top face measures
+`LipLength + 2*(LipChamfer - protrusion)` until the protrusion passes `1.200`:
+`11.371` on FCM 72, `10.840` on Compile 105, and exactly `10.000` on Dominion
+650 and 246. Both the STEP and the build show it.
 
-So `cad/parts/box.py` builds the thumb and leaves the lip out, and this is the
-one place the Box is knowingly INCOMPLETE rather than divergent. It shows in
-`box_diff` as five MISSING lumps of about `35.977 mm³` at `z 85.5..88.8`.
+The lip goes into the pocket composite BEFORE the angled cutout, and reaches
+`0.800` into the panel so the fuse is not across a coincident face. That tab is
+then trimmed with the panel by the same cut, which is what makes the order
+work: after the cut, the tab would stand where the STEP has nothing.
 
 ## Still open
 
@@ -671,8 +670,6 @@ one place the Box is knowingly INCOMPLETE rather than divergent. It shows in
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- **The lip's angle** — see above. The one measurement that needs Allan rather
-  than another probe.
 - Still to build, in tree order: the closing bumps, the
   label holders behind `isLabelHoldersOnBox`, the engraved text, and `Smooth
   box edges`. The diff isolates each of them cleanly now — the thumb as

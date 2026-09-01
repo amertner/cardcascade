@@ -506,6 +506,76 @@ def thumb_tool(p, d, x):
     return tool.part.moved(Location((x, 0, THUMB_Z)))
 
 
+# `Lip`. Two per thumb, symmetric about it, standing proud of the panel's BACK
+# face for the front holder to catch on.
+LIP_OFFSET = 20.400               # lip centre, from the thumb centre
+LIP_LENGTH = D.LipLength          # 10.000, the top face
+LIP_DEPTH = D.LipDepth            # 2.100, along the ramp
+LIP_HEIGHT = D.LipHeight          # 2.000, in Z
+LIP_CHAMFER = D.LipChamfer        # 1.200, 45 degrees in the XY plane
+LIP_Z = 85.500                    # where it leaves the panel's back face
+
+
+def lip_slope(d):
+    """tan of the lip's angle from vertical.
+
+        (calFirstSliderDistance - 1.200) / (calHeightIncrement - 1.000)
+
+    **It is the HOLDER's diagonal cutout angle** (Allan) — the group opens with
+    `Import Holder patterns` and this is what comes across. Confirmed against
+    the diagonal face normal of all 46 canonical Holders in `individual/`
+    (0 API calls), over four games, both sleevings, rises from 9.667 to 22.000
+    and slider distances from 4.800 to 20.400; every one agrees.
+
+    It is the FIRST slider distance because the lip meets the front holder.
+    `Box Dominion 246S` is the only reference that can tell them apart —
+    `20.400` against `9.600` — and it reads 1.280, not 0.560.
+    """
+    return (d.calFirstSliderDistance - 1.2) / (d.calHeightIncrement - 1.0)
+
+
+def lip_tool(p, d, x):
+    """One lip, centred on `x`.
+
+    In section it is a PARALLELOGRAM: from the panel's back face at LIP_Z, up
+    and back along LIP_DEPTH at `lip_slope`, LIP_HEIGHT tall in Z. Seen from
+    above it is LIP_LENGTH long with a LIP_CHAMFER 45-degree chamfer at each
+    end — which a shallow lip truncates, so the top face measures
+    `LIP_LENGTH + 2*(LIP_CHAMFER - protrusion)` until the protrusion passes
+    1.200.
+
+    Built as the intersection of the section swept across X with the chamfered
+    footprint swept up Z, so each is stated once and neither needs an edge pick.
+    """
+    _fw, _fb, back = pocket_span(p, d)
+    m = lip_slope(d)
+    unit = (1.0 + m * m) ** 0.5
+    rise, out = LIP_DEPTH / unit, LIP_DEPTH * m / unit
+    half = LIP_LENGTH / 2 + LIP_CHAMFER
+    with BuildPart() as prism:
+        with BuildSketch(Plane.YZ):
+            # The first and last points reach 0.800 INTO the panel, so the fuse
+            # is not across a coincident face. That tab is trimmed with the
+            # panel by the angled cutout, which is why the lip goes into the
+            # composite before the cut rather than after it.
+            Polygon((back - 0.8, LIP_Z), (back, LIP_Z),
+                    (back + out, LIP_Z + rise),
+                    (back + out, LIP_Z + rise + LIP_HEIGHT),
+                    (back, LIP_Z + LIP_HEIGHT), (back - 0.8, LIP_Z + LIP_HEIGHT),
+                    align=None)
+        extrude(amount=half + 1, both=True)
+    with BuildPart() as foot:
+        with BuildSketch(Plane.XY):
+            Polygon((-half, back - 1.0), (half, back - 1.0), (half, back),
+                    (half - LIP_CHAMFER, back + LIP_CHAMFER),
+                    (half - LIP_CHAMFER, back + LIP_DEPTH + 1),
+                    (-half + LIP_CHAMFER, back + LIP_DEPTH + 1),
+                    (-half + LIP_CHAMFER, back + LIP_CHAMFER),
+                    (-half, back), align=None)
+        extrude(amount=LIP_Z + LIP_HEIGHT + LIP_DEPTH + 5)
+    return (prism.part & foot.part).moved(Location((x, 0, 0)))
+
+
 def front_dividers(p, d):
     """Right-edge X of each front-pocket divider, left to right.
 
@@ -600,10 +670,13 @@ def front_pocket(p, d, part):
     for x_lo, x_hi in hanging_holes(p, d):
         for z_lo, z_hi in hole_rows():
             add = add - slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
-    # `Thumb` — the finger hole, one per slot. Its THUMB_R never reaches a pad
-    # (5.800 in) or a divider, so it only ever meets the panel.
+    # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
+    # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
+    # lip, so both only ever meet the panel.
     for x in thumb_centres(p, d):
         add = add - thumb_tool(p, d, x)
+        for sign in (-1, +1):
+            add = add + lip_tool(p, d, x + sign * LIP_OFFSET)
     return part + (add - angled_cutout(p, d))
 
 

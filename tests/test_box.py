@@ -344,6 +344,38 @@ for name, fn, p in REFS:
                   sorted({round(math.sqrt((w / 2) ** 2 + (box.THUMB_Z - 80.0) ** 2), 3)
                           for _c, w in thumbs(fb + depth)}),
                   [round(box.THUMB_R + grew, 3)], 2e-3)
+        # `Lip` — two per thumb. Read off its lower ramp face, the one face
+        # that carries the angle, the anchor, the depth and the length at once.
+        c0 = box.thumb_centres(p, d)[0]
+        ramp = []
+        for face in shape.faces():
+            fc = face.center()
+            if not (c0 - 27 < fc.X < c0 - 13.5 and pback - 0.6 < fc.Y < pback + 4
+                    and 84.5 < fc.Z < 90.5) or face.area < 15:
+                continue
+            try:
+                n = face.normal_at(fc)
+            except Exception:
+                continue
+            if abs(n.Y) < 0.4 or n.Z >= 0:
+                continue
+            ramp.append((face, n))
+        check(f"{who}: the left lip has one ramp face", len(ramp), 1)
+        if ramp:
+            face, n = ramp[0]
+            bb = face.bounding_box()
+            check(f"{who}: lip angle is the holder's diagonal cutout",
+                  round(abs(n.Z / n.Y), 5), round(box.lip_slope(d), 5), 1e-4)
+            check(f"{who}: lip leaves the panel at LIP_Z",
+                  round(bb.min.Z, 3), round(box.LIP_Z, 3), 1e-3)
+            check(f"{who}: lip runs LIP_DEPTH",
+                  round((bb.size.Y ** 2 + bb.size.Z ** 2) ** 0.5, 3),
+                  round(box.LIP_DEPTH, 3), 2e-3)
+            check(f"{who}: lip base is LipLength + 2*LipChamfer",
+                  round(bb.size.X, 3),
+                  round(box.LIP_LENGTH + 2 * box.LIP_CHAMFER, 3), 1e-3)
+            check(f"{who}: lip centre is LIP_OFFSET from the thumb",
+                  round(c0 - bb.center().X, 3), round(box.LIP_OFFSET, 3), 1e-3)
         # ... and carries the back wall's lattice exactly.
         bar = Box(box_w + 20, 0.2, 0.05).moved(
             Location((0, (fb + pback) / 2, box.hole_rows()[0][0] + 3.0)))
