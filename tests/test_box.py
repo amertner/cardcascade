@@ -581,5 +581,24 @@ _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
 check("matches the value in the feature tree",
       round(box.finger_hole_offset(_p, D.derive(_p)), 3), 162.500, 1e-3)
 
+
+print("\n=== the RisingSliders > 8 branch ===")
+# `#RisingSliders <= 8 ? 2.5 mm : 2.5mm + (#RisingSliders-8)*#calSliderDistance`
+# on the `Card Cascade` sketch. No reference reaches it — Dominion's `333 Card`
+# at `S9.21.10` is the only catalogue row that does — so it is checked by its
+# effect: past eight risers the extra term is exactly the depth those risers add
+# to the card area, so the logo block stops growing.
+_lens = []
+for _r in (8, 9, 10, 12):
+    _p = params.Primary(3, _r, 21, 10, 0, 10, 1, 0, "Dominion")
+    _d = D.derive(_p)
+    _yf, _yb = box.card_area(_p, _d)
+    _lens.append(round(_yb - _yf - box.LOGO_MARGIN - box.logo_margin(_p, _d), 3))
+check("the logo block is frozen past eight risers", len(set(_lens)), 1)
+check("... at the length it had at eight", _lens[0], 64.000, 1e-3)
+_p = params.Primary(3, 7, 21, 10, 0, 10, 1, 0, "Dominion")
+check("and below eight the margin is the plain 2.500",
+      round(box.logo_margin(_p, D.derive(_p)), 3), round(box.LOGO_MARGIN, 3), 1e-9)
+
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
 sys.exit(1 if fails else 0)

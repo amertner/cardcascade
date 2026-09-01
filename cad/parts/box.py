@@ -868,10 +868,7 @@ ENGRAVE = 0.400            # the same depth the Pusher's text uses
 TEXT_INSET = 3.000         # cap top, in from the side floor's inner edge —
 #                            `#calSlotwidth/2 - 3mm` on the -X sketch
 MODEL_GAP = 3.000          # between the two -X lines, baseline to cap top
-LOGO_MARGIN = 2.500        # the +X text box, off each end of the card area.
-#                            The sketch reads `#RisingSliders <= 8 ? 2.5 mm :
-#                            2.5mm + ...` and no reference has R > 8, so the
-#                            other branch is unknown — see spec/BOX.md.
+LOGO_MARGIN = 2.500        # the +X text box, off the FRONT of the card area
 MODEL_MARGIN = 6.900       # the -X block measured, total. Its sketch box is
 #                            5.000 like the +X one, but the text does not fill
 #                            it; Allan: the size "is a bit arbitrary, I just
@@ -879,6 +876,20 @@ MODEL_MARGIN = 6.900       # the -X block measured, total. Its sketch box is
 CAPACITY_GAP = 2 / 3       # x #LogoHeight, ProductName baseline to cap top
 VERSION_GAP = 1 / 2        # x #LogoHeight, capacity baseline to cap top
 VERSION_CAP = 3 / 4        # x #LogoHeight
+
+
+def logo_margin(p, d):
+    """The +X text box's inset at the BACK of the card area.
+
+        #RisingSliders <= 8 ? 2.5 mm
+                            : 2.5mm + (#RisingSliders - 8) * #calSliderDistance
+
+    Allan's sketch. Past eight risers the extra term is exactly the depth those
+    risers add to the card area, so the logo block STOPS GROWING and holds the
+    size it had at eight. He experimented with ten and twelve; one catalogue row
+    reaches the branch, Dominion's `333 Card` at `S9.21.10`.
+    """
+    return LOGO_MARGIN + max(0, p.RisingSliders - 8) * d.calSliderDistance
 
 
 def card_area(p, d):
@@ -934,11 +945,12 @@ def floor_text(p, d, part):
         x = x - cap - MODEL_GAP           # next line, one gap further out
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
     start = y_front + LOGO_MARGIN
-    logo_size = T.fit_size(d.ProductName, span - 2 * LOGO_MARGIN)
+    logo_len = span - LOGO_MARGIN - logo_margin(p, d)
+    logo_size = T.fit_size(d.ProductName, logo_len)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight
     base = edge + TEXT_INSET + logo_cap
     part = part - engrave_line(d.ProductName, logo_size, base, start, +1, +1)
-    cap_size = T.fit_size(d.calCapacityLabel, span - 2 * LOGO_MARGIN)
+    cap_size = T.fit_size(d.calCapacityLabel, logo_len)
     base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
     part = part - engrave_line(d.calCapacityLabel, cap_size, base, start, +1, +1)
     # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:

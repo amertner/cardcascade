@@ -839,10 +839,22 @@ which is `card area - 5.000` again — but the text measures `card area - 6.900`
 wanted to make it fit", so `cad/` uses the measured `6.900` rather than the
 sketch's bound, which lands within a few tenths of every reference.
 
-**Unresolved: the `RisingSliders` conditional.** The `Card Cascade` sketch reads
-`#RisingSliders <= 8 ? 2.5 mm : 2.5mm + ...` and the screenshot truncates. Every
-reference is `R <= 8` so nothing on disk exercises the other branch — but
-`S9.21.10` in the catalogue is `R = 9` and will.
+**The `RisingSliders` conditional**, in full (Allan):
+
+```
+#RisingSliders <= 8 ? 2.5 mm : 2.5mm + (#RisingSliders-8)*#calSliderDistance
+```
+
+It applies to the BACK of the `+X` box only; the front stays `2.500`. Past eight
+risers the extra term is exactly the depth those risers add to the card area, so
+the logo block **stops growing** and keeps the size it had at eight — `64.000`
+long at `R = 8, 9, 10, 12` alike. Allan experimented with ten and twelve; one
+catalogue row reaches it, Dominion's `333 Card` at `S9.21.10`.
+
+No reference STEP is past eight risers, so `tests/test_box.py` checks the branch
+by that property rather than against a measurement. Both `S9.21.10` variants
+build, and the sleeved one's envelope is `211.900 x 100.300` against parts.csv's
+`214 x 102.3` lid — the documented lid less `2.00`.
 
 ### The version line is a DELIBERATE DIVERGENCE
 
