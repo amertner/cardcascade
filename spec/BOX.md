@@ -397,6 +397,61 @@ references — 15 holes at `HorizontalSlots 3`, 20 at 4, 25 at 5.
 pusher slot's centreline lands on a pier, where material runs past the rest and
 a vertical profile says nothing about it. That cost a false failure.
 
+### `Thumb Cutout in back` — and what `#calFingerHoleOffset` is measured from
+
+A `ThumbCutoutRadius = 12.000` hole through the **outer back wall only**,
+centred on `REAR_TOP` so `Top of back` takes its upper half away, filleted
+`0.600` into both faces — not the front thumb's `0.400`, and the wall it cuts
+is `1.600` rather than `1.000`.
+
+```
+centre X = -#BoxWidth/2 + WallThickness + #calFingerHoleOffset
+           + #dBackSlotWidth + 1.600
+centre Z = 85.000
+```
+
+So **`calFingerHoleOffset` is not measured from the left inner wall** but from
+the left edge of the SECOND storage cavity — one slot pitch and one divider in.
+Exact on all five references, whose pitches run `22.000` to `71.200`, which is
+what separates that reading from a plain offset: a constant would not track the
+pitch.
+
+It lands in the empty run to the right of the last divider on every reference,
+so it never meets a pusher slot, and it does not touch the `1.300` inner back
+wall — that reads as one unbroken piece at this height on all five, in the STEP
+and in the build.
+
+**Watch the cutting tool's over-run.** `box.round_hole` runs past each face at
+the flared radius so the cut is not coincident with it. The default `5.000`
+reached back through the empty slot band and bored a `12.600` hole in the inner
+back wall — about `630 mm³` the STEP does not remove. The rear thumb passes
+`over=2.000`, which clears the `1.600` wall and stops inside the `3.200` band.
+
+## `Closing mechanism` — a chamfered pad, at a CONSTANT position
+
+```
+proud    ClosingBumpDepth = 1.000
+Y        -1.750 .. 6.250      8.000 long
+Z        87.000 .. 90.000     3.000 tall
+chamfer  0.500 on the OUTER face's four edges
+```
+
+One on each end wall (`Mirror 1`), identical on every reference.
+
+**Its position is a constant in the box frame**, not measured from either face:
+the same `Y` and `Z` on references whose `#BoxDepth` runs `27.600` to
+`103.200`.
+
+The chamfer is on the outer face only, so the pad's sides rise square for the
+first `0.500` and are cut back over the last `0.500`. That is what makes the
+volume `21.4167 mm³` rather than the `24.000` of a plain pad — and the diff had
+already measured `21.417` before the feature was written, which is how the
+chamfer was identified without a section.
+
+`Make rightmost pocket deeper` needs nothing further: it is the cut this file
+already records as "right of the pusher slots the slot band is empty from the
+floor up", found empirically at stage 2 before the feature had a name.
+
 ## `Lower the front`, and the rim cutouts
 
 The front wall stops at **`z = 68.600`** instead of `BoxHeight`, over the whole
@@ -670,10 +725,15 @@ work: after the cut, the tab would stand where the STEP has nothing.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build, in tree order: the closing bumps, the
-  label holders behind `isLabelHoldersOnBox`, the engraved text, and `Smooth
-  box edges`. The diff isolates each of them cleanly now — the thumb as
+- Still to build, in tree order: the label holders behind
+  `isLabelHoldersOnBox`, the engraved text (`Model name` and the `Logo` group),
+  and `Smooth box edges`. The diff isolates each of them cleanly now — the thumb as
   `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`
   lumps at `z 85.5..88.8`, the front label holder as a `1.600` sweep at
   `y = -#BoxDepth/2 - 1.600` over `z 40.500..64.500`, and the side label holder
   as `289.925 mm³` at the `-X` end over the same heights.
+- **Probe hygiene.** Four probe bugs so far have been caught only because the
+  STEP failed the same check as the build — a bar too narrow to contain what it
+  measured, a cap a millimetre low, a cell that clipped a slice of wall, and a
+  rebound loop variable. Assert on BOTH shapes; a check that only reads the
+  build cannot tell a wrong probe from a wrong model.

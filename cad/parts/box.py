@@ -10,14 +10,14 @@ Local frame (the part studio's):
     Y   depth, 0 at the centre, -BoxDepth/2 the FRONT, +BoxDepth/2 the back
     Z   height, 0 at the bed, BoxHeight at the rim
 
-INCOMPLETE. `build()` stops after `Front pocket`; see `spec/BOX.md` "Still
-open" for what is left and `tests/test_box.py` for what is proven. Nothing
-writes a Box to build/ yet.
+INCOMPLETE. `build()` stops after `Closing mechanism`; see `spec/BOX.md`
+"Still open" for what is left and `tests/test_box.py` for what is proven.
+Nothing writes a Box to build/ yet.
 """
 from build123d import (
     Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Kind, Line,
-    Location, Mode, Plane, Polygon, Rectangle, ThreePointArc, extrude, fillet,
-    make_face, offset, revolve,
+    Location, Mode, Plane, Polygon, Rectangle, ThreePointArc, chamfer, extrude,
+    fillet, make_face, offset, revolve,
 )
 
 from .. import derive as D
@@ -163,6 +163,8 @@ HOLE_ROW_GAP = 2.000
 # the unfilleted reference, where a cutout's volume is exactly
 # 4.500 x 1.300 x 5.000 = 29.250. See spec/BOX.md.
 RIM_CUTOUT_Z = 100.000
+REAR_THUMB_FILLET = 0.600   # `Fillet rear thumb hole` — NOT the front thumb's
+#                             0.400; the wall it cuts is 1.600, not 1.000
 
 
 def pusher_rest(p, d):
@@ -212,6 +214,21 @@ def storage_dividers(p, d):
     pitch = d.calPusherTotalDepth + 4.0
     return [(left + k * pitch, left + k * pitch + DIVIDER_W)
             for k in range(1, pusher_slot_count(p) + 1)]
+
+
+def rear_thumb_x(p, d):
+    """Centre X of the `Thumb Cutout in back`.
+
+        -#BoxWidth/2 + WallThickness + #calFingerHoleOffset
+        + #dBackSlotWidth + 1.600
+
+    So `calFingerHoleOffset` is NOT measured from the left inner wall but from
+    the left edge of the SECOND storage cavity — one slot pitch and one divider
+    in. Exact on all five references, whose pitches run 22.000 to 71.200, which
+    is what separates that reading from a plain offset.
+    """
+    return (-box_width(p, d) / 2 + WALL + finger_hole_offset(p, d)
+            + d.calPusherTotalDepth + 4.0 + DIVIDER_W)
 
 
 def rear_block(p, d):
@@ -333,7 +350,16 @@ def rear_storage(p, d, part):
                              BD / 2 - WALL, y0, RIM_CUTOUT_Z, top))
     for c in cuts:
         part = part - c
-    return part
+    # `Thumb Cutout in back` — a THUMB_R hole through the OUTER back wall only,
+    # centred on REAR_TOP so the storage's cap takes its top half off. It falls
+    # in the empty run to the right of the last divider on every reference, so
+    # it never meets a pusher slot, and it does not touch the 1.300 inner back
+    # wall: that reads as one unbroken piece at this height on all five.
+    # `over` is 2.000, not the default: forward of the outer wall is the slot
+    # band, empty at this X, but 5.000 would reach the inner back wall behind it.
+    return part - round_hole(y1, BD / 2 + REAR_DEPTH, D.ThumbCutoutRadius,
+                             REAR_THUMB_FILLET, rear_thumb_x(p, d), REAR_TOP,
+                             over=2.0)
 
 
 # `Lower the front`. The front wall stops here instead of at BoxHeight, so the
@@ -475,6 +501,36 @@ def thumb_centres(p, d):
     return [x0 + k * d.calSlotwidth for k in range(p.HorizontalSlots)]
 
 
+def round_hole(y0, y1, r, f, x, z, over=5.0):
+    """A radius-`r` hole on Y from `y0` to `y1`, filleted `f` into BOTH faces,
+    centred on (`x`, `z`). Revolved from its profile.
+
+    Both thumbs use this — the one through the front pocket's divider panel and
+    the one through the outer back wall — with different radii of fillet.
+
+    `over` is how far the tool runs past each face, at the flared radius `r+f`,
+    so the cut is clean rather than coincident with the face. It has to clear
+    the face and STOP: the rear thumb's default 5.000 reached back through the
+    empty slot band and bored a 12.600 hole in the 1.300 inner back wall, worth
+    about 630 mm³ that the STEP does not remove.
+    """
+    m = f * (1 - 2 ** -0.5)          # the arc's midpoint, off its own corner
+    with BuildPart() as tool:
+        with BuildSketch(Plane.XY):
+            with BuildLine():
+                Line((0.0, y0 - over), (r + f, y0 - over))
+                Line((r + f, y0 - over), (r + f, y0))
+                ThreePointArc((r + f, y0), (r + m, y0 + m), (r, y0 + f))
+                Line((r, y0 + f), (r, y1 - f))
+                ThreePointArc((r, y1 - f), (r + m, y1 - m), (r + f, y1))
+                Line((r + f, y1), (r + f, y1 + over))
+                Line((r + f, y1 + over), (0.0, y1 + over))
+                Line((0.0, y1 + over), (0.0, y0 - over))
+            make_face()
+        revolve(axis=Axis.Y)
+    return tool.part.moved(Location((x, 0, z)))
+
+
 def thumb_tool(p, d, x):
     """One thumb hole: a THUMB_R cylinder through the panel on Y, filleted
     THUMB_FILLET into both faces.
@@ -488,22 +544,7 @@ def thumb_tool(p, d, x):
     plain 12.400 cylinder — which the STEP's own profile caught at once.
     """
     _fw, fb, back = pocket_span(p, d)
-    r, f = THUMB_R, THUMB_FILLET
-    m = f * (1 - 2 ** -0.5)          # the arc's midpoint, off its own corner
-    with BuildPart() as tool:
-        with BuildSketch(Plane.XY):
-            with BuildLine():
-                Line((0.0, fb - 5), (r + f, fb - 5))
-                Line((r + f, fb - 5), (r + f, fb))
-                ThreePointArc((r + f, fb), (r + m, fb + m), (r, fb + f))
-                Line((r, fb + f), (r, back - f))
-                ThreePointArc((r, back - f), (r + m, back - m), (r + f, back))
-                Line((r + f, back), (r + f, back + 5))
-                Line((r + f, back + 5), (0.0, back + 5))
-                Line((0.0, back + 5), (0.0, fb - 5))
-            make_face()
-        revolve(axis=Axis.Y)
-    return tool.part.moved(Location((x, 0, THUMB_Z)))
+    return round_hole(fb, back, THUMB_R, THUMB_FILLET, x, THUMB_Z)
 
 
 # `Lip`. Two per thumb, symmetric about it, standing proud of the panel's BACK
@@ -680,6 +721,35 @@ def front_pocket(p, d, part):
     return part + (add - angled_cutout(p, d))
 
 
+# `Closing mechanism`. A pad on each end wall that the lid grips. Its position
+# is a CONSTANT in the box frame — identical on references whose #BoxDepth runs
+# 27.600 to 103.200 — so it is not measured from either face.
+BUMP_DEPTH = D.ClosingBumpDepth   # 1.000, how far it stands proud
+BUMP_Y0, BUMP_Y1 = -1.750, 6.250  # 8.000 long
+BUMP_Z0, BUMP_Z1 = 87.000, 90.000
+BUMP_CHAMFER = 0.500              # `Chamfer 1`, on the outer face's four edges
+
+
+def closing_bumps(p, d, part):
+    """`Closing mechanism` — `Side bump` / `Extrude 1` / `Chamfer 1` / `Mirror 1`.
+
+    The chamfer is on the OUTER face only, so the pad's sides rise square for
+    the first 0.500 and are cut back over the last 0.500. That is what makes
+    the volume 21.4167 mm³ rather than the 24.000 of a plain pad, and the diff
+    found exactly 21.417.
+    """
+    BW = box_width(p, d)
+    thick = BUMP_DEPTH + WALL / 2      # reaches into the wall, so the fuse is
+    for sign in (-1, +1):              # not across a coincident face
+        pad = Box(thick, BUMP_Y1 - BUMP_Y0, BUMP_Z1 - BUMP_Z0)
+        outer = pad.faces().sort_by(Axis.X)[0 if sign < 0 else -1]
+        pad = chamfer(outer.edges(), BUMP_CHAMFER)
+        part = part + pad.moved(Location((
+            sign * (BW / 2 + BUMP_DEPTH - thick / 2),
+            (BUMP_Y0 + BUMP_Y1) / 2, (BUMP_Z0 + BUMP_Z1) / 2)))
+    return part
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
@@ -698,4 +768,5 @@ def build(p):
     part = lower_front(p, d, part)
     part = round_top_corners(p, d, part)
     part = sliders(p, d, part)
-    return front_pocket(p, d, part)
+    part = front_pocket(p, d, part)
+    return closing_bumps(p, d, part)

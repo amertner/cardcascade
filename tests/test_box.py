@@ -256,11 +256,13 @@ for name, fn, p in REFS:
         # `Round top of slider`: 0.400 below the rim a rib has lost this much
         # off each side. Read on the backmost rib, which no other feature is
         # near on any reference.
-        y0, y1 = box.slider_ribs(p, d)[0]
+        rib_y0, rib_y1 = box.slider_ribs(p, d)[0]
         cap = Box(3.0, 20.0, 1.4).moved(
-            Location((-inner + 1.5, (y0 + y1) / 2, d.BoxHeight - 0.4 + 0.7)))
+            Location((-inner + 1.5, (rib_y0 + rib_y1) / 2,
+                      d.BoxHeight - 0.4 + 0.7)))
         b = [q.bounding_box() for q in (shape & cap).solids()
-             if abs(q.bounding_box().center().Y - (y0 + y1) / 2) < 2][0]
+             if abs(q.bounding_box().center().Y
+                    - (rib_y0 + rib_y1) / 2) < 2][0]
         check(f"{who}: rib is rounded SLIDER_TOP_R across its top",
               round(b.size.Y, 3),
               round(box.SLIDER_W - 2 * arc_inset(0.4, box.SLIDER_TOP_R), 3), 2e-3)
@@ -401,6 +403,59 @@ for name, fn, p in REFS:
         check(f"{who}: and reaches the rim beside one",
               zprofile(got[0][0] + L.BOX_CUTOUT_W, BD / 2 - 0.95, shape)[-1][1],
               round(d.BoxHeight, 3), 1e-3)
+
+    # `Thumb Cutout in back` and `Closing mechanism`, on both shapes.
+    slot_lo, slot_hi = box.slot_band(p, d)      # y0/y1 are a rib's by now
+    for who, shape in (("STEP", ref), ("build", mine)):
+        # The rear thumb, read as the gap in the OUTER back wall at z = 80.
+        for depth, radius in ((0.02, box.REAR_THUMB_FILLET
+                               - math.sqrt(2 * box.REAR_THUMB_FILLET * 0.02 - 0.0004)),
+                              (0.80, 0.0)):
+            bar = Box(box_w + 20, 0.02, 0.05).moved(
+                Location((0, slot_hi + depth - 0.01, 80.0)))
+            pcs = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
+                         for q in (shape & bar).solids())
+            gaps = [((a[1] + b[0]) / 2, b[0] - a[1])
+                    for a, b in zip(pcs, pcs[1:])]
+            check(f"{who}: one rear thumb, {depth} into the outer back wall",
+                  len(gaps), 1)
+            if gaps:
+                c, w = gaps[0]
+                check(f"{who}: rear thumb centre at {depth}",
+                      round(c, 3), round(box.rear_thumb_x(p, d), 3), 1e-3)
+                # The chord at z=80 gives the radius back directly, since the
+                # hole is centred on REAR_TOP.
+                check(f"{who}: rear thumb radius at {depth}",
+                      round(math.sqrt((w / 2) ** 2 + (box.REAR_TOP - 80.0) ** 2), 2),
+                      round(d.ThumbCutoutRadius if hasattr(d, "ThumbCutoutRadius")
+                            else 12.0, 2) + round(radius, 2), 0.02)
+        # ... and it leaves the 1.300 inner back wall alone, which is what says
+        # it cuts the outer wall only.
+        bar = Box(box_w + 20, 0.2, 0.05).moved(Location((0, BD / 2 - 0.95, 80.0)))
+        check(f"{who}: the rear thumb does not touch the inner back wall",
+              len((shape & bar).solids()), 1)
+        # The closing bumps, one per end wall.
+        for sign, lbl in ((-1, "-X"), (1, "+X")):
+            # Entirely clear of the wall: include any of it and the biggest
+            # solid is a slice of wall running the full depth and height.
+            # Starts 0.050 clear of the wall — include any of it and the
+            # biggest solid is a slice of wall running the full depth and
+            # height — and reaches past the pad so it clips nothing.
+            wide = box.BUMP_DEPTH + 0.5
+            cell = Box(wide, BD + 30, 30).moved(
+                Location((sign * (box_w / 2 + 0.05 + wide / 2), 0,
+                          (box.BUMP_Z0 + box.BUMP_Z1) / 2)))
+            pad = sorted((shape & cell).solids(), key=lambda q: -q.volume)[0]
+            bb = pad.bounding_box()
+            check(f"{who}: {lbl} closing bump stands BUMP_DEPTH proud",
+                  round(bb.max.X if sign > 0 else -bb.min.X, 3),
+                  round(box_w / 2 + box.BUMP_DEPTH, 3), 1e-3)
+            check(f"{who}: {lbl} closing bump Y",
+                  (round(bb.min.Y, 3), round(bb.max.Y, 3)),
+                  (round(box.BUMP_Y0, 3), round(box.BUMP_Y1, 3)))
+            check(f"{who}: {lbl} closing bump Z",
+                  (round(bb.min.Z, 3), round(bb.max.Z, 3)),
+                  (round(box.BUMP_Z0, 3), round(box.BUMP_Z1, 3)))
 
 print("\n=== #calFingerHoleOffset ===")
 _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
