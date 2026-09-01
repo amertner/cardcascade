@@ -261,6 +261,38 @@ So the Box's Mat branch is one feature group deep, and `plan_exports`' note that
 the merge "resizes the box" is about the pocket, not the envelope: the two share
 an envelope to `0.000`.
 
+## `Hole in bottom of box` — one rectangle, not one slot per pusher
+
+Despite the plural in the feature name, the floor carries a single rectangular
+through-cut. Measured by subtracting each STEP from the floor slab: on all six
+references the removed lump's volume equals its own bounding box **to the last
+decimal**, so there is no chamfer, draft or second pocket inside it.
+
+```
+width  = #BoxWidth - 2*WallThickness - calSlotwidth
+       = 11.1 + calSlotwidth * (HorizontalSlots - 1)          centred on X = 0
+depth  = from -#BoxDepth/2 + WallThickness + calFrontPocketDepth + 1.000
+         to   +#BoxDepth/2 - WallThickness
+```
+
+So it is the full inner width **less one slot** — half a slot of floor left at
+each end — running from the back of the front pocket's divider to the inner
+face of the back wall, i.e. exactly the sliding card area. It is NOT aligned
+with the rear pusher slots, which sit at their own pitch.
+
+| box | width | depth | volume |
+|---|---|---|---|
+| Compile 105 Sl | `151.100` | `33.800` | `8171.488` |
+| Dominion 244 / 202 Sl | `206.100` | `35.400` | `11673.504` |
+| Dominion 650 Sl | `271.100` | `69.000` | `29929.440` |
+| Dominion 246 Sl | `141.100` | `31.800` | `7179.168` |
+| FCM 72 Sl | `141.100` | `19.800` | `4470.048` |
+
+The `1.000` is the front pocket's back wall, measured as a panel at
+`y = -#BoxDepth/2 + WallThickness + calFrontPocketDepth` and `1.000` thick. It
+lives in `box.FRONT_DIVIDER` until the Front pocket group is written and can own
+it.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it

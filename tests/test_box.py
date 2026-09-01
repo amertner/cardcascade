@@ -126,6 +126,29 @@ for name, fn, p in REFS:
           round(got[1] - got[0], 2) if n > 1 else None,
           round(d.calPusherTotalDepth + 4.0, 2) if n > 1 else None, 0.05)
 
+    # --- the bottom slot ---------------------------------------------------
+    # Subtract the STEP from the floor slab the shell starts with. What is left
+    # is the bottom slot plus the engraved text (glyph slivers, all under
+    # 11 mm3 even on the biggest box), so take the one real lump.
+    slab = Box(box.box_width(p, d) - 2 * box.WALL,
+               box.box_depth(p, d) - 2 * box.WALL,
+               box.WALL).moved(Location((0, 0, box.WALL / 2)))
+    lumps = [q for q in (slab - ref).solids() if q.volume > 100]
+    check("the floor has exactly one hole", len(lumps), 1)
+    if len(lumps) == 1:
+        hb = lumps[0].bounding_box()
+        want_w, want_d, want_y = box.bottom_slot(p, d)
+        check("bottom slot width", round(hb.size.X, 3), round(want_w, 3), 1e-3)
+        check("bottom slot depth", round(hb.size.Y, 3), round(want_d, 3), 1e-3)
+        check("bottom slot centre Y", round(hb.center().Y, 3), round(want_y, 3), 1e-3)
+        check("bottom slot goes clean through the floor",
+              round(hb.size.Z, 3), round(box.WALL, 3), 1e-3)
+        # A plain prism: the removed volume IS its bounding box, so there is no
+        # chamfer, draft or second pocket hiding inside it.
+        check("bottom slot is a plain rectangular prism",
+              round(lumps[0].volume, 3),
+              round(hb.size.X * hb.size.Y * hb.size.Z, 3), 1e-3)
+
 print("\n=== #calFingerHoleOffset ===")
 _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
 check("matches the value in the feature tree",

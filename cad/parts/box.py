@@ -15,7 +15,8 @@ INCOMPLETE. `build()` currently raises everything past the shell; see
 proven. Nothing writes a Box to build/ yet.
 """
 from build123d import (
-    BuildPart, BuildSketch, Plane, Rectangle, Mode, extrude, offset, Kind,
+    Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane, Rectangle,
+    extrude, offset,
 )
 
 from .. import derive as D
@@ -91,10 +92,44 @@ def shell(p, d):
     return part.part
 
 
+# The front pocket's back wall. Measured 1.000 thick on all five references —
+# a panel at y = -#BoxDepth/2 + WALL + calFrontPocketDepth .. + 1.000 — and the
+# bottom slot starts at its back face, so the constant belongs here until the
+# Front pocket group is written and can own it.
+FRONT_DIVIDER = 1.000
+
+
+def bottom_slot(p, d):
+    """`Hole in bottom of box` — the rectangle cut clean through the floor.
+
+    Returns (width, depth, y centre). One plain rectangular prism, not one slot
+    per pusher: on all five references the removed volume equals its own
+    bounding box exactly, so there is nothing else in it.
+
+        width = #BoxWidth - 2*WallThickness - calSlotwidth
+              = 11.1 + calSlotwidth * (HorizontalSlots - 1)
+
+    i.e. the full inner width less ONE slot, centred — half a slot of floor is
+    left at each end. In depth it runs from the back of the front pocket's
+    divider to the inner face of the back wall, so it spans exactly the sliding
+    card area.
+    """
+    width = box_width(p, d) - 2 * WALL - d.calSlotwidth
+    y_front = -box_depth(p, d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER
+    y_back = box_depth(p, d) / 2 - WALL
+    return width, y_back - y_front, (y_front + y_back) / 2
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
     Only the shell so far — every other feature group is still to be written.
     """
     d = D.derive(p)
-    return shell(p, d)
+    part = shell(p, d)
+    w, depth, y = bottom_slot(p, d)
+    # Cut Z from below the floor up to exactly WALL, so the boolean is clean
+    # underneath and nothing above the floor is touched — the tree cuts this
+    # before the sliders and dividers exist, and this keeps that true whatever
+    # order the code ends up in.
+    return part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
