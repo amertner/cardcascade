@@ -157,6 +157,11 @@ HOLE_ROWS = 3
 HOLE_ROW_BOTTOM = 3.000
 HOLE_ROW_TOP = 69.500
 HOLE_ROW_GAP = 2.000
+# The rim cutouts run from here to the rim: 5.000 tall, NOT the 5.25 that
+# LOCK_STANDARD.md records ("z 99.75 -> 105.00"). Measured 100.000..105.000 on
+# the unfilleted reference, where a cutout's volume is exactly
+# 4.500 x 1.300 x 5.000 = 29.250. See spec/BOX.md.
+RIM_CUTOUT_Z = 100.000
 
 
 def rear_block(p, d):
@@ -251,9 +256,41 @@ def rear_storage(p, d, part):
     for x_lo, x_hi in hanging_holes(p, d):
         for z_lo, z_hi in hole_rows():
             cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y1, z_lo, z_hi))
+    # The rim cutouts — the box's half of the pusher lock, at each slot's
+    # centreline +- s. They cut the 1.300 back wall only; the outer wall is
+    # already gone above REAR_TOP, which is why they are invisible from behind.
+    _cls, sv = L.lock_class(d.calPusherTotalDepth)
+    for centre in pusher_slots(p, d):
+        for sign in (-1, +1):
+            x = centre + sign * sv
+            cuts.append(slab(x - L.BOX_CUTOUT_W / 2, x + L.BOX_CUTOUT_W / 2,
+                             BD / 2 - WALL, y0, RIM_CUTOUT_Z, top))
     for c in cuts:
         part = part - c
     return part
+
+
+# `Lower the front`. The front wall stops here instead of at BoxHeight, so the
+# cards can be seen and reached. Measured at exactly 68.600 on all five
+# references, and constant: every catalogue box has calPocketHeight 88.5 and
+# calPocketDrop 8.0 (calMaxPocketHeight is CardHeight - 3.5 = 88.5 for every
+# game but Colours and CraftGutermann), so nothing in the derived set varies
+# here and a formula cannot be told from a constant. Treat it as measured.
+FRONT_TOP = 68.600
+
+
+def lower_front(p, d, part):
+    """`Lower the front` — take the front wall down to FRONT_TOP.
+
+    Only between the end walls: at z = 69.0 the front band still carries
+    material over x +-(#BoxWidth/2 - WallThickness) .. +-#BoxWidth/2 on every
+    reference, so the end walls run their full height.
+    """
+    BD = box_depth(p, d)
+    inner = box_width(p, d) / 2 - WALL
+    return part - Box(2 * inner, WALL + 1, d.BoxHeight + 1 - FRONT_TOP).moved(
+        Location((0, -BD / 2 + (WALL - 1) / 2,
+                  (FRONT_TOP + d.BoxHeight + 1) / 2)))
 
 
 def build(p):
@@ -269,4 +306,5 @@ def build(p):
     # before the sliders and dividers exist, and this keeps that true whatever
     # order the code ends up in.
     part = part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
-    return rear_storage(p, d, part)
+    part = rear_storage(p, d, part)
+    return lower_front(p, d, part)

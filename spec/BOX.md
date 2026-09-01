@@ -331,6 +331,35 @@ references — 15 holes at `HorizontalSlots 3`, 20 at 4, 25 at 5.
 pusher slot's centreline lands on a pier, where material runs past the rest and
 a vertical profile says nothing about it. That cost a false failure.
 
+## `Lower the front`, and the rim cutouts
+
+The front wall stops at **`z = 68.600`** instead of `BoxHeight`, over the whole
+inner width — above it only the two end walls remain, `WallThickness` each.
+Measured at exactly `68.600` on all six references.
+
+It is treated as a **constant**, and cannot be shown to be anything else: every
+catalogue box has `calPocketHeight 88.5` and `calPocketDrop 8.0`
+(`calMaxPocketHeight` is `CardHeight - 3.5 = 88.5` for every game but Colours and
+CraftGutermann), so nothing in the derived set varies here and a formula could
+not be distinguished from a number.
+
+**The rim cutouts are `5.000` tall, not the `5.25` `LOCK_STANDARD.md` records.**
+That file says "box rim cutout `4.50` wide, `5.25` deep (`z 99.75 -> 105.00`)".
+On the unfilleted reference they run `z 100.000..105.000`, and a cutout's volume
+is exactly `4.500 x 1.300 x 5.000 = 29.250` — the `1.300` being the back wall,
+which is all they cut. The width `4.50` is right; the depth is `5.00`. Worth
+reconciling with the standard.
+
+They also close the loop on the lock: `tests/test_box.py` now measures the rim
+cutouts on the BUILD as well as on the STEP, and they agree exactly on all six —
+position, `4.500` width, and the back wall stopping at `100.000` inside a cutout
+while reaching the rim beside it.
+
+**Probe the cutout's z-profile at its TOP only.** Whether the profile below is
+one interval or several depends on whether that cutout's centre happens to land
+on a hanging hole or on a pier, which varies by box. That cost a second false
+failure, after the same trap in the rear storage.
+
 ## build123d cannot subtract two boxes that share an outer envelope
 
 Worth knowing before the next part. Once the rear storage landed, `cad`'s box and
@@ -346,6 +375,14 @@ intersection for two solids that plainly overlap:
 `tests/box_diff.py` slices both shapes into slabs along X and diffs slab by slab,
 which works and reconciles with the plain volume difference. A feature straddling
 a slab boundary is then reported as two lumps — the cost of the workaround.
+
+**Lump sizes there are indicative; positions are what the tool is for.** A slab
+whose boolean half-fails reports the same lump in BOTH directions, inflating both
+totals while leaving their difference nearly right, and the totals move by over a
+thousand mm³ between `--slabs 8` and `--slabs 11`. The tool now checks
+`missing - extra` against the plain volume gap, which needs no boolean at all,
+and says so when they disagree. Anything that matters is confirmed by a direct
+probe in `tests/test_box.py`, not by a lump size.
 
 A related trap inside `box.py` itself: composing the negative first (empty the
 slot band, then subtract the rest and the dividers back out of it) produces a

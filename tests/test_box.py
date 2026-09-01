@@ -153,12 +153,12 @@ for name, fn, p in REFS:
     BD = box.box_depth(p, d)
     inner = box.box_width(p, d) / 2 - box.WALL
 
-    def zprofile(x, y):
+    def zprofile(x, y, shape=None):
         col = Box(0.4, 0.4, d.BoxHeight + 2).moved(
             Location((x, y, d.BoxHeight / 2)))
         return sorted((round(q.bounding_box().min.Z, 3),
                        round(q.bounding_box().max.Z, 3))
-                      for q in (ref & col).solids())
+                      for q in ((ref if shape is None else shape) & col).solids())
 
     y0, y1 = box.slot_band(p, d)
     check("slot band starts SLOT_BITE inside the sketch box",
@@ -187,6 +187,37 @@ for name, fn, p in REFS:
     check("hanging hole positions", gaps, want)
     check("every hanging hole is HOLE_W wide",
           sorted({round(b - a, 3) for a, b in gaps}), [round(box.HOLE_W, 3)])
+
+    # --- `Lower the front`, and the rim cutouts, on the BUILD as well --------
+    mine = box.build(p)
+    for who, shape in (("STEP", ref), ("build", mine)):
+        check(f"{who}: front wall stops at FRONT_TOP",
+              zprofile(0.0, -BD / 2 + box.WALL / 2, shape),
+              [(0.0, box.FRONT_TOP)])
+        bar = Box(box.box_width(p, d) + 20, 0.4, 0.4).moved(
+            Location((0, -BD / 2 + box.WALL / 2, box.FRONT_TOP + 1.0)))
+        ends = sorted((round(q.bounding_box().min.X, 3),
+                       round(q.bounding_box().max.X, 3))
+                      for q in (shape & bar).solids())
+        check(f"{who}: above it only the end walls remain", ends,
+              [(round(-box.box_width(p, d) / 2, 3), round(-inner, 3)),
+               (round(inner, 3), round(box.box_width(p, d) / 2, 3))])
+    # The rim cutouts, built and measured the same way.
+    got = rim_cutouts(mine, p, d)
+    check("the BUILD's rim cutouts match the STEP's",
+          [(round(c, 2), round(w, 2)) for c, w in got],
+          [(round(c, 2), round(w, 2)) for c, w in cuts])
+    # Through a rim cutout the back wall stops at RIM_CUTOUT_Z instead of
+    # reaching the rim. Assert only the TOP: whether the profile below it is one
+    # interval or several depends on whether the cutout centre happens to land
+    # on a hanging hole or a pier, which varies by box.
+    for who, shape in (("STEP", ref), ("build", mine)):
+        check(f"{who}: the back wall stops at RIM_CUTOUT_Z in a cutout",
+              zprofile(got[0][0], BD / 2 - 0.95, shape)[-1][1],
+              box.RIM_CUTOUT_Z, 1e-3)
+        check(f"{who}: and reaches the rim beside one",
+              zprofile(got[0][0] + L.BOX_CUTOUT_W, BD / 2 - 0.95, shape)[-1][1],
+              round(d.BoxHeight, 3), 1e-3)
 
 print("\n=== #calFingerHoleOffset ===")
 _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl

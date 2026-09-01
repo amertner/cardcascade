@@ -72,7 +72,7 @@ def sliced_diff(a, b, slabs=SLABS):
     return out, failed
 
 
-def report(key, limit=25):
+def report(key, limit=25, slabs=SLABS):
     fn, p = REFS[key]
     ref = import_step(str(Path(__file__).resolve().parent.parent
                           / "spec" / "reference" / fn)).solids()[0]
@@ -82,17 +82,37 @@ def report(key, limit=25):
           f"#BoxDepth {box.box_depth(p,d):.3f}")
     print(f"  mine {mine.volume:12.3f} mm3    STEP {ref.volume:12.3f} mm3"
           f"    mine/STEP {mine.volume/ref.volume*100:.1f}%")
+    totals = {}
     for label, a, b in (("MISSING (in STEP, not mine)", ref, mine),
                         ("EXTRA   (mine, not in STEP)", mine, ref)):
-        lumps, failed = sliced_diff(a, b)
+        lumps, failed = sliced_diff(a, b, slabs)
+        totals[label] = sum(v for v, _ in lumps)
         note = f", {failed} slab(s) failed" if failed else ""
-        print(f"  {label}: {sum(v for v, _ in lumps):11.3f} mm3 in "
+        print(f"  {label}: {totals[label]:11.3f} mm3 in "
               f"{len(lumps)} lump(s){note}")
         for v, bb in lumps[:limit]:
             print(f"     {v:11.3f}  X {bb.min.X:9.3f}..{bb.max.X:9.3f}"
                   f"  Y {bb.min.Y:8.3f}..{bb.max.Y:8.3f}"
                   f"  Z {bb.min.Z:8.3f}..{bb.max.Z:8.3f}")
+    # A slab whose boolean half-failed shows the SAME lump in both directions,
+    # which inflates both totals while leaving their difference nearly right.
+    # Check them against the plain volume gap, which needs no boolean at all.
+    # Individual lump SIZES are indicative, not exact; their positions are what
+    # this tool is for.
+    got = totals["MISSING (in STEP, not mine)"] - totals["EXTRA   (mine, not in STEP)"]
+    want = ref.volume - mine.volume
+    if abs(got - want) > max(1.0, 0.002 * abs(want)):
+        print(f"  ** the two totals differ by {got:.3f} where the volumes differ "
+              f"by {want:.3f} — a slab boolean failed; re-run with --slabs N")
+    else:
+        print(f"  (totals reconcile: {got:.3f} vs a {want:.3f} volume gap)")
 
 
-for k in sys.argv[1:] or ["Dom246S_raw"]:
-    report(k)
+args = sys.argv[1:]
+slabs = SLABS
+if "--slabs" in args:
+    i = args.index("--slabs")
+    slabs = int(args[i + 1])
+    del args[i:i + 2]
+for k in args or ["Dom246S_raw"]:
+    report(k, slabs=slabs)
