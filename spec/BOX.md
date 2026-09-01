@@ -885,6 +885,41 @@ place: `Text` inside a `BuildSketch` adds ITSELF as well as the shifted copy
 unless it is `Mode.PRIVATE`, and the shift to bring the pen to the origin is
 `+lsb, +lo` — `align=MIN` leaves the pen at `-lsb`, not at `+lsb`.
 
+## `Smooth box edges` — which edges, measured
+
+The filleted / unfilleted pair settles the radius at `0.600` and the cost at
+`129.406 mm³` over `44` new faces. What it also settles, now, is the EDGE SET.
+
+An edge survives the fillet if the filleted solid still has one with the same
+midpoint, which needs no booleans — comparing the two references that way finds
+**80 of the unfilleted solid's 5052 edges gone**, `2704 mm` of them:
+
+| count | where |
+|---|---|
+| 22 | horizontal at `z = 105.000` — the top rim |
+| 14 | horizontal at `z = 85.000` — the `Top of back` ledge |
+| 10 | vertical at `x = ±103.050` — the inner end walls |
+| 8 + 8 | curved at `z = 103.650` and `104.790` — the rounded top corners' arcs |
+| 4 | vertical at `x = ±104.650` — the outer end walls |
+| 4 | horizontal at `z = 0.000` — the bottom perimeter |
+| 4 | curved at `z = 84.800` |
+| 2 | horizontal at `z = 68.600` — the lowered front's top edge |
+| 4 | vertical on the storage DIVIDERS, at `x = ±69.050, ±67.450, ±35.050, ±33.450` |
+
+Read as one thing: **every edge a finger meets.** The top rim, the rear
+storage's cap, the lowered front, the bottom of the box, and the vertical
+arrises of the end walls and the dividers. Nothing inside the card slots, the
+lattice or the label holders is touched.
+
+A plain convex fillet over `2704 mm` would remove about `209 mm³` where the pair
+measures `129.4`, so a good part of the set is CONCAVE — the fillet adds
+material at those, which is what the `z = 85.000` ledge and the divider arrises
+would do.
+
+**Still needed: what `#SharpEdges` actually selects.** The list above is one
+box's answer; whether it generalises depends on whether the query is a rule or a
+saved pick, and that changes what `cad/` should implement.
+
 ## Still open
 
 - **`isLabelHoldersOnBox` is to become a real option.** Always `1` today, but
@@ -900,8 +935,8 @@ unless it is `Mode.PRIVATE`, and the shift to bring the pen to the origin is
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build: `Smooth box edges`, the `0.600` fillet the filleted /
-  unfilleted STEP pair already measures.
+- Still to build: `Smooth box edges` — radius and edge set both measured above;
+  what is missing is the `#SharpEdges` query's definition.
 - **The `RisingSliders > 8` branch** of the `Card Cascade` sketch's margin —
   see above. `S9.21.10` is the row that needs it. Nothing else — `box_diff` on `Dom246S_raw` now shows
   MISSING of `0.000` and an EXTRA that is exactly the deliberate whole-divider
