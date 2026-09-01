@@ -35,6 +35,9 @@ authoritative for them.
 - **`cad/` builds 7.0 geometry only** and `pusher.build` refuses any other
   version. The 14 pushers in `individual/` still at 6.6 stay Onshape's until
   their cascades migrate; `build/` is the migration target, not a mirror.
+- Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
+  every pusher is the bare `python -m cad.build`, and `--part all` does both.
+  A box takes about ten seconds, a pusher under one.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — it skips a reference that is absent), and

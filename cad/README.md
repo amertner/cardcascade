@@ -17,10 +17,23 @@ written yet, so the Onshape path is still the one that builds a cascade.
 ```
 .venv/bin/python -m cad.build                    # 34 pushers -> build/<Game>/
 .venv/bin/python -m cad.build --list             # the catalogue, no writing
+
+.venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
+.venv/bin/python -m cad.build --part box         # all 50 — MINUTES
+.venv/bin/python -m cad.build --part all         # both
+
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
+.venv/bin/python tests/test_box.py               # source vs the six STEPs
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
+.venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
 ```
+
+Pushers are the default because they take under a second each. A box is about
+ten, so `--part box` on the whole catalogue is minutes — `--model` matches on
+the model code and is how to build one. `--box` on the renderer swaps the
+camera: its default is aimed at a pusher lying flat and renders a 105 mm-tall
+box as a squashed ribbon.
 
 `build/` is disposable and gitignored. Rebuilding unchanged source gives
 byte-identical files, so `cad.build` reports `changed` only when something

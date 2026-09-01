@@ -5,6 +5,17 @@
     .venv/bin/python -m cad.build --game Dominion
     .venv/bin/python -m cad.build --list          # what it would build
 
+    .venv/bin/python -m cad.build --part box      # every box — MINUTES
+    .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
+    .venv/bin/python -m cad.build --part all      # both
+
+Pushers are the default because they are seconds each. A box is about ten, so
+all 50 is minutes; `--model` matches on the model code and is the way to build
+one. Look at the result with
+
+    .venv/bin/python -m cad.render "build/Dominion/Box S2.40.12-30.45-Sl.3mf" \
+        --box --contact tmp/box.png
+
 Output is the same interface Onshape's exports are — see `cad/mesh3mf.py` — in
 the same assembly position, so a file here is comparable, part for part, with
 the one in `individual/`. It is written to `build/`, never over `individual/`:
@@ -40,6 +51,7 @@ from . import derive as D
 from . import mesh3mf
 from . import params
 from . import lock as L
+from .parts import box as box_part
 from .parts import pusher
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -51,6 +63,52 @@ def pusher_file(p, legacy=False):
     first = ("" if legacy or not p.isFirstSlidingSlotOverride
              else f"-{p.FirstSlidingSlotCards}")
     return f"Pusher {p.RisingSliders}x{p.CardsPerSlidingSlot}{first}-{slv}.3mf"
+
+
+def box_file(d):
+    """`Box <model>.3mf`, the name `individual/` uses.
+
+    `calModelName` IS the box's identity — it carries the size letter, the riser
+    count, the capacities, the first-riser override, the Mat branch and the
+    sleeving — and CLAUDE.md makes the CAD the authority on it. Only the
+    separators differ from the studio's string.
+    """
+    name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
+    return "Box " + name.replace("/", "-") + ".3mf"
+
+
+def box_catalogue(csv=CSV, game=None, model=None):
+    """[(folder, filename, Primary)] — every distinct box, deduplicated.
+
+    Boxes do NOT share across games or sleeving, and `calModelName` separates
+    every axis that changes the geometry, so it is the whole key.
+    """
+    out = {}
+    for row in params.load_rows(csv):
+        for sleeved in (0, 1):
+            p = params.from_row(row, sleeved)
+            if game and p.GameName.lower() != game.lower():
+                continue
+            d = D.derive(p)
+            fn = box_file(d)
+            if model and model.lower() not in fn.lower():
+                continue
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+    return [out[k] for k in sorted(out)]
+
+
+def build_box(p, out_dir, folder, filename):
+    """Build one box and write the 3MF. Boxes are NOT placed in an assembly
+    offset — the part studio's origin is the assembly's."""
+    part = box_part.build(p)
+    path = out_dir / folder / filename
+    before = path.read_bytes() if path.exists() else None
+    meshed = mesh3mf.write(path, [("Box", part)])
+    _, verts, tris = meshed[0]
+    return {"path": path, "verts": len(verts), "tris": len(tris),
+            "volume": part.volume, "bytes": path.stat().st_size,
+            "changed": before is not None and before != path.read_bytes(),
+            "new": before is None}
 
 
 def catalogue(csv=CSV, game=None, legacy=False):
@@ -107,7 +165,31 @@ def main(argv=None):
     ap.add_argument("--legacy-names", action="store_true",
                     help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
+    ap.add_argument("--part", choices=("pusher", "box", "all"), default="pusher",
+                    help="what to build. Pushers are the default because they "
+                         "are seconds; a box is about ten, so all 48 is minutes")
+    ap.add_argument("--model", help="build only boxes whose model code contains "
+                                    "this, e.g. S2.40.12-30.45-Sl")
     args = ap.parse_args(argv)
+
+    if args.part in ("box", "all"):
+        boxes = box_catalogue(args.csv, args.game, args.model)
+        if args.list:
+            for folder, fn, p in boxes:
+                print(f"  {folder + '/' + fn}")
+            print(f"\n  {len(boxes)} boxes")
+        else:
+            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
+            total = 0
+            for folder, fn, p in boxes:
+                r = build_box(p, args.out, folder, fn)
+                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
+                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
+                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
+                total += r["bytes"]
+            print(f"\n  {len(boxes)} boxes, {total / 1e6:.1f} MB, in {args.out}")
+        if args.part == "box":
+            return 0
 
     items = catalogue(args.csv, args.game, args.legacy_names)
     if args.list:
