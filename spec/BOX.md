@@ -793,34 +793,85 @@ property of the string and the face:
 
 So the Box uses ONE face where the Pusher uses two — there is no Open Sans on it.
 
-### What the sizing is, and what is still open
+### The placement, from Allan's four sketches
 
-The two `-X` lines share a single font size on every reference — they are one
-sketch, which is why `Model name` is a single feature. The three `+X` lines each
-have their own.
+Every number below is one of the sketch's own dimensions, and each is confirmed
+on all five references.
 
-Two rules hold exactly on all five references:
+```
+                     both blocks
+cap top              TEXT_INSET = 3.000 in from the side floor's INNER edge
+                     — `#calSlotwidth/2 - 3mm` on the -X sketch, and measured
+                     3.000, 3.000, 3.001, 2.996, 3.004 on the +X one
+engraving            0.400 into the floor's top, so z 1.200..1.600
 
-* **`Rev` is `0.750` of the `ProductName` line's size.** `2.7049/3.6066`,
-  `2.8552/3.8070`, `6.0109/8.0147`, `1.3900/1.8534`, `2.5171/3.3562` — all
-  `0.7500`.
-* **`ProductName` and `calCapacityLabel` are each fitted to the same length**,
-  the sliding-card area less about `5.5` total (`5.18` to `6.13` across the
-  five), starting `2.700` from its front end. The `-X` block is fitted the same
-  way to that length less about `7.0`, and hangs `3.150` from the back end.
+                     -X, reading DOWN in Y
+lines                calModelName, then GameName, at ONE size — which is why
+                     `Model name` is a single feature
+pen start            3.000 from the back of the sliding-card area
+line gap             3.000, baseline to the next line's cap top
 
-**What is NOT settled is the spacing between the `+X` lines.** The gap from
-`Rev` back to `calCapacityLabel` is `1.200 x Rev's size` exactly on all five;
-the gap from `calCapacityLabel` back to `ProductName` is `1.200 x the MEAN of
-those two sizes` — `4.20` against `4.173`, `4.64/4.59`, `9.95/9.89`,
-`2.52/2.466`, `4.80/4.76`. Two different rules for two adjacent gaps is not a
-rule, so one of the readings is wrong and neither is safe to build on.
+                     +X, reading UP in Y
+pen start            2.500 from the front of the sliding-card area, on all
+                     three lines
+ProductName          fitted to the card area less 2 x 2.500. #LogoHeight is
+                     its cap height
+calCapacityLabel     fitted to the same length; its cap top sits
+                     2 x #LogoHeight/3 below the ProductName baseline
+version              cap = 3 x #LogoHeight/4; cap top sits #LogoHeight/2 below
+                     the calCapacityLabel baseline
+```
 
-This is the Pusher's situation again — `spec/PUSHER.md`: "Onshape can constrain
-sketch text in only one dimension, so a text box that is right for one
-parameter set is wrong for another", and `cad/text.py` states the intent and
-fits both dimensions instead. The Box will need the same treatment, and the
-sizes above are what it should land near rather than reproduce.
+The `2.500` was the one that had fooled me. I had measured the ink starting
+`2.700` from the front and called it a fitted number; it is `2.500` to the TEXT
+BOX plus the first glyph's left side bearing, `0.056` of the font size for
+Orbitron's `C`. That reproduces the ink position to three decimals on every
+reference — `2.702`, `2.713`, `2.949`, `2.604`, `2.688`.
+
+Fitting `ProductName` to `card area - 5.000` then predicts its size to a
+**constant `0.31 %`** across all five. Constant, so the residual is in how the
+advance is being measured, not in the rule.
+
+**The `-X` block does not fill its box.** Its sketch bounds it the same way —
+`3.000` at the back, `#calFrontPocketDepth + #WallThickness + 3mm` at the front,
+which is `card area - 5.000` again — but the text measures `card area - 6.900`
+(`6.74` to `7.18` across the five). Allan: the size "is a bit arbitrary, I just
+wanted to make it fit", so `cad/` uses the measured `6.900` rather than the
+sketch's bound, which lands within a few tenths of every reference.
+
+**Unresolved: the `RisingSliders` conditional.** The `Card Cascade` sketch reads
+`#RisingSliders <= 8 ? 2.5 mm : 2.5mm + ...` and the screenshot truncates. Every
+reference is `R <= 8` so nothing on disk exercises the other branch — but
+`S9.21.10` in the catalogue is `R = 9` and will.
+
+### The version line is a DELIBERATE DIVERGENCE
+
+The sketches still read `Rev <version>`; Allan: it should say `CC`, as the Lid
+does, i.e. `calVersion`. So the build engraves `CC 7.0` where every reference
+engraves `Rev 7.0`.
+
+This is the **second** intentional difference, after the whole dividers, and it
+is asserted the same way — from both ends. The two are told apart by the line's
+ink-length-to-cap ratio, which is a property of the string and the face alone:
+`5.84` for `Rev 7.0` against `4.93` for `CC 7.0`. `tests/test_box.py` checks the
+STEP still reads the first and the build reads the second, so a re-export that
+converged would fail rather than pass quietly.
+
+### Placing glyphs by the pen, not by their ink
+
+`build123d`'s `Text` aligns to the INK or centres it, never to the pen origin,
+and the bearings are exactly what turns a sketch dimension into an ink position.
+`cad/text.metrics` reads them out of the font file with `fontTools` — advance,
+left bearing, and the ink's extent above and below the baseline, per em.
+
+The arithmetic alternative does not survive contact: bearings cancel from every
+ink measurement, so recovering them needs a glyph assumed symmetric, and `|`
+put the left bearing of `Card Cascade` at `0.0435` against its true `0.0560`.
+
+Two traps in the build itself, both caught by the ink landing in the wrong
+place: `Text` inside a `BuildSketch` adds ITSELF as well as the shifted copy
+unless it is `Mode.PRIVATE`, and the shift to bring the pen to the origin is
+`+lsb, +lo` — `align=MIN` leaves the pen at `-lsb`, not at `+lsb`.
 
 ## Still open
 
@@ -837,8 +888,10 @@ sizes above are what it should land near rather than reproduce.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build: the engraved text — measured in full above, but its line
-  spacing wants one more pass — and `Smooth box edges`. Nothing else — `box_diff` on `Dom246S_raw` now shows
+- Still to build: `Smooth box edges`, the `0.600` fillet the filleted /
+  unfilleted STEP pair already measures.
+- **The `RisingSliders > 8` branch** of the `Card Cascade` sketch's margin —
+  see above. `S9.21.10` is the row that needs it. Nothing else — `box_diff` on `Dom246S_raw` now shows
   MISSING of `0.000` and an EXTRA that is exactly the deliberate whole-divider
   divergence (`460.0 mm³`) plus the text. The diff isolates each of them cleanly now — the thumb as
   `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`

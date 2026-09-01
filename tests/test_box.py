@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from build123d import import_step, Box, Location   # noqa: E402
-from cad import params, derive as D, lock as L    # noqa: E402
+from cad import params, derive as D, lock as L, text as TX  # noqa: E402
 from cad.parts import box                         # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -510,6 +510,71 @@ for name, fn, p in REFS:
               [round(-BD / 2 - q.bounding_box().min.Y, 3)
                for q in (shape & col).solids()],
               [round((R ** 2 - past ** 2) ** 0.5, 3)])
+
+    # --- `Model name` and the `Logo` group ---------------------------------
+    y_front, y_back = box.card_area(p, d)
+    span = y_back - y_front
+    sf_edge = box_w / 2 - box.WALL - box.side_floor(d)
+
+    def engraved(shape, sign):
+        """Every glyph cut into one side floor, as bounding boxes."""
+        lo, hi = sorted((sign * (box_w / 2 - box.WALL), sign * sf_edge))
+        slab = Box(hi - lo, BD - 2 * box.WALL, box.ENGRAVE).moved(
+            Location(((lo + hi) / 2, 0, box.WALL - box.ENGRAVE / 2)))
+        return [q.bounding_box() for q in (slab - shape).solids()]
+
+    # Where the engraving sits, compared LIKE FOR LIKE. Reconstructing each
+    # line from the glyph boxes and holding it to the sketch rules is doable
+    # but brittle — a line is identified by its baseline, and which glyph
+    # reaches furthest depends on whether the string has an ascender, which
+    # varies by box. The band each side floor's engraving occupies says the
+    # same thing and cannot be fooled by a stray dot.
+    band = {}
+    for who, shape in (("STEP", ref), ("build", mine)):
+        for sign, lbl in ((-1, "-X"), (1, "+X")):
+            gs = engraved(shape, sign)
+            check(f"{who}: {lbl} side floor is engraved", len(gs) > 10, True)
+            if not gs:
+                continue
+            check(f"{who}: {lbl} engraving is ENGRAVE deep into the floor top",
+                  (round(min(g.min.Z for g in gs), 3),
+                   round(max(g.max.Z for g in gs), 3)),
+                  (round(box.WALL - box.ENGRAVE, 3), round(box.WALL, 3)))
+            # The block starts TEXT_INSET in from the side floor's inner edge
+            # and runs outward; on -X it reads down in Y, on +X up.
+            near = (max(g.max.X for g in gs) if sign < 0
+                    else min(g.min.X for g in gs))
+            start = (max(g.max.Y for g in gs) if sign < 0
+                     else min(g.min.Y for g in gs))
+            band[(who, lbl)] = (round(abs(near) - abs(sf_edge), 2),
+                                round(start, 2))
+            check(f"{who}: {lbl} engraving starts about TEXT_INSET in",
+                  abs(abs(near) - abs(sf_edge) - box.TEXT_INSET) < 0.6, True)
+    for lbl in ("-X", "+X"):
+        if ("STEP", lbl) in band and ("build", lbl) in band:
+            # Component by component: `check` only tolerances FLOATS, so a
+            # tuple is compared exactly and 0.01 of rounding fails it.
+            for i, what in enumerate(("inset", "start")):
+                check(f"build: {lbl} engraving {what} matches the STEP's",
+                      band[("build", lbl)][i], band[("STEP", lbl)][i], 0.3)
+    # The version line is a DELIBERATE DIVERGENCE: Allan's sketch still reads
+    # "Rev <version>" and the build says calVersion, as the Lid does. Told
+    # apart by the line's ink-length-to-cap ratio, which is a property of the
+    # string and the face alone — the same measurement that identified the
+    # font. Asserted BOTH ways, so a future re-export that converged would fail.
+    for who, shape, txt in (("STEP", ref, f"Rev {p.Version}"),
+                            ("build", mine, d.calVersion)):
+        gs = engraved(shape, 1)
+        # A line shares its BASELINE, which on +X is the glyphs' max X — the
+        # caps grow inward. Grouping by min X instead picks out one glyph.
+        outer = [g for g in gs if g.max.X > max(q.max.X for q in gs) - 0.05]
+        if not outer:
+            continue
+        span = max(g.max.Y for g in outer) - min(g.min.Y for g in outer)
+        tall = max(g.size.X for g in outer)
+        check(f"{who}: the version line reads {txt!r}",
+              round(span / tall, 2),
+              round(TX.ink(txt)[0] / TX.ink(txt)[1], 2), 0.05)
 
 print("\n=== #calFingerHoleOffset ===")
 _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl

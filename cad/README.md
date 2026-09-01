@@ -133,7 +133,9 @@ the planner's key to gain the axis first.
 The Box's hanging holes are cut through the rear storage dividers in Onshape —
 on `Box Dominion 244S` all three, at full width, so each is severed at every
 hole row. `cad/` stops them at the slot band and leaves the dividers solid
-(Allan). That is the ONLY intentional difference so far, and the rule it sets
+(Allan). The Box's version line is the second: Onshape's sketches still read
+`Rev <version>` and Allan wants `calVersion`, as the Lid has, so the build
+engraves `CC 7.0` where every reference engraves `Rev 7.0`. The rule these set
 is the point: a divergence is recorded in `spec/`, and asserted from both ends
 — the build has the new behaviour, the reference still has the old one — so
 re-converging fails the tests rather than passing quietly. Anything else that

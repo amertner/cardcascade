@@ -16,13 +16,14 @@ left and `tests/test_box.py` for what is proven. Nothing writes a Box to build/
 yet.
 """
 from build123d import (
-    Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Kind, Line,
-    Location, Mode, Plane, Polygon, Rectangle, SlotOverall, ThreePointArc,
-    chamfer, extrude, fillet, make_face, offset, revolve,
+    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Kind, Line,
+    Location, Mode, Plane, Polygon, Pos, Rectangle, SlotOverall, Text,
+    ThreePointArc, add, chamfer, extrude, fillet, make_face, offset, revolve,
 )
 
 from .. import derive as D
 from .. import lock as L
+from .. import text as T
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
 
@@ -860,6 +861,94 @@ def label_holders(p, d, part):
         Location((-BW / 2, SIDE_LABEL_Y, 0)))
 
 
+# `Model name` and the `Logo` group — the engraving in the two side floors.
+# Allan supplied the four sketches; every placement below is one of their
+# dimensions, and each is confirmed on all five references.
+ENGRAVE = 0.400            # the same depth the Pusher's text uses
+TEXT_INSET = 3.000         # cap top, in from the side floor's inner edge —
+#                            `#calSlotwidth/2 - 3mm` on the -X sketch
+MODEL_GAP = 3.000          # between the two -X lines, baseline to cap top
+LOGO_MARGIN = 2.500        # the +X text box, off each end of the card area.
+#                            The sketch reads `#RisingSliders <= 8 ? 2.5 mm :
+#                            2.5mm + ...` and no reference has R > 8, so the
+#                            other branch is unknown — see spec/BOX.md.
+MODEL_MARGIN = 6.900       # the -X block measured, total. Its sketch box is
+#                            5.000 like the +X one, but the text does not fill
+#                            it; Allan: the size "is a bit arbitrary, I just
+#                            wanted to make it fit".
+CAPACITY_GAP = 2 / 3       # x #LogoHeight, ProductName baseline to cap top
+VERSION_GAP = 1 / 2        # x #LogoHeight, capacity baseline to cap top
+VERSION_CAP = 3 / 4        # x #LogoHeight
+
+
+def card_area(p, d):
+    """(front, back) of the sliding-card area in Y — what the text is fitted
+    to. Its front is the divider panel's back face and its back the inner back
+    wall, which is exactly `bottom_slot`'s span."""
+    return (-box_depth(p, d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER,
+            box_depth(p, d) / 2 - WALL)
+
+
+def engrave_line(txt, size, baseline, start, toward, sign):
+    """One line of engraved text, as a solid to subtract.
+
+    `baseline` is the line's baseline in X, `start` where its pen begins in Y,
+    and `toward` +1 or -1 the reading direction. The glyphs are placed by the
+    PEN ORIGIN — `cad.text.metrics` gives the bearings, which no measurement of
+    rendered ink can recover.
+    """
+    _adv, lsb, lo, _hi = T.metrics(txt)
+    with BuildPart() as part:
+        with BuildSketch(Plane.XY.offset(WALL - ENGRAVE)):
+            # Mode.PRIVATE, or `Text` adds itself to the sketch where it stands
+            # AND the shifted copy is added on top of it.
+            glyphs = Text(txt, font_size=size, font_path=T.LOGO_FONT,
+                          align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
+            # align=MIN puts the INK's corner on the origin, which leaves the
+            # pen origin at -lsb and the baseline at -lo. Shift by +lsb, +lo to
+            # bring BOTH to zero.
+            add(Pos(lsb * size, lo * size) * glyphs)
+        extrude(amount=ENGRAVE)
+    solid = part.part.rotate(Axis.Z, 90 * (1 if toward > 0 else -1))
+    return solid.moved(Location((baseline, start, 0)))
+
+
+def floor_text(p, d, part):
+    """`Model name` and the `Logo` group, cut ENGRAVE into the floor's top.
+
+    Five lines, all Orbitron Bold, on the two side floors. `#LogoHeight` is the
+    `ProductName` line's cap height and everything on the +X side hangs off it.
+    """
+    inner = box_width(p, d) / 2 - WALL
+    edge = inner - side_floor(d)          # the side floor's INNER edge
+    y_front, y_back = card_area(p, d)
+    span = y_back - y_front
+
+    # --- -X: calModelName, then GameName, one size, reading toward -Y -------
+    size = T.fit_size(d.calModelName, span - MODEL_MARGIN)
+    cap = T.CAP * size
+    x = -edge - TEXT_INSET                # the first line's cap top
+    for txt in (d.calModelName, p.GameName):
+        part = part - engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
+                                   -1, -1)
+        x = x - cap - MODEL_GAP           # next line, one gap further out
+    # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
+    start = y_front + LOGO_MARGIN
+    logo_size = T.fit_size(d.ProductName, span - 2 * LOGO_MARGIN)
+    logo_cap = T.CAP * logo_size          # this is #LogoHeight
+    base = edge + TEXT_INSET + logo_cap
+    part = part - engrave_line(d.ProductName, logo_size, base, start, +1, +1)
+    cap_size = T.fit_size(d.calCapacityLabel, span - 2 * LOGO_MARGIN)
+    base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
+    part = part - engrave_line(d.calCapacityLabel, cap_size, base, start, +1, +1)
+    # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:
+    # it should say CC, as the Lid does. A DELIBERATE DIVERGENCE, and
+    # tests/test_box.py asserts both sides of it.
+    ver_size = VERSION_CAP * logo_cap / T.CAP
+    base = base + VERSION_GAP * logo_cap + VERSION_CAP * logo_cap
+    return part - engrave_line(d.calVersion, ver_size, base, start, +1, +1)
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
@@ -880,4 +969,5 @@ def build(p):
     part = sliders(p, d, part)
     part = front_pocket(p, d, part)
     part = closing_bumps(p, d, part)
-    return label_holders(p, d, part)
+    part = label_holders(p, d, part)
+    return floor_text(p, d, part)

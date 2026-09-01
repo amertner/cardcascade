@@ -147,3 +147,57 @@ def detail_placement(p, d, notch_depth=5.2):
               (depth - 2 * LOGO_MARGIN * depth) / wpc)
     return (txt, font_size_for_cap(cap, DETAIL_FONT), DETAIL_BASELINE_X,
             -(depth - wpc * cap) / 2)
+
+# --- metrics -------------------------------------------------------------
+CAP = 0.720          # Orbitron Bold's OS/2 capHeight, 720/1000
+
+
+@lru_cache(maxsize=4)
+def _ttf(font):
+    from fontTools.ttLib import TTFont
+    return TTFont(font)
+
+
+@lru_cache(maxsize=512)
+def metrics(txt, font=LOGO_FONT):
+    """`(advance, left bearing, ink bottom, ink top)` for `txt`, per em and
+    measured from the BASELINE.
+
+    Read out of the font file rather than inferred from rendered ink. Bearings
+    cancel from every ink measurement, so recovering them by arithmetic needs a
+    glyph assumed symmetric — and picking `|` for that put the left bearing of
+    "Card Cascade" at `0.0435` against its true `0.0560`.
+    """
+    f = _ttf(font)
+    upm = f["head"].unitsPerEm
+    hmtx, cmap, glyf = f["hmtx"], f.getBestCmap(), f["glyf"]
+    adv, lsb, lo, hi = 0.0, None, 0.0, 0.0
+    for ch in txt:
+        g = cmap.get(ord(ch))
+        if g is None:
+            continue
+        a, l = hmtx[g]
+        if lsb is None:
+            lsb = l / upm
+        shape = glyf[g]
+        if shape.numberOfContours:
+            lo, hi = min(lo, shape.yMin / upm), max(hi, shape.yMax / upm)
+        adv += a / upm
+    return adv, (lsb or 0.0), lo, hi
+
+
+@lru_cache(maxsize=256)
+def ink(txt, font=LOGO_FONT, size=10.0):
+    """`(width, height)` of the inked extent of `txt` — no bearings. Rendered
+    rather than computed, so it reflects what actually gets cut."""
+    from build123d import BuildSketch
+    with BuildSketch() as sk:
+        Text(txt, font_size=size, font_path=font, align=(Align.MIN, Align.MIN))
+    bb = sk.sketch.bounding_box()
+    return bb.size.X, bb.size.Y
+
+
+def fit_size(txt, box_len, font=LOGO_FONT):
+    """The font size whose ADVANCE across `txt` fills `box_len` — which is the
+    dimension an Onshape text box actually constrains."""
+    return box_len / metrics(txt, font)[0]
