@@ -10,7 +10,7 @@ has actually been written, and grows with it.
 Proven so far: the envelope (`#BoxWidth` / `#BoxDepth` / `BoxHeight`), the
 bottom slot, the rear pusher storage — which is what carries the 7.0 lock into
 the box, its rim cutouts sitting at each slot's centreline +- `s` — the lowered
-front, the rounded top corners and the sliders.
+front, the rounded top corners, the sliders and the front pocket.
 """
 import math
 import sys
@@ -259,6 +259,51 @@ for name, fn, p in REFS:
               round(b.min.Y + BD / 2, 3), eaten, 2e-3)
         check(f"{who}: end wall, CORNER_R round at the top back",
               round(BD / 2 + box.REAR_DEPTH - b.max.Y, 3), eaten, 2e-3)
+    # --- `Front pocket` -----------------------------------------------------
+    fw, fb, pback = box.pocket_span(p, d)
+    for who, shape in (("STEP", ref), ("build", mine)):
+        # A section through the middle of the pocket: the two pads, then one
+        # segment per divider. MatPocket shows up here as a missing divider.
+        bar = Box(box_w + 20, 0.2, 0.05).moved(Location((0, (fw + fb) / 2, 30.0)))
+        segs = sorted((round(q.bounding_box().min.X, 3),
+                       round(q.bounding_box().max.X, 3))
+                      for q in (shape & bar).solids())
+        want = ([(round(-box_w / 2, 3), round(-inner + box.FRONT_PAD, 3))]
+                + [(round(x - box.FRONT_DIVIDER_W, 3), round(x, 3))
+                   for x in box.front_dividers(p, d)]
+                + [(round(inner - box.FRONT_PAD, 3), round(box_w / 2, 3))])
+        check(f"{who}: pocket section is 2 pads + {len(box.front_dividers(p, d))} dividers",
+              segs, want)
+        # `Angled cutout`: the front face of the pad, read as the frontmost
+        # material above a plane. The x window keeps the end walls out of it.
+        def pad_front(z):
+            cap = Box(2.0, BD + 40, d.BoxHeight + 20 - z).moved(
+                Location((-inner + 2.9, 0, (z + d.BoxHeight + 20) / 2)))
+            return round(min(q.bounding_box().min.Y
+                             for q in (shape & cap).solids()), 3)
+        for z in (box.FRONT_TOP, 76.0, 84.0):
+            frac = (z - box.FRONT_TOP) / (box.POCKET_CUT_TOP - box.FRONT_TOP)
+            check(f"{who}: angled cutout at z={z}",
+                  pad_front(z), round(fw + frac * (pback - fw), 3), 2e-3)
+        # The divider panel, read where the lattice leaves a pier.
+        holes = box.hanging_holes(p, d)
+        pier = (holes[0][1] + holes[1][0]) / 2
+        col = Box(0.15, BD + 40, 0.15).moved(Location((pier, 0, 40.0)))
+        ys = sorted((round(q.bounding_box().min.Y, 3),
+                     round(q.bounding_box().max.Y, 3))
+                    for q in (shape & col).solids())
+        check(f"{who}: the divider panel is FRONT_DIVIDER thick",
+              [y for y in ys if abs(y[0] - fb) < 1e-6],
+              [(round(fb, 3), round(pback, 3))])
+        # ... and carries the back wall's lattice exactly.
+        bar = Box(box_w + 20, 0.2, 0.05).moved(
+            Location((0, (fb + pback) / 2, box.hole_rows()[0][0] + 3.0)))
+        pieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
+                        for q in (shape & bar).solids())
+        check(f"{who}: the panel's slits are the back's hanging holes",
+              [(round(a[1], 3), round(b[0], 3))
+               for a, b in zip(pieces, pieces[1:])],
+              [(round(a, 3), round(b, 3)) for a, b in holes])
     # The rim cutouts, built and measured the same way.
     got = rim_cutouts(mine, p, d)
     check("the BUILD's rim cutouts match the STEP's",

@@ -10,13 +10,13 @@ Local frame (the part studio's):
     Y   depth, 0 at the centre, -BoxDepth/2 the FRONT, +BoxDepth/2 the back
     Z   height, 0 at the bed, BoxHeight at the rim
 
-INCOMPLETE. `build()` stops after `Sliders`; see `spec/BOX.md` "Still open" for
-what is left and `tests/test_box.py` for what is proven. Nothing writes a Box to
-build/ yet.
+INCOMPLETE. `build()` stops after `Front pocket`; see `spec/BOX.md` "Still
+open" for what is left and `tests/test_box.py` for what is proven. Nothing
+writes a Box to build/ yet.
 """
 from build123d import (
     Axis, Box, BuildPart, BuildSketch, Cylinder, Kind, Location, Mode, Plane,
-    Rectangle, extrude, fillet, offset,
+    Polygon, Rectangle, extrude, fillet, offset,
 )
 
 from .. import derive as D
@@ -405,6 +405,111 @@ def sliders(p, d, part):
     return part
 
 
+# `Front pocket`. The fixed pocket across the front of the box, divided into
+# one compartment per horizontal slot. Every number here is measured exact on
+# all six references.
+FRONT_PAD = D.FrontPocketSidePaddingWidth   # 5.800, `Pad outermost slots`
+FRONT_DIVIDER_W = 0.800                     # `Divider for front pocket`
+POCKET_CUT_TOP = 87.500                     # where `Angled cutout` lands
+
+
+def front_dividers(p, d):
+    """Right-edge X of each front-pocket divider, left to right.
+
+        first = -#BoxWidth/2 + WallThickness + #calFirstLeftFrontDividerDist
+        then step by #calSlotwidth
+
+    `calFirstLeftFrontDividerDist` is `calSlotwidth + calFrontDividerLeftSpacing`
+    and the studio's own variable, so the first compartment is one slot wide
+    plus the side spacing and the rest are a slot each. Exact on all six.
+
+    **`MatPocket` drops the RIGHTMOST divider**, merging the last two
+    compartments into one wide slot for the mat — which is what
+    `calFrontSlotsForCards = HorizontalSlots - 2` counts. Confirmed against the
+    pair `Box Dominion 244S` / `Box Dominion 202S Merged`: same box, same
+    envelope, and the only difference across the section is that one divider.
+    """
+    x0 = -box_width(p, d) / 2 + WALL + d.calFirstLeftFrontDividerDist
+    n = p.HorizontalSlots - 1 - (1 if p.MatPocket else 0)
+    return [x0 + k * d.calSlotwidth for k in range(n)]
+
+
+def pocket_span(p, d):
+    """(front wall inner face, divider panel front, divider panel back) in Y."""
+    fw = -box_depth(p, d) / 2 + WALL
+    return fw, fw + d.calFrontPocketDepth, fw + d.calFrontPocketDepth + FRONT_DIVIDER
+
+
+def angled_cutout(p, d):
+    """`Angled cutout of front holder` — one plane, and it cuts the lot.
+
+    It runs from the TOP OF THE LOWERED FRONT WALL, `(y = -#BoxDepth/2 +
+    WallThickness, z = 68.600)`, back and up to the divider panel's BACK face
+    at `z = 87.500`, and everything in the pocket — padding, dividers and the
+    panel itself — is simply where that plane happens to cross it. Both
+    endpoints are exact on all six references, which is what says it is one
+    plane and not three separately-topped features; the slope varies from
+    `0.349` to `1.323` across them purely because `calFrontPocketDepth` does.
+
+    Cut as a polygon swept along X, so the plane is stated once. It is applied
+    to the pocket's own solids BEFORE they are fused to the box — see
+    `front_pocket` — so it can run the full width without touching the end
+    walls, which the STEP leaves square to the rim.
+    """
+    BD = box_depth(p, d)
+    fw, _fb, back = pocket_span(p, d)
+    top = d.BoxHeight + 5
+    out = -BD / 2 - 5                       # clear of the box, into empty space
+    with BuildPart() as tool:
+        with BuildSketch(Plane.YZ):
+            Polygon((fw, FRONT_TOP), (back, POCKET_CUT_TOP), (back, top),
+                    (out, top), (out, FRONT_TOP), align=None)
+        extrude(amount=box_width(p, d) / 2 + 5, both=True)
+    return tool.part
+
+
+def front_pocket(p, d, part):
+    """The whole `Front pocket` group, in the tree's order.
+
+    The floor stays solid under it — `bottom_slot` already starts at the
+    panel's back face — so everything here stands on it.
+
+    Built as ONE composite that is shaped and only then fused. Every piece
+    reaches WALL/2 into the wall it stands on, to keep the fuse off a
+    coincident face, and the angled cutout has to reach those overlaps or they
+    survive it as slivers standing to the rim — which is exactly what happened
+    when the cut was clipped to the inner width, and what the corner-round
+    probe caught, 1.816 mm3 at each end.
+    """
+    BD = box_depth(p, d)
+    inner = box_width(p, d) / 2 - WALL
+    fw, fb, back = pocket_span(p, d)
+    H = d.BoxHeight
+
+    def slab(x_lo, x_hi, ylo, yhi, zlo, zhi):
+        return Box(x_hi - x_lo, yhi - ylo, zhi - zlo).moved(
+            Location(((x_lo + x_hi) / 2, (ylo + yhi) / 2, (zlo + zhi) / 2)))
+
+    # `Front divider` — the panel that closes the pocket, 1.000 thick and
+    # carrying the same lattice as the back wall (cut below).
+    add = slab(-inner - WALL / 2, inner + WALL / 2, fb, back, 0.0, H)
+    # `Divider for front pocket` / `Additional dividers`
+    for x in front_dividers(p, d):
+        add = add + slab(x - FRONT_DIVIDER_W, x, fw - WALL / 2, back, 0.0, H)
+    # `Pad outermost slots` — FrontPocketSidePaddingWidth of solid against each
+    # end wall, filling the pocket from the front wall to the panel.
+    for sign in (-1, +1):
+        lo, hi = sorted((sign * (inner - FRONT_PAD), sign * (inner + WALL / 2)))
+        add = add + slab(lo, hi, fw - WALL / 2, back, 0.0, H)
+    # `Slits in front pocket` — the SAME openings as the back's hanging holes,
+    # at the same X and the same three rows. The padding starts 5.800 in and
+    # the first hole 8.300 in, so no slit ever meets a pad or a divider.
+    for x_lo, x_hi in hanging_holes(p, d):
+        for z_lo, z_hi in hole_rows():
+            add = add - slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
+    return part + (add - angled_cutout(p, d))
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
@@ -422,4 +527,5 @@ def build(p):
     part = rear_storage(p, d, part)
     part = lower_front(p, d, part)
     part = round_top_corners(p, d, part)
-    return sliders(p, d, part)
+    part = sliders(p, d, part)
+    return front_pocket(p, d, part)

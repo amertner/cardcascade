@@ -496,6 +496,57 @@ and suppressed in the other, and `0.6 - sqrt(2·0.6·0.11 - 0.11²) = 0.254`
 exactly. A useful independent confirmation of the `0.600` final fillet — and a
 trap for anything else measured near `z = 105`.
 
+## `Front pocket` — five features, and one plane over the top of them
+
+Everything here is exact on all six references.
+
+```
+divider panel   y = -#BoxDepth/2 + WallThickness + calFrontPocketDepth,
+                1.000 thick, the full inner width
+dividers        right edge at -#BoxWidth/2 + WallThickness
+                              + #calFirstLeftFrontDividerDist + k*calSlotwidth
+                0.800 wide, k = 0 .. HorizontalSlots-2
+padding         FrontPocketSidePaddingWidth = 5.800 against each end wall,
+                filling the pocket front to back
+slits           the SAME openings as the back's hanging holes — same X, same
+                three rows
+angled cutout   the plane through (y = front wall inner face, z = 68.600) and
+                (y = panel BACK face, z = 87.500)
+```
+
+`#calFirstLeftFrontDividerDist` is the studio's own
+`calSlotwidth + calFrontDividerLeftSpacing`, so the leftmost compartment is one
+slot wide plus the side spacing and the rest are a slot each.
+
+**The angled cutout is one plane and it shapes the whole group.** The padding's
+top, each divider's top and the panel's top are not three separate numbers —
+they are wherever that plane crosses each solid, which is why they all differ
+per box and per X. Both endpoints hold to `0.001` on all six references while
+the slope ranges from `0.349` to `1.323`, purely because `calFrontPocketDepth`
+does. It starts exactly at the top of the lowered front wall, so `Lower the
+front` and this are one continuous surface.
+
+**`MatPocket` drops the RIGHTMOST divider**, merging the last two compartments
+into the wide slot the mat needs — which is what
+`calFrontSlotsForCards = HorizontalSlots - 2` counts.
+`Box Dominion 244S` and `Box Dominion 202S Merged` are the same box with the
+same envelope, and across a mid-pocket section the only difference is that one
+divider: `3` against `2`.
+
+### Shape the group before fusing it
+
+Every piece reaches `WallThickness/2` into the wall it stands on, to keep the
+fuse off a coincident face. The angled cut therefore has to reach those
+overlaps too — clipped to the inner width it leaves a sliver of padding
+standing to the rim inside each end wall, `1.816 mm³` a side. So the pocket is
+built as one composite, cut, and only then fused, which also lets the cut run
+the full width without touching the end walls (the STEP leaves those square to
+the rim).
+
+The corner-round probe is what caught it: `4.600` measured `4.800` of eaten
+material on the build and `4.795` on the STEP, because the probe column sits in
+the end wall and the sliver was in it.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
@@ -515,7 +566,10 @@ trap for anything else measured near `z = 105`.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build, in tree order: the front pocket (the largest lump left, and
-  where `MatPocket` lands), the thumb and lip, the closing bumps, the label
-  holders behind `isLabelHoldersOnBox`, the engraved text, and `Smooth box
-  edges`.
+- Still to build, in tree order: the thumb and lip, the closing bumps, the
+  label holders behind `isLabelHoldersOnBox`, the engraved text, and `Smooth
+  box edges`. The diff isolates each of them cleanly now — the thumb as
+  `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`
+  lumps at `z 85.5..88.8`, the front label holder as a `1.600` sweep at
+  `y = -#BoxDepth/2 - 1.600` over `z 40.500..64.500`, and the side label holder
+  as `289.925 mm³` at the `-X` end over the same heights.
