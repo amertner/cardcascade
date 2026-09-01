@@ -261,24 +261,29 @@ So the Box's Mat branch is one feature group deep, and `plan_exports`' note that
 the merge "resizes the box" is about the pocket, not the envelope: the two share
 an envelope to `0.000`.
 
-## `Hole in bottom of box` — one rectangle, not one slot per pusher
+## `Hole in bottom of box` — one rectangle, and two SIDE FLOORS
 
 Despite the plural in the feature name, the floor carries a single rectangular
 through-cut. Measured by subtracting each STEP from the floor slab: on all six
 references the removed lump's volume equals its own bounding box **to the last
 decimal**, so there is no chamfer, draft or second pocket inside it.
 
+**State it by what is LEFT, not by what goes.** A strip of floor
+`calSlotwidth / 2` wide survives at each end — the **side floor** — and it is
+there for a reason: the holders rest on it when the box is not in use (Allan).
+The cut is everything between the two.
+
 ```
-width  = #BoxWidth - 2*WallThickness - calSlotwidth
-       = 11.1 + calSlotwidth * (HorizontalSlots - 1)          centred on X = 0
-depth  = from -#BoxDepth/2 + WallThickness + calFrontPocketDepth + 1.000
-         to   +#BoxDepth/2 - WallThickness
+side floor = calSlotwidth / 2                             at each end
+width      = #BoxWidth - 2*WallThickness - 2*side_floor
+           = 11.1 + calSlotwidth * (HorizontalSlots - 1)   centred on X = 0
+depth      = from -#BoxDepth/2 + WallThickness + calFrontPocketDepth + 1.000
+             to   +#BoxDepth/2 - WallThickness
 ```
 
-So it is the full inner width **less one slot** — half a slot of floor left at
-each end — running from the back of the front pocket's divider to the inner
-face of the back wall, i.e. exactly the sliding card area. It is NOT aligned
-with the rear pusher slots, which sit at their own pitch.
+In depth it runs from the back of the front pocket's divider to the inner face
+of the back wall, i.e. exactly the sliding card area. It is NOT aligned with the
+rear pusher slots, which sit at their own pitch.
 
 | box | width | depth | volume |
 |---|---|---|---|

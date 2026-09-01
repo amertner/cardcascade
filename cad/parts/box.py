@@ -99,22 +99,35 @@ def shell(p, d):
 FRONT_DIVIDER = 1.000
 
 
-def bottom_slot(p, d):
-    """`Hole in bottom of box` — the rectangle cut clean through the floor.
+def side_floor(d):
+    """How much floor is left standing at each end — `calSlotwidth / 2`.
 
-    Returns (width, depth, y centre). One plain rectangular prism, not one slot
-    per pusher: on all five references the removed volume equals its own
-    bounding box exactly, so there is nothing else in it.
-
-        width = #BoxWidth - 2*WallThickness - calSlotwidth
-              = 11.1 + calSlotwidth * (HorizontalSlots - 1)
-
-    i.e. the full inner width less ONE slot, centred — half a slot of floor is
-    left at each end. In depth it runs from the back of the front pocket's
-    divider to the inner face of the back wall, so it spans exactly the sliding
-    card area.
+    This is the point of the cut, and the better way round to state it: the
+    floor is not removed to make room for something, it is removed EXCEPT here,
+    because the **holders rest on these two strips when the box is not in use**
+    (Allan). So the width is set by what has to be left, not by what goes.
     """
-    width = box_width(p, d) - 2 * WALL - d.calSlotwidth
+    return d.calSlotwidth / 2
+
+
+def bottom_slot(p, d):
+    """`Hole in bottom of box` — the rectangle cut clean through the floor,
+    as (width, depth, y centre).
+
+    Everything between the two side floors goes, so the width is
+
+        #BoxWidth - 2*WallThickness - 2*side_floor
+                  = 11.1 + calSlotwidth * (HorizontalSlots - 1)
+
+    and in depth it runs from the back of the front pocket's divider to the
+    inner face of the back wall — exactly the sliding card area.
+
+    One plain rectangular prism, not one slot per pusher: on all six references
+    the removed volume equals its own bounding box exactly, so there is nothing
+    else in it. It is NOT aligned with the rear pusher storage slots, which sit
+    at their own `#dBackSlotWidth` pitch.
+    """
+    width = box_width(p, d) - 2 * WALL - 2 * side_floor(d)
     y_front = -box_depth(p, d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER
     y_back = box_depth(p, d) / 2 - WALL
     return width, y_back - y_front, (y_front + y_back) / 2
