@@ -11,11 +11,10 @@ Local frame (the part studio's, not the assembly's):
     Y   depth, 0 at the front edge, down to -calPusherTotalDepth
     Z   thickness, 0 at the back face, PLATE at the front, tabs stand proud
 
-A hand-exported STEP arrives in ASSEMBLY position, and the transform is not
-constant across parts: X is +3.000 and Y is 0 on both references, but Z is
--18.000 on Compile 105 Sl and -16.000 on Dominion 246 Sl. Align on the
-bounding box when comparing, as tests/test_pusher.py does, rather than on a
-fixed offset.
+A hand-exported STEP, and a component 3MF, arrive in ASSEMBLY position:
+`assembly_offset` below is that transform. Tests still align on the bounding
+box, as tests/test_pusher.py does, because that stays right whatever the
+placement turns out to be.
 """
 from build123d import (
     BuildPart, BuildSketch, BuildLine, Polyline, Plane, Location, Locations,
@@ -25,6 +24,14 @@ from build123d import (
 from .. import derive as D
 from .. import lock as L
 from .. import text as T
+
+# Assembly position. A component 3MF (and a hand-exported STEP) arrives from
+# Onshape placed by the `Lay down` / `Fix to lid` mates, and all 32 pushers on
+# disk sit at exactly the same rule: X shifted by ASSEMBLY_X, Y unchanged (the
+# part already runs 0 .. -calPusherTotalDepth), and Z at -calHeightIncrement.
+# So the Z that spec/PUSHER.md recorded as "not constant" — -18.000 on Compile
+# 105, -16.000 on Dominion 246 — is not arbitrary; those are their rises.
+ASSEMBLY_X = 3.000        # constant on all 32; equals PusherThickness
 
 CHAMFER = 2.000           # Chamfer 1 / Chamfer 2, 45 degrees, full thickness
 ROUND_FIRST = 1.000       # Round step 1
@@ -36,11 +43,11 @@ def slider_drops(p, d):
     """The Y drop at each step, leading edge first, summing to
     calPusherTotalDepth.
 
-    UNVERIFIED where a first-riser override exists: which of the R steps takes
-    calFirstSliderDistance is not determinable from the one STEP we have, which
-    has no override. The leading edge is assumed, because that is the step
-    Onshape rounds separately (`First Step` / `Round step 1` is the lowest one,
-    at x = calHeightIncrement). Confirm against a Dominion 246 or 472 export.
+    The override goes on the LEADING edge — settled by the Dominion 246 STEP,
+    whose outline drops 20.400 (calFirstSliderDistance) at the first step and
+    9.600 (calSliderDistance) at the second. That is also the step Onshape
+    rounds separately (`First Step` / `Round step 1`, at x = calHeightIncrement),
+    and its riser face measures PLATE - 2r for r = 1.000 rather than 0.800.
     """
     drops = [d.calSliderDistance] * p.RisingSliders
     if p.isFirstSlidingSlotOverride:
@@ -78,8 +85,20 @@ def profile_points(p, d, notch=True):
     return pts
 
 
+def assembly_offset(d):
+    """Part frame -> the assembly position an Onshape export arrives in."""
+    return (ASSEMBLY_X, 0.0, -d.calHeightIncrement)
+
+
 def build(p, text=True):
     """`p` is a params.Primary. Returns the Pusher as a build123d Part."""
+    if p.Version != L.GENERATION:
+        raise ValueError(
+            f"cad/ builds {L.GENERATION} geometry only, so a Primary at "
+            f"{p.Version!r} would get {L.GENERATION} tabs under a "
+            f"'CC {p.Version}' stamp — the mixed-generation part parts.csv's "
+            f"Build column exists to prevent. Leave the 6.6 pushers to "
+            f"individual/ until their cascades migrate.")
     d = D.derive(p)
     W = d.calPusherTotalDepth
     inc = d.calHeightIncrement

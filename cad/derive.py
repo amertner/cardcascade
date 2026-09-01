@@ -104,6 +104,9 @@ def derive(p):
     v["calPusherTotalDepth"] = ((p.RisingSliders - 1) * v["calSliderDistance"]
                                 + v["calFirstSliderDistance"])
     # --- pre-7.0 tab placement; superseded by calTabCentreDistance ----------
+    # Transcribed because the studio still has them; NOTHING reads them, as
+    # cad/ builds 7.0 only. calTabDistance is the pre-7.0 tab-centre
+    # separation and matches the 14 still-6.6 pushers on disk exactly.
     v["calNumTabs"] = 2 if v["calPusherTotalDepth"] > 18.0 else 1
     v["calTabDistance"] = (v["calPusherTotalDepth"]
                            - v["calNumTabs"] * (TabWidth + TabLeftMargin) + TabWidth)

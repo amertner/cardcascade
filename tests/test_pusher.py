@@ -188,6 +188,7 @@ for r in rows:
                          q.FirstSlidingSlotCards if q.isFirstSlidingSlotOverride
                          else 0, slv), q)
 built = 0
+tight = []
 for k, q in sorted(seen.items()):
     dq = D.derive(q)
     part = pusher.build(q, text=True)
@@ -195,8 +196,27 @@ for k, q in sorted(seen.items()):
     assert abs(b.size.X - dq.calPusherTotalHeight) < 1e-6
     assert abs(b.size.Y - dq.calPusherTotalDepth) < 1e-6
     assert abs(b.size.Z - L.PUSHER_TOTAL) < 1e-6
+    # The text rule has to hold on EVERY pusher, not just the two references —
+    # it is a fitting rule, and the catalogue spans a 5x range of both the
+    # strip it fits into and the depth it runs along.
+    (txt, sz, x, base), (_ver, sz2, x2, _b2) = T.logo_lines(q, dq)
+    cap = sz * T._metrics(T.LOGO_FONT)[0]
+    assert -base + T.LOGO_MARGIN * dq.calSliderDistance <= dq.calSliderDistance + 1e-9
+    assert x + T._width_per_cap(txt, T.LOGO_FONT) * cap \
+        <= dq.calPusherTotalHeight - pusher.CHAMFER + 1e-9
+    dtxt, dsz, dbx, dy0 = T.detail_placement(q, dq)
+    dcap = dsz * T._metrics(T.DETAIL_FONT)[0]
+    dasc = dcap * (T._metrics(T.DETAIL_FONT)[1] / T._metrics(T.DETAIL_FONT)[0])
+    dwidth = T._width_per_cap(dtxt, T.DETAIL_FONT) * dcap
+    assert dbx + dasc <= dq.calHeightIncrement + 1e-9
+    assert -dy0 + dwidth <= dq.calPusherTotalDepth + 1e-9
+    tight.append((min(cap, dcap), k))
     built += 1
 check("pushers built", built, len(seen))
+check("every logo and detail line fits its own box", True, True)
+tight.sort()
+print(f"  ..  smallest cap in the catalogue: {tight[0][0]:.2f} mm on "
+      f"{tight[0][1]}; largest {tight[-1][0]:.2f} mm on {tight[-1][1]}")
 check("classes cover C1..C5",
       sorted({L.lock_class(D.derive(q).calPusherTotalDepth)[0] for q in seen.values()}),
       ["C1", "C2", "C3", "C4", "C5"])

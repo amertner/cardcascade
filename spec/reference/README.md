@@ -18,6 +18,8 @@ first-riser override, `C3` both times so the lock is held constant. The
 Dominion one is what settles which step takes `calFirstSliderDistance` — see
 `spec/PUSHER.md`.
 
-Both are in **assembly position**, and the transform is not constant: X is
-`+3.000` and Y `0` on both, but Z is `-18.000` on Compile and `-16.000` on
-Dominion. Align on the bounding box.
+Both are in **assembly position**: X `+3.000`, Y `0`, and Z at
+`-calHeightIncrement` — `-18.000` on Compile (rise 18.000) and `-16.000` on
+Dominion (rise 16.000). The rule is confirmed on all 32 component 3MFs in
+`individual/`, and `pusher.assembly_offset` is it. Tests still align on the
+bounding box, because that stays right if a future part places differently.

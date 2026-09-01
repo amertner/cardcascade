@@ -212,6 +212,40 @@ All **34** distinct pushers build and export, spanning `C1..C5` — including
 catalogue. 34 rather than 32 because the two the Pusher key's missing
 first-riser axis hides (see `spec/DERIVED.md`) are separate geometry.
 
+## What the written 3MFs reproduce
+
+`tests/test_pusher_regression.py` reads the 34 files `cad.build` writes back
+through `automation/verify.py` — the same code the Onshape pipeline is checked
+with — and compares each against the file in `individual/` it replaces. It
+passes.
+
+Against **all 32** canonical pushers, exactly (1e-3 mm): height, depth, the
+`4.500` total thickness, and all three assembly coordinates. Every built pusher
+carries two `3.800` tabs, fully backed, with the full `5.00` mm of root, and its
+notch exactly where `verify.target_lock` puts it — which is the C1–C5 re-cut,
+delivered without spending it in Onshape.
+
+The lock itself splits, and the split is not noise:
+
+| | pushers | what the rebuild does |
+|---|---|---|
+| already 7.0 in `individual/` | 18 | reproduces the lock exactly |
+| still 6.6 | 14 | moves it onto the catalogue |
+
+**The split matches parts.csv's `Build` column on every row it can name.** Read
+the generation off each canonical pusher's lock — `6.6` if the tab centres are
+`D - 12.00` apart, `7.0` if they sit at `D/2 ± s` — and it agrees with the
+pinning for 30 of 32, including the per-sleeving pins (`Dominion 168/202/244
+Card` are `Sl:6.6`, and their `Pusher 4x10-Un` reads 7.0 while `-Sl` reads 6.6;
+`Innovation` is `Un:6.6` and splits the other way). The two that cannot agree
+are `Pusher 6x10-Un/Sl`, which two rows share: the files read 7.0, which is
+`324 Card`'s pinning, confirming `spec/DERIVED.md`'s reading that the `290 Card
+(Mat)` geometry is the one absent from disk.
+
+Text is not compared. Onshape sized it in one dimension and `cad/text.py` sizes
+it in two, so it is expected to differ — deliberately, and most on the parts
+Allan flagged.
+
 ## Settled by the Dominion export
 
 **The first riser is at the leading edge.** Its outline drops `20.400`
@@ -221,6 +255,10 @@ override first — and the `r = 1.000` round on that step (against `0.800` on th
 rest) is confirmed by its riser face measuring `18.400` for an `18.400` length,
 i.e. `PLATE - 2r = 1.000`.
 
-**The assembly transform is not constant.** X is `+3.000` and Y `0` on both,
-but Z is `-18.000` on Compile and `-16.000` on Dominion. Compare on the
-bounding box, not a fixed offset.
+**The assembly transform is a rule, not a constant.** X is `+3.000` and Y `0`
+on both, and Z is `-18.000` on Compile against `-16.000` on Dominion — which
+are their two `calHeightIncrement`s. Checked against all **32** component 3MFs
+in `individual/`, `Z min = -calHeightIncrement` exactly, every time, across the
+seven distinct rises in the catalogue (`9.667` to `22.000`).
+`pusher.assembly_offset` is that rule; `cad/build.py` applies it, so a built
+file lands where the Onshape one does and the two compare directly.

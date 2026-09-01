@@ -3,11 +3,53 @@
 Rebuilding the Onshape cascade geometry as build123d source, so that a cascade
 is generated from `parts.csv` with **zero API calls** and the design is in git.
 
-`PIPELINE.md` describes the toolchain this replaces. Everything downstream of a
-component `.3mf` — `make_cascade.py`, `verify.py`, `filaments.py`, `towers.py`,
-`refresh_cascades.py` — is unchanged and unaware.
+`automation/PIPELINE.md` describes the toolchain this replaces. Everything
+downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
+`filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
+
+**Done so far: the Pusher.** Box, Lid, Holder, TokenHolder and Topper are not
+written yet, so the Onshape path is still the one that builds a cascade.
 
 ---
+
+## Run it
+
+```
+.venv/bin/python -m cad.build                    # 34 pushers -> build/<Game>/
+.venv/bin/python -m cad.build --list             # the catalogue, no writing
+.venv/bin/python tests/test_pusher.py            # source vs the two STEPs
+.venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
+.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
+```
+
+`build/` is disposable and gitignored. Rebuilding unchanged source gives
+byte-identical files, so `cad.build` reports `changed` only when something
+really moved.
+
+## Layout
+
+```
+cad/
+  params.py     Primary — the 10 inputs, frozen; loads a parts.csv row
+  derive.py     Primary -> Derived. EVERY formula, once.
+  tables.py     per-game lookups, transcribed from the variable studio
+  lock.py       LOCK_STANDARD.md in code; shared by box, lid, pusher
+  text.py       fonts and the sizing rules
+  mesh3mf.py    read/write a component 3MF in the shape Onshape's have
+  build.py      the CLI: parts.csv -> build/<Game>/*.3mf
+  render.py     shaded PNGs, for looking at a build without Studio
+  parts/
+    pusher.py   done
+                box.py lid.py holder.py token_holder.py topper.py — to come
+spec/
+  DERIVED.md    the Onshape variable studio, transcribed, and what it settled
+  PUSHER.md     the Pusher measured, and what the rebuild reproduces
+  reference/    hand-exported STEPs — the ground truth, 0 API calls
+tests/
+  test_derive.py            formulae vs every measured anchor on record
+  test_pusher.py            the part vs both reference STEPs
+  test_pusher_regression.py the 34 written 3MFs vs the 32 in individual/
+```
 
 ## What this replaces, and what it does not
 
@@ -25,33 +67,6 @@ problem that only exists upstream. `assembly_split.py` tells `Holder` from
 `topper_split.py` identifies six same-named assembly instances by **glyph widths
 as a fraction of word width**. Generated locally, both parts simply get named.
 
----
-
-## Layout
-
-```
-cad/
-  params.py     Primary — the 10 inputs, frozen; loads a parts.csv row
-  derive.py     Primary -> Derived. EVERY formula, once.
-  tables.py     per-game lookups, transcribed from the variable studio
-  lock.py       LOCK_STANDARD.md in code; shared by box, lid, pusher
-  text.py       fonts and the sizing rules (see below)
-  parts/
-    pusher.py   done
-                box.py lid.py holder.py token_holder.py topper.py — to come
-spec/
-  DERIVED.md    the Onshape variable studio, transcribed, and what it settled
-  PUSHER.md     the Pusher measured, and what the rebuild reproduces
-  reference/    hand-exported STEPs — the ground truth, 0 API calls
-tests/
-  test_derive.py  formulae vs every measured anchor on record (system python)
-  test_pusher.py  the part vs both reference STEPs (needs the venv)
-```
-
-Not yet written: the 3MF writer (lift it from `labelmaker.py`, which already
-does named multi-object output plus the Bambu metadata) and the `build.py` CLI
-that would put components in `build/<Game>/`.
-
 ## Two typefaces, both identified rather than assumed
 
 `fonts/Orbitron-Bold.ttf` — already used by `labelmaker.py` — sets the product
@@ -68,9 +83,10 @@ and Regular by `0.34`. The thin `l` is what separates them.
 Onshape can constrain sketch text in only one dimension, so a box that suits
 one parameter set does not suit another — the same string comes out `3.85x`
 bigger on one reference than the other. `cad/text.py` fits **both** dimensions
-instead. `spec/PUSHER.md` has the numbers.
+instead, and `tests/test_pusher.py` holds the result to its own bounds on all
+34 pushers, not just the two references. `spec/PUSHER.md` has the numbers.
 
-## Four decisions
+## Five decisions
 
 **1. Derived variables live in exactly one module.**
 `derive.py` takes a `Primary` and returns a frozen `Derived`. Component modules
@@ -85,27 +101,41 @@ exact coordinates. This is the upgrade over the current pipeline, where a mesh i
 all Onshape hands back: `verify.py` chains 2D section loops and probes a 900×300
 grid to find a pusher tab, and `check_box`'s 1.2 mm depth tolerance is a
 concession to that. From a B-rep you know where the tab is because you put it
-there. Tessellation non-determinism (`README.md`, on labels) stops mattering,
-because the mesh stops being the thing under test.
+there.
 
 **3. Build to `build/`, never over `individual/`.**
 `individual/` is 242 components and 68 raw assemblies — the only ground truth
 there is, and unreproducible at any sane API cost. It is frozen and read-only
-until a component type passes regression. `build.py --promote` copies across.
+until a component type has passed regression.
 
-**4. Generation is a parameter, not a git tag.**
-20 cascades build at 7.0 and 28 stay at 6.6, and `refresh_cascades` must build
-both **in one run**, so "check out the 6.6 tag" does not work. `Primary` carries
-its generation and the geometry branches on it. 6.6 → 7.0 is exactly the lock
-catalogue, which `lock.py` already isolates, so the branch is one module deep —
-but a second such split landing somewhere less tidy is the thing to watch, and
-the reason to keep generations few and short-lived.
+**4. One generation: 7.0.**
+`lock.py` is the 7.0 catalogue, and `pusher.build` **refuses** a `Primary` at
+any other version rather than stamp `CC 6.6` on 7.0 tabs. A pre-7.0 pusher put
+its tabs at a fixed inset from the two depth edges instead (4.20 front, 4.00
+back, notch always — measured identical on all 14 still-6.6 pushers in
+`individual/`), and nothing here reproduces that. So `build/` is the migration
+TARGET, not a mirror: it reproduces the 18 pushers Onshape has already re-cut
+and moves the other 14 onto the catalogue. Those 14 stay Onshape's until their
+cascades migrate. `derive.py` keeps the pre-7.0 variables because it is a
+transcription of the studio and they are still in it — nothing reads them.
+
+**5. The Pusher name carries the first-riser axis.**
+A pusher's depth depends on `FirstSlidingSlotCards`, but `plan_exports` keys it
+`(risers, cards, sleeved)` — so Dominion `324 Card` and `290 Card (Mat)` collide
+on `Pusher 6x10-*.3mf` and differ by 1.20 mm sleeved. `build.py` writes
+`Pusher 6x10-12-Sl.3mf` for the override, following parts.csv's own model-code
+convention (`M6.21.10/12`, with `/` folded to `-`). Four files are consequently
+named differently from `individual/` and two are new; `--legacy-names` writes
+the old names and refuses when two geometries would land on one. Promotion needs
+the planner's key to gain the axis first.
 
 ## Order of work
 
-The **Pusher** first. It is the simplest part; `LOCK_STANDARD.md` already
-specifies its post-7.0 geometry completely; `verify.py --pushers` is an existing
-pass/fail oracle; there are 32 cached pushers to regress against; and the C1–C5
-re-cut it is owed costs a real slice of the API budget the moment it is done in
-Onshape instead. Then Lid (same lock, plus embossed version text), then Box,
-then Holder, then TokenHolder, then Topper.
+The **Pusher** first, and it is done. It is the simplest part;
+`LOCK_STANDARD.md` already specifies its post-7.0 geometry completely;
+`verify.py --pushers` is an existing pass/fail oracle; there are 32 cached
+pushers to regress against; and the C1–C5 re-cut it is owed costs a real slice
+of the API budget the moment it is done in Onshape instead.
+
+Then Lid (same lock, plus embossed version text), then Box, then Holder, then
+TokenHolder, then Topper.

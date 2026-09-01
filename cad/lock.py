@@ -10,6 +10,12 @@ Every dimension is a constant across all 32 pushers. A design is one number:
 `s`, the distance from the pusher's centreline to each tab's centre.
 """
 
+# The catalogue IS the 7.0 lock, and cad/ builds only 7.0 — see cad/README.md,
+# "One generation". A pre-7.0 pusher put its tabs at a fixed inset from the two
+# depth edges (4.20 front, 4.00 back, notch always) and nothing here reproduces
+# that; `pusher.build` refuses rather than stamp the wrong version on it.
+GENERATION = "7.0"
+
 # Sizes that do not move (LOCK_STANDARD.md).
 PUSHER_TOTAL = 4.500      # plate + tab proudness
 PLATE = 3.000             # PusherThickness

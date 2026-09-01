@@ -7,11 +7,11 @@ labels. Everything here generates printable 3MF projects.
 
 | | Labels | Cascades (the boxes) | The rebuild |
 |---|---|---|---|
-| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` | `cad/` (no CLI yet) |
+| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` | `python -m cad.build` |
 | Geometry from | build123d, generated locally | Onshape, exported via API | build123d, generated locally |
 | Config | `cc.cfg` | `automation/parts.csv` | `automation/parts.csv` |
 | Read first | `README.md` | `automation/PIPELINE.md` | `cad/README.md`, `spec/` |
-| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` | `build/<Game>/` (planned) |
+| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` | `build/<Game>/` (gitignored) |
 
 **Read the relevant doc before editing any of them.** `PIPELINE.md` in
 particular records decisions and their reasoning; it is the design record, not
@@ -32,9 +32,16 @@ authoritative for them.
 - `individual/<Game>/` is now also the **regression corpus** — 242 components
   and 68 raw assemblies that cannot be re-fetched at any sane budget. The
   rebuild writes to `build/`, never over it.
+- **`cad/` builds 7.0 geometry only** and `pusher.build` refuses any other
+  version. The 14 pushers in `individual/` still at 6.6 stay Onshape's until
+  their cascades migrate; `build/` is the migration target, not a mirror.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
-  fine) and `.venv/bin/python tests/test_pusher.py` (needs build123d, and the
-  hand-exported STEPs it names — it skips a reference that is absent).
+  fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
+  STEPs — it skips a reference that is absent), and
+  `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs
+  `individual/`; run `python -m cad.build` first).
+- `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
+  draws the lot on one sheet when you want to LOOK at a build.
 
 ## Ground rules
 

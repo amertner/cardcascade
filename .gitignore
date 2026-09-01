@@ -19,3 +19,8 @@ tmp/
 # 823-line deletion the next time Camtasia touched it. No **/ needed: a
 # pattern with no slash in it already matches at any depth.
 ~*.tscproj
+
+# Generated components. Reproducible from cad/ with zero API calls, and a
+# pusher is ~115 KB of mesh that does not delta-compress — regenerate, do not
+# commit. individual/ stays the tracked ground truth.
+build/

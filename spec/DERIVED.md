@@ -87,6 +87,20 @@ depths fall in `C4`, so the tabs are where the catalogue wants them.
 The Holder key already carries a `first` axis for exactly this reason. The
 Pusher key needs the same, and the two files need distinguishing names.
 
+**Decided, and done on the `cad/` side.** `cad/build.py` keys a pusher
+`(game, risers, cards, first, sleeved)` — 34 entries against the planner's 32 —
+and names the override one `Pusher 6x10-12-Sl.3mf`, following parts.csv's own
+model-code convention (`M6.21.10/12`, `/` folded to `-` as
+`components.cascade_filename` already does). `--legacy-names` writes the old
+names and refuses when two geometries would land on one, so the collision is
+now loud rather than latent. `plan_exports.compose` and the four affected files
+in `individual/` still need the same change before anything can be promoted.
+
+**And the reading above is confirmed.** Read the generation off each canonical
+pusher's lock and it matches parts.csv's `Build` pinning on all 30 rows the
+name can identify; the two it cannot are `Pusher 6x10-Un/Sl`, which read `7.0`
+— `324 Card`'s pinning, not `290 Card (Mat)`'s `6.6`. See `spec/PUSHER.md`.
+
 ## Loose ends in the studio itself
 
 Transcribed as written; none blocks the rebuild.
@@ -112,12 +126,18 @@ Transcribed as written; none blocks the rebuild.
   `calPocketHeight`.
 - **`calNumTabs` / `calTabDistance` / `calTabToTapDistance` /
   `calPusherMarginToRight` are the pre-7.0 lock**, superseded by
-  `calTabCentreDistance`. Kept because they are what a 6.6 cascade builds, and
-  generations are a parameter (`cad/README.md`).
+  `calTabCentreDistance`. Kept because they are still in the studio and this is
+  a transcription of it — but **nothing in `cad/` reads them**: the rebuild
+  builds 7.0 only (`cad/README.md`, decision 4). They do agree with the 14
+  still-6.6 pushers on disk: `calTabDistance` is their measured tab-centre
+  separation, `D - 12.00`, to the millimetre.
 
 ## Still needed
 
 The derived layer is complete. What the geometry still needs is **shape**, not
-numbers — which feature is cut from which face, in what order. For the Pusher
-that is nearly covered by `LOCK_STANDARD.md`; a hand-exported STEP (0 API calls,
-as in the last three commits on `main`) would settle the rest.
+numbers — which feature is cut from which face, in what order. The Pusher is
+settled: `LOCK_STANDARD.md` plus the two hand-exported STEPs in
+`spec/reference/` (0 API calls) covered it, and `cad/parts/pusher.py` builds all
+34. Lid, Box, Holder, TokenHolder and Topper each still want the same
+treatment — and a STEP each, exported by hand, before their shape can be
+written down.
