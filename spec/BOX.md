@@ -759,12 +759,71 @@ has radius `0.577350` — and reproduces all three points while being half again
 too fat in between. What settled it was reading the radius off the surface
 (`BRepAdaptor_Surface(...).Cylinder().Radius()`) rather than fitting probes.
 
+## The engraved text, measured
+
+Five lines, `0.400` into the top of the `1.600` floor (glyph faces at
+`z = 1.200`), on the two **side floors** — the strips the holders rest on.
+Read off the STEPs by subtracting them from a floor slab and identifying each
+glyph by its ink box.
+
+| side | line | source |
+|---|---|---|
+| `-X`, reading DOWN in Y | 1 | `calModelName` |
+| | 2 | **`GameName`** — the primary, not `gameShortName`: `Box Dominion 244S` reads "Dominion" where the short name is "Dom" |
+| `+X`, reading UP in Y | 1 | `ProductName` |
+| | 2 | `calCapacityLabel` |
+| | 3 | **`Rev <Version>`** |
+
+**The `Rev` line reads `Rev 7.0`.** That closes the question this file has been
+carrying: not `calVersion` ("CC 7.0"), and not the stale "Rev 1.8" of the
+feature-tree screenshot. It is the literal word `Rev`, a space, and the version.
+
+### Every line is Orbitron Bold
+
+Identified by each line's ink-length-to-tallest-glyph ratio, which is a pure
+property of the string and the face:
+
+| line | measured | Orbitron Bold | Open Sans Bold |
+|---|---|---|---|
+| `Dominion` | `6.836` | **`6.8347`** | `6.6122` |
+| `S2.40.12-30.45.Sl` | `13.187` | **`13.1855`** | `10.3862` |
+| `Card Cascade` | `10.200` | **`10.1987`** | `8.5336` |
+| `246 Cards/S` | `9.498` | **`9.4987`** | `7.3896` |
+| `Rev 7.0` | `5.844` | **`5.8447`** | `4.6020` |
+
+So the Box uses ONE face where the Pusher uses two — there is no Open Sans on it.
+
+### What the sizing is, and what is still open
+
+The two `-X` lines share a single font size on every reference — they are one
+sketch, which is why `Model name` is a single feature. The three `+X` lines each
+have their own.
+
+Two rules hold exactly on all five references:
+
+* **`Rev` is `0.750` of the `ProductName` line's size.** `2.7049/3.6066`,
+  `2.8552/3.8070`, `6.0109/8.0147`, `1.3900/1.8534`, `2.5171/3.3562` — all
+  `0.7500`.
+* **`ProductName` and `calCapacityLabel` are each fitted to the same length**,
+  the sliding-card area less about `5.5` total (`5.18` to `6.13` across the
+  five), starting `2.700` from its front end. The `-X` block is fitted the same
+  way to that length less about `7.0`, and hangs `3.150` from the back end.
+
+**What is NOT settled is the spacing between the `+X` lines.** The gap from
+`Rev` back to `calCapacityLabel` is `1.200 x Rev's size` exactly on all five;
+the gap from `calCapacityLabel` back to `ProductName` is `1.200 x the MEAN of
+those two sizes` — `4.20` against `4.173`, `4.64/4.59`, `9.95/9.89`,
+`2.52/2.466`, `4.80/4.76`. Two different rules for two adjacent gaps is not a
+rule, so one of the readings is wrong and neither is safe to build on.
+
+This is the Pusher's situation again — `spec/PUSHER.md`: "Onshape can constrain
+sketch text in only one dimension, so a text box that is right for one
+parameter set is wrong for another", and `cad/text.py` states the intent and
+fits both dimensions instead. The Box will need the same treatment, and the
+sizes above are what it should land near rather than reproduce.
+
 ## Still open
 
-- **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
-  tracks the version — so the `Rev 1.8` in the feature-tree screenshot is stale
-  in the CAD. The glyphs still need measuring off the STEPs, as the Pusher's
-  fonts were, and the STEP will say what it currently reads.
 - **`isLabelHoldersOnBox` is to become a real option.** Always `1` today, but
   Allan wants it usable — users have asked for a box without label holders. So
   the `Front Label Holder` / `Side Label Holder` groups are built behind the
@@ -778,8 +837,8 @@ too fat in between. What settled it was reading the radius off the surface
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build: the engraved text (`Model name` and the `Logo` group) and
-  `Smooth box edges`. Nothing else — `box_diff` on `Dom246S_raw` now shows
+- Still to build: the engraved text — measured in full above, but its line
+  spacing wants one more pass — and `Smooth box edges`. Nothing else — `box_diff` on `Dom246S_raw` now shows
   MISSING of `0.000` and an EXTRA that is exactly the deliberate whole-divider
   divergence (`460.0 mm³`) plus the text. The diff isolates each of them cleanly now — the thumb as
   `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`
