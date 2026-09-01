@@ -10,7 +10,8 @@ has actually been written, and grows with it.
 Proven so far: the envelope (`#BoxWidth` / `#BoxDepth` / `BoxHeight`), the
 bottom slot, the rear pusher storage — which is what carries the 7.0 lock into
 the box, its rim cutouts sitting at each slot's centreline +- `s` — the lowered
-front, the rounded top corners, the sliders and the front pocket.
+front, the rounded top corners, the sliders, the front pocket, the thumbs and
+lip, the closing bumps and both label holders.
 """
 import math
 import sys
@@ -456,6 +457,59 @@ for name, fn, p in REFS:
             check(f"{who}: {lbl} closing bump Z",
                   (round(bb.min.Z, 3), round(bb.max.Z, 3)),
                   (round(box.BUMP_Z0, 3), round(box.BUMP_Z1, 3)))
+
+    # `Front Label Holder` and `Side Label Holder`.
+    check("build: envelope matches the STEP's now the holders are on",
+          (round(mine.bounding_box().size.X, 3),
+           round(mine.bounding_box().size.Y, 3)),
+          (round(rb.size.X, 3), round(rb.size.Y, 3)))
+    for who, shape in (("STEP", ref), ("build", mine)):
+        # Each holder's outer face carries its length, its height and — through
+        # its area — the opening cut out of it, all in one measurement.
+        front = [f for f in shape.faces()
+                 if abs(f.center().Y + BD / 2 + box.LABEL_PROUD) < 1e-6
+                 and f.area > 50]
+        side = [f for f in shape.faces()
+                if abs(f.center().X + box_w / 2 + box.LABEL_PROUD) < 1e-6
+                and f.area > 50]
+        check(f"{who}: one front and one side label holder",
+              (len(front), len(side)), (1, 1))
+        if front and side:
+            fb, sb = front[0].bounding_box(), side[0].bounding_box()
+            check(f"{who}: front holder is FRONT_LABEL_LEN less two chamfers",
+                  round(fb.size.X, 3),
+                  round(box.FRONT_LABEL_LEN - 2 * box.LABEL_CHAMFER, 3), 1e-3)
+            check(f"{who}: side holder is calSideLabelWidth + 0.600",
+                  round(sb.size.Y, 3), round(d.calSideLabelWidth + 0.6, 3), 1e-3)
+            check(f"{who}: side holder is centred on SIDE_LABEL_Y",
+                  round(sb.center().Y, 3), round(box.SIDE_LABEL_Y, 3), 1e-3)
+            for lbl, bb in (("front", fb), ("side", sb)):
+                check(f"{who}: {lbl} holder z",
+                      (round(bb.min.Z, 3), round(bb.max.Z, 3)),
+                      (round(box.LABEL_Z0 + box.LABEL_CHAMFER, 3),
+                       round(box.LABEL_Z1, 3)))
+        # The fastener: the lens of two FASTENER_R cylinders, clipped by the
+        # stadium that rounds its ends. Both expectations come from those
+        # constants, not from a measured literal — the probe cell is CENTRED on
+        # its point, so the reading is at the edge nearest the ridge's middle,
+        # and a literal silently bakes that offset in.
+        R, cx = box.FASTENER_R, box.FRONT_LABEL_LEN / 6
+        thin = 0.02
+        for z in (64.6, 65.0):
+            col = Box(0.1, 4.0, thin).moved(
+                Location((cx, -BD / 2 - 1.0, z + thin / 2)))
+            near = min(z + thin, box.LABEL_Z1 + box.FASTENER_TALL / 2)
+            want = (R ** 2 - (box.LABEL_Z1 + box.FASTENER_TALL - near) ** 2) ** 0.5
+            check(f"{who}: fastener proud at z={z}",
+                  [round(-BD / 2 - q.bounding_box().min.Y, 3)
+                   for q in (shape & col).solids()], [round(want, 3)])
+        off = 4.667                      # into the rounded end
+        col = Box(thin, 4.0, 0.1).moved(Location((cx - off, -BD / 2 - 1.0, 65.0)))
+        past = (off - thin / 2) - (box.FASTENER_LEN / 2 - R)
+        check(f"{who}: fastener taper at its rounded end",
+              [round(-BD / 2 - q.bounding_box().min.Y, 3)
+               for q in (shape & col).solids()],
+              [round((R ** 2 - past ** 2) ** 0.5, 3)])
 
 print("\n=== #calFingerHoleOffset ===")
 _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl

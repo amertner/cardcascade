@@ -706,6 +706,59 @@ The lip goes into the pocket composite BEFORE the angled cutout, and reaches
 then trimmed with the panel by the same cut, which is what makes the order
 work: after the cut, the tab would stand where the STEP has nothing.
 
+## The label holders — one section, two lengths
+
+`Front Label Holder` and `Side Label Holder` are the same shape. Measured off
+the STEPs' own faces, which give round numbers throughout:
+
+```
+proud       1.600
+z           40.500 .. 64.500
+chamfer     1.600 on the outer face's bottom and two ends — NOT its top,
+            which is the side the label slides in from
+slot        0.800 deep, its rim 2.100 in, its own chamfer starting 1.300 in
+opening     4.000 in, cut clean through
+front       160.000 long, CONSTANT on all five references
+side        calSideLabelWidth + 3.800, centred on y = 2.250
+```
+
+The side holder is on the **-X end only**, and that is the whole of the box's
+asymmetric `2.600` width offset: `1.600` here against the closing bump's
+`1.000` at the other end. With both holders built, the build's envelope matches
+the STEP's exactly — `#BoxWidth + 2.600` by `#BoxDepth + 6.100` — which is the
+first time the two agree on the outside.
+
+The chamfer is measured **from the outer face**, so it reaches the wall exactly
+and `chamfer()` on a plain pad reproduces it without any construction geometry.
+The slot is chamfered the same way off its own deep face.
+
+### The fastener is three cylinders, and its section is a LENS
+
+`Fastener` / `Round Fastener`, on the front holder only, two of them at the
+thirds of its length. A section through the middle looks exactly like a
+triangular ridge with 60-degree flanks — and it is not.
+
+Every one of its four faces is `GeomType.CYLINDER` of radius **exactly
+1.000**, and every axis lies **in the wall face**:
+
+| face | axis |
+|---|---|
+| lower flank | along X at `z = 64.500` |
+| upper flank | along X at `z = 65.500` |
+| each end | along Z, at `x = centre ± 4.000` |
+
+So the ridge is the intersection of three unit cylinders: the two along X give
+a lens section peaking `0.866025` proud halfway up and meeting the wall over
+exactly `1.000` of height, and the third — a stadium prism, an `8.000` segment
+dilated by `1.000` — rounds the ends. The flanks are arcs and the peak is an
+EDGE, which is why there are two faces along X and not one.
+
+**A straight-line fit through the three extremes is wrong and looks right.** A
+circle through `(0, 64.500)`, `(0.866, 65.000)` and `(0, 65.500)` exists — it
+has radius `0.577350` — and reproduces all three points while being half again
+too fat in between. What settled it was reading the radius off the surface
+(`BRepAdaptor_Surface(...).Cylinder().Radius()`) rather than fitting probes.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
@@ -725,13 +778,15 @@ work: after the cut, the tab would stand where the STEP has nothing.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build, in tree order: the label holders behind
-  `isLabelHoldersOnBox`, the engraved text (`Model name` and the `Logo` group),
-  and `Smooth box edges`. The diff isolates each of them cleanly now — the thumb as
+- Still to build: the engraved text (`Model name` and the `Logo` group) and
+  `Smooth box edges`. Nothing else — `box_diff` on `Dom246S_raw` now shows
+  MISSING of `0.000` and an EXTRA that is exactly the deliberate whole-divider
+  divergence (`460.0 mm³`) plus the text. The diff isolates each of them cleanly now — the thumb as
   `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`
   lumps at `z 85.5..88.8`, the front label holder as a `1.600` sweep at
   `y = -#BoxDepth/2 - 1.600` over `z 40.500..64.500`, and the side label holder
-  as `289.925 mm³` at the `-X` end over the same heights.
+- **`isLabelHoldersOnBox` is built behind the flag** but no catalogue row can
+  exercise the `0` branch, so that path is written and unexercised.
 - **Probe hygiene.** Four probe bugs so far have been caught only because the
   STEP failed the same check as the build — a bar too narrow to contain what it
   measured, a cap a millimetre low, a cell that clipped a slice of wall, and a

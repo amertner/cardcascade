@@ -10,14 +10,15 @@ Local frame (the part studio's):
     Y   depth, 0 at the centre, -BoxDepth/2 the FRONT, +BoxDepth/2 the back
     Z   height, 0 at the bed, BoxHeight at the rim
 
-INCOMPLETE. `build()` stops after `Closing mechanism`; see `spec/BOX.md`
-"Still open" for what is left and `tests/test_box.py` for what is proven.
-Nothing writes a Box to build/ yet.
+INCOMPLETE. `build()` stops after the label holders; the engraved text and
+`Smooth box edges` are still to come. See `spec/BOX.md` "Still open" for what is
+left and `tests/test_box.py` for what is proven. Nothing writes a Box to build/
+yet.
 """
 from build123d import (
     Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Kind, Line,
-    Location, Mode, Plane, Polygon, Rectangle, ThreePointArc, chamfer, extrude,
-    fillet, make_face, offset, revolve,
+    Location, Mode, Plane, Polygon, Rectangle, SlotOverall, ThreePointArc,
+    chamfer, extrude, fillet, make_face, offset, revolve,
 )
 
 from .. import derive as D
@@ -750,6 +751,115 @@ def closing_bumps(p, d, part):
     return part
 
 
+# `Front Label Holder` and `Side Label Holder`. One section serves both: a pad
+# standing LABEL_PROUD off the wall, chamfered on its bottom and two ends but
+# NOT its top, with a LABEL_GROOVE slot swept behind the rim and the middle cut
+# clean through. Only the length differs — and the front one carries two
+# fasteners the side one does not.
+LABEL_PROUD = 1.600
+LABEL_Z0, LABEL_Z1 = 40.500, 64.500
+LABEL_CHAMFER = 1.600      # `Chamfer 2` / `Chamfer 3`, on the outer face
+LABEL_GROOVE = 0.800       # how deep the label slot is
+LABEL_GROOVE_IN = 1.300    # inset where the slot's own chamfer meets the wall
+LABEL_OPEN_IN = 4.000      # inset of the opening cut clean through
+LABEL_ROOT = 0.800         # how far the pad reaches INTO the wall
+
+FRONT_LABEL_LEN = 160.000  # constant on all five references
+SIDE_LABEL_EXTRA = 3.800   # + calSideLabelWidth
+SIDE_LABEL_Y = 2.250       # the same centre the closing bump uses
+
+FASTENER_LEN = 10.000      # `Fastener` — a ROUNDED ridge above the frame
+FASTENER_R = 1.000         # every one of its faces is a 1.000 cylinder
+FASTENER_TALL = 1.000      # z LABEL_Z1 .. LABEL_Z1 + 1.000
+
+
+def label_holder(length, fasteners=False):
+    """One label holder, in a canonical frame: the wall's outer face is y = 0,
+    the holder stands proud in -Y, and it is centred on x = 0.
+
+    Measured off the STEPs' own faces, which give round numbers throughout:
+    the pad spans `z 40.500..64.500`, its chamfer is `1.600`, the slot's rim is
+    `2.100` in (its chamfer starting `1.300` in), and the opening is `4.000` in.
+    The side holder is the same section at `calSideLabelWidth + 3.800` long.
+    """
+    half = length / 2
+    depth = LABEL_PROUD + LABEL_ROOT
+    height = LABEL_Z1 - LABEL_Z0
+
+    def slab(u, y_lo, y_hi, z_lo, z_hi):
+        return Box(u, y_hi - y_lo, z_hi - z_lo).moved(
+            Location((0, (y_lo + y_hi) / 2, (z_lo + z_hi) / 2)))
+
+    # `Tag holder` + `Chamfer 2`: the chamfer is measured from the OUTER face,
+    # so it reaches the wall exactly. The top edge is left square — that is the
+    # side the label slides in from.
+    pad = slab(length, -LABEL_PROUD, LABEL_ROOT, LABEL_Z0, LABEL_Z1)
+    outer = pad.faces().sort_by(Axis.Y)[0]
+    pad = chamfer([e for e in outer.edges() if e.center().Z < LABEL_Z1 - 1e-6],
+                  LABEL_CHAMFER)
+    # `Cutout` + `Sweep`: the slot, chamfered the same way off its own deep face.
+    cut = slab(length - 2 * LABEL_GROOVE_IN, -LABEL_GROOVE, LABEL_ROOT + 1.0,
+               LABEL_Z0 + LABEL_GROOVE_IN, LABEL_Z1 + 2.0)
+    deep = cut.faces().sort_by(Axis.Y)[0]
+    cut = chamfer([e for e in deep.edges()
+                   if e.center().Z < LABEL_Z1 + 2.0 - 1e-6], LABEL_GROOVE)
+    pad = pad - cut
+    # ... and the middle, clean through.
+    pad = pad - slab(length - 2 * LABEL_OPEN_IN, -depth - 1.0, LABEL_ROOT + 1.0,
+                     LABEL_Z0 + LABEL_OPEN_IN, LABEL_Z1 + 2.0)
+    if not fasteners:
+        return pad
+    # `Fastener` / `Round Fastener` / `Mirror 2` — two ridges just above the
+    # frame, at the thirds of its length, that grip the label's top edge.
+    #
+    # It is the INTERSECTION OF THREE 1.000 CYLINDERS, every axis lying in the
+    # wall face — read straight off the STEP's surfaces, all four of which are
+    # GeomType.CYLINDER of radius exactly 1.000. Two run along X at the ridge's
+    # bottom and top, and their lens-shaped overlap is the section: it peaks
+    # 0.866025 proud, halfway up. The third is the stadium that rounds the ends
+    # — an 8.000 segment dilated by the same 1.000 — and it is a PRISM in Z,
+    # which is why the end faces are cylinders about vertical axes and not
+    # spherical caps.
+    #
+    # A section through the middle looks like a triangular ridge with 60-degree
+    # flanks, and it is not; the flanks are arcs and the peak is an edge, which
+    # is why there are two faces along X and not one.
+    with BuildPart() as foot:
+        with BuildSketch(Plane.XY):
+            SlotOverall(FASTENER_LEN, 2 * FASTENER_R)
+        extrude(amount=LABEL_Z1 + FASTENER_TALL + 2.0)
+    tab = foot.part
+    for z in (LABEL_Z1, LABEL_Z1 + FASTENER_TALL):
+        tab = tab & Cylinder(FASTENER_R, FASTENER_LEN + 2.0,
+                             rotation=(0, 90, 0)).moved(Location((0, 0, z)))
+    for sign in (-1, +1):
+        pad = pad + tab.moved(Location((sign * length / 6, 0, 0)))
+    return pad
+
+
+def label_holders(p, d, part):
+    """`Front Label Holder` and `Side Label Holder`, behind
+    `isLabelHoldersOnBox`.
+
+    Every feature in both groups carries Onshape's `fx` marker, which nothing
+    else in the tree does — conditional suppression on that variable. No
+    catalogue row can exercise the `0` branch (it needs Colours or a single
+    horizontal slot), but Allan wants the option real, so it is built behind the
+    flag rather than unconditionally.
+
+    The side holder is on the **-X end only**, which is the whole of the box's
+    asymmetric 2.600 width offset: 1.600 here against the closing bump's 1.000.
+    """
+    if not d.isLabelHoldersOnBox:
+        return part
+    BW, BD = box_width(p, d), box_depth(p, d)
+    part = part + label_holder(FRONT_LABEL_LEN, fasteners=True).moved(
+        Location((0, -BD / 2, 0)))
+    side = label_holder(d.calSideLabelWidth + SIDE_LABEL_EXTRA)
+    return part + side.rotate(Axis.Z, -90).moved(
+        Location((-BW / 2, SIDE_LABEL_Y, 0)))
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
@@ -769,4 +879,5 @@ def build(p):
     part = round_top_corners(p, d, part)
     part = sliders(p, d, part)
     part = front_pocket(p, d, part)
-    return closing_bumps(p, d, part)
+    part = closing_bumps(p, d, part)
+    return label_holders(p, d, part)
