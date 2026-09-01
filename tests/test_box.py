@@ -35,6 +35,11 @@ REFS = [
     # reference. Kept because it is the smallest box and the only C2 lock.
     ("FCM 72 Sl (scratch)", "Box FCM 72S.step",
      params.Primary(3, 3, 6, 6, 0, 6, 1, 0, "FCM")),
+    # The only reference with a first-riser override, so the only one that can
+    # tell calFirstSliderDistance (20.4) from calSliderDistance (9.6) — the
+    # same gap the Dominion 246 STEP closed for the Pusher.
+    ("Dominion 246 Sl", "Box Dominion 246S.step",
+     params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
 ]
 fails = []
 
@@ -120,6 +125,11 @@ for name, fn, p in REFS:
     check("pitch is #dBackSlotWidth = calPusherTotalDepth + 4.000",
           round(got[1] - got[0], 2) if n > 1 else None,
           round(d.calPusherTotalDepth + 4.0, 2) if n > 1 else None, 0.05)
+
+print("\n=== #calFingerHoleOffset ===")
+_p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
+check("matches the value in the feature tree",
+      round(box.finger_hole_offset(_p, D.derive(_p)), 3), 162.500, 1e-3)
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
 sys.exit(1 if fails else 0)

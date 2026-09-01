@@ -59,6 +59,8 @@ Hand-exported from the Onshape UI, 0 API calls, in `spec/reference/`.
 | `Box Dominion 202S Merged.step` | Dominion 202 Card (Mat) Sl, same model code | `276.900 × 58.300` | 1879 | the SAME box with `MatPocket = 1`. Volume `147581.786` against `148340.743` — the merge removes `758.957 mm³` and adds 47 faces |
 | `Box Dominion 650S.step` | Dominion 650 Card Sl `L8.50.10.62-Sl` | `341.900 × 109.300` | 2146 | L: 5 slots, deepest box in the catalogue |
 | `Box FCM 72S.step` | **not in parts.csv** — see below | `211.900 × 33.700` | 1586 | the smallest box |
+| `Box Dominion 246S.step` | Dominion 246 Card Sl `S2.40.12/30.45-Sl` | `211.900 × 66.100` | 1818 | the ONLY reference with a first-riser override — `calFirstSliderDistance 20.400` against `calSliderDistance 9.600` |
+| `Box Dominion 246S without final fillet.step` | the same box, `Smooth box edges` suppressed | identical | 1774 | **the build target** — see below |
 
 **`Box FCM 72S` is a row parts.csv does not have.** Its envelope solves uniquely
 to FCM, sleeved, `HorizontalSlots 3, RisingSliders 3, FrontPocketCardCapacity 6,
@@ -146,7 +148,7 @@ says otherwise.
 |---|---|---|
 | `#dBackSlotWidth` | `37.6 mm` on `M4.21.10.45-Sl` | **`= calPusherTotalDepth + 4.000`, confirmed** — the stored pusher's own depth plus 2.00 of clearance a side. It is the PITCH between rear storage slots; see below |
 | `#calPusherSlots` | `3` on the same box | 2 for S and for all Innovation, 3 for M and L. Counted independently off all 48 boxes' rim cutouts (`2 × slots + 1` section loops) and it agrees everywhere — see below |
-| `#calFingerHoleOffset` | `162.5 mm` on the same box | unexplained; `#BoxWidth` is `274.3`, half is `137.15` |
+| `#calFingerHoleOffset` | `162.5 mm` on the same box | **`= (calPusherSlots - 1 + (HorizontalSlots - calPusherSlots)/2) * calSlotwidth`** (Allan). Step right one slot width per pusher slot after the first, then centre the remainder. `cad/parts/box.py` |
 | `#HoleAreaHeight` | `68.5 mm` | front-pocket slit height |
 | `#LogoHeight` | `2.74 mm` | the Logo text's cap height, as `#LogoTextHeight` is the Pusher's |
 | `#SharpEdges` | query | the edge set `Smooth box edges` fillets |
@@ -232,12 +234,39 @@ of the `1.600` floor — glyph faces at `z = 1.200` against a floor face at
 `1.600` — the same `ENGRAVE` depth the Pusher uses. They sit at the two ends,
 outboard of the card slots.
 
+## `Smooth box edges` is a `0.600` fillet, and there is a ground truth for it
+
+Allan exported `Box Dominion 246S` twice, once with the final fillet suppressed.
+Diffing the pair settles the one step that could not be reverse-engineered from
+a finished solid, because an Onshape edge QUERY has no counterpart in build123d:
+
+| | |
+|---|---|
+| volume removed | `129.190 mm³` — **0.094 %** of the box |
+| faces added | 44 (1774 → 1818) |
+| radius | **`0.600`**, from three independent offsets: `105.000-104.400`, `33.500-32.900`, `103.650-103.050` |
+| where | 13 sliver chains: the top rim, the `z = 85.000` ledge, and vertical edges on the end walls |
+
+So the build target is the **unfilleted** STEP, and the filleted one validates the
+last step on its own. That removes what was the plan's biggest fidelity risk: the
+diff against the target is no longer polluted by a fillet, and the fillet is
+checked as a `0.600` radius over a named edge set rather than chased as a query.
+
+## `MatPocket` is confined to the front pocket
+
+Allan: it changes the front pocket and the TokenHolder entity, and nothing else.
+Consistent with the measurement — `Box Dominion 202S Merged` differs from
+`Box Dominion 244S` by `758.957 mm³` and 47 faces, all inside the front pocket.
+So the Box's Mat branch is one feature group deep, and `plan_exports`' note that
+the merge "resizes the box" is about the pocket, not the envelope: the two share
+an envelope to `0.000`.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
   tracks the version — so the `Rev 1.8` in the feature-tree screenshot is stale
   in the CAD. The glyphs still need measuring off the STEPs, as the Pusher's
-  fonts were.
+  fonts were, and the STEP will say what it currently reads.
 - **`isLabelHoldersOnBox` is to become a real option.** Always `1` today, but
   Allan wants it usable — users have asked for a box without label holders. So
   the `Front Label Holder` / `Side Label Holder` groups are built behind the

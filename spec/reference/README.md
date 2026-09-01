@@ -38,6 +38,8 @@ one splits, and what has been measured off them, is in `spec/BOX.md`.
 | `Box Dominion 202S Merged.step` | Dominion 202 Card (Mat) Sl — the SAME model code with `MatPocket = 1`, so the merge is isolated to `758.957 mm³` and 47 faces |
 | `Box Dominion 650S.step` | Dominion 650 Card Sl `L8.50.10.62-Sl` — L: 5 slots, deepest box, the only C5 lock |
 | `Box FCM 72S.step` | **not a parts.csv row** — scratch parameters (FCM Sl, `H3 R3 fc6 cps6`) Allan exported as an extra. Kept: it is the smallest box and the only C2 lock |
+| `Box Dominion 246S.step` | Dominion 246 Card Sl `S2.40.12/30.45-Sl` — the only one with a first-riser override, so the only one that can tell `calFirstSliderDistance` from `calSliderDistance` |
+| `Box Dominion 246S without final fillet.step` | the same box with `Smooth box edges` suppressed. The PAIR is the point: it makes the last feature measurable (`0.600`, `129.190 mm³`) instead of a query to be guessed at, and it is the solid `cad/parts/box.py` is built against |
 
 At 2.1 MB gzipped for all five they cost the repo almost nothing, and a
 re-export costs an hour of somebody's afternoon rather than any API budget.

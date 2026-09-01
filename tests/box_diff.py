@@ -23,9 +23,15 @@ REFS = {
  "Dom202SM":    ("Box Dominion 202S Merged.step", params.Primary(4,4,21,10,0,10,1,1,"Dominion")),
  "Dom650S":     ("Box Dominion 650S.step",        params.Primary(5,8,50,10,0,10,1,0,"Dominion")),
  "FCM72S":      ("Box FCM 72S.step",              params.Primary(3,3,6,6,0,6,1,0,"FCM")),
+ # The build TARGET: same box as Dom246S with `Smooth box edges` suppressed, so
+ # the diff is not polluted by the 0.600 fillet. Build against this, then check
+ # the fillet against Dom246S — see spec/BOX.md.
+ "Dom246S_raw": ("Box Dominion 246S without final fillet.step",
+                 params.Primary(3,2,40,12,1,30,1,0,"Dominion")),
+ "Dom246S":     ("Box Dominion 246S.step",        params.Primary(3,2,40,12,1,30,1,0,"Dominion")),
 }
 
-def lumps(shape, n=12):
+def lumps(shape, n=40):
     out = []
     try:
         sols = shape.solids()
@@ -37,7 +43,7 @@ def lumps(shape, n=12):
     out.sort(key=lambda t: -t[0])
     return out[:n]
 
-def report(key, limit=10):
+def report(key, limit=25):
     fn, p = REFS[key]
     ref = import_step(str(Path(__file__).resolve().parent.parent / "spec" / "reference" / fn)).solids()[0]
     mine = box.build(p)

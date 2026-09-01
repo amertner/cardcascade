@@ -60,6 +60,20 @@ def pusher_slot_count(p):
     return 2 if p.HorizontalSlots <= 3 else 3
 
 
+def finger_hole_offset(p, d):
+    """`#calFingerHoleOffset` — where the rear thumb cutout sits.
+
+        (#calPusherSlots - 1 + (#HorizontalSlots - #calPusherSlots)/2)
+        * #calSlotwidth
+
+    Allan's expression, verbatim. It reads as: step right by one slot width per
+    pusher slot after the first, then centre what is left over. Checks out at
+    162.5 on `M4.21.10.45-Sl`, which is the value his feature tree shows.
+    """
+    n = pusher_slot_count(p)
+    return (n - 1 + (p.HorizontalSlots - n) / 2) * d.calSlotwidth
+
+
 def shell(p, d):
     """`Create box shape` — Top of box / Extrude solid box / Hollow out box.
 
