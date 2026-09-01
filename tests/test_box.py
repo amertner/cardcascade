@@ -149,6 +149,45 @@ for name, fn, p in REFS:
               round(lumps[0].volume, 3),
               round(hb.size.X * hb.size.Y * hb.size.Z, 3), 1e-3)
 
+    # --- the rear storage ---------------------------------------------------
+    BD = box.box_depth(p, d)
+    inner = box.box_width(p, d) / 2 - box.WALL
+
+    def zprofile(x, y):
+        col = Box(0.4, 0.4, d.BoxHeight + 2).moved(
+            Location((x, y, d.BoxHeight / 2)))
+        return sorted((round(q.bounding_box().min.Z, 3),
+                       round(q.bounding_box().max.Z, 3))
+                      for q in (ref & col).solids())
+
+    y0, y1 = box.slot_band(p, d)
+    check("slot band starts SLOT_BITE inside the sketch box",
+          round(y0, 3), round(BD / 2 - box.SLOT_BITE, 3), 1e-3)
+    check("slot band is LOCK_STANDARD's box slot depth",
+          round(y1 - y0, 3), round(L.BOX_SLOT_DEPTH, 3), 1e-3)
+    # The outer back wall is capped at REAR_TOP; only the end walls carry on.
+    check("outer back wall is capped at REAR_TOP",
+          zprofile(0.0, BD / 2 + box.REAR_DEPTH - box.WALL / 2),
+          [(0.0, box.REAR_TOP)])
+    # A pusher rests PUSHER_REST up, not on the floor. Probe through the FIRST
+    # HANGING HOLE, not the slot centreline: on an M box the centreline lands on
+    # a lattice pier, where the material runs on past the rest and the profile
+    # says nothing about it.
+    hole0 = box.hanging_holes(p, d)[0]
+    check("the pusher rest is PUSHER_REST high",
+          zprofile(sum(hole0) / 2, y0 + 0.5)[0], (0.0, box.PUSHER_REST))
+    # The hanging holes, read off the back wall as gaps along X.
+    bar = Box(box.box_width(p, d) + 20, 0.4, 0.4).moved(
+        Location((0, BD / 2 - 0.95, box.hole_rows()[0][0] + 3.0)))
+    pieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
+                    for q in (ref & bar).solids())
+    gaps = [(round(a[1], 3), round(b[0], 3)) for a, b in zip(pieces, pieces[1:])]
+    want = [(round(a, 3), round(b, 3)) for a, b in box.hanging_holes(p, d)]
+    check("hanging hole count", len(gaps), len(want))
+    check("hanging hole positions", gaps, want)
+    check("every hanging hole is HOLE_W wide",
+          sorted({round(b - a, 3) for a, b in gaps}), [round(box.HOLE_W, 3)])
+
 print("\n=== #calFingerHoleOffset ===")
 _p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
 check("matches the value in the feature tree",

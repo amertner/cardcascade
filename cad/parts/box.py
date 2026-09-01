@@ -20,6 +20,7 @@ from build123d import (
 )
 
 from .. import derive as D
+from .. import lock as L
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
 
@@ -133,6 +134,128 @@ def bottom_slot(p, d):
     return width, y_back - y_front, (y_front + y_back) / 2
 
 
+# `Add depth to back`. The rear storage stands 4.500 proud of the sketch box —
+# half of the 6.100 depth offset — and is where the pushers are stowed. In
+# section, as offsets from #BoxDepth/2 (constant on all six references):
+#
+#     -1.600 .. -0.300   the back wall, 1.300: a 1.600 wall with 0.300 eaten
+#     -0.300 .. +2.900   the pusher slot, 3.200 = LOCK_STANDARD's box slot depth
+#     +2.900 .. +4.500   the outer back wall, 1.600
+REAR_DEPTH = 4.500
+SLOT_BITE = 0.300        # how far the pusher slot eats into the back wall
+
+
+REAR_TOP = 85.000        # `Top of back` — the storage is capped here; only the
+#                          END WALLS carry on to BoxHeight
+PUSHER_REST = 3.000      # `Remove material, don't let pushers drop through`:
+#                          the slot's floor, so a stored pusher rests 3.000 up
+DIVIDER_W = 1.600        # `Divider` between adjacent pusher slots
+HOLE_W = 10.000          # `Hanging holes` — the lattice through the back
+HOLES_PER_SLOT = 5
+HOLE_INSET = 8.300       # first hole, from the left inner wall
+HOLE_ROWS = 3
+HOLE_ROW_BOTTOM = 3.000
+HOLE_ROW_TOP = 69.500
+HOLE_ROW_GAP = 2.000
+
+
+def rear_block(p, d):
+    """`Add depth to back` — the solid the rest of the group carves.
+
+    It reaches WALL/2 INTO the back wall rather than meeting it at
+    y = #BoxDepth/2. Fusing two solids across an exactly coincident planar face
+    leaves that face inside the result as a lamina: the solid still reports
+    valid and still measures the right volume, but every later boolean against
+    it fails — `ref & mine` came back as None. Half a wall of genuine overlap
+    costs nothing (the back wall is solid there) and keeps the fuse honest.
+    """
+    y0 = box_depth(p, d) / 2 - WALL / 2
+    depth = REAR_DEPTH + WALL / 2
+    return Box(box_width(p, d), depth, d.BoxHeight).moved(
+        Location((0, y0 + depth / 2, d.BoxHeight / 2)))
+
+
+def slot_band(p, d):
+    """(y0, y1) of the pusher slot itself — `LOCK_STANDARD.md`'s 3.200 box slot
+    depth. It starts 0.300 INSIDE the sketch box, which is why the back wall
+    measures 1.300 rather than WallThickness."""
+    y0 = box_depth(p, d) / 2 - SLOT_BITE
+    return y0, y0 + L.BOX_SLOT_DEPTH
+
+
+def hanging_holes(p, d):
+    """(x0, x1) of every opening in the back, left to right.
+
+    Five per horizontal slot, `HOLE_W` wide, at a pitch of
+    `(calSlotwidth - 2.000) / 5` within a slot; the groups themselves repeat at
+    `calSlotwidth`, so the pier between two slots is 2.000 wider than the piers
+    inside one. First hole `HOLE_INSET` from the left inner wall — a constant on
+    every reference.
+    """
+    pitch = (d.calSlotwidth - 2.0) / HOLES_PER_SLOT
+    x0 = -box_width(p, d) / 2 + WALL + HOLE_INSET
+    return [(x0 + k * d.calSlotwidth + j * pitch,
+             x0 + k * d.calSlotwidth + j * pitch + HOLE_W)
+            for k in range(p.HorizontalSlots) for j in range(HOLES_PER_SLOT)]
+
+
+def hole_rows():
+    """(z0, z1) of each lattice row. Constant — the same three rows on every
+    reference, so this is not a function of the riser count."""
+    h = (HOLE_ROW_TOP - HOLE_ROW_BOTTOM - (HOLE_ROWS - 1) * HOLE_ROW_GAP) / HOLE_ROWS
+    return [(HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP),
+             HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP) + h) for i in range(HOLE_ROWS)]
+
+
+def rear_storage(p, d, part):
+    """The whole `Pusher holder & Rear Storage` group, less its thumb cutout.
+
+    Every cut is a PLAIN rectangular box, and they are disjoint. Composing the
+    negative first — empty the slot band, then subtract the rest and the
+    dividers back out of that — produces a tool build123d cannot subtract with:
+    the result measures the right volume and reports valid, but every later
+    boolean against it returns nothing (`ref & mine` came back as None). The
+    cavities are already separated by their dividers, so they can simply be
+    listed.
+    """
+    BW, BD = box_width(p, d), box_depth(p, d)
+    inner = BW / 2 - WALL
+    y0, y1 = slot_band(p, d)
+    n = pusher_slot_count(p)
+    pitch = d.calPusherTotalDepth + 4.0
+    left, top = -inner, d.BoxHeight + 1
+
+    def slab(x_lo, x_hi, ylo, yhi, zlo, zhi):
+        return Box(x_hi - x_lo, yhi - ylo, zhi - zlo).moved(
+            Location(((x_lo + x_hi) / 2, (ylo + yhi) / 2, (zlo + zhi) / 2)))
+
+    part = part + rear_block(p, d)
+    cuts = [
+        # `Top of back` — the storage is capped at REAR_TOP between the end
+        # walls; the end walls run the full height and the full added depth.
+        slab(-inner, inner, BD / 2, BD / 2 + REAR_DEPTH, REAR_TOP, top),
+        # Right of the pusher slots — and of the divider that CLOSES the run —
+        # the slot band is empty from the floor up.
+        slab(left + n * pitch + DIVIDER_W, inner, y0, y1, WALL, top),
+    ]
+    # One cavity per pusher slot, open from PUSHER_REST up — the rest below it
+    # is `Remove material, don't let pushers drop through`. A DIVIDER_W wall
+    # stands at every boundary EXCEPT the left inner wall, which already is one:
+    # n dividers for n slots, the last closing the run on the right. So cavity k
+    # starts one divider in, and ends at its own boundary.
+    for k in range(n):
+        cuts.append(slab(left + k * pitch + (DIVIDER_W if k else 0.0),
+                         left + (k + 1) * pitch, y0, y1, PUSHER_REST, top))
+    # `Hanging holes` — through the back wall AND the dividers, reaching from
+    # the card side to the outer wall.
+    for x_lo, x_hi in hanging_holes(p, d):
+        for z_lo, z_hi in hole_rows():
+            cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y1, z_lo, z_hi))
+    for c in cuts:
+        part = part - c
+    return part
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
@@ -145,4 +268,5 @@ def build(p):
     # underneath and nothing above the floor is touched — the tree cuts this
     # before the sliders and dividers exist, and this keeps that true whatever
     # order the code ends up in.
-    return part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
+    part = part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
+    return rear_storage(p, d, part)

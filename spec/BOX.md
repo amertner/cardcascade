@@ -298,6 +298,61 @@ The `1.000` is the front pocket's back wall, measured as a panel at
 lives in `box.FRONT_DIVIDER` until the Front pocket group is written and can own
 it.
 
+## `Pusher holder & Rear Storage`, measured
+
+Constant on every reference unless stated. Offsets from `#BoxDepth/2`:
+
+| feature | value | |
+|---|---|---|
+| `Add depth to back` | `+4.500` | one half of the 6.100 depth offset |
+| back wall | `-1.600 .. -0.300`, so `1.300` | a `1.600` wall with `0.300` eaten by the slot |
+| pusher slot | `-0.300 .. +2.900`, so **`3.200`** | `LOCK_STANDARD.md`'s box slot depth exactly |
+| outer back wall | `+2.900 .. +4.500`, `1.600` | |
+| `Top of back` | the storage is capped at `z = 85.000` | only the END WALLS carry on to `BoxHeight` |
+| `Remove material, don't let pushers drop through` | the slot's floor is at `z = 3.000` | a stored pusher rests there, not on the box floor |
+| `Divider` / `Repeat Divider` | `1.600` wide, `z` up to `85.000` | **`n` dividers for `n` slots** — at every boundary except the left inner wall, the last one CLOSING the run on the right |
+
+### `Hanging holes` — the lattice through the back
+
+Five per horizontal slot, `10.000` wide, at a pitch of `(calSlotwidth - 2.000)/5`
+within a slot; the groups repeat at `calSlotwidth`, so the pier between two slots
+is `2.000` wider than the piers inside one. The first hole is `8.300` from the
+left inner wall — a constant. They cut through the back wall AND the dividers,
+reaching from the card side to the outer wall.
+
+Three rows, also constant (**not** a function of riser count): `z 3.000..23.833`,
+`25.833..46.667`, `48.667..69.500` — `20.833` tall with `2.000` between, and the
+back solid from `69.500` to the rim.
+
+`tests/test_box.py` reproduces every hole position exactly on all six
+references — 15 holes at `HorizontalSlots 3`, 20 at 4, 25 at 5.
+
+**Probe the lattice through a HOLE, not the slot centreline.** On an M box the
+pusher slot's centreline lands on a pier, where material runs past the rest and
+a vertical profile says nothing about it. That cost a false failure.
+
+## build123d cannot subtract two boxes that share an outer envelope
+
+Worth knowing before the next part. Once the rear storage landed, `cad`'s box and
+the STEP shared their **entire** outer envelope — same walls, same `105.000`
+height, same `4.500` of added depth — and OCCT's boolean then returns an EMPTY
+intersection for two solids that plainly overlap:
+
+* both shapes pass `BRepCheck_Analyzer`;
+* each intersects a large box correctly;
+* a fuzzy tolerance from `1e-7` to `1e-3` changes nothing;
+* `ref - mine` comes back as `ref`, and `ref & mine` as zero volume.
+
+`tests/box_diff.py` slices both shapes into slabs along X and diffs slab by slab,
+which works and reconciles with the plain volume difference. A feature straddling
+a slab boundary is then reported as two lumps — the cost of the workaround.
+
+A related trap inside `box.py` itself: composing the negative first (empty the
+slot band, then subtract the rest and the dividers back out of it) produces a
+tool that cannot be subtracted with. Every cut here is a plain rectangular box,
+and they are disjoint because the cavities are already separated by their
+dividers.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
@@ -312,6 +367,11 @@ it.
 - The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not yet
   identified. It is NOT symmetric, which is odd given both label-holder groups
   mirror.
+- **The rear storage's last ~2 %**: a shelf in the slot band at `z 23.833..25.000`
+  that the reference keeps and this does not, worth `1776` mm³ on Compile 105 and
+  `4103` on Dominion 650 — and `0` on FCM 72, which is exact. Plus
+  `Make rightmost pocket deeper` and the rear thumb cutout at
+  `#calFingerHoleOffset`, neither yet built.
 - Still to build: the sliders (4.000 deep x 1.500 wide vertical ribs on both
   end walls, `RisingSliders` of them at a `calSliderDistance` pitch in Y — the
   diff finds all 8 on `Box Compile 105S`), the front pocket, the bottom pusher
