@@ -98,21 +98,65 @@ period, glyph 4 of 5 at `0.41 × 0.41`.
 **`#LogoTextHeight = 4.47 mm`** is the `C` of `Card Cascade`, which measures
 `4.470` including its round overshoot.
 
-## What is still missing
+## Fonts
 
-1. **The font.** Not recoverable from geometry. `labelmaker.py` uses Orbitron
-   Bold; these glyph proportions are not obviously the same face.
-2. **The third text line.** 8 glyphs, a word space after the first, one
-   full-height narrow glyph at position 3, and three identical glyphs at
-   positions 4, 5 and 7. It matches none of the derived strings —
-   `calCapacityLabel` "105 Cards/S" is 10 glyphs and `calModelName`
-   "S4.7.7.32.Sl" is 12.
-3. **`LogoTextHeight`'s expression.** It and `StepHypotenuse` are Part Studio
-   variables, not Primary studio ones. `StepHypotenuse` is recovered
-   (`sqrt(calHeightIncrement² + calSliderDistance²)`); `4.47` is not.
-4. **Text placement as a rule.** The offsets above are measured at one size;
-   whether the baselines are fixed margins or scale with the part needs either
-   a second STEP at a different parameter set, or the sketch dimensions.
+`Card Cascade` and `CC 7.0` are **Orbitron Bold** — the same
+`fonts/Orbitron-Bold.ttf` `labelmaker.py` uses. Every glyph width matches to
+under `0.001 mm` and every advance to `0.023 mm` across `48.7 mm` of text.
 
-Nothing in 1–4 blocks the solid. The body, steps, rounds, chamfers, tabs and
-notch are fully determined and can be built now.
+**The third line is not Orbitron.** Its glyphs are far narrower relative to
+their height than Orbitron's — `l` measures `0.196` wide over tall against
+Orbitron Bold's `0.331`, and `S` `0.634` against `1.000`. Matched against every
+font on hand, the closest is DejaVu Sans (`0.066 mm` height error but still
+`0.311 mm` on width), so it is some humanist sans, most likely Onshape's
+default. **`cad/parts/pusher.py` does not cut it** until the face is known.
+
+## Text placement
+
+Both Orbitron lines share **one left origin**, `x = 19.7176`. The two ink
+positions differ only by the `C` left side bearing scaled to each size:
+Orbitron Bold's is `0.056 em`, and the two measured inks imply `0.05594 em`.
+The two origins agree to `0.0002 mm`.
+
+The version line's baseline is exactly one `#LogoTextHeight` below the product
+line's — `-4.9008` and `-9.3690`, `4.4682` apart, against a measured
+`LogoTextHeight` of `4.4682`. That is what the variable is *for*: Onshape sizes
+sketch text by dragging a box, so the cap height has to be measured back out
+before it can be used as a dimension. build123d takes a cap height directly, so
+`cad/text.py` states `LOGO_CAP` and derives the font size — the workaround does
+not need reproducing, only its consequences.
+
+The anchors themselves are **measured, not derived**. The Detail text sketch
+drives them from `#StepHypotenuse` and `#calSliderDistance`, but those
+dimensions land on the text *box* and Onshape fits glyphs inside a box by its
+own rule: `StepHypotenuse/4` is `4.9244` where the baseline measures `4.9008`,
+`0.0236` out. A second STEP at another parameter set would settle whether the
+anchors scale.
+
+## What the rebuild reproduces
+
+`cad/parts/pusher.py`, checked by `tests/test_pusher.py`:
+
+| | built | STEP |
+|---|---|---|
+| bounding box | `72.000 × 32.000 × 4.500` | identical |
+| mid-plate outline | 16 vertices | identical, area `1407.920` |
+| volume | `4271.997` | `4271.986` (+ the volume its engraving removed) |
+| tab tops, flank positions | `38.000`, `±8.500` | identical |
+| notch flanks | `-13.300 / -18.700` | identical |
+| riser faces at `x = 21/39/57/75` | `6.0 / 11.2 / 11.2 / 8.4` | identical |
+| the 16 Orbitron glyphs | | within `0.0015 mm` |
+
+All **34** distinct pushers in `parts.csv` build, across every class
+`C1..C5` — including `FCM 3x6-Un` at `D = 14.04`, the only C1 and the tightest
+geometry in the catalogue. 34 rather than 32 because the two the Pusher key's
+missing first-riser axis hides (see `spec/DERIVED.md`) are separate geometry.
+
+## Still open
+
+**Which step takes `calFirstSliderDistance`** when there is a first-riser
+override. The reference STEP has none, so it is not determinable from it.
+`slider_drops()` assumes the step nearest the leading edge, because that is the
+one Onshape rounds separately (`First Step` / `Round step 1`, at
+`x = calHeightIncrement`, `r = 1.000` against `0.800`). A hand-exported
+`Dominion 2x12/30` or `2x18/40` pusher would confirm it.
