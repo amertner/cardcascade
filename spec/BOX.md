@@ -312,6 +312,36 @@ Constant on every reference unless stated. Offsets from `#BoxDepth/2`:
 | `Remove material, don't let pushers drop through` | the cavity floor — see below | a stored pusher rests there, not on the box floor |
 | `Divider` / `Repeat Divider` | `1.600` wide, `z` up to `85.000` | **`n` dividers for `n` slots** — at every boundary except the left inner wall, the last one CLOSING the run on the right |
 
+### The hanging holes do NOT cut the dividers — a deliberate divergence
+
+Onshape cuts each hanging hole as one prism from the card side through to the
+outer wall, so it takes the storage dividers with it. Measured, that is not a
+near miss:
+
+| | dividers pierced | width lost |
+|---|---|---|
+| `Box Dominion 244S` | 3 of 3, all **full width** | `4.800` |
+| `Box Compile 105S` | 2 of 2 | `2.300` |
+| `Box Dominion 246S` | 2 of 2 | `2.300` |
+| `Box FCM 72S` | 1 of 2 | `1.600` |
+| `Box Dominion 650S` | 1 of 3 | `1.600` |
+
+A fully-pierced divider is severed at every hole row — three cuts through the
+`1.600` wall that holds a stored pusher. The holes themselves are wanted; that
+is not.
+
+**So `cad/` stops them at the slot band.** The back wall keeps the complete
+lattice, and so does the fill below the pusher rest; the dividers stay solid
+from the floor to `Top of back`. `box.storage_dividers` names the ranges and
+`box._except` takes them out of each hole. On `Box Dominion 244S` it adds
+`960 mm³` — `0.6 %`.
+
+This is the **first place `cad/` is knowingly not the reference**, so it is
+asserted in both directions: `tests/test_box.py` checks every divider is whole
+on the build AND that the STEP pierces at least one, which is what would catch
+a future change quietly re-converging on Onshape. `tests/box_diff.py` will show
+it as EXTRA, and it is expected there.
+
 ### The pusher rest is a formula, and it is NOT `3.000`
 
 ```

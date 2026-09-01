@@ -86,7 +86,7 @@ bigger on one reference than the other. `cad/text.py` fits **both** dimensions
 instead, and `tests/test_pusher.py` holds the result to its own bounds on all
 34 pushers, not just the two references. `spec/PUSHER.md` has the numbers.
 
-## Five decisions
+## Six decisions
 
 **1. Derived variables live in exactly one module.**
 `derive.py` takes a `Primary` and returns a frozen `Derived`. Component modules
@@ -128,6 +128,16 @@ convention (`M6.21.10/12`, with `/` folded to `-`). Four files are consequently
 named differently from `individual/` and two are new; `--legacy-names` writes
 the old names and refuses when two geometries would land on one. Promotion needs
 the planner's key to gain the axis first.
+
+**6. Where the rebuild diverges from Onshape, it says so and tests both sides.**
+The Box's hanging holes are cut through the rear storage dividers in Onshape —
+on `Box Dominion 244S` all three, at full width, so each is severed at every
+hole row. `cad/` stops them at the slot band and leaves the dividers solid
+(Allan). That is the ONLY intentional difference so far, and the rule it sets
+is the point: a divergence is recorded in `spec/`, and asserted from both ends
+— the build has the new behaviour, the reference still has the old one — so
+re-converging fails the tests rather than passing quietly. Anything else that
+differs from a reference is a bug.
 
 ## Order of work
 

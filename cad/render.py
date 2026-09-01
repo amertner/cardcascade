@@ -105,16 +105,28 @@ def render(verts, tris, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0)
     return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "L")
 
 
-def contact(paths, target, cell=520, cols=4):
-    """One grid image of every part's front view — the way to look over a whole
-    build in one glance rather than 34 files."""
+PUSHER_VIEWS = ((14, 74), (-14, -74))
+# A box is TALL, so the near-plan view a pusher wants reads as a squashed
+# ribbon. These two show it: a three-quarter from above the front-left, which
+# is where the pocket, the sliders and the rear storage are all visible at
+# once, and a plan.
+BOX_VIEWS = ((38, 26), (10, 86))
+
+
+def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
+    """One grid image of every part, one tile per view — the way to look over a
+    whole build in one glance rather than 34 files."""
     from PIL import ImageDraw
     tiles = []
     for path in paths:
         for name, verts, tris in mesh3mf.read(path):
-            img = render(verts, tris, 14, 74, cell)
-            img.thumbnail((cell, cell))
-            tiles.append((f"{path.parent.name}/{path.stem}", img.convert("RGB")))
+            for az, el in views:
+                img = render(verts, tris, az, el, cell)
+                img.thumbnail((cell, cell))
+                label = f"{path.parent.name}/{path.stem}"
+                if len(views) > 1:
+                    label += f"  [{az},{el}]"
+                tiles.append((label, img.convert("RGB")))
     bar, gap = 18, 6
     rows = (len(tiles) + cols - 1) // cols
     h = max(t.height for _n, t in tiles) + bar
@@ -130,12 +142,11 @@ def contact(paths, target, cell=520, cols=4):
     return target
 
 
-def sheet(path, out, width=1200):
-    """One PNG per part: front view above, back view below, with a caption."""
+def sheet(path, out, width=1200, views=PUSHER_VIEWS):
+    """One PNG per part: one view above the next, with a caption."""
     from PIL import ImageDraw
     for name, verts, tris in mesh3mf.read(path):
-        views = [render(verts, tris, az, el, width)
-                 for az, el in ((14, 74), (-14, -74))]
+        views = [render(verts, tris, az, el, width) for az, el in views]
         gap, bar = 16, 26
         w = max(v.width for v in views)
         h = sum(v.height for v in views) + gap + bar
@@ -146,7 +157,7 @@ def sheet(path, out, width=1200):
             y += v.height + gap
         canvas = canvas.convert("RGB")
         ImageDraw.Draw(canvas).text((8, 7), f"{path.parent.name}/{path.stem}"
-                                            f"   [{name}]  front / back", INK)
+                                            f"   [{name}]", INK)
         out.mkdir(parents=True, exist_ok=True)
         target = out / f"{path.parent.name} {path.stem}.png"
         canvas.save(target)
@@ -160,13 +171,21 @@ def main(argv=None):
                     default=Path(__file__).resolve().parent.parent / "tmp" / "render")
     ap.add_argument("--width", type=int, default=1200)
     ap.add_argument("--contact", type=Path,
-                    help="write ONE grid image of every part's front view here")
+                    help="write ONE grid image of every part here")
+    ap.add_argument("--view", action="append", metavar="AZ,EL",
+                    help="camera azimuth,elevation in degrees; repeatable. "
+                         "Defaults suit a PUSHER; use --box for a box.")
+    ap.add_argument("--box", action="store_true",
+                    help=f"shorthand for the box views {BOX_VIEWS}")
     args = ap.parse_args(argv)
+    views = [tuple(float(n) for n in v.split(",")) for v in args.view or []]
+    if not views:
+        views = list(BOX_VIEWS if args.box else PUSHER_VIEWS)
     if args.contact:
-        print(f"  {contact(args.files, args.contact)}")
+        print(f"  {contact(args.files, args.contact, views=views)}")
         return 0
     for f in args.files:
-        for target in sheet(f, args.out, args.width):
+        for target in sheet(f, args.out, args.width, views):
             print(f"  {target}")
     return 0
 

@@ -196,6 +196,24 @@ for name, fn, p in REFS:
     check("every hanging hole is HOLE_W wide",
           sorted({round(b - a, 3) for a, b in gaps}), [round(box.HOLE_W, 3)])
 
+    # `Divider` — WHOLE, and that is a deliberate divergence. Onshape runs the
+    # hanging holes straight through the dividers; `cad/` stops them at the
+    # slot band. So this is the one place the build is knowingly not the STEP,
+    # and the check asserts both halves of that — every divider solid on the
+    # build, and at least one pierced on the STEP, so a future change that
+    # quietly re-converged would still fail here.
+    whole = box.DIVIDER_W * L.BOX_SLOT_DEPTH * box.REAR_TOP
+    pierced = 0
+    for a, e in box.storage_dividers(p, d):
+        cell = Box(e - a, y1 - y0, box.REAR_TOP).moved(
+            Location(((a + e) / 2, (y0 + y1) / 2, box.REAR_TOP / 2)))
+        check(f"build: the divider at x={a:.1f} is whole",
+              round((mine & cell).volume, 3), round(whole, 3), 1e-3)
+        if (ref & cell).volume < whole - 1e-3:
+            pierced += 1
+    check("the STEP pierces dividers, which is what this diverges from",
+          pierced > 0, True)
+
     # --- `Lower the front`, and the rim cutouts, on the BUILD as well --------
     for who, shape in (("STEP", ref), ("build", mine)):
         check(f"{who}: front wall stops at FRONT_TOP",

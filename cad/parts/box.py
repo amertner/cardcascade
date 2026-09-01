@@ -184,6 +184,35 @@ def pusher_rest(p, d):
     return min(PUSHER_REST_CAP, d.BoxHeight - d.calPusherTotalHeight - 0.5)
 
 
+def _except(lo, hi, blocks):
+    """`[lo, hi]` with every interval in `blocks` taken out of it."""
+    out = [(lo, hi)]
+    for a, b in blocks:
+        keep = []
+        for c, e in out:
+            if b <= c or a >= e:
+                keep.append((c, e))
+                continue
+            if c < a:
+                keep.append((c, a))
+            if b < e:
+                keep.append((b, e))
+        out = keep
+    return [(a, b) for a, b in out if b - a > 1e-9]
+
+
+def storage_dividers(p, d):
+    """(x0, x1) of each `Divider` between rear storage slots.
+
+    `n` dividers for `n` slots: one at every cavity boundary except the left
+    inner wall, which already is one, and the last CLOSING the run on the
+    right."""
+    left = -box_width(p, d) / 2 + WALL
+    pitch = d.calPusherTotalDepth + 4.0
+    return [(left + k * pitch, left + k * pitch + DIVIDER_W)
+            for k in range(1, pusher_slot_count(p) + 1)]
+
+
 def rear_block(p, d):
     """`Add depth to back` — the solid the rest of the group carves.
 
@@ -277,11 +306,21 @@ def rear_storage(p, d, part):
         cuts.append(slab(left + k * pitch + (DIVIDER_W if k else 0.0),
                          left + (k + 1) * pitch, y0, y1,
                          pusher_rest(p, d), top))
-    # `Hanging holes` — through the back wall AND the dividers, reaching from
-    # the card side to the outer wall.
+    # `Hanging holes` — through the back wall in full, and on through the slot
+    # band EXCEPT where a divider stands.
+    #
+    # DELIBERATE DIVERGENCE FROM ONSHAPE (Allan). There the holes are one
+    # prism from the card side to the outer wall, so they cut the dividers
+    # too — on `Box Dominion 244S` all three are severed clean through at
+    # every hole row, and no reference escapes with fewer than one. The
+    # openings are wanted; sawing through the pusher hangers is not. See
+    # spec/BOX.md.
+    divs = storage_dividers(p, d)
     for x_lo, x_hi in hanging_holes(p, d):
         for z_lo, z_hi in hole_rows():
-            cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y1, z_lo, z_hi))
+            cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y0, z_lo, z_hi))
+            for a, e in _except(x_lo, x_hi, divs):
+                cuts.append(slab(a, e, BD / 2 - WALL, y1, z_lo, z_hi))
     # The rim cutouts — the box's half of the pusher lock, at each slot's
     # centreline +- s. They cut the 1.300 back wall only; the outer wall is
     # already gone above REAR_TOP, which is why they are invisible from behind.
