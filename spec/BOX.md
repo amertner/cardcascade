@@ -309,8 +309,44 @@ Constant on every reference unless stated. Offsets from `#BoxDepth/2`:
 | pusher slot | `-0.300 .. +2.900`, so **`3.200`** | `LOCK_STANDARD.md`'s box slot depth exactly |
 | outer back wall | `+2.900 .. +4.500`, `1.600` | |
 | `Top of back` | the storage is capped at `z = 85.000` | only the END WALLS carry on to `BoxHeight` |
-| `Remove material, don't let pushers drop through` | the slot's floor is at `z = 3.000` | a stored pusher rests there, not on the box floor |
+| `Remove material, don't let pushers drop through` | the cavity floor — see below | a stored pusher rests there, not on the box floor |
 | `Divider` / `Repeat Divider` | `1.600` wide, `z` up to `85.000` | **`n` dividers for `n` slots** — at every boundary except the left inner wall, the last one CLOSING the run on the right |
+
+### The pusher rest is a formula, and it is NOT `3.000`
+
+```
+rest = min(25.000, BoxHeight - calPusherTotalHeight - 0.500)
+```
+
+A pusher is stored **on edge and upright**. `#dBackSlotWidth` is its own
+`calPusherTotalDepth` plus clearance measured along the box's WIDTH — that is
+what makes the slot pitch what it is — so the pusher's *staircase height* stands
+vertically. The rest is then placed to bring the top of that staircase to
+`0.500` below the rim, where its tabs meet the box rim cutouts, until the
+`25.000` cap takes over for a short pusher.
+
+Read off **all 44 canonical Boxes in `individual/`** by ray-probing the meshes
+(0 API calls, `verify._meshes` does the loading). Three distinct values, two of
+them below the cap, so the formula is pinned and not just fitted:
+
+| `calPusherTotalHeight` | rest | boxes |
+|---|---|---|
+| `60.000 .. 72.000` | `25.000` | every `R <= 4` box, and `L3.18.6` |
+| `80.000` | `24.500` | `S5.40.12`, `M4.18.12`, `S4.18.12` |
+| `87.000` | `17.500` | every box where `calHeightIncrement` is clamped |
+
+`87.000` is the ceiling `calHeightIncrement = min(desired, (BoxHeight-18)/R)`
+imposes, so `17.500` is the lowest rest any cascade can have.
+
+**This file recorded `3.000` for two stages, and it was a misread.** The probe
+went down a hanging hole and found solid from `0.000` to `3.000` — which is real,
+but it is the material below the first hole ROW, not the rest. Below the rest
+the slot band is a **lattice, not a plug**: the hanging holes cut through it
+exactly as they cut the back wall, which is why a hole reads `3.000` and a pier
+reads the rest. Probe the strip before the first hole (`HOLE_INSET/2` from the
+left inner wall) — always inside the first cavity and never pierced. The
+"shelf at `z 23.833..25.000`" this file listed as an open residual was the top
+of that lattice all along.
 
 ### `Hanging holes` — the lattice through the back
 
@@ -390,6 +426,76 @@ tool that cannot be subtracted with. Every cut here is a plain rectangular box,
 and they are disjoint because the cavities are already separated by their
 dividers.
 
+## `Round top box corners` — a `4.600` round, front and back
+
+Above `Lower the front` only the two **end walls** reach the rim: the front is
+down at `68.600` and the rear storage is capped at `85.000`. So the "top box
+corners" are the four corners of those two walls seen from the side, and each
+carries a big round.
+
+| | |
+|---|---|
+| radius | **`4.600`**, identical front and back on all six references |
+| starts at | `z = 105.000 - 4.600 = 100.400` |
+| the edges | the top-front edge at `y = -#BoxDepth/2` and the top-back edge at `y = #BoxDepth/2 + 4.500` — the outer face of the added depth, not the sketch box |
+
+Fitted from the end wall's `y` extent at three heights, which pins the radius
+three times over: an arc of radius `r` has eaten `r - sqrt(2ru - u²)` at depth
+`u`, and `u = 3.01 / 2.01 / 1.01` give `4.602 / 4.599 / 4.600`.
+
+`cad/parts/box.py` cuts it with a tool (a block minus a cylinder) rather than
+`fillet()` on picked edges. Both edges are trivially described but awkward to
+select stably, and a cut also keeps the tree order honest: whatever the later
+groups ADD near the rim is untouched by a round that has already happened.
+
+## `Sliders` — one rib per riser, and where they sit
+
+Vertical ribs on both end walls, which the holders ride on. The section is
+constant on every reference: **`1.500` wide in Y, standing `4.000` proud of the
+inner end wall**, running the full height from the floor to the rim.
+
+**A rib's BACK FACE sits on the centre of its card slot**, and the slots are
+measured from the inner back wall — `calSliderDistance` each, except the last
+(frontmost), which is `calFirstSliderDistance`:
+
+```
+rib j back face = #BoxDepth/2 - WallThickness - (j*calSliderDistance
+                                                + calSliderDistance/2)
+first slider    = #BoxDepth/2 - WallThickness - ((R-1)*calSliderDistance
+                                                 + calFirstSliderDistance/2)
+```
+
+which is the feature tree's own split: `Replicate sliders` lays down the `R-1`
+plain ones at a `calSliderDistance` pitch, and `First Slider` places the odd one
+out. Exact on all six references — 25 ribs in all, from FCM 72's three to
+Dominion 650's eight.
+
+**`Box Dominion 246S` is what settles it.** Everywhere else
+`calFirstSliderDistance == calSliderDistance`, so the frontmost rib is where a
+plain pitch would put it anyway and the two readings cannot be told apart. On
+`246S` they are `20.400` against `9.600`, and the measured rib pitch is
+`15.000` — neither distance, but exactly their average, which is what
+"back face on the slot centre" predicts and a constant pitch does not.
+
+### `Round top of slider` rounds ACROSS the rib, not along it
+
+**Radius `0.700`** on the two top edges parallel to X, leaving a `0.100` flat
+between the two arcs. The rib's front face stays square to the rim — the third
+top edge is NOT rounded, which is what says this is a two-edge fillet rather
+than a domed end.
+
+Same fit as the corners, at four depths: `u = 0.11 / 0.21 / 0.31 / 0.51` all
+give `0.700` to four decimals.
+
+### Watch which reference you fit a rim radius on
+
+`Box Compile 105S` narrows by `0.254` at `0.11` below the rim where
+`Box Dominion 246S without final fillet` does not narrow at all. That is not a
+difference between the boxes: it is `Smooth box edges`, present in one export
+and suppressed in the other, and `0.6 - sqrt(2·0.6·0.11 - 0.11²) = 0.254`
+exactly. A useful independent confirmation of the `0.600` final fillet — and a
+trap for anything else measured near `z = 105`.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
@@ -404,13 +510,12 @@ dividers.
 - The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not yet
   identified. It is NOT symmetric, which is odd given both label-holder groups
   mirror.
-- **The rear storage's last ~2 %**: a shelf in the slot band at `z 23.833..25.000`
-  that the reference keeps and this does not, worth `1776` mm³ on Compile 105 and
-  `4103` on Dominion 650 — and `0` on FCM 72, which is exact. Plus
-  `Make rightmost pocket deeper` and the rear thumb cutout at
-  `#calFingerHoleOffset`, neither yet built.
-- Still to build: the sliders (4.000 deep x 1.500 wide vertical ribs on both
-  end walls, `RisingSliders` of them at a `calSliderDistance` pitch in Y — the
-  diff finds all 8 on `Box Compile 105S`), the front pocket, the bottom pusher
-  slots, `Lower the front`, the thumb and lip, the closing bumps, the label
-  holders, and the text.
+- **The rear storage's last two features**: `Make rightmost pocket deeper` and
+  the rear thumb cutout at `#calFingerHoleOffset`. The latter shows in the diff
+  as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
+  on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
+  of the pusher rest's lattice — see above; it is built now.)
+- Still to build, in tree order: the front pocket (the largest lump left, and
+  where `MatPocket` lands), the thumb and lip, the closing bumps, the label
+  holders behind `isLabelHoldersOnBox`, the engraved text, and `Smooth box
+  edges`.

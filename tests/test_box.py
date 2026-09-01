@@ -7,10 +7,12 @@ Five references in `tmp/step/`, listed in `spec/BOX.md`. The Box is being built
 group by group against a boolean diff (see that file); this asserts only what
 has actually been written, and grows with it.
 
-Proven so far: the envelope (`#BoxWidth` / `#BoxDepth` / `BoxHeight`) and the
-rear pusher storage's placement, which is what carries the 7.0 lock into the
-box — its rim cutouts sit at each slot's centreline +- `s`.
+Proven so far: the envelope (`#BoxWidth` / `#BoxDepth` / `BoxHeight`), the
+bottom slot, the rear pusher storage — which is what carries the 7.0 lock into
+the box, its rim cutouts sitting at each slot's centreline +- `s` — the lowered
+front, the rounded top corners and the sliders.
 """
+import math
 import sys
 from pathlib import Path
 
@@ -151,7 +153,9 @@ for name, fn, p in REFS:
 
     # --- the rear storage ---------------------------------------------------
     BD = box.box_depth(p, d)
-    inner = box.box_width(p, d) / 2 - box.WALL
+    box_w = box.box_width(p, d)
+    inner = box_w / 2 - box.WALL
+    mine = box.build(p)          # built once; every "build:" check reuses it
 
     def zprofile(x, y, shape=None):
         col = Box(0.4, 0.4, d.BoxHeight + 2).moved(
@@ -169,13 +173,17 @@ for name, fn, p in REFS:
     check("outer back wall is capped at REAR_TOP",
           zprofile(0.0, BD / 2 + box.REAR_DEPTH - box.WALL / 2),
           [(0.0, box.REAR_TOP)])
-    # A pusher rests PUSHER_REST up, not on the floor. Probe through the FIRST
-    # HANGING HOLE, not the slot centreline: on an M box the centreline lands on
-    # a lattice pier, where the material runs on past the rest and the profile
-    # says nothing about it.
-    hole0 = box.hanging_holes(p, d)[0]
-    check("the pusher rest is PUSHER_REST high",
-          zprofile(sum(hole0) / 2, y0 + 0.5)[0], (0.0, box.PUSHER_REST))
+    # A pusher rests part way up, not on the floor. Probe the strip of
+    # cavity floor BEFORE the first hanging hole — HOLE_INSET wide, so always
+    # inside the first cavity and never pierced. Through a hole instead, the
+    # profile reads (0, 3.000) because the first hole ROW starts at 3.000, which
+    # is the reading that put a 3.000 rest in this file for two stages; on the
+    # slot centreline it can land on a divider and read (0, 85.000).
+    x_pier = -box_w / 2 + box.WALL + box.HOLE_INSET / 2
+    rest = box.pusher_rest(p, d)
+    for who, shape in (("STEP", ref), ("build", mine)):
+        check(f"{who}: the pusher rest is min(25, BoxHeight - ptH - 0.5) high",
+              zprofile(x_pier, y0 + 1.6, shape)[0], (0.0, round(rest, 3)))
     # The hanging holes, read off the back wall as gaps along X.
     bar = Box(box.box_width(p, d) + 20, 0.4, 0.4).moved(
         Location((0, BD / 2 - 0.95, box.hole_rows()[0][0] + 3.0)))
@@ -189,7 +197,6 @@ for name, fn, p in REFS:
           sorted({round(b - a, 3) for a, b in gaps}), [round(box.HOLE_W, 3)])
 
     # --- `Lower the front`, and the rim cutouts, on the BUILD as well --------
-    mine = box.build(p)
     for who, shape in (("STEP", ref), ("build", mine)):
         check(f"{who}: front wall stops at FRONT_TOP",
               zprofile(0.0, -BD / 2 + box.WALL / 2, shape),
@@ -202,6 +209,56 @@ for name, fn, p in REFS:
         check(f"{who}: above it only the end walls remain", ends,
               [(round(-box.box_width(p, d) / 2, 3), round(-inner, 3)),
                (round(inner, 3), round(box.box_width(p, d) / 2, 3))])
+    # --- `Round top box corners` and `Sliders` ------------------------------
+    # Both probes take everything ABOVE a plane, so the lump's section is read
+    # at exactly that height with no slab thickness to correct for.
+    def arc_inset(u, r):
+        """How far a radius-`r` round has eaten in, `u` below the top."""
+        return r - math.sqrt(max(0.0, 2 * r * u - u * u))
+
+    for who, shape in (("STEP", ref), ("build", mine)):
+        # The ribs. The bar runs along Y from the back of the front pocket's
+        # divider to just short of the inner back wall, so neither the front
+        # pocket's side padding (not built yet) nor the back panel is in it.
+        y_lo = -BD / 2 + box.WALL + d.calFrontPocketDepth + box.FRONT_DIVIDER + 0.05
+        y_hi = BD / 2 - box.WALL - 0.05
+        # 8.000 wide so it cannot clip a rib, and starting 0.05 clear of the
+        # inner wall so the ribs stay separate lumps instead of fusing into one
+        # slice of wall.
+        bar = Box(7.95, y_hi - y_lo, 0.4).moved(
+            Location((-inner + 4.025, (y_lo + y_hi) / 2, 50.0)))
+        lumps = sorted((q.bounding_box() for q in (shape & bar).solids()),
+                       key=lambda b: b.min.Y)
+        check(f"{who}: slider ribs",
+              [(round(b.min.Y, 3), round(b.max.Y, 3)) for b in lumps],
+              sorted((round(a, 3), round(c, 3)) for a, c in box.slider_ribs(p, d)))
+        check(f"{who}: every rib stands SLIDER_PROUD proud",
+              sorted({round(b.max.X + inner, 3) for b in lumps}),
+              [round(box.SLIDER_PROUD, 3)])
+        # `Round top of slider`: 0.400 below the rim a rib has lost this much
+        # off each side. Read on the backmost rib, which no other feature is
+        # near on any reference.
+        y0, y1 = box.slider_ribs(p, d)[0]
+        cap = Box(3.0, 20.0, 1.4).moved(
+            Location((-inner + 1.5, (y0 + y1) / 2, d.BoxHeight - 0.4 + 0.7)))
+        b = [q.bounding_box() for q in (shape & cap).solids()
+             if abs(q.bounding_box().center().Y - (y0 + y1) / 2) < 2][0]
+        check(f"{who}: rib is rounded SLIDER_TOP_R across its top",
+              round(b.size.Y, 3),
+              round(box.SLIDER_W - 2 * arc_inset(0.4, box.SLIDER_TOP_R), 3), 2e-3)
+        # `Round top box corners`: 2.000 below the rim the end wall has lost
+        # this much off its front and its back. Probed inside the end wall, so
+        # neither the ribs nor the side label holder is in the way.
+        u = 2.0
+        cap = Box(box.WALL * 0.5, BD + 40, u + 2.0).moved(
+            Location((-box.box_width(p, d) / 2 + box.WALL / 2, 0,
+                      d.BoxHeight - u + (u + 2.0) / 2)))
+        b = [q.bounding_box() for q in (shape & cap).solids()][0]
+        eaten = round(arc_inset(u, box.CORNER_R), 3)
+        check(f"{who}: end wall, CORNER_R round at the top front",
+              round(b.min.Y + BD / 2, 3), eaten, 2e-3)
+        check(f"{who}: end wall, CORNER_R round at the top back",
+              round(BD / 2 + box.REAR_DEPTH - b.max.Y, 3), eaten, 2e-3)
     # The rim cutouts, built and measured the same way.
     got = rim_cutouts(mine, p, d)
     check("the BUILD's rim cutouts match the STEP's",

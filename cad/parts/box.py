@@ -10,13 +10,13 @@ Local frame (the part studio's):
     Y   depth, 0 at the centre, -BoxDepth/2 the FRONT, +BoxDepth/2 the back
     Z   height, 0 at the bed, BoxHeight at the rim
 
-INCOMPLETE. `build()` currently raises everything past the shell; see
-`spec/BOX.md` "Still open" for what is left and `tests/test_box.py` for what is
-proven. Nothing writes a Box to build/ yet.
+INCOMPLETE. `build()` stops after `Sliders`; see `spec/BOX.md` "Still open" for
+what is left and `tests/test_box.py` for what is proven. Nothing writes a Box to
+build/ yet.
 """
 from build123d import (
-    Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane, Rectangle,
-    extrude, offset,
+    Axis, Box, BuildPart, BuildSketch, Cylinder, Kind, Location, Mode, Plane,
+    Rectangle, extrude, fillet, offset,
 )
 
 from .. import derive as D
@@ -147,8 +147,8 @@ SLOT_BITE = 0.300        # how far the pusher slot eats into the back wall
 
 REAR_TOP = 85.000        # `Top of back` — the storage is capped here; only the
 #                          END WALLS carry on to BoxHeight
-PUSHER_REST = 3.000      # `Remove material, don't let pushers drop through`:
-#                          the slot's floor, so a stored pusher rests 3.000 up
+PUSHER_REST_CAP = 25.000  # `Remove material, don't let pushers drop through`:
+#                           the cavity floor never sits higher than this
 DIVIDER_W = 1.600        # `Divider` between adjacent pusher slots
 HOLE_W = 10.000          # `Hanging holes` — the lattice through the back
 HOLES_PER_SLOT = 5
@@ -162,6 +162,26 @@ HOLE_ROW_GAP = 2.000
 # the unfilleted reference, where a cutout's volume is exactly
 # 4.500 x 1.300 x 5.000 = 29.250. See spec/BOX.md.
 RIM_CUTOUT_Z = 100.000
+
+
+def pusher_rest(p, d):
+    """The cavity floor — how high a stored pusher sits.
+
+        min(25.000, BoxHeight - calPusherTotalHeight - 0.500)
+
+    A pusher is stored on EDGE and upright: `#dBackSlotWidth` is its own
+    `calPusherTotalDepth` plus clearance measured along the box's WIDTH, so its
+    staircase height stands vertically. The rest is then placed to bring the
+    top of that staircase to `0.500` below the rim, where the tabs meet the box
+    rim cutouts — until the cap takes over for a short pusher.
+
+    Read off all 44 canonical Boxes in `individual/` by ray-probing the meshes
+    (0 API calls). Three distinct values, two of them below the cap: `25.000`
+    wherever `calPusherTotalHeight <= 79.5`, `24.500` at `80.000`, and `17.500`
+    at `87.000` — which is the ceiling `calHeightIncrement` imposes, and so the
+    lowest rest any cascade can have.
+    """
+    return min(PUSHER_REST_CAP, d.BoxHeight - d.calPusherTotalHeight - 0.5)
 
 
 def rear_block(p, d):
@@ -238,19 +258,25 @@ def rear_storage(p, d, part):
     cuts = [
         # `Top of back` — the storage is capped at REAR_TOP between the end
         # walls; the end walls run the full height and the full added depth.
-        slab(-inner, inner, BD / 2, BD / 2 + REAR_DEPTH, REAR_TOP, top),
+        # It starts at the SLOT BAND, not at the sketch box: a divider reaches
+        # SLOT_BITE forward of #BoxDepth/2, and cutting only from there left
+        # that 0.300 sliver of each divider standing all the way to the rim.
+        slab(-inner, inner, y0, BD / 2 + REAR_DEPTH, REAR_TOP, top),
         # Right of the pusher slots — and of the divider that CLOSES the run —
         # the slot band is empty from the floor up.
         slab(left + n * pitch + DIVIDER_W, inner, y0, y1, WALL, top),
     ]
-    # One cavity per pusher slot, open from PUSHER_REST up — the rest below it
-    # is `Remove material, don't let pushers drop through`. A DIVIDER_W wall
+    # One cavity per pusher slot, open from the rest up — what stands below it
+    # is `Remove material, don't let pushers drop through`, and the hanging
+    # holes cut through that too, so it is a lattice and not a plug. A DIVIDER_W
+    # wall
     # stands at every boundary EXCEPT the left inner wall, which already is one:
     # n dividers for n slots, the last closing the run on the right. So cavity k
     # starts one divider in, and ends at its own boundary.
     for k in range(n):
         cuts.append(slab(left + k * pitch + (DIVIDER_W if k else 0.0),
-                         left + (k + 1) * pitch, y0, y1, PUSHER_REST, top))
+                         left + (k + 1) * pitch, y0, y1,
+                         pusher_rest(p, d), top))
     # `Hanging holes` — through the back wall AND the dividers, reaching from
     # the card side to the outer wall.
     for x_lo, x_hi in hanging_holes(p, d):
@@ -293,10 +319,97 @@ def lower_front(p, d, part):
                   (FRONT_TOP + d.BoxHeight + 1) / 2)))
 
 
+# `Round top box corners`. Above `Lower the front` only the two END WALLS reach
+# the rim, and their top-front and top-back edges carry a big round: measured
+# 4.600 on all six references, front and back alike, the arc starting at
+# z = 105.000 - 4.600. It is the one number in this group.
+CORNER_R = 4.600
+
+
+def round_top_corners(p, d, part):
+    """`Round top box corners` — a CORNER_R round on each end wall's top edges.
+
+    Cut with a tool rather than a `fillet()` on picked edges: the two edges are
+    trivially described (the whole rim, front and back) but hard to select
+    stably, and a tool is also what keeps the tree order honest — anything
+    ADDED above z = 100.4 later on, which is what the label holders and closing
+    bumps do lower down, is untouched by a cut that has already happened.
+    """
+    BD, top = box_depth(p, d), d.BoxHeight
+    width = box_width(p, d) + 20
+
+    def corner(y_edge, inward):
+        yc, zc = y_edge + inward * CORNER_R, top - CORNER_R
+        far = CORNER_R + 10                      # into empty space, so the cut
+        blank = Box(width, far, far).moved(      # has no coincident faces
+            Location((0, yc - inward * far / 2, zc + far / 2)))
+        return blank - Cylinder(CORNER_R, width + 2, rotation=(0, 90, 0)).moved(
+            Location((0, yc, zc)))
+
+    part = part - corner(-BD / 2, +1)                       # the front edge
+    return part - corner(BD / 2 + REAR_DEPTH, -1)           # and the back one
+
+
+# `Sliders`. Vertical ribs on both end walls, one per riser, that the holders
+# ride on. Constant section on every reference: 1.500 wide in Y, standing
+# 4.000 proud of the inner end wall, full height from the floor to the rim,
+# with the top rounded.
+SLIDER_W = 1.500
+SLIDER_PROUD = 4.000
+SLIDER_TOP_R = 0.700     # `Round top of slider`, on the two long top edges only
+
+
+def slider_ribs(p, d):
+    """(y0, y1) of each rib, BACK to front.
+
+    A rib's BACK FACE sits on the centre of its card slot, and the slots are
+    measured from the inner back wall: `calSliderDistance` each, except the
+    last (frontmost) one, which is `calFirstSliderDistance`. So
+
+        rib j back face = #BoxDepth/2 - WallThickness - (j*sd + sd/2)
+        first slider    = #BoxDepth/2 - WallThickness - ((R-1)*sd + fsd/2)
+
+    which is the tree's split exactly: `Replicate sliders` lays down the R-1
+    plain ones at a `calSliderDistance` pitch, and `First Slider` places the
+    odd one out. `Box Dominion 246S` is the only reference that can tell the
+    two distances apart (20.400 against 9.600) and it lands on the nose.
+    """
+    back = box_depth(p, d) / 2 - WALL
+    sd, fsd = d.calSliderDistance, d.calFirstSliderDistance
+    ys = [back - (j * sd + sd / 2) for j in range(p.RisingSliders - 1)]
+    ys.append(back - ((p.RisingSliders - 1) * sd + fsd / 2))
+    return [(y - SLIDER_W, y) for y in ys]
+
+
+def sliders(p, d, part):
+    """`Sliders` — the ribs, mirrored to both end walls.
+
+    Each rib reaches WALL/2 INTO the wall it stands on. That overlap is free
+    (a union never removes material, and the wall is solid there) and it keeps
+    the fuse off an exactly coincident face — the same trap `rear_block`
+    documents.
+    """
+    inner = box_width(p, d) / 2 - WALL
+    thick = SLIDER_PROUD + WALL / 2
+    rib = Box(thick, SLIDER_W, d.BoxHeight)
+    # `Round top of slider` rounds ACROSS the rib, not along it: the two top
+    # edges parallel to X, leaving a 0.100 flat between two 0.700 radii. The
+    # rib's front face stays square to the rim.
+    rib = fillet(rib.faces().sort_by(Axis.Z)[-1].edges().filter_by(Axis.X),
+                 SLIDER_TOP_R)
+    for y0, y1 in slider_ribs(p, d):
+        for sign in (-1, +1):
+            part = part + rib.moved(Location((
+                sign * (inner - (SLIDER_PROUD - WALL / 2) / 2),
+                (y0 + y1) / 2, d.BoxHeight / 2)))
+    return part
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
-    Only the shell so far — every other feature group is still to be written.
+    Feature groups in the studio's own order, which is what `spec/BOX.md`
+    transcribes. Everything from `Front pocket` on is still to be written.
     """
     d = D.derive(p)
     part = shell(p, d)
@@ -307,4 +420,6 @@ def build(p):
     # order the code ends up in.
     part = part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
     part = rear_storage(p, d, part)
-    return lower_front(p, d, part)
+    part = lower_front(p, d, part)
+    part = round_top_corners(p, d, part)
+    return sliders(p, d, part)
