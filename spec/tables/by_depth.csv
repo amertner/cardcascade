@@ -1,4 +1,0 @@
-# Depth- or class-banded lookups OTHER than the pusher lock catalogue (which
-# lives in automation/LOCK_STANDARD.md and verify.LOCK_CLASSES).
-# One row per band. Delete this file if there are none.
-quantity,min_depth_mm,max_depth_mm,value,units,notes
