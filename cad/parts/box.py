@@ -961,6 +961,71 @@ def floor_text(p, d, part):
     return part - engrave_line(d.calVersion, ver_size, base, start, +1, +1)
 
 
+# `Smooth box edges` — a SMOOTH_R fillet on `#SharpEdges`.
+#
+# Onshape's query is CONVEX edges intersected with the edges CREATED BY the
+# shell-level features. build123d carries no feature provenance and none of the
+# ways of recovering it work (spec/BOX.md records three), so the set is STATED
+# here instead, from Allan's own pictures of it. Everything it needs is a model
+# constant, so it generalises across the catalogue.
+#
+# Deliberately conservative for now: this is the part of the set that is certain,
+# and it grows by review. `spec/BOX.md` lists what is still out.
+SMOOTH_R = 0.600
+
+
+def sharp_edges(p, d, part):
+    """The edges `Smooth box edges` rounds, as an explicit geometric set.
+
+    Two exclusions are the reference's own, and both also happen to be what
+    OCCT will not fillet — which is a good sign the rule is the right one:
+
+    * **the back wall's rim** is notched for the pusher tabs and stays sharp
+      (Allan), so only the END WALLS' rim is rounded, and only its outer edge:
+      on the inner one the slider ribs' 0.700 top rounds run into the fillet;
+    * **`Lower the front`'s inner edge** likewise. The front pocket's pads and
+      dividers land on it, and two adjacent segments of it are the minimal pair
+      that OCCT refuses. The reference rounds the outer edge, at
+      `y = -#BoxDepth/2`.
+    """
+    BW, BD = box_width(p, d), box_depth(p, d)
+    inner, x_out = BW / 2 - WALL, BW / 2
+    y_front, y_back = -BD / 2, BD / 2 + REAR_DEPTH
+    tol = 1e-3
+
+    def near(a, b):
+        return abs(a - b) < tol
+
+    out = []
+    for e in part.edges():
+        m, t = e @ 0.5, e.tangent_at(0.5)
+        flat, upright = abs(t.Z) < 1e-6, abs(t.Z) > 1 - 1e-6
+        if flat and near(m.Z, 0.0) and (near(abs(m.X), x_out)
+                                        or near(m.Y, y_front)
+                                        or near(m.Y, y_back)):
+            out.append(e)          # the box's footprint, all four sides
+        elif upright and near(abs(m.X), x_out) and (near(m.Y, y_front)
+                                                    or near(m.Y, y_back)):
+            out.append(e)          # the four outer vertical corners
+        elif flat and near(m.Z, d.BoxHeight) and near(abs(m.X), x_out):
+            out.append(e)          # the END WALLS' rim, OUTER edge only
+        elif flat and near(m.Z, FRONT_TOP) and near(m.Y, y_front):
+            out.append(e)          # `Lower the front`, OUTER edge only
+        elif (flat and near(m.Z, REAR_TOP) and abs(t.X) > 1 - 1e-6
+              and (near(m.Y, y_back) or near(m.Y, y_back - WALL))):
+            out.append(e)          # the `Top of back` ledge, across the OUTER
+#                                    back wall. The short segments around the
+#                                    dividers and the end-wall junction are the
+#                                    three OCCT will not take with the rest.
+    return out
+
+
+def smooth_edges(p, d, part):
+    """One fillet, one call — no retries, and the same edges every time."""
+    edges = sharp_edges(p, d, part)
+    return fillet(edges, SMOOTH_R) if edges else part
+
+
 def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
@@ -982,4 +1047,4 @@ def build(p):
     part = front_pocket(p, d, part)
     part = closing_bumps(p, d, part)
     part = label_holders(p, d, part)
-    return floor_text(p, d, part)
+    return smooth_edges(p, d, floor_text(p, d, part))
