@@ -46,7 +46,13 @@ GAMES = {
         "holder_spans": True,     # holder spans HorizontalSlots (3 wide=S, 4=M)
         "extras": ["Toppers"],
         "onshape_label": False,
-        "pushers": {"S": 2, "M": 2, "L": 3},   # Innovation M uses 2, not 3
+        # Innovation uses 2 pushers at EVERY size, which is what the CAD says:
+        # `isOnlyTwoPusherSlots` is a per-GAME variable, not a per-size one, and
+        # every Innovation box on disk has 2 slots (countable from its rim
+        # cutouts). A per-size map was the wrong shape and had two holes: `L`,
+        # which no Innovation row reaches, and `XS`, which one does — Single
+        # Mini fell through to the default 3 against a box with 2 slots.
+        "pushers": 2,
 
         # 6 toppers: one per expansion + a blank; same plate, different text.
         # ONE Onshape ASSEMBLY export per parameter set yields all six
@@ -71,14 +77,23 @@ GAMES = {
     },
 }
 
-# Pusher count by box size: 2 for S, 3 for M and L. Innovation is the exception
-# — its M box also uses 2. Games override the default via their spec's "pushers"
-# map; use pushers_for(spec, size).
-PUSHERS_BY_SIZE = {"S": 2, "M": 3, "L": 3}
+# Pusher count by box size: 2 for XS and S, 3 for M and L. Innovation is the
+# exception and takes 2 at every size. Games override via their spec's
+# "pushers", an int or a per-size dict; use pushers_for(spec, size).
+PUSHERS_BY_SIZE = {"XS": 2, "S": 2, "M": 3, "L": 3}
 
 
 def pushers_for(spec, size):
-    return spec.get("pushers", PUSHERS_BY_SIZE).get(size, 3)
+    """How many pushers a box of this size takes.
+
+    A game's `pushers` override may be an INT (the count at every size, which is
+    what Innovation needs) or a per-size dict. Cross-check against a box with
+    `verify.py --boxes`, which counts the rim cutouts: this table and the CAD
+    are two copies of one fact, and the CAD is the authority."""
+    over = spec.get("pushers")
+    if isinstance(over, int):
+        return over
+    return (over or PUSHERS_BY_SIZE).get(size, 3)
 
 
 def game_by_name(name):

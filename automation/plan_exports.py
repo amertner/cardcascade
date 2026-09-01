@@ -43,7 +43,11 @@ def build_context(row, sleeved, game, spec):
     base = col(row, "Base model")
     model = col(row, "Sleeved model" if sleeved == "Sl" else "Unsl Model")
     first = col(row, "Cards/First Riser")
-    size = base[0] if base else "?"
+    # XS is the one two-letter size. Nothing but pushers_for reads `size` for an
+    # XS row today (Innovation's holders span, and Single Mini carries no
+    # toppers), so this changes no filename now — but "X" is a trap for any
+    # future XS topper or holder, whose name should read XS.
+    size = ("XS" if base.startswith("XS") else base[0]) if base else "?"
     # Expected box footprint, so the exporter can check that what Onshape
     # returned is actually THIS cascade's box (verify.check_box).
     wcol, dcol = (("Sleeved W/mm", "Sleeved D/mm") if sleeved == "Sl"

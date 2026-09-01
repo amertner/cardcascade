@@ -605,6 +605,79 @@ def audit_rises(root, tol=0.05):
 
 
 # ---------------------------------------------------------------------------
+# How many pushers a box actually takes — read off the box, not off a table
+# ---------------------------------------------------------------------------
+#
+# A box carries two rim cutouts per pusher, cut into the INNER back wall (the
+# outer wall is uncut, which is why they are invisible from behind). So a
+# section through the cutout band leaves the box's outline plus the back wall
+# broken into pieces: 2N + 1 closed loops for N pusher slots, the two end pieces
+# being part of the outline. Measured on all 48 boxes in individual/, every one
+# reads a clean 5 or 7.
+#
+# `components.pushers_for` is the same fact written down by hand, and the two
+# had drifted: Innovation's per-size map has no XS key, so Single Mini fell
+# through to 3 against a box with 2 slots. This is the check that would have
+# caught it, and that catches the next table to drift.
+
+def box_pusher_slots(data):
+    """How many pusher slots a Box 3MF has, from its rim cutouts."""
+    verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
+    top = max(v[2] for v in verts)
+    loops = _loops(_section(verts, tris, 2, top - 0.5))
+    if len(loops) < 3 or len(loops) % 2 == 0:
+        raise ValueError(f"box rim gives {len(loops)} loops, expected an odd "
+                         f"2N+1; the section may have missed the cutout band")
+    return (len(loops) - 1) // 2
+
+
+def audit_box_slots(root):
+    """Check every Box on disk against components.pushers_for. Returns the
+    number that disagree."""
+    import csv as _csv
+    from pathlib import Path
+    import components as C
+    root = Path(root)
+    # model code -> (game, size letter), from parts.csv
+    rows = {}
+    with open(root / "automation" / "parts.csv", newline="") as f:
+        for r in _csv.DictReader(f):
+            base = (r.get("Base model") or "").strip()
+            size = ("XS" if base.startswith("XS") else base[0]) if base else "?"
+            for col in ("Unsl Model", "Sleeved model"):
+                m = (r.get(col) or "").strip().replace("/", "-")
+                if m:
+                    rows[m] = ((r.get("Game") or "").strip(), size)
+    bad = seen = 0
+    print(f"    {'box':40s} {'size':>4s} {'slots':>5s} {'table':>5s}")
+    for path in sorted(root.glob("individual/*/Box*.3mf")):
+        code = path.stem[len("Box "):].replace(" merged", "")
+        got = rows.get(code)
+        if not got:
+            continue
+        game, size = got
+        _gname, spec = C.game_by_name(game)
+        if not spec:
+            continue
+        want = C.pushers_for(spec, size)
+        try:
+            slots = box_pusher_slots(path.read_bytes())
+        except (ValueError, KeyError, ZeroDivisionError, IndexError) as exc:
+            print(f"    ?   {path.name:40s} {size:>4s}  {exc}")
+            continue
+        seen += 1
+        mark = "ok " if slots == want else "✗  "
+        bad += slots != want
+        if slots != want:
+            print(f"    {mark} {path.parent.name + '/' + path.stem:40s} "
+                  f"{size:>4s} {slots:5d} {want:5d}   "
+                  f"components.pushers_for disagrees with the box")
+    print(f"\n  {seen} boxes checked; {bad} disagree with "
+          f"components.pushers_for.")
+    return bad
+
+
+# ---------------------------------------------------------------------------
 # CLI: audit every Pusher on disk
 # ---------------------------------------------------------------------------
 
@@ -703,12 +776,18 @@ if __name__ == "__main__":
                     help="with --pushers, list the passing ones too")
     ap.add_argument("--catalogue", action="store_true",
                     help="print the five-design lock catalogue worksheet")
+    ap.add_argument("--boxes", action="store_true",
+                    help="check each Box's rim cutouts against the pusher "
+                         "count components.pushers_for computes for it")
     ap.add_argument("--rises", action="store_true",
                     help="print rise height per pusher and check it is a "
                          "function of riser count within each game — the "
                          "invariant the Holder key's riser axis rests on")
     args = ap.parse_args()
     root = Path(__file__).resolve().parent.parent
+    if args.boxes:
+        print("  Pusher slots per box, counted from its rim cutouts:")
+        sys.exit(1 if audit_box_slots(root) else 0)
     if args.rises:
         print("  Rise height per riser, read off each pusher's staircase:")
         sys.exit(1 if audit_rises(root) else 0)
@@ -717,6 +796,6 @@ if __name__ == "__main__":
         audit_catalogue(root)
         sys.exit(0)
     if not args.pushers:
-        ap.error("nothing to do — try --pushers, --catalogue or --rises")
+        ap.error("nothing to do — try --pushers, --boxes, --catalogue or --rises")
     print("  Pusher lock (tab count, backed fraction, widest backed strip):")
     sys.exit(1 if audit_pushers(root, verbose=args.all) else 0)

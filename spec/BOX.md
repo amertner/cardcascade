@@ -151,16 +151,32 @@ says otherwise.
 | `#LogoHeight` | `2.74 mm` | the Logo text's cap height, as `#LogoTextHeight` is the Pusher's |
 | `#SharpEdges` | query | the edge set `Smooth box edges` fillets |
 
-## `components.pushers_for` disagrees with the CAD on Innovation XS
+## `components.pushers_for` disagreed with the CAD on Innovation XS — fixed
 
-Counting rim cutouts on all 48 boxes matches `components.pushers_for` everywhere
-except `XS5.15.10-Un/Sl`: Innovation's map is `{"S": 2, "M": 2, "L": 3}`, `XS` is
-not a key, so it falls through to the default `3` — but the box has **2** slots,
-and both built Single Mini projects carry 2 pushers. `isOnlyTwoPusherSlots` is
-Innovation-wide and is the correct one. Unlike the unreachable `L` entry
-`spec/DERIVED.md` flags, this one is live: a recomposed Single Mini would ask
-for a third pusher the project has no slot for, and `build_swap` would skip the
-cascade.
+Counting rim cutouts on all 48 boxes matched `components.pushers_for` everywhere
+except `XS5.15.10-Un/Sl`: Innovation's map was `{"S": 2, "M": 2, "L": 3}`, `XS`
+was not a key, so it fell through to the default `3` — but the box has **2**
+slots, and both built Single Mini projects carry 2 pushers.
+
+**It was latent, not live.** `ctx["pushers"]` reaches only a planner total and
+`count` in `manifest.json`, which `make_cascade --count` consumes on a FIRST
+build. `refresh_cascades` never sees it: `build_swap` pairs template objects to
+files by NAME, and `assemble_one` emits `--part` args only, under
+`--keep-layout`. On a first build from an Innovation donor (2 pushers) it would
+have failed loudly — `make_cascade` refuses `--count` above the instances it
+has; from a 3-pusher donor it would have quietly printed a spare.
+
+Fixed by giving Innovation a flat `"pushers": 2`, which is the shape
+`isOnlyTwoPusherSlots` actually has — closing the `XS` hole and the unreachable
+`L` entry together. `plan_exports` also learned that `XS` is a two-letter size
+(`size = base[0]` made it `"X"`); that renames nothing today, because Innovation's
+holders span and `Single Mini` carries no toppers, but `"X"` was a trap for any
+future XS file.
+
+**`verify.py --boxes` is the guard.** It counts each box's rim cutouts and
+compares with the table — 48 boxes checked, 0 disagree now, and exactly the two
+XS boxes flagged when the old map is restored. The table and the CAD are two
+copies of one fact; this is what keeps them together.
 
 ## The rear pusher storage, and the lock it carries
 

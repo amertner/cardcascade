@@ -116,10 +116,13 @@ Transcribed as written; none blocks the rebuild.
 - **`game10SleevedCardThickness` has no `CraftGutermann` row**, so a sleeved
   CraftGutermann cascade fails the lookup. `derive.py` fails there too, rather
   than defaulting.
-- **`isOnlyTwoPusherSlots` is Innovation-wide**, but `components.py` gives
-  Innovation `{"S": 2, "M": 2, "L": 3}`. No Innovation row is `L`, so the
-  entry is unreachable and nothing is wrong today; if one is ever added the two
-  disagree.
+- ~~**`isOnlyTwoPusherSlots` is Innovation-wide**, but `components.py` gives
+  Innovation `{"S": 2, "M": 2, "L": 3}`.~~ **Fixed.** The per-size map was the
+  wrong shape and had a second, reachable hole: no `XS` key, so `Single Mini`
+  fell through to the default `3` against a box with 2 slots. `components.py`
+  now gives Innovation a flat `2`, matching the variable, and
+  `verify.py --boxes` counts each box's rim cutouts to keep the table and the
+  CAD from drifting again. See `spec/BOX.md`.
 - **Dead or vestigial**: `LeanAngle = 0` (so `calAngleDelta` is always `0`),
   `calPocketHeight` is a plain alias of `calMaxPocketHeight`, and
   `PocketHeight` / `FrontPocketHeight` (`75`) appear unused next to
