@@ -911,14 +911,43 @@ storage's cap, the lowered front, the bottom of the box, and the vertical
 arrises of the end walls and the dividers. Nothing inside the card slots, the
 lattice or the label holders is touched.
 
-A plain convex fillet over `2704 mm` would remove about `209 mm³` where the pair
-measures `129.4`, so a good part of the set is CONCAVE — the fillet adds
-material at those, which is what the `z = 85.000` ledge and the divider arrises
-would do.
+### `#SharpEdges` is a rule
 
-**Still needed: what `#SharpEdges` actually selects.** The list above is one
-box's answer; whether it generalises depends on whether the query is a rule or a
-saved pick, and that changes what `cad/` should implement.
+Allan's query: **edge convexity CONVEX on the Box**, intersected with **"created
+by"** a short list of features — `Extrude solid box`, `Add depth to back`,
+`Top of back`, `Lower the front` and the rest of the shell-level ones.
+
+That corrects a reading in an earlier revision of this file. It said "a good
+part of the set is CONCAVE", inferred from a plain convex fillet over `2704 mm`
+removing about `209 mm³` where the pair measures `129.4`. The inference assumed
+a 90-degree dihedral at every edge, and the rounded top corners and the 45-degree
+chamfers are nothing like that.
+
+Measured properly — what fraction of a small cube at each midpoint lies inside
+the solid, `0.25` convex against `0.75` concave — the 80 edges split **60 convex
+and 20 concave**. The concave twenty are not filleted at all: they are CONSUMED,
+short edges that vanish when their neighbours are rounded. The query is
+convex-only and the geometry agrees.
+
+### Two attempts that did not work, and why
+
+**A convexity test from face normals needs calibrating, not deriving.**
+`(n1 x n2) . t` separates convex from concave, but which sign is which depends
+on the STEP's face orientation: taken one way it selects exactly the 20 concave
+edges of the 80. Calibrate it against the reference pair.
+
+**Midpoint diffing is NOT "created by".** The obvious way to reproduce the
+feature filter without Onshape's history is to record the edges after each named
+feature and keep what the previous state did not have. It does not work: every
+boolean re-splits the edges it passes through, so an edge that merely gets cut
+in two comes back with new midpoints and reads as newly created. Wired up that
+way the filter selected `434` edges where Onshape's picks about `60`, the fillet
+removed `312 mm³` against the reference's `129.4`, and one box took `162`
+seconds instead of six.
+
+So `Smooth box edges` needs a GEOMETRIC statement of the same edge set — the
+table above is what it has to reproduce — rather than an attempt to recover the
+feature history. That is the shape of the remaining work.
 
 ## Still open
 
@@ -935,8 +964,10 @@ saved pick, and that changes what `cad/` should implement.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build: `Smooth box edges` — radius and edge set both measured above;
-  what is missing is the `#SharpEdges` query's definition.
+- Still to build: `Smooth box edges`. The radius, the edge set and the query's
+  definition are all known; what is missing is a geometric rule that selects
+  those edges without Onshape's feature history — see above for the two
+  approaches that failed and why.
 - **The `RisingSliders > 8` branch** of the `Card Cascade` sketch's margin —
   see above. `S9.21.10` is the row that needs it. Nothing else — `box_diff` on `Dom246S_raw` now shows
   MISSING of `0.000` and an EXTRA that is exactly the deliberate whole-divider
