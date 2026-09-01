@@ -11,9 +11,10 @@ The Dominion one is what settles `slider_drops()`: its first riser drops
 20.400 (calFirstSliderDistance) and its second 9.600 (calSliderDistance), so
 the larger drop is at the leading edge.
 
-Both carry engraved text the build places by its own rule rather than copying
-(see cad/text.py), so the SOLID is compared exactly and the text is checked
-against its own invariants, not against the STEP.
+Both carry engraved text. The build places it by its own rule rather than
+copying Onshape's box fitting (see cad/text.py), so the SOLID is compared
+exactly, the FONTS are compared against the STEP's own glyphs scale-fitted, and
+the placement is checked against its own invariants.
 
 The STEPs live in spec/reference/. They were exported by hand from Onshape,
 which costs 0 API calls, and are committed because they are the only ground
@@ -101,13 +102,56 @@ for name, path, p in REFS:
         check("first drop is calFirstSliderDistance (leading edge)",
               round(drops[0], 4), round(d.calFirstSliderDistance, 4))
 
+print("\n=== fonts: the built glyphs against the STEP's, scale-fitted ===")
+from build123d import Text, Align
+
+
+def step_glyphs(sol, detail):
+    """Glyph ink boxes on the engraved plane, in reading order. `detail` picks
+    the rotated line down the leading edge rather than the two logo rows."""
+    z = sol.bounding_box().min.Z + L.PLATE - pusher.ENGRAVE
+    g = [f.bounding_box() for f in sol.faces() if abs(f.center().Z - z) < 1e-6]
+    edge = min(b.min.X for b in g) + 6
+    if detail:
+        return sorted([b for b in g if b.max.X < edge], key=lambda b: -b.max.Y)
+    return sorted([b for b in g if b.max.X >= edge],
+                  key=lambda b: (round(-b.min.Y, 2), b.min.X))
+
+
+for name, path, p in REFS:
+    if not path.exists():
+        continue
+    sol = import_step(str(path)).solids()[0]
+    d = D.derive(p)
+    for label, txt, font, detail in (
+            ("logo (Orbitron Bold)", d.ProductName, T.LOGO_FONT, False),
+            ("detail (Open Sans Bold)", T.detail_line(p), T.DETAIL_FONT, True)):
+        meas = step_glyphs(sol, detail)
+        if not detail:                      # the logo plane holds both rows
+            meas = [b for b in meas if abs(b.min.Y - meas[0].min.Y) < 1e-3]
+        # rotated text puts the glyph height along X, upright text along Y
+        mh = [b.size.X if detail else b.size.Y for b in meas]
+        mw = [b.size.Y if detail else b.size.X for b in meas]
+        rend = sorted(Text(txt, font_size=10.0, font_path=font,
+                           align=(Align.MIN, Align.MIN)).faces(),
+                      key=lambda f: f.bounding_box().min.X)
+        check(f"{name}: {label} glyph count", len(meas), len(rend))
+        if len(meas) != len(rend):
+            continue
+        sc = sum(m / f.bounding_box().size.Y for m, f in zip(mh, rend)) / len(rend)
+        worst = max(max(abs(h - f.bounding_box().size.Y * sc),
+                        abs(w - f.bounding_box().size.X * sc))
+                    for h, w, f in zip(mh, mw, rend))
+        check(f"{name}: {label} matches to <0.01 mm", round(worst, 4), 0.0, 0.01)
+
 print("\n=== the text rule (an invariant check, not a reproduction) ===")
 for name, path, p in REFS:
     d = D.derive(p)
     (txt, sz, x, base), (ver, sz2, x2, base2) = T.logo_lines(p, d)
-    cap = sz * T._CAP_PER_EM
+    logo_cap_em, logo_asc_em = T._metrics(T.LOGO_FONT)
+    cap = sz * logo_cap_em
     check(f"{name}: version cap is half the product's",
-          round(sz2 * T._CAP_PER_EM, 6), round(cap / 2, 6))
+          round(sz2 * logo_cap_em, 6), round(cap / 2, 6))
     check(f"{name}: version baseline one cap below",
           round(base - base2, 6), round(cap, 6))
     # ink spans from `base` up to -margin, so the depth it uses is -base, and
@@ -115,11 +159,24 @@ for name, path, p in REFS:
     check(f"{name}: product ink clears the front strip",
           round(-base + T.LOGO_MARGIN * d.calSliderDistance, 4)
           <= round(d.calSliderDistance, 4), True)
-    width = T._width_per_cap(txt) * cap
+    width = T._width_per_cap(txt, T.LOGO_FONT) * cap
     check(f"{name}: product line stops short of the end chamfer",
           round(x + width, 4) <= round(d.calPusherTotalHeight - pusher.CHAMFER, 4), True)
     check(f"{name}: both lines share a left anchor",
           round(x - T._LSB_C * sz, 4), round(x2 - T._LSB_C * sz2, 4), 1e-4)
+
+    dtxt, dsz, dbx, dy0 = T.detail_placement(p, d)
+    dcap = dsz * T._metrics(T.DETAIL_FONT)[0]
+    dasc = dcap * (T._metrics(T.DETAIL_FONT)[1] / T._metrics(T.DETAIL_FONT)[0])
+    dwidth = T._width_per_cap(dtxt, T.DETAIL_FONT) * dcap
+    check(f"{name}: detail baseline is the measured constant",
+          round(dbx, 4), round(T.DETAIL_BASELINE_X, 4))
+    check(f"{name}: detail ink clears the first step",
+          round(dbx + dasc, 4) <= round(d.calHeightIncrement, 4), True)
+    check(f"{name}: detail ink fits the depth",
+          round(-dy0 + dwidth, 4) <= round(d.calPusherTotalDepth, 4), True)
+    check(f"{name}: detail is centred along the depth",
+          round(-dy0, 4), round(d.calPusherTotalDepth - dwidth, 4) / 2, 1e-4)
 
 print("\n=== every pusher in parts.csv builds and exports ===")
 rows = params.load_rows(Path(__file__).resolve().parent.parent / "automation/parts.csv")

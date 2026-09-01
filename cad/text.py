@@ -1,86 +1,98 @@
 """Text on the parts.
 
-Two of the Pusher's three lines are Orbitron Bold — the same file
-`labelmaker.py` uses — confirmed against the STEP to under 0.001 mm on every
-glyph width and to 0.023 mm on the advance across 48.7 mm of text.
+Two typefaces, both bundled from Google Fonts under the OFL:
 
-**The third line is not Orbitron** and its font is not yet known; see
-spec/PUSHER.md. `detail_line()` returns the string, but nothing cuts it until
-the font is settled — cutting it in the wrong face would look like a
-reproduction and not be one.
+* **Orbitron Bold** (`fonts/Orbitron-Bold.ttf`, the file `labelmaker.py` also
+  uses) for the product name and the version — the brand lines.
+* **Open Sans Bold** (`fonts/OpenSans-Bold.ttf`) for the detail line. Allan
+  chose it because it fits more text in the same space than Orbitron, which is
+  a wide geometric face; measured on "12 Sleeved" it needs 7.14 cap-widths
+  against Orbitron's 10.9 for a string of that length.
 
-## Sizing, and why LogoTextHeight goes away
+Both were identified against the reference STEPs rather than assumed. Orbitron
+Bold matches every logo glyph to under 0.001 mm. For the detail line every
+Open Sans weight was tried: Bold lands at 0.0006 mm on the Compile reference
+and 0.0004 mm on the Dominion one, where SemiBold is out by 0.17 and Regular
+by 0.34 — the thin `l` is what separates them.
 
-Onshape sizes sketch text by dragging a bounding box, so the design carries
-`#LogoTextHeight` — the *measured* cap height of the C in "Card Cascade" — as a
-workaround for not being able to state a cap height directly. It is then used
-as a real dimension: the version line's baseline sits exactly one
-`LogoTextHeight` below the product line's (4.4682 measured, 4.4682 apart).
+## Sizing is a rule, not a reproduction
 
-build123d can be told a cap height, so here `LOGO_CAP` is the input and the
-font size is derived from the font's own metrics. The workaround does not need
-reproducing, only its consequences.
+Onshape can constrain sketch text in only one dimension, so a box that suits
+one parameter set does not suit another. Measured on the two references, the
+same string in the same font comes out at a cap of 4.4684 on Compile 105 Sl
+and 1.1611 on Dominion 246 Sl -- a factor of 3.85, where nothing in the derived
+set moves by more than 2.55 and most by under 1.3. The detail line does the
+same thing, 3.686 against 1.314.
+
+So this module states the intent and fits **both** dimensions, which is what
+Onshape cannot do. Two rules that ARE the CAD's are kept, confirmed on both
+references: the version baseline sits exactly one cap height below the product
+line's (`#LogoTextHeight` is measured back out of Onshape for precisely that),
+and it is set at half the product line's cap.
 """
+from functools import lru_cache
 from pathlib import Path
 
 from build123d import Text, Align
 
 FONT_DIR = Path(__file__).resolve().parent.parent / "fonts"
 LOGO_FONT = str(FONT_DIR / "Orbitron-Bold.ttf")
+DETAIL_FONT = str(FONT_DIR / "OpenSans-Bold.ttf")
 
-# Orbitron Bold, measured from the file: cap height and the left side bearing
-# of "C", as fractions of the font size. Both logo lines begin with C
-# (ProductName is "Card Cascade" or "Craft Cascade"; calVersion is "CC <v>"),
-# so the bearing turns the shared text origin into an ink position.
-_CAP_PER_EM = 0.720
+# Orbitron Bold's left side bearing on "C", as a fraction of the font size,
+# measured from the file (56/1000). Both logo lines begin with C (ProductName
+# is "Card Cascade" or "Craft Cascade"; calVersion is "CC <v>"), so the bearing
+# is what turns their shared text origin into an ink position.
 _LSB_C = 0.056
 
-
-def font_size_for_cap(cap):
-    return cap / _CAP_PER_EM
-
-
-# Orbitron Bold, from the file: the ascender of "d" as a multiple of the cap
-# height of "C". The product line's tallest ink is an ascender, so this is what
-# has to clear the strip it runs along.
-_ASC_PER_CAP = 4.7785 / 4.4684
-
-# Fraction of the strip left clear above the text and below it.
+# Fraction of the space left clear around a line of text.
 LOGO_MARGIN = 0.12
 
+# The detail line's baseline, measured at exactly 7.000 on BOTH references —
+# one of the few placements in the CAD that is a constant rather than a fitted
+# box. It clears the notch, which is 5.200 deep, and the tabs, which are 5.000
+# long, by a comfortable margin.
+DETAIL_BASELINE_X = 7.000
 
+_PROBE = 10.0
+
+
+@lru_cache(maxsize=8)
+def _metrics(font_path):
+    """(cap height, ascender height) per unit font size, from the font file.
+
+    Measured by rendering rather than hardcoded, so a font swap cannot leave a
+    stale constant behind. "C" is the cap reference and "d" the ascender.
+    """
+    def h(ch):
+        return Text(ch, font_size=_PROBE, font_path=font_path,
+                    align=(Align.MIN, Align.MIN)).bounding_box().size.Y
+    return h("C") / _PROBE, h("d") / _PROBE
+
+
+def font_size_for_cap(cap, font_path=LOGO_FONT):
+    return cap / _metrics(font_path)[0]
+
+
+@lru_cache(maxsize=64)
 def _width_per_cap(txt, font_path=LOGO_FONT):
-    """Rendered width of `txt` per unit of cap height. A property of the string
-    and the font, so it survives any change of scale."""
-    probe = 10.0
-    t = Text(txt, font_size=probe, font_path=font_path, align=(Align.MIN, Align.MIN))
-    return t.bounding_box().size.X / (probe * _CAP_PER_EM)
+    """Rendered ink width of `txt` per unit of cap height. A property of the
+    string and the font and nothing else, so it survives any change of scale."""
+    t = Text(txt, font_size=_PROBE, font_path=font_path,
+             align=(Align.MIN, Align.MIN))
+    return t.bounding_box().size.X / (_PROBE * _metrics(font_path)[0])
 
 
 def logo_lines(p, d, chamfer=2.0):
     """[(text, font_size, x_ink, baseline)] for the two Orbitron lines.
 
-    **This is a rule, not a reproduction.** The Onshape sketch sizes these by
-    fitting a text box, and the result does not follow from the derived
-    variables: the same string comes out at a cap of 4.4684 on Compile 105 Sl
-    and 1.1611 on Dominion 246 Sl, a factor of 3.85, where nothing derived
-    moves by more than 2.55 and most by under 1.3. Allan's note on the second
-    export -- "the text is too small here, but it's hard to make this work
-    better in Onshape" -- is that artefact. So the rebuild states the intent
-    instead of copying the outcome.
-
-    Two things ARE the CAD's, confirmed on both parts and kept:
-      * the version line's baseline sits exactly one cap height below the
-        product line's (#LogoTextHeight is measured back out of Onshape for
-        precisely this), and
-      * it is set at half the product line's cap.
-
-    The size is then the largest that fits the space the line actually has:
-    the product line runs along the rise near the front edge, so its ascender
-    must clear the strip that spans the whole length -- which is the last
-    step's drop, `calSliderDistance` -- and it must stop short of the end
-    chamfer. Both lines are left-anchored at the first step.
+    They run along the rise near the front edge, left-anchored at the first
+    step. The product line's ascender must clear the strip that spans the whole
+    length -- the last step's drop, `calSliderDistance` -- and its ink must
+    stop short of the end chamfer, whichever binds first.
     """
+    cap_em, asc_em = _metrics(LOGO_FONT)
+    asc_per_cap = asc_em / cap_em
     strip = d.calSliderDistance
     x0 = d.calHeightIncrement
     x_end = d.calPusherTotalHeight - chamfer
@@ -88,12 +100,12 @@ def logo_lines(p, d, chamfer=2.0):
     # The length budget is measured from the INK, which starts one C side
     # bearing right of the anchor, and the bearing scales with the size — so it
     # belongs inside the division, not outside it.
-    cap = min((strip - 2 * margin) / _ASC_PER_CAP,
-              (x_end - x0) / (_width_per_cap(d.ProductName)
-                              + _LSB_C / _CAP_PER_EM))
-    size = font_size_for_cap(cap)
-    lines = [(d.ProductName, size, -(margin + cap * _ASC_PER_CAP)),
-             (d.calVersion, size / 2, -(margin + cap * _ASC_PER_CAP + cap))]
+    cap = min((strip - 2 * margin) / asc_per_cap,
+              (x_end - x0) / (_width_per_cap(d.ProductName, LOGO_FONT)
+                              + _LSB_C / cap_em))
+    size = font_size_for_cap(cap, LOGO_FONT)
+    lines = [(d.ProductName, size, -(margin + cap * asc_per_cap)),
+             (d.calVersion, size / 2, -(margin + cap * asc_per_cap + cap))]
     out = []
     for txt, sz, base in lines:
         if not txt.startswith("C"):
@@ -104,19 +116,34 @@ def logo_lines(p, d, chamfer=2.0):
 
 
 def detail_line(p):
-    """The rotated line down the leading edge: "<cards per slot> <sleeving>".
+    """The rotated line along the leading edge: "<cards per slot> <sleeving>".
 
-    NOT CUT — font unknown. Confirmed as the string from the STEP's glyph
-    pattern (word space after the first glyph, the narrow `l` third, and the
-    three `e`s fourth, fifth and seventh) and from Allan's screenshots, which
-    show "12 Unsleeved" and "12 Sleeved" on other parts.
+    Confirmed from the STEP's glyph pattern -- a word space after the first
+    glyph, the narrow `l` third, and the three `e`s fourth, fifth and seventh --
+    and from Allan's screenshots, which show "12 Unsleeved" and "12 Sleeved".
     """
     return f"{p.CardsPerSlidingSlot} {'Sleeved' if p.isSleeved else 'Unsleeved'}"
 
 
-def cap_height(txt, font_size, font_path=LOGO_FONT):
-    """Measured cap height of `txt` as rendered — the check that _CAP_PER_EM
-    still describes the font file."""
-    t = Text(txt, font_size=font_size, font_path=font_path,
-             align=(Align.MIN, Align.MIN))
-    return t.bounding_box().size.Y
+def detail_placement(p, d, notch_depth=5.2):
+    """(text, font_size, baseline_x, start_y) for the detail line.
+
+    It reads down the depth near the leading edge, so it is bounded by the band
+    between its baseline and the first step in one direction and by the pusher's
+    depth in the other, and is centred along that depth. Rotated 90 degrees when
+    cut: baseline along -Y, glyphs standing up +X.
+
+    The lowest ink sits on `DETAIL_BASELINE_X` rather than the true baseline, so
+    a round letter's undershoot is inside the line rather than below it. On the
+    references that undershoot is 0.05 mm at the Compile size and 0.02 at the
+    Dominion one.
+    """
+    cap_em, asc_em = _metrics(DETAIL_FONT)
+    txt = detail_line(p)
+    band = d.calHeightIncrement - DETAIL_BASELINE_X
+    depth = d.calPusherTotalDepth
+    wpc = _width_per_cap(txt, DETAIL_FONT)
+    cap = min((band - LOGO_MARGIN * band) / (asc_em / cap_em),
+              (depth - 2 * LOGO_MARGIN * depth) / wpc)
+    return (txt, font_size_for_cap(cap, DETAIL_FONT), DETAIL_BASELINE_X,
+            -(depth - wpc * cap) / 2)

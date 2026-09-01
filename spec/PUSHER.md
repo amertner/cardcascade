@@ -98,34 +98,50 @@ period, glyph 4 of 5 at `0.41 × 0.41`.
 **`#LogoTextHeight = 4.47 mm`** is the `C` of `Card Cascade`, which measures
 `4.470` including its round overshoot.
 
-## Fonts
+## Fonts — two, both identified against the STEPs
 
-`Card Cascade` and `CC 7.0` are **Orbitron Bold** — the same
-`fonts/Orbitron-Bold.ttf` `labelmaker.py` uses. Confirmed on both references:
-worst glyph placement error `0.0008 mm` on Compile and `0.0002 mm` on Dominion.
+| line | typeface | worst glyph error |
+|---|---|---|
+| `Card Cascade` (`ProductName`) | **Orbitron Bold** | `0.0008 mm` Compile, `0.0002` Dominion |
+| `CC 7.0` (`calVersion`) | **Orbitron Bold** | as above |
+| `7 Sleeved` / `12 Sleeved` | **Open Sans Bold** | `0.0043 mm` Compile, `0.0004` Dominion |
 
-**The third line is not Orbitron.** Its glyphs are far narrower relative to
-their height — `l` measures `0.196` wide over tall against Orbitron Bold's
-`0.331`, and `S` `0.634` against `1.000`. Matched against every font on hand
-the closest is DejaVu Sans, still `0.311 mm` out on width, so it is some
-humanist sans, most likely Onshape's default. **`cad/parts/pusher.py` does not
-cut it** until the face is known.
+Orbitron Bold is the file `labelmaker.py` already uses. Open Sans is Allan's
+choice for the detail line because Orbitron is a wide geometric face and Open
+Sans fits more text in the same space — `"12 Sleeved"` needs `7.14` cap-widths
+in Open Sans against about `10.9` in Orbitron.
 
-## Text sizing is a rule now, not a reproduction
+**The weight was tested, not assumed.** Every Open Sans weight from Light to
+ExtraBold was fitted to the STEP glyphs:
+
+| weight | Compile: height / width error | Dominion |
+|---|---|---|
+| **Bold (700)** | **`0.0043` / `0.0006`** | **`0.0003` / `0.0004`** |
+| SemiBold (600) | `0.0221` / `0.1711` | `0.0060` / `0.0830` |
+| Regular (400) | `0.0415` / `0.3436` | `0.0125` / `0.1673` |
+
+Two orders of magnitude between Bold and its neighbours. The thin `l` is what
+separates them: it measures `0.7689` where Regular predicts `0.4253`.
+`fonts/OpenSans-Bold.ttf` is bundled, Google Fonts under the OFL like Orbitron.
+
+## Text sizing is a rule, not a reproduction
 
 Onshape can constrain sketch text in only one dimension, so a text box that is
-right for one parameter set is wrong for another. The evidence, same string and
-same font on the two references:
+right for one parameter set is wrong for another. Measured on the two
+references, same strings and same fonts:
 
-| | strip depth | part length | Onshape cap |
-|---|---|---|---|
-| Compile 105 Sl | `8.00` | `72` | `4.4684` |
-| Dominion 246 Sl | `9.60` | `32` | `1.1611` |
+| | strip depth | part length | logo cap | detail cap |
+|---|---|---|---|---|
+| Compile 105 Sl | `8.00` | `72` | `4.4684` | `3.686` |
+| Dominion 246 Sl | `9.60` | `32` | `1.1611` | `1.314` |
 
-A factor of **3.85**, where nothing in the derived set moves by more than
-`2.55` and most by under `1.3`. There is no formula on the derived variables
-behind it — it is the box being fitted. So `cad/text.py` states the intent and
-sizes to **both** dimensions, which is the thing Onshape cannot do:
+A factor of `3.85` on the logo and `2.81` on the detail, where nothing in the
+derived set moves by more than `2.55` and most by under `1.3`. There is no
+formula on the derived variables behind it. So `cad/text.py` states the intent
+and fits **both** dimensions, which is the thing Onshape cannot do.
+
+**Logo lines**, along the rise near the front edge, left-anchored at the first
+step:
 
 ```
 cap = min( (strip - 2·margin) / ASC_PER_CAP,            # ascender clears the strip
@@ -133,22 +149,49 @@ cap = min( (strip - 2·margin) / ASC_PER_CAP,            # ascender clears the s
 ```
 
 `strip` is `calSliderDistance`, the depth of the region that spans the whole
-rise; `x0` is the first step and `x_end` the start of the end chamfer. The side
-bearing is inside the division because the ink starts one bearing right of the
-anchor and that bearing scales with the size.
+rise. The side bearing is inside the division because the ink starts one
+bearing right of the anchor and that bearing scales with the size.
 
-**Two rules of the CAD's are kept**, both confirmed on both parts: the version
-line's baseline sits exactly one cap height below the product line's — which is
-what `#LogoTextHeight` is measured back out of Onshape for — and it is set at
-half the product line's cap.
+**Detail line**, reading down the depth near the leading edge, rotated 90°:
 
-Across all 34 pushers the rule gives caps of `1.27 .. 6.46`; 15 are length-bound
-and 19 depth-bound. **The four 2-riser Dominion pushers are the hard case**
-(`H = 32`, the shortest in the catalogue): `Card Cascade` needs about 11 cap
-widths, so along the rise it cannot exceed `1.27` there. Making those legible
-needs a layout change rather than a better fit — running the logo along the
-depth of the large lower panel (`16 × 30` on that part) would allow roughly
-`2.4`, or the string could shorten. That is a design call, not a fitting one.
+```
+cap = min( (band - margin) / ASC_PER_CAP,               # ascender clears the first step
+           (depth - 2·margin) / width_per_cap )         # ink fits the depth
+```
+
+`band` runs from the baseline to the first step. The baseline is
+`DETAIL_BASELINE_X = 7.000` — measured at exactly that on **both** references,
+one of the few placements in the CAD that is a constant rather than a fitted
+box. It clears the `5.200` notch and the `5.000` tabs comfortably. The line is
+centred along the depth.
+
+**Two rules of the CAD's are kept**, confirmed on both parts: the version
+line's baseline sits exactly one cap height below the product line's — what
+`#LogoTextHeight` is measured back out of Onshape for — and it is set at half
+the product line's cap.
+
+### What the rule gives
+
+Across all 34 pushers, logo caps run `1.27 .. 6.42` and detail caps
+`1.33 .. 6.65`. On the two references:
+
+| | Onshape logo | rule | Onshape detail | rule |
+|---|---|---|---|---|
+| Compile 105 Sl | `4.468` | `4.734` | `3.686` | `3.917` |
+| Dominion 246 Sl | `1.161` | `1.274` | `1.314` | **`3.283`** |
+
+The Dominion detail line — the one Allan flagged as too small — comes out
+**2.5× larger**, because its box was fitted in the wrong direction and the
+depth it runs along was almost entirely unused.
+
+**The logo on short pushers is a real limit, not a fitting failure.** The four
+2-riser Dominion pushers are `H = 32`, the shortest in the catalogue, and
+`Card Cascade` needs about `10.9` cap widths, so along the rise it cannot
+exceed `1.27` there. Making those legible needs a layout change — running the
+logo along the depth of the large lower panel (`16 × 30` on that part) would
+allow roughly `2.4`, or the string could shorten. That is a design call, not a
+fitting one. The same applies to `FCM 3x6-Un`'s detail line at `1.33`: that
+pusher is only `14.04` deep and the string is 10 glyphs.
 
 ## What the rebuild reproduces
 

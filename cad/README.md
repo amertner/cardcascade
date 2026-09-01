@@ -33,21 +33,42 @@ as a fraction of word width**. Generated locally, both parts simply get named.
 cad/
   params.py     Primary — the 10 inputs, frozen; loads a parts.csv row
   derive.py     Primary -> Derived. EVERY formula, once.
-  tables.py     per-game and depth-banded lookups (reads spec/tables/)
+  tables.py     per-game lookups, transcribed from the variable studio
   lock.py       LOCK_STANDARD.md in code; shared by box, lid, pusher
-  common.py     shared build123d: text solids, logo DXF, chamfer idioms
+  text.py       fonts and the sizing rules (see below)
   parts/
-    box.py  lid.py  holder.py  pusher.py  token_holder.py  topper.py
-  mesh3mf.py    3MF writer, lifted from labelmaker.py
-  build.py      CLI -> build/<Game>/*.3mf
+    pusher.py   done
+                box.py lid.py holder.py token_holder.py topper.py — to come
 spec/
-  DERIVED.md    the Onshape variable studio, transcribed
-  tables/       the lookups as CSV
+  DERIVED.md    the Onshape variable studio, transcribed, and what it settled
+  PUSHER.md     the Pusher measured, and what the rebuild reproduces
+  reference/    hand-exported STEPs — the ground truth, 0 API calls
 tests/
-  test_derive.py      formulae vs known anchors
-  test_lock.py        catalogue conformance, analytic
-  test_regression.py  generated vs the frozen individual/ corpus
+  test_derive.py  formulae vs every measured anchor on record (system python)
+  test_pusher.py  the part vs both reference STEPs (needs the venv)
 ```
+
+Not yet written: the 3MF writer (lift it from `labelmaker.py`, which already
+does named multi-object output plus the Bambu metadata) and the `build.py` CLI
+that would put components in `build/<Game>/`.
+
+## Two typefaces, both identified rather than assumed
+
+`fonts/Orbitron-Bold.ttf` — already used by `labelmaker.py` — sets the product
+name and version. `fonts/OpenSans-Bold.ttf` sets the detail line, because
+Orbitron is a wide geometric face and Open Sans fits more text in the same
+space. Both are Google Fonts under the OFL.
+
+The weight matters and was tested, not guessed: against the reference STEPs
+Open Sans **Bold** lands within `0.0006 mm`, where SemiBold is out by `0.17`
+and Regular by `0.34`. The thin `l` is what separates them.
+
+## Text sizing is a rule, not a transcription
+
+Onshape can constrain sketch text in only one dimension, so a box that suits
+one parameter set does not suit another — the same string comes out `3.85x`
+bigger on one reference than the other. `cad/text.py` fits **both** dimensions
+instead. `spec/PUSHER.md` has the numbers.
 
 ## Four decisions
 

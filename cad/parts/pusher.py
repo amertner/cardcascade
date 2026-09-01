@@ -19,7 +19,7 @@ fixed offset.
 """
 from build123d import (
     BuildPart, BuildSketch, BuildLine, Polyline, Plane, Location, Locations,
-    Box, Mode, Pos, add, make_face, extrude, fillet, Align, Text,
+    Box, Mode, Pos, Rot, add, make_face, extrude, fillet, Align, Text,
 )
 
 from .. import derive as D
@@ -98,6 +98,16 @@ def build(p, text=True):
                           align=(Align.MIN, Align.MIN))
             cuts.append(extrude(Pos(x0, baseline, L.PLATE - ENGRAVE) * glyphs,
                                 amount=ENGRAVE))
+        # The detail line reads down the depth, so it is turned -90 degrees:
+        # that maps +X to -Y and +Y to +X, leaving the baseline running along
+        # -Y with the glyphs standing up +X. Align.MIN then Rot puts the ink's
+        # min X and max Y at the origin, so the anchor is a plain translation.
+        txt, size, bx, y0 = T.detail_placement(p, d)
+        glyphs = Rot(0, 0, -90) * Text(txt, font_size=size,
+                                       font_path=T.DETAIL_FONT,
+                                       align=(Align.MIN, Align.MIN))
+        cuts.append(extrude(Pos(bx, y0, L.PLATE - ENGRAVE) * glyphs,
+                            amount=ENGRAVE))
 
     with BuildPart() as pusher:
         with BuildSketch(Plane.XY) as sk:
@@ -125,9 +135,8 @@ def build(p, text=True):
             Box(L.TAB_L, L.TAB_W, L.TAB_PROUD,
                 align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.ADD)
 
-        # The engraving. Only the two Orbitron lines are cut: the detail line
-        # is a different font (spec/PUSHER.md), and cutting it in the wrong
-        # face would look like a reproduction without being one.
+        # The engraving: two Orbitron lines along the rise and the Open Sans
+        # detail line down the depth.
         for cut in cuts:
             add(cut, mode=Mode.SUBTRACT)
     return pusher.part
