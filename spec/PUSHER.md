@@ -101,62 +101,83 @@ period, glyph 4 of 5 at `0.41 × 0.41`.
 ## Fonts
 
 `Card Cascade` and `CC 7.0` are **Orbitron Bold** — the same
-`fonts/Orbitron-Bold.ttf` `labelmaker.py` uses. Every glyph width matches to
-under `0.001 mm` and every advance to `0.023 mm` across `48.7 mm` of text.
+`fonts/Orbitron-Bold.ttf` `labelmaker.py` uses. Confirmed on both references:
+worst glyph placement error `0.0008 mm` on Compile and `0.0002 mm` on Dominion.
 
 **The third line is not Orbitron.** Its glyphs are far narrower relative to
-their height than Orbitron's — `l` measures `0.196` wide over tall against
-Orbitron Bold's `0.331`, and `S` `0.634` against `1.000`. Matched against every
-font on hand, the closest is DejaVu Sans (`0.066 mm` height error but still
-`0.311 mm` on width), so it is some humanist sans, most likely Onshape's
-default. **`cad/parts/pusher.py` does not cut it** until the face is known.
+their height — `l` measures `0.196` wide over tall against Orbitron Bold's
+`0.331`, and `S` `0.634` against `1.000`. Matched against every font on hand
+the closest is DejaVu Sans, still `0.311 mm` out on width, so it is some
+humanist sans, most likely Onshape's default. **`cad/parts/pusher.py` does not
+cut it** until the face is known.
 
-## Text placement
+## Text sizing is a rule now, not a reproduction
 
-Both Orbitron lines share **one left origin**, `x = 19.7176`. The two ink
-positions differ only by the `C` left side bearing scaled to each size:
-Orbitron Bold's is `0.056 em`, and the two measured inks imply `0.05594 em`.
-The two origins agree to `0.0002 mm`.
+Onshape can constrain sketch text in only one dimension, so a text box that is
+right for one parameter set is wrong for another. The evidence, same string and
+same font on the two references:
 
-The version line's baseline is exactly one `#LogoTextHeight` below the product
-line's — `-4.9008` and `-9.3690`, `4.4682` apart, against a measured
-`LogoTextHeight` of `4.4682`. That is what the variable is *for*: Onshape sizes
-sketch text by dragging a box, so the cap height has to be measured back out
-before it can be used as a dimension. build123d takes a cap height directly, so
-`cad/text.py` states `LOGO_CAP` and derives the font size — the workaround does
-not need reproducing, only its consequences.
+| | strip depth | part length | Onshape cap |
+|---|---|---|---|
+| Compile 105 Sl | `8.00` | `72` | `4.4684` |
+| Dominion 246 Sl | `9.60` | `32` | `1.1611` |
 
-The anchors themselves are **measured, not derived**. The Detail text sketch
-drives them from `#StepHypotenuse` and `#calSliderDistance`, but those
-dimensions land on the text *box* and Onshape fits glyphs inside a box by its
-own rule: `StepHypotenuse/4` is `4.9244` where the baseline measures `4.9008`,
-`0.0236` out. A second STEP at another parameter set would settle whether the
-anchors scale.
+A factor of **3.85**, where nothing in the derived set moves by more than
+`2.55` and most by under `1.3`. There is no formula on the derived variables
+behind it — it is the box being fitted. So `cad/text.py` states the intent and
+sizes to **both** dimensions, which is the thing Onshape cannot do:
+
+```
+cap = min( (strip - 2·margin) / ASC_PER_CAP,            # ascender clears the strip
+           (x_end - x0) / (width_per_cap + LSB/CAP) )   # ink stops before the chamfer
+```
+
+`strip` is `calSliderDistance`, the depth of the region that spans the whole
+rise; `x0` is the first step and `x_end` the start of the end chamfer. The side
+bearing is inside the division because the ink starts one bearing right of the
+anchor and that bearing scales with the size.
+
+**Two rules of the CAD's are kept**, both confirmed on both parts: the version
+line's baseline sits exactly one cap height below the product line's — which is
+what `#LogoTextHeight` is measured back out of Onshape for — and it is set at
+half the product line's cap.
+
+Across all 34 pushers the rule gives caps of `1.27 .. 6.46`; 15 are length-bound
+and 19 depth-bound. **The four 2-riser Dominion pushers are the hard case**
+(`H = 32`, the shortest in the catalogue): `Card Cascade` needs about 11 cap
+widths, so along the rise it cannot exceed `1.27` there. Making those legible
+needs a layout change rather than a better fit — running the logo along the
+depth of the large lower panel (`16 × 30` on that part) would allow roughly
+`2.4`, or the string could shorten. That is a design call, not a fitting one.
 
 ## What the rebuild reproduces
 
-`cad/parts/pusher.py`, checked by `tests/test_pusher.py`:
+`cad/parts/pusher.py`, checked by `tests/test_pusher.py` against **both**
+STEPs. Every X-normal face area, the full mid-plate outline, the tab tops and
+the volume match exactly:
 
-| | built | STEP |
+| | Compile 105 Sl | Dominion 246 Sl |
 |---|---|---|
-| bounding box | `72.000 × 32.000 × 4.500` | identical |
-| mid-plate outline | 16 vertices | identical, area `1407.920` |
-| volume | `4271.997` | `4271.986` (+ the volume its engraving removed) |
-| tab tops, flank positions | `38.000`, `±8.500` | identical |
-| notch flanks | `-13.300 / -18.700` | identical |
-| riser faces at `x = 21/39/57/75` | `6.0 / 11.2 / 11.2 / 8.4` | identical |
-| the 16 Orbitron glyphs | | within `0.0015 mm` |
+| bounding box | `72.000 × 32.000 × 4.500` | `32.000 × 30.000 × 4.500` |
+| mid-plate outline | 16 vertices, area `1407.920` | 12 vertices, area `601.520` |
+| volume | `4271.997` vs `4271.986` | `1851.430` vs `1851.435` |
+| riser faces | `6.0 / 11.2 / 11.2 / 8.4` | `18.4 / 10.64` |
+| tab tops | `38.000` | `38.000` |
 
-All **34** distinct pushers in `parts.csv` build, across every class
-`C1..C5` — including `FCM 3x6-Un` at `D = 14.04`, the only C1 and the tightest
-geometry in the catalogue. 34 rather than 32 because the two the Pusher key's
-missing first-riser axis hides (see `spec/DERIVED.md`) are separate geometry.
+All **34** distinct pushers build and export, spanning `C1..C5` — including
+`FCM 3x6-Un` at `D = 14.04`, the only C1 and the tightest geometry in the
+catalogue. 34 rather than 32 because the two the Pusher key's missing
+first-riser axis hides (see `spec/DERIVED.md`) are separate geometry.
 
-## Still open
+## Settled by the Dominion export
 
-**Which step takes `calFirstSliderDistance`** when there is a first-riser
-override. The reference STEP has none, so it is not determinable from it.
-`slider_drops()` assumes the step nearest the leading edge, because that is the
-one Onshape rounds separately (`First Step` / `Round step 1`, at
-`x = calHeightIncrement`, `r = 1.000` against `0.800`). A hand-exported
-`Dominion 2x12/30` or `2x18/40` pusher would confirm it.
+**The first riser is at the leading edge.** Its outline drops `20.400`
+(`calFirstSliderDistance`) at the first step and `9.600`
+(`calSliderDistance`) at the second, so `slider_drops()` was right to put the
+override first — and the `r = 1.000` round on that step (against `0.800` on the
+rest) is confirmed by its riser face measuring `18.400` for an `18.400` length,
+i.e. `PLATE - 2r = 1.000`.
+
+**The assembly transform is not constant.** X is `+3.000` and Y `0` on both,
+but Z is `-18.000` on Compile and `-16.000` on Dominion. Compare on the
+bounding box, not a fixed offset.

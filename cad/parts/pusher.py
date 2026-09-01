@@ -10,18 +10,21 @@ Local frame (the part studio's, not the assembly's):
     X   rise, 0 at the leading edge, up to calPusherTotalHeight
     Y   depth, 0 at the front edge, down to -calPusherTotalDepth
     Z   thickness, 0 at the back face, PLATE at the front, tabs stand proud
-The STEP is in assembly position; add STEP_OFFSET to compare.
+
+A hand-exported STEP arrives in ASSEMBLY position, and the transform is not
+constant across parts: X is +3.000 and Y is 0 on both references, but Z is
+-18.000 on Compile 105 Sl and -16.000 on Dominion 246 Sl. Align on the
+bounding box when comparing, as tests/test_pusher.py does, rather than on a
+fixed offset.
 """
 from build123d import (
     BuildPart, BuildSketch, BuildLine, Polyline, Plane, Location, Locations,
-    Box, Mode, Pos, add, make_face, extrude, fillet, Align, Text, Vector,
+    Box, Mode, Pos, add, make_face, extrude, fillet, Align, Text,
 )
 
 from .. import derive as D
 from .. import lock as L
 from .. import text as T
-
-STEP_OFFSET = Vector(3.0, 0.0, -18.0)
 
 CHAMFER = 2.000           # Chamfer 1 / Chamfer 2, 45 degrees, full thickness
 ROUND_FIRST = 1.000       # Round step 1
