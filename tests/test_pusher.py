@@ -15,6 +15,10 @@ Both carry engraved text the build places by its own rule rather than copying
 (see cad/text.py), so the SOLID is compared exactly and the text is checked
 against its own invariants, not against the STEP.
 
+The STEPs live in spec/reference/. They were exported by hand from Onshape,
+which costs 0 API calls, and are committed because they are the only ground
+truth the rebuild can be checked against.
+
     .venv/bin/python tests/test_pusher.py
 """
 import sys
@@ -25,11 +29,11 @@ from build123d import import_step, Plane, Location, Vector, Mesher
 from cad import params, lock as L, text as T, derive as D
 from cad.parts import pusher
 
-UP = Path.home() / ".claude/uploads/07f2d5de-ff9b-5727-acb3-79b6a8da454a"
+REF_DIR = Path(__file__).resolve().parent.parent / "spec" / "reference"
 REFS = [
-    ("Compile 105 Card Sl", UP / "63735c8a-Pusher.step",
+    ("Compile 105 Card Sl", REF_DIR / "Pusher S4.7.7.32-Sl.step",
      params.Primary(3, 4, 7, 7, 0, 7, 1, 0, "Compile", "7.0")),
-    ("Dominion 246 Card Sl", UP / "332e64f9-Pusher_D.step",
+    ("Dominion 246 Card Sl", REF_DIR / "Pusher S2.40.12-30.45-Sl.step",
      params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion", "7.0")),
 ]
 fails = []

@@ -3,18 +3,38 @@
 3D-printed card storage boxes ("cascades") for board games, plus the box
 labels. Everything here generates printable 3MF projects.
 
-## Two separate toolchains — work out which one you're in first
+## Three toolchains — work out which one you're in first
 
-| | Labels | Cascades (the boxes) |
-|---|---|---|
-| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` |
-| Geometry from | build123d, generated locally | Onshape, exported via API |
-| Config | `cc.cfg` | `automation/parts.csv` |
-| Read first | `README.md` | `automation/PIPELINE.md` |
-| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` |
+| | Labels | Cascades (the boxes) | The rebuild |
+|---|---|---|---|
+| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` | `cad/` (no CLI yet) |
+| Geometry from | build123d, generated locally | Onshape, exported via API | build123d, generated locally |
+| Config | `cc.cfg` | `automation/parts.csv` | `automation/parts.csv` |
+| Read first | `README.md` | `automation/PIPELINE.md` | `cad/README.md`, `spec/` |
+| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` | `build/<Game>/` (planned) |
 
-**Read the relevant doc before editing either.** `PIPELINE.md` in particular
-records decisions and their reasoning; it is the design record, not a summary.
+**Read the relevant doc before editing any of them.** `PIPELINE.md` in
+particular records decisions and their reasoning; it is the design record, not
+a summary. `cad/README.md` and `spec/` are the same kind of thing for the
+rebuild.
+
+### The rebuild is partial — don't assume it covers a part
+
+`cad/` replaces the Onshape geometry with build123d source, so a cascade can be
+generated with **zero API calls**. Only the **Pusher** exists so far
+(`cad/parts/pusher.py`); Box, Lid, Holder, TokenHolder and Topper still come
+from Onshape, and the whole `automation/` pipeline is still live and
+authoritative for them.
+
+- `cad/derive.py` is a transcription of the Onshape variable studio and is the
+  **only** place a formula lives. Component modules read a frozen `Derived` and
+  never recompute. `spec/DERIVED.md` is the record.
+- `individual/<Game>/` is now also the **regression corpus** — 242 components
+  and 68 raw assemblies that cannot be re-fetched at any sane budget. The
+  rebuild writes to `build/`, never over it.
+- Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
+  fine) and `.venv/bin/python tests/test_pusher.py` (needs build123d, and the
+  hand-exported STEPs it names — it skips a reference that is absent).
 
 ## Ground rules
 
