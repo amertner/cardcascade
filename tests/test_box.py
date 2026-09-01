@@ -313,6 +313,37 @@ for name, fn, p in REFS:
         check(f"{who}: the divider panel is FRONT_DIVIDER thick",
               [y for y in ys if abs(y[0] - fb) < 1e-6],
               [(round(fb, 3), round(pback, 3))])
+        # `Thumb` — one finger hole per horizontal slot, through the panel.
+        # Read as gaps in a section of everything above z=80: a column between
+        # two holes is widest where the holes are narrowest, so the reading is
+        # the section at exactly z=80 and nowhere else.
+        def thumbs(y_at, z_at=80.0):
+            cap = Box(box_w + 20, 0.02, 300).moved(
+                Location((0, y_at - 0.01, z_at + 150)))
+            pcs = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
+                         for q in (shape & cap).solids())
+            return [((a[1] + b[0]) / 2, b[0] - a[1])
+                    for a, b in zip(pcs, pcs[1:])]
+
+        got = thumbs(fb + 0.5)
+        check(f"{who}: one thumb per horizontal slot", len(got), p.HorizontalSlots)
+        check(f"{who}: thumb centres",
+              [round(c, 3) for c, _w in got],
+              [round(x, 3) for x in box.thumb_centres(p, d)])
+        # A cylinder of THUMB_R about z = THUMB_Z: the implied radius from the
+        # chord at z=80 is the radius itself, so it reads straight off.
+        check(f"{who}: thumb is THUMB_R at THUMB_Z",
+              sorted({round(math.sqrt((w / 2) ** 2 + (box.THUMB_Z - 80.0) ** 2), 3)
+                      for _c, w in got}), [round(box.THUMB_R, 3)])
+        # `Fillet thumb hole`, THUMB_FILLET into both faces. Probed at one
+        # depth inside the arc and one past its tangency.
+        for depth in (0.12, 0.42):
+            f = box.THUMB_FILLET
+            grew = f - math.sqrt(max(0.0, 2 * f * depth - depth * depth)) if depth < f else 0.0
+            check(f"{who}: thumb fillet {depth} below the panel face",
+                  sorted({round(math.sqrt((w / 2) ** 2 + (box.THUMB_Z - 80.0) ** 2), 3)
+                          for _c, w in thumbs(fb + depth)}),
+                  [round(box.THUMB_R + grew, 3)], 2e-3)
         # ... and carries the back wall's lattice exactly.
         bar = Box(box_w + 20, 0.2, 0.05).moved(
             Location((0, (fb + pback) / 2, box.hole_rows()[0][0] + 3.0)))

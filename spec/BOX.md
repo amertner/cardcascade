@@ -577,6 +577,81 @@ The corner-round probe is what caught it: `4.600` measured `4.800` of eaten
 material on the build and `4.795` on the STEP, because the probe column sits in
 the end wall and the sliver was in it.
 
+## `Thumb and Lip` — the thumb is settled, the lip's ANGLE is not
+
+### `Thumb`
+
+A finger hole through the divider panel, **one per horizontal slot**:
+
+```
+centre X = -#BoxWidth/2 + WallThickness + calSliderSpaceLeftRight - 0.800
+           + calSlotwidth/2 + k*calSlotwidth
+centre Z = 87.500          the same height the angled cutout reaches
+radius   = ThumbCutoutRadius = 12.000
+fillet   = 0.400 into BOTH panel faces (`Fillet thumb hole`)
+```
+
+Exact on all six references, at `HorizontalSlots` 3, 4 and 5, and `MatPocket`
+does not move them even though it drops a divider. The radius never reaches a
+pad (`5.800` in) or a divider, so the thumb only ever meets the panel.
+
+The fillet was read off the hole's profile through the panel — the radius at
+eight depths, fitting `r - sqrt(2rt - t²)` to four decimals at every one. Note
+the trap: a thin probe slab reports the section at the depth where the hole is
+NARROWEST, which is the far side of the slab, so the whole profile reads one
+slab-thickness shallow. Correct for that and `0.400` falls out; do not, and it
+looks like a `0.275` fillet that fits nothing.
+
+`box.thumb_tool` revolves the profile rather than cutting a cylinder and
+calling `fillet()`, because the angled cutout takes the top off the hole — its
+edge is an arc, not a circle. Use `ThreePointArc`, not `RadiusArc`: two points
+and a radius admit four arcs and the one chosen left the hole a plain `12.400`
+cylinder, which the STEP's own profile caught immediately.
+
+### `Lip` — measured in full, one number missing
+
+Behind the panel, two per thumb, symmetric about it. Everything about it is
+pinned EXCEPT its angle:
+
+```
+x            thumb centre ± 15.400 .. ± 25.400, so LipLength = 10.000
+             with LipChamfer = 1.200 45-degree chamfers, giving 12.400 overall
+section      a ridge starting at the panel's BACK face at z = 85.475,
+             running LipDepth = 2.100 at an angle from vertical,
+             LipHeight = 2.000 tall in Z
+```
+
+`sqrt(protrusion² + rise²) = 2.1000` on all five references, to four decimals —
+so `LipDepth` is confirmed and the shape is a parallelogram in section, not a
+cut. **But the angle varies per box and nothing in the derived set predicts it:**
+
+| reference | protrusion | tan(angle) | `calSliderDistance` | `calHolderDepth` | `calFrontPocketDepth` |
+|---|---|---|---|---|---|
+| FCM 72 | `0.514` | `0.2525` | `6.000` | `5.500` | `3.600` |
+| Compile 105 | `0.780` | `0.4000` | `8.000` | `7.500` | `5.600` |
+| Dominion 244 | `0.909` | `0.4802` | `8.400` | `7.900` | `12.600` |
+| Dominion 650 | `1.237` | `0.7289` | `8.400` | `7.900` | `30.000` |
+| Dominion 246 | `1.655` | `1.2800` | `9.600` | `9.100` | `24.000` |
+
+Dominion 244 and 650 have **identical** slot, slider and holder geometry and
+different angles, which rules out everything the holder could contribute — even
+though the group opens with `Import Holder patterns`. And Dominion 246's angle
+is larger than Dominion 650's while its pocket is shallower, which rules out any
+monotonic function of `calFrontPocketDepth` or of the angled cutout's own slope.
+Tried and rejected: the angled plane's slope, its normal, a fixed offset from
+either, `calSliderDistance`, `calSlotDepth`, `calHolderDepth`,
+`calFirstSlotDepth`, `calFrontPocketDepth`, `#BoxDepth`, `HorizontalSlots`,
+`RisingSliders`, `calPusherTotalHeight`.
+
+**`individual/` cannot settle this.** The 44 canonical Box 3MFs have NO lip at
+all — the feature postdates them — so unlike the pusher rest, there is no
+corpus to fit against. Only the five STEPs have it, and five points across an
+unknown functional form is not enough.
+
+So `cad/parts/box.py` builds the thumb and leaves the lip out, and this is the
+one place the Box is knowingly INCOMPLETE rather than divergent. It shows in
+`box_diff` as five MISSING lumps of about `35.977 mm³` at `z 85.5..88.8`.
+
 ## Still open
 
 - **The `Rev` line.** Allan: it should read `Rev 7.0` or `CC 7.0`, i.e. it
@@ -596,7 +671,9 @@ the end wall and the sliver was in it.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build, in tree order: the thumb and lip, the closing bumps, the
+- **The lip's angle** — see above. The one measurement that needs Allan rather
+  than another probe.
+- Still to build, in tree order: the closing bumps, the
   label holders behind `isLabelHoldersOnBox`, the engraved text, and `Smooth
   box edges`. The diff isolates each of them cleanly now — the thumb as
   `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`

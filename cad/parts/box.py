@@ -15,8 +15,9 @@ open" for what is left and `tests/test_box.py` for what is proven. Nothing
 writes a Box to build/ yet.
 """
 from build123d import (
-    Axis, Box, BuildPart, BuildSketch, Cylinder, Kind, Location, Mode, Plane,
-    Polygon, Rectangle, extrude, fillet, offset,
+    Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Kind, Line,
+    Location, Mode, Plane, Polygon, Rectangle, ThreePointArc, extrude, fillet,
+    make_face, offset, revolve,
 )
 
 from .. import derive as D
@@ -452,6 +453,59 @@ FRONT_DIVIDER_W = 0.800                     # `Divider for front pocket`
 POCKET_CUT_TOP = 87.500                     # where `Angled cutout` lands
 
 
+# `Thumb and Lip`. The finger hole through the divider panel, one per
+# horizontal slot, and the lip behind it.
+THUMB_R = D.ThumbCutoutRadius     # 12.000, the studio constant
+THUMB_Z = 87.500                  # the height the angled cutout reaches, too
+THUMB_FILLET = 0.400              # `Fillet thumb hole`, on BOTH panel faces
+
+
+def thumb_centres(p, d):
+    """Centre X of each thumb hole, left to right — one per horizontal slot.
+
+        -#BoxWidth/2 + WallThickness + calSliderSpaceLeftRight
+        - 0.800 + calSlotwidth/2 + k*calSlotwidth
+
+    i.e. half a slot in from the left inner wall, shifted by the side spacing
+    less the divider width. Exact on all six references, at HorizontalSlots 3,
+    4 and 5, and `MatPocket` does not move them even though it drops a divider.
+    """
+    x0 = (-box_width(p, d) / 2 + WALL + d.calSliderSpaceLeftRight
+          - FRONT_DIVIDER_W + d.calSlotwidth / 2)
+    return [x0 + k * d.calSlotwidth for k in range(p.HorizontalSlots)]
+
+
+def thumb_tool(p, d, x):
+    """One thumb hole: a THUMB_R cylinder through the panel on Y, filleted
+    THUMB_FILLET into both faces.
+
+    Revolved from its profile rather than cut-then-`fillet()`: the angled
+    cutout takes the top off the hole, so its edge is an ARC and not a circle,
+    and picking that reliably is harder than stating the section once.
+
+    The quarter arcs are given by three points, not by a radius: `RadiusArc`
+    has four candidates through two points and picked one that left the hole a
+    plain 12.400 cylinder — which the STEP's own profile caught at once.
+    """
+    _fw, fb, back = pocket_span(p, d)
+    r, f = THUMB_R, THUMB_FILLET
+    m = f * (1 - 2 ** -0.5)          # the arc's midpoint, off its own corner
+    with BuildPart() as tool:
+        with BuildSketch(Plane.XY):
+            with BuildLine():
+                Line((0.0, fb - 5), (r + f, fb - 5))
+                Line((r + f, fb - 5), (r + f, fb))
+                ThreePointArc((r + f, fb), (r + m, fb + m), (r, fb + f))
+                Line((r, fb + f), (r, back - f))
+                ThreePointArc((r, back - f), (r + m, back - m), (r + f, back))
+                Line((r + f, back), (r + f, back + 5))
+                Line((r + f, back + 5), (0.0, back + 5))
+                Line((0.0, back + 5), (0.0, fb - 5))
+            make_face()
+        revolve(axis=Axis.Y)
+    return tool.part.moved(Location((x, 0, THUMB_Z)))
+
+
 def front_dividers(p, d):
     """Right-edge X of each front-pocket divider, left to right.
 
@@ -546,6 +600,10 @@ def front_pocket(p, d, part):
     for x_lo, x_hi in hanging_holes(p, d):
         for z_lo, z_hi in hole_rows():
             add = add - slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
+    # `Thumb` — the finger hole, one per slot. Its THUMB_R never reaches a pad
+    # (5.800 in) or a divider, so it only ever meets the panel.
+    for x in thumb_centres(p, d):
+        add = add - thumb_tool(p, d, x)
     return part + (add - angled_cutout(p, d))
 
 
