@@ -148,7 +148,10 @@ on `Box Dominion 244S` all three, at full width, so each is severed at every
 hole row. `cad/` stops them at the slot band and leaves the dividers solid
 (Allan). The Box's version line is the second: Onshape's sketches still read
 `Rev <version>` and Allan wants `calVersion`, as the Lid has, so the build
-engraves `CC 7.0` where every reference engraves `Rev 7.0`. The rule these set
+engraves `CC 7.0` where every reference engraves `Rev 7.0`. The third is the
+XS box's front label holder, which in Onshape carries no fastener at all — the
+build puts one in the middle, the only place a `10.000` ridge fits on a
+`65.600` holder. The rule these set
 is the point: a divergence is recorded in `spec/`, and asserted from both ends
 — the build has the new behaviour, the reference still has the old one — so
 re-converging fails the tests rather than passing quietly. Anything else that

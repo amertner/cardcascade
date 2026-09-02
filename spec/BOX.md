@@ -785,6 +785,33 @@ has radius `0.577350` — and reproduces all three points while being half again
 too fat in between. What settled it was reading the radius off the surface
 (`BRepAdaptor_Surface(...).Cylinder().Radius()`) rather than fitting probes.
 
+### The XS box gets ONE fastener — a deliberate divergence
+
+`Box Innovation 130U`'s narrow front holder has **no fastener at all**: at
+`65.600` overall there is nothing above its frame but the two post tops, so its
+label's top edge is gripped by nothing. Allan wants one there, centred.
+
+One and not two, because two at the thirds would sit `10.933` out from centre
+and each ridge is `10.000` long end to end — they would run into the posts,
+which stand at `|x| >= 28.800`. `fastener_centres` returns `(0.0,)` for the
+narrow holder and `(-L/6, +L/6)` for the wide one; `label_holder` takes
+absolute X positions rather than a bool, so the two cases are one code path.
+
+Measured on the build:
+
+```
+Inno130U XS  holder  65.6  fasteners at (0.0,)
+     x  -32.750.. -28.800  proud 1.600     post
+     x   -4.999..   4.999  proud 0.866     the new ridge
+     x   28.800..  32.750  proud 1.600     post
+Dom244U   M  holder 160.0  fasteners at (-26.667, +26.667)   unchanged
+```
+
+Asserted from both ends, as every divergence is: a `10.5 x 1.8 x 2.2` cell
+centred on the holder — clear of the posts — must hold **one** solid in the
+build and **none** in the STEP. If Onshape ever grows the fastener, that check
+fails rather than passing quietly.
+
 ## The engraved text, measured
 
 Five lines, `0.400` into the top of the `1.600` floor (glyph faces at

@@ -507,9 +507,10 @@ for name, fn, p in REFS:
         # constants, not from a measured literal — the probe cell is CENTRED on
         # its point, so the reading is at the edge nearest the ridge's middle,
         # and a literal silently bakes that offset in.
-        # ... and only the WIDE holder has fasteners at all.
-        R, cx = box.FASTENER_R, box.front_label_len(p, d) / 6
-        if box.front_label_len(p, d) < box.FRONT_LABEL_WIDE + 3.6:
+        # ... at the thirds of the WIDE holder. The narrow one is checked
+        # separately below, because there the build and the STEP differ.
+        R, cx = box.FASTENER_R, box.fastener_centres(p, d)[-1]
+        if len(box.fastener_centres(p, d)) < 2:
             continue
         thin = 0.02
         for z in (64.6, 65.0):
@@ -574,6 +575,18 @@ for name, fn, p in REFS:
             for i, what in enumerate(("inset", "start")):
                 check(f"build: {lbl} engraving {what} matches the STEP's",
                       band[("build", lbl)][i], band[("STEP", lbl)][i], 0.3)
+    # A single CENTRED fastener on the NARROW front holder is a DELIBERATE
+    # DIVERGENCE (Allan). `Box Innovation 130U` has none at all, and a label
+    # with nothing gripping its top edge is what that fixes. Asserted from both
+    # ends: one on the build, none on the STEP.
+    if len(box.fastener_centres(p, d)) == 1:
+        for who, shape, want in (("STEP", ref, 0), ("build", mine, 1)):
+            # 10.5 wide about the centre — clear of the frame's posts, which
+            # stand at |x| >= 28.800 on the narrow holder.
+            cell = Box(10.5, 1.8, 2.2).moved(Location((0, -BD / 2 - 0.95, 65.0)))
+            found = (shape & cell)
+            check(f"{who}: the narrow holder has {want} centred fastener",
+                  len(found.solids()) if found else 0, want)
     # The version line is a DELIBERATE DIVERGENCE: Allan's sketch still reads
     # "Rev <version>" and the build says calVersion, as the Lid does. Told
     # apart by the line's ink-length-to-cap ratio, which is a property of the

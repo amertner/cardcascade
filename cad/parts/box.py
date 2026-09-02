@@ -775,7 +775,7 @@ FASTENER_R = 1.000         # every one of its faces is a 1.000 cylinder
 FASTENER_TALL = 1.000      # z LABEL_Z1 .. LABEL_Z1 + 1.000
 
 
-def label_holder(length, fasteners=False):
+def label_holder(length, fasteners=()):
     """One label holder, in a canonical frame: the wall's outer face is y = 0,
     the holder stands proud in -Y, and it is centred on x = 0.
 
@@ -811,8 +811,8 @@ def label_holder(length, fasteners=False):
                      LABEL_Z0 + LABEL_OPEN_IN, LABEL_Z1 + 2.0)
     if not fasteners:
         return pad
-    # `Fastener` / `Round Fastener` / `Mirror 2` — two ridges just above the
-    # frame, at the thirds of its length, that grip the label's top edge.
+    # `Fastener` / `Round Fastener` / `Mirror 2` — ridges just above the frame
+    # that grip the label's top edge, at `fasteners` (absolute X positions).
     #
     # It is the INTERSECTION OF THREE 1.000 CYLINDERS, every axis lying in the
     # wall face — read straight off the STEP's surfaces, all four of which are
@@ -834,9 +834,28 @@ def label_holder(length, fasteners=False):
     for z in (LABEL_Z1, LABEL_Z1 + FASTENER_TALL):
         tab = tab & Cylinder(FASTENER_R, FASTENER_LEN + 2.0,
                              rotation=(0, 90, 0)).moved(Location((0, 0, z)))
-    for sign in (-1, +1):
-        pad = pad + tab.moved(Location((sign * length / 6, 0, 0)))
+    for x in fasteners:
+        pad = pad + tab.moved(Location((x, 0, 0)))
     return pad
+
+
+def fastener_centres(p, d):
+    """Where the front holder's fasteners sit, in X.
+
+    The wide holder carries TWO, at the thirds of its length — `Box Dominion
+    244U` puts them at exactly the same absolute positions as every other wide
+    reference, so they belong to the holder and not to the box.
+
+    **The narrow one carries ONE, in the middle. That is a DELIBERATE
+    DIVERGENCE** (Allan): `Box Innovation 130U` has none at all, and a label
+    with nothing gripping its top edge is the thing being fixed. One is what
+    fits — two at the thirds of `65.600` would sit `10.933` out, and each ridge
+    is `10.000` long.
+    """
+    length = front_label_len(p, d)
+    if length < FRONT_LABEL_WIDE + 3.600:
+        return (0.0,)
+    return (-length / 6, length / 6)
 
 
 def front_label_len(p, d):
@@ -873,12 +892,8 @@ def label_holders(p, d, part):
     if not d.isLabelHoldersOnBox:
         return part
     BW, BD = box_width(p, d), box_depth(p, d)
-    # Only the WIDE front holder carries fasteners. `Box Innovation 130U`'s
-    # narrow one has none — at 65.600 long there is nothing above its frame but
-    # the two post tops.
-    wide = FRONT_LABEL_WIDE + 3.600
-    front = front_label_len(p, d)
-    part = part + label_holder(front, fasteners=front >= wide).moved(
+    part = part + label_holder(front_label_len(p, d),
+                               fastener_centres(p, d)).moved(
         Location((0, -BD / 2, 0)))
     side = label_holder(d.calSideLabelWidth + SIDE_LABEL_EXTRA)
     return part + side.rotate(Axis.Z, -90).moved(
