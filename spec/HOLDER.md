@@ -227,6 +227,41 @@ area is exactly `240.00` on every holder, and that is the bottom face of the
 first window row — `10.000 x 0.800` per window, five columns, two walls, three
 compartments.
 
+## `Rear lip`, and what the second slant plane is for
+
+Two tabs per compartment, standing proud of the `Y = 0` face — which is what
+fixes the frame's sense: Onshape calls this group the REAR lip, so `Y = 0` is
+the REAR face and the slant descends toward the front.
+
+**In section they are the band between the two slant planes.** That is the only
+thing the lower plane does, and it is why it exists. Their top rides the upper
+plane extended past `Y = 0`, so the whole holder's `Z` maximum is
+`slant_top + slope * reach` rather than `slant_top`.
+
+**They reach `LIP_REACH = 2.100` ALONG the slant**, not in `Y`. Measured `Y`
+against `Y * sqrt(1 + slope^2)`:
+
+| holder | slope | `Y` reach | along the slant |
+|---|---|---|---|
+| 246 Default | 1.7857 | 1.026 | **2.100** |
+| 246 First | 0.7812 | 1.655 | **2.100** |
+| 333 Default | 1.2037 | 1.342 | **2.100** |
+| Innovation Sl | 2.1299 | 0.892 | **2.100** |
+| Innovation Un | 3.1538 | 0.635 | **2.101** |
+
+In plan the flat runs `|x| 15.400 .. 25.400` from the compartment's centre —
+`#LipLength` long, starting `#LipDistanceFromFingerHole` out from the scallop's
+own filleted edge at `FINGER_R + FINGER_FILLET = 12.400`. Both of Allan's sketch
+numbers land exactly. `Chamfer lip` then widens the base by `1.200` a side at 45
+degrees in `Y`.
+
+**The chamfer is not truncated at the base.** Where the lip is shorter in `Y`
+than `1.200` the chamfer plane simply runs out of lip; it does not start closer
+in. The base is `12.400` on all five references whatever the reach. Modelling it
+the other way leaves the base `12.052` and is invisible to the bounding box, the
+reach AND the tip width — all three stay right — and shows up only in the lip
+volume. So the test compares per-solid volumes, not envelopes.
+
 ## The engraved text is a DELIBERATE DIVERGENCE
 
 Onshape can constrain a text box in one dimension only — the same limitation
@@ -269,7 +304,9 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 
 - Where the slant plane sits, not just its slope.
 - The tabs between the scallops.
-- The whole `Rear lip` group (12 features), including `#LipLength = 10`.
+- `Lip Rest` and `Chamfer lip rest`: a REMOVE, extruding the lip's own faces
+  through all along `LipPlane` from a starting offset of `#calSlotDepth * 2`.
+  Measured on the references but not yet built.
 - `Leftmost Pusher Pos` — what it positions.
 - Whether the row rail stays `2.000` at other card heights; only `CardHeight
   92.0` has a reference.

@@ -15,7 +15,7 @@ therefore asserted against a case that would fail if the wrong one were used.
 
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
 plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, the finger scallops
-and their modelled fillet, and the side slots.
+and their modelled fillet, the side slots, and the rear lips.
 """
 import sys
 from pathlib import Path
@@ -127,7 +127,10 @@ for name, fn, p, first in REFS:
           round(-holder.holder_depth(d, first), 3), 1e-3)
     check("... and the build agrees", round(mb.min.Y, 3),
           round(rb.min.Y, 3), 1e-3)
-    check("the front face is Y = 0", round(mb.max.Y, 3), 0.0, 1e-3)
+    # Y = 0 is the REAR face — the `Rear lip` tabs stand proud of it — so the
+    # bounding box reaches past it by exactly the lip's reach.
+    check("the build stands as proud of Y=0 as the STEP does",
+          round(mb.max.Y, 3), round(rb.max.Y, 3), 1e-3)
 
     # The base is (CardHeight - 1.5)/2 below the origin on every holder.
     check("base = -(CardHeight - 1.5)/2", round(rb.min.Z, 3),
@@ -299,6 +302,42 @@ for name, fn, p, first in REFS:
                               for s in got.solids())
             check(f"the end at x={round(xc, 1)}, z={zc} is slotted like the STEP",
                   bands(mine), bands(ref))
+
+    # --- `Rear lip` ---------------------------------------------------------
+    # Everything standing proud of Y = 0 is lip. Compared as COUNT and VOLUME
+    # per solid, which catches the chamfer: the base is always LIP_CHAMFER out,
+    # and where the lip is shorter in Y than that the chamfer plane simply runs
+    # out of lip rather than starting closer in. Getting that backwards leaves
+    # the base 12.052 wide instead of 12.400 and shows up only in the volume —
+    # the bounding box, the reach and the tip width are all still right.
+    def lips(shape):
+        bb = shape.bounding_box()
+        got = shape & Box(bb.size.X + 4, 20.0, bb.size.Z + 4).moved(
+            Location((bb.center().X, 10.0 + 1e-4, bb.center().Z)))
+        if not got or not got.solids():
+            return []
+        return sorted((round(x.bounding_box().min.X, 3), round(x.volume, 3))
+                      for x in got.solids())
+
+    a, b = lips(ref), lips(mine)
+    check("two lips per compartment", len(b), 2 * p.HorizontalSlots)
+    check("... and the same count as the STEP", len(b), len(a))
+    check("every lip is where the STEP's is, and the same size", b, a)
+    check("the lip reaches LIP_REACH along the slant",
+          round(holder.lip_reach_y(d, first)
+                * (1 + holder.slant_slope(d, first) ** 2) ** 0.5, 3),
+          round(holder.LIP_REACH, 3), 1e-3)
+    check("the lip's flat starts LIP_GAP out from the scallop's edge",
+          round(holder.FINGER_R + holder.FINGER_FILLET + holder.LIP_GAP, 3),
+          15.400, 1e-3)
+    # Its section is the band between the TWO slant planes — which is what the
+    # lower one, otherwise unused, is for.
+    check("the lip sits between the two slant planes",
+          round(min(x.bounding_box().min.Z for x in
+                    (ref & Box(rb.size.X + 4, 20.0, rb.size.Z + 4).moved(
+                        Location((rb.center().X, 10.0 + 1e-4,
+                                  rb.center().Z)))).solids()), 3),
+          round(holder.slant_top(d) - holder.SLANT_STEP, 3), 1e-3)
 
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))

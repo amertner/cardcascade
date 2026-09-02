@@ -21,14 +21,17 @@ hand-exported STEPs; the Onshape feature tree it mirrors is, in order:
 
 Local frame (the part studio's):
     X   0 at the centre of the FIRST compartment, +k * calSlotwidth for the rest
-    Y   0 at the front face, NEGATIVE going back
-    Z   0 at the CENTRE of the card pocket; the base is at BASE_Z on every
-        reference whatever the parameters
+    Y   0 at the REAR face — `Rear lip`'s tabs stand proud of it, at Y > 0 —
+        and NEGATIVE toward the front, which is the way the slant descends
+    Z   0 midway between the base and the card pocket's TOP, both at
+        (CardHeight - 1.5)/2 on every reference whatever the parameters
 
-INCOMPLETE. `build()` stops after the card pocket. See `spec/HOLDER.md`
+INCOMPLETE. `build()` stops after the rear lips. See `spec/HOLDER.md`
 "Still open" for what is left and `tests/test_holder.py` for what is proven.
 Nothing writes a Holder to build/ yet.
 """
+import math
+
 from build123d import (
     Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Location,
     Plane, Polyline, Torus, extrude, make_face,
@@ -183,8 +186,8 @@ def compartment_x(p, d):
 def card_pockets(p, d, first, part):
     """`Hole for cards` — one pocket per compartment, cut clean out of the top.
 
-    Inset WALL from the front and back faces (measured: the walls are the only
-    material left at a lattice rail's height) and DIVIDER/2 from each slot edge.
+    Inset WALL from both faces (measured: the walls are the only material left
+    at a lattice rail's height) and DIVIDER/2 from each slot edge.
     """
     depth = holder_depth(d, first)
     z0, z1 = pocket_z(d)
@@ -338,6 +341,93 @@ def side_slots(p, d, first, part):
     return part
 
 
+# `Rear lip` — two tabs per compartment, standing proud of the Y = 0 face. This
+# is the face Onshape calls the REAR, which is what fixes the frame's sense.
+#
+# In section they are the band between the TWO slant planes — that is what the
+# second one is for — and they reach LIP_REACH ALONG the slant, so their Y
+# extent is LIP_REACH / sqrt(1 + slope^2) and their top rides the upper plane
+# extended past Y = 0. Measured Y 1.026 / 1.655 / 1.342 / 0.892 / 0.635 on the
+# five references against slopes 1.7857 / 0.7812 / 1.2037 / 2.1299 / 3.1538,
+# and Y * sqrt(1 + slope^2) is 2.100 every time.
+#
+# In plan the flat runs |x| 15.400 .. 25.400 from the compartment's centre:
+# LIP_LEN long, starting LIP_GAP out from the scallop's own filleted edge at
+# FINGER_R + FINGER_FILLET. `Chamfer lip` then widens the BASE by LIP_CHAMFER a
+# side at 45 degrees in Y. Where the lip is shorter in Y than LIP_CHAMFER the
+# chamfer is truncated and the tip stays wide, which is what the references
+# show: tips of 10.000 / 10.000 / 10.354 / 10.622 / 11.135 against reaches of
+# 1.342 / 1.655 / 1.026 / 0.892 / 0.635.
+LIP_LEN = 10.000           # `#LipLength`
+LIP_GAP = 3.000            # `#LipDistanceFromFingerHole`, from the scallop edge
+LIP_CHAMFER = 1.200        # `Chamfer lip`, 45 degrees, measured in Y
+LIP_REACH = 2.100          # along the slant plane, from Y = 0
+
+
+def lip_reach_y(d, first):
+    """How far a lip stands proud in Y — LIP_REACH taken along the slant."""
+    slope = slant_slope(d, first)
+    return LIP_REACH / math.sqrt(1.0 + slope * slope)
+
+
+def lip_plan(d, first):
+    """The lip's plan-view outline, as (x, y) relative to its own inner edge.
+
+    x is |x| from the compartment centre; the caller mirrors it.
+    """
+    y1 = lip_reach_y(d, first)
+    lo = FINGER_R + FINGER_FILLET + LIP_GAP
+    hi = lo + LIP_LEN
+    # The base is ALWAYS the full LIP_CHAMFER out. Where the lip is shorter in Y
+    # than LIP_CHAMFER the chamfer plane simply runs out of lip; it does not
+    # start closer in. Getting that backwards leaves the base 12.052 wide
+    # instead of 12.400 on the three references where y1 < LIP_CHAMFER.
+    if y1 <= LIP_CHAMFER:
+        return [(lo - LIP_CHAMFER, 0.0), (hi + LIP_CHAMFER, 0.0),
+                (hi + LIP_CHAMFER - y1, y1), (lo - LIP_CHAMFER + y1, y1)]
+    return [(lo - LIP_CHAMFER, 0.0), (hi + LIP_CHAMFER, 0.0),
+            (hi, LIP_CHAMFER), (hi, y1), (lo, y1), (lo, LIP_CHAMFER)]
+
+
+def slant_band(p, d, first, x0, x1):
+    """The prism between the two slant planes, over X in [x0, x1]."""
+    with BuildPart() as part:
+        with BuildSketch(Plane.YZ):
+            with BuildLine():
+                Polyline((0.0, slant_z(d, first, 0.0, lower=True)),
+                         (0.0, slant_z(d, first, 0.0)),
+                         (4.0, slant_z(d, first, 4.0)),
+                         (4.0, slant_z(d, first, 4.0, lower=True)),
+                         close=True)
+            make_face()
+        extrude(amount=x1 - x0)
+    return part.part.moved(Location((x0, 0, 0)))
+
+
+def rear_lips(p, d, first, part):
+    """Add the lips: the plan outline, clipped to the band between the slants."""
+    y1 = lip_reach_y(d, first)
+    pts = lip_plan(d, first)
+    # Tall enough to reach the slant band, which sits around Z = 44; extruding
+    # +-40 about the origin misses it entirely.
+    tall = 200.0
+    with BuildPart() as blank:
+        with BuildSketch(Plane.XY) as sk:
+            with BuildLine():
+                Polyline(*pts, close=True)
+            make_face()
+        extrude(amount=tall, both=True)
+    one = blank.part
+    for xc in compartment_x(p, d):
+        for sign in (+1, -1):
+            lip = one if sign > 0 else one.mirror(Plane.YZ)
+            lip = lip.moved(Location((xc, 0, 0)))
+            band = slant_band(p, d, first,
+                              xc - 30.0, xc + 30.0)
+            part = part + (lip & band)
+    return part
+
+
 def build(p, first=False):
     """`p` is a params.Primary. Returns the Holder as a build123d Part.
 
@@ -348,4 +438,5 @@ def build(p, first=False):
     part = card_pockets(p, d, first, part)
     part = lattice(p, d, first, part)
     part = finger_cutouts(p, d, first, part)
-    return side_slots(p, d, first, part)
+    part = side_slots(p, d, first, part)
+    return rear_lips(p, d, first, part)
