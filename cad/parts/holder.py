@@ -30,8 +30,8 @@ INCOMPLETE. `build()` stops after the card pocket. See `spec/HOLDER.md`
 Nothing writes a Holder to build/ yet.
 """
 from build123d import (
-    Box, BuildLine, BuildPart, BuildSketch, Cylinder, Location, Plane,
-    Polyline, extrude, make_face,
+    Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Location,
+    Plane, Polyline, Torus, extrude, make_face,
 )
 
 from .. import derive as D
@@ -272,12 +272,69 @@ FINGER_R = 12.000
 FINGER_FILLET = 0.400
 
 
+def finger_tool(depth):
+    """The scallop cut, with `Fillet 1` MODELLED rather than filleted.
+
+    `Fillet 1` rounds the FRONT wall's scallop edges only — the reference has
+    exactly one torus face per scallop, centred at `y = -0.400`, and nothing on
+    the back wall. Because the wall is `2 * FINGER_FILLET` thick, the rounds
+    from its two faces merge into that single torus, and OCCT will not compute
+    such a fillet at all: `fillet(..., 0.400)` fails on every reference. That is
+    a degenerate case for any kernel, not a build123d quirk, so the cut is
+    constructed with the rounding already in it.
+
+    The bead is the annulus between FINGER_R and FINGER_R + FINGER_FILLET across
+    the front wall, less the torus the fillet rolls. At the face the torus
+    reduces to a point, so the hole is the full FINGER_R + FINGER_FILLET; at
+    mid-wall the torus fills the annulus, so the hole necks to FINGER_R.
+    """
+    core = Cylinder(FINGER_R, depth + 2.0, rotation=(90, 0, 0)).moved(
+        Location((0, -depth / 2, 0)))
+    ring = (Cylinder(FINGER_R + FINGER_FILLET, 2 * FINGER_FILLET,
+                     rotation=(90, 0, 0))
+            - Cylinder(FINGER_R, 2 * FINGER_FILLET + 1.0, rotation=(90, 0, 0)))
+    bead = ring - Torus(FINGER_R + FINGER_FILLET, FINGER_FILLET).rotate(
+        Axis.X, 90)
+    return core + bead.moved(Location((0, -FINGER_FILLET, 0)))
+
+
 def finger_cutouts(p, d, first, part):
     """Cut the finger scallops through the full depth."""
     depth = holder_depth(d, first)
-    tool = Cylinder(FINGER_R, depth + 2.0, rotation=(90, 0, 0))
+    tool = finger_tool(depth)
     for x in compartment_x(p, d):
-        part = part - tool.moved(Location((x, -depth / 2, slant_top(d))))
+        part = part - tool.moved(Location((x, 0.0, slant_top(d))))
+    return part
+
+
+# `Side slot solid` / `Side slot` / `Side slot hole` / `Mirror Side` — the groove
+# each end runs on, which is the BOX's slider rib plus clearance. Measured on
+# the holder: SLOT_W wide, centred on the holder's mid-depth, END_BLOCK deep
+# from each end, and running the full height (the slant is what stops it, and it
+# already has). Identical on all three references, whatever the depth.
+#
+# Against `cad/parts/box.py`, measured independently on the other part:
+#
+#     box SLIDER_W      1.500      holder SLOT_W    1.900   -> 0.200 a side
+#     box SLIDER_PROUD  4.000      holder END_BLOCK 4.000   -> the same
+#
+# so the two parts agree without either having been fitted to the other.
+SLOT_W = 1.900
+
+
+def side_slots(p, d, first, part):
+    """Cut the two end grooves."""
+    x0, x1 = x_span(p, d)
+    depth = holder_depth(d, first)
+    z0 = base_z(d)
+    tall = slant_top(d) - z0 + 2.0
+    # END_BLOCK deep, plus 1.0 of overshoot past the end so the cut leaves no
+    # coincident face; likewise 1.0 below the base and above the slant.
+    tool = Box(END_BLOCK + 1.0, SLOT_W, tall)
+    for x, inward in ((x0, +1), (x1, -1)):
+        cx = x + inward * (END_BLOCK / 2 - 0.5)
+        part = part - tool.moved(
+            Location((cx, -depth / 2, z0 - 1.0 + tall / 2)))
     return part
 
 
@@ -290,4 +347,5 @@ def build(p, first=False):
     part = shell(p, d, first)
     part = card_pockets(p, d, first, part)
     part = lattice(p, d, first, part)
-    return finger_cutouts(p, d, first, part)
+    part = finger_cutouts(p, d, first, part)
+    return side_slots(p, d, first, part)

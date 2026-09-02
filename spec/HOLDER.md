@@ -158,6 +158,50 @@ an artefact of the measurement, not of the model. The test therefore compares
 the STEP and the build as PROFILES sampled the same way, rather than fitting a
 radius at all.
 
+### `Fillet 1` is MODELLED, because no kernel will compute it
+
+There is exactly **one torus face per scallop**, centred at `y = -0.400` — the
+front wall's mid-depth — and nothing on the back wall. So `Fillet 1` rounds the
+FRONT wall's scallop edges only, and because that wall is `2 * 0.400` thick the
+rounds from its two faces merge into that single torus.
+
+`fillet(..., 0.400)` fails on all three references. That is not a build123d
+quirk: a fillet whose two sides meet exactly is degenerate for any kernel. So
+the rounding is built INTO the cut instead — the bead is the annulus between
+`12.000` and `12.400` across the front wall, less the torus the fillet rolls. At
+the face the torus reduces to a point so the hole is the full `12.400`; at
+mid-wall it fills the annulus so the hole necks to `12.000`.
+
+Checked by sampling ACROSS the wall rather than by a bounding box, which is
+where a wrong bead would show and an envelope would not:
+
+| y | x = 0 | x = 6 | x = 11 |
+|---|---|---|---|
+| `-0.05` | 32.090 | 33.696 | 39.153 |
+| `-0.15` | 32.184 | 33.805 | 39.381 |
+| `-0.40` | 32.250 | 33.881 | 39.547 |
+
+STEP and build agree at every one, on both holders, and the built torus count
+matches the reference's.
+
+## The side slot is the BOX's rib, and the two parts agree
+
+`Side slot solid` / `Side slot` / `Side slot hole` / `Mirror Side`. Measured on
+the holder alone: `1.900` wide, centred on the holder's **mid-depth**, `4.000`
+deep from each end, full height — the slant is what stops it, and it already
+has. Identical on all three references whatever the depth (`-5.550..-3.650` at
+`9.200`, `-10.950..-9.050` at `20.000`, `-4.950..-3.050` at `8.000`).
+
+Set against `cad/parts/box.py`, measured independently on the other part:
+
+| box | | holder | |
+|---|---|---|---|
+| `SLIDER_W` | `1.500` | `SLOT_W` | `1.900` → `0.200` clearance a side |
+| `SLIDER_PROUD` | `4.000` | `END_BLOCK` | `4.000` → the same |
+
+Neither was fitted to the other, so this is a real cross-part check and the test
+asserts it as one.
+
 ## `Card holder bottom` needs no code
 
 The base is already right. Probing a compartment's centre finds material at
@@ -212,15 +256,16 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 ## Still open
 
 - Where the slant plane sits, not just its slope.
-- `Fillet 1` on the scallops: the `0.400` is measured but not yet built, so the
-  build's scallop is a sharp-edged cylinder where the reference is all torus.
 - The tabs between the scallops.
-- `Side slot solid` / `Side slot` / `Side slot hole` — the `1.900` slot in the
-  `4.000` end block that takes the box's `1.500` rib.
 - The whole `Rear lip` group (12 features), including `#LipLength = 10`.
 - `Leftmost Pusher Pos` — what it positions.
 - Whether the row rail stays `2.000` at other card heights; only `CardHeight
   92.0` has a reference.
 - `Remove little front lip`, `Remove Slant Angle`, `Middle`.
 - Whether any of this differs for the spanning games (Compile, Innovation),
-  which have no reference yet.
+  which have no reference yet. Every reference is Dominion sleeved at
+  `calSlotwidth 65.000` and `CardHeight 92.0`, so the row rail's `2.000`, the
+  side slot and the rear lip are all confirmed at ONE slot width only. The
+  lattice columns were saved by the corpus; the rest cannot be, because 20 of
+  those 38 files are the stale `+10.000` revision and a mesh cannot show a
+  surface type or a fillet radius.

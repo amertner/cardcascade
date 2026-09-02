@@ -14,7 +14,8 @@ than a factor of two. Every reading below that involves a slider distance is
 therefore asserted against a case that would fail if the wrong one were used.
 
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
-plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, and the finger scallops.
+plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, the finger scallops
+and their modelled fillet, and the side slots.
 """
 import sys
 from pathlib import Path
@@ -22,9 +23,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from build123d import import_step, Box, Location      # noqa: E402
+from build123d import import_step, Box, Location, GeomType   # noqa: E402
 from cad import params, derive as D                  # noqa: E402
-from cad.parts import holder                         # noqa: E402
+from cad.parts import holder, box                    # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
 P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
@@ -180,12 +181,12 @@ for name, fn, p, first in REFS:
               (-holder.holder_depth(d, first),
                -holder.holder_depth(d, first) + holder.WALL,
                -holder.WALL, 0.0)]
-    check("build: four Y-planes, the walls WALL thick",
-          [round(abs(v), 3) if v == 0 else round(v, 3)
-           for v in planes(mine, "Y")], want_y)
+    # Present, not exhaustive: the side slots add two more Y-planes of their own,
+    # and the rear lip will add more again.
     for v in want_y:
-        check(f"STEP has the Y-plane at {v}",
-              any(abs(q - v) < 1e-3 for q in planes(ref, "Y")), True)
+        for who, shape in (("STEP", ref), ("build", mine)):
+            check(f"{who} has the wall Y-plane at {v}",
+                  any(abs(q - v) < 1e-3 for q in planes(shape, "Y")), True)
     # The compartment edges: DIVIDER/2 in from each slot edge, patterned at
     # calSlotwidth. Every one of them is a face of the STEP too.
     edges = []
@@ -249,6 +250,48 @@ for name, fn, p, first in REFS:
     for xc in holder.compartment_x(p, d)[1:]:
         a, b = top_at(ref, xc, -0.40), top_at(mine, xc, -0.40)
         check(f"... and at the compartment on x={round(xc, 1)}", a, b)
+
+    # `Fillet 1` is MODELLED into the cut, because OCCT will not compute it:
+    # the wall is 2 * FINGER_FILLET thick so the rounds from its two faces meet,
+    # and fillet(..., 0.400) fails on every reference. Checked by sampling ACROSS
+    # the wall — at the face, part way in, and at mid-wall — which is where a
+    # wrong bead would show up and a bounding box would not.
+    check("one torus per scallop, as the reference has",
+          sum(1 for f in mine.faces() if f.geom_type == GeomType.TORUS),
+          sum(1 for f in ref.faces() if f.geom_type == GeomType.TORUS))
+    for y in (-0.05, -0.15, -0.40):
+        for x in (0.0, 6.0, 11.0):
+            check(f"the rounded scallop at y={y}, x={x} matches the STEP",
+                  top_at(ref, x, y), top_at(mine, x, y))
+    # The back wall carries NO fillet: the reference's only torus is at the
+    # front wall's mid-depth, so the back edge must stay sharp.
+    check("every torus is on the front wall's mid-depth",
+          sorted({round(f.center().Y, 3) for f in ref.faces()
+                  if f.geom_type == GeomType.TORUS}),
+          [-round(holder.FINGER_FILLET, 3)])
+
+    # --- the side slots -----------------------------------------------------
+    # SLOT_W wide, centred on mid-depth, END_BLOCK deep from each end. This is
+    # the one group that can be checked against a SECOND part: it is the box's
+    # slider rib plus clearance, and both parts were measured independently.
+    check("the slot takes the box's rib with clearance a side",
+          round((holder.SLOT_W - box.SLIDER_W) / 2, 3), 0.200, 1e-3)
+    check("... and is as deep as the rib stands proud",
+          round(holder.END_BLOCK, 3), round(box.SLIDER_PROUD, 3), 1e-3)
+    dep = holder.holder_depth(d, first)
+    for zc in (-44.0, -20.0, 0.0, 20.0):
+        for xc in (x0 + 2.0, x1 - 2.0):
+            cell = Box(0.3, dep + 2.0, 0.3).moved(Location((xc, -dep / 2, zc)))
+            def bands(shape):
+                got = shape & cell
+                if not got or not got.solids():
+                    return []
+                return sorted(tuple(round(v, 3) for v in
+                                    (s.bounding_box().min.Y,
+                                     s.bounding_box().max.Y))
+                              for s in got.solids())
+            check(f"the end at x={round(xc, 1)}, z={zc} is slotted like the STEP",
+                  bands(mine), bands(ref))
 
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
