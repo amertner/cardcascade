@@ -49,29 +49,34 @@ SIZE_LETTER = {2: "XS", 3: "S", 4: "M", 5: "L"}
 # filament. The artwork lives in `logos/<Game>/`; `spec/LID.md` records where
 # each file came from and what it was checked against.
 #
-# Compile and FCM have no file yet — their lids build without a pattern rather
-# than with a guessed one, and `cad.build` says so.
+# Per game, and per edition of a game's mark, the drawn VARIANTS of it, largest
+# first. `lid.logo_art` takes the first that fits the lid's flat floor and then
+# scales it to fill — so a game needs a second file only where its two sizes
+# are not a scale of each other. Compile's are (its small mark is the big one
+# at 1/1.25297, line weights and all, which is why one file serves its six
+# lids); Innovation's are not, because `#LineWidth` and the flourish dashes are
+# absolute in that sketch, so its letters grow between the two drawings and its
+# strokes do not.
 LID_LOGO = {
-    "Dominion": "lid_logo.dxf",
-    "Innovation": "lid_logo.dxf",
+    "Compile": {None: ("lid_logo.dxf",)},
+    "Dominion": {None: ("lid_logo.dxf",)},
+    "FCM": {None: ("lid_logo.dxf",)},
+    "Innovation": {None: ("lid_logo_big.dxf", "lid_logo.dxf"),
+                   # GENERATED, not drawn — `cad/marks.py` builds it from Noto
+                   # Serif and the flourishes, so its 0.600 strokes hold at
+                   # every size the fit picks. The two `lid_logo_plain*.dxf`
+                   # beside it are what it is CHECKED against, not what is
+                   # used: they are the crop this replaced.
+                   "plain": ("@innovation-plain",)},
 }
 
-# `#LogoScaleFactor` — Innovation's logo sketch alone carries one (Allan):
+# Which EDITION of a game's mark a cascade carries — keyed on the base model,
+# `calModelName` up to its third dot, because this is a question about which
+# sets the box holds and not about any dimension.
 #
-#     #LogoScaleFactor = (#LidWidth < 70mm ? 1.6 : 1)
-#
-# and `#LidWidth` there is the lid's DEPTH, `calLidDepth`, not its width. Every
-# dimension in that sketch is DIVIDED by the factor, so 1.6 draws the SMALL
-# logo and 1 the big one — the sense is the opposite way round from what the
-# name suggests, and it is why a shallow lid gets the small mark.
-#
-# Games with no factor draw one size.
-LID_LOGO_FACTOR = {"Innovation": lambda d: 1.6 if d.calLidDepth < 70.0 else 1.0}
-
-# Which artwork file serves which factor. `lid_logo.dxf` is the 1.6 drawing —
-# it was lifted from `Lid Innovation 130U`, a 52.100-deep lid — and the 1.0
-# drawing is NOT it scaled: `#LineWidth` (0.600) and the flourish dashes'
-# 1.500 are absolute, so they stay the same size while the letters grow. A lid
-# that needs a factor with no file builds without its pattern rather than with
-# a wrong one.
-LID_LOGO_BY_FACTOR = {"Innovation": {1.6: "lid_logo.dxf"}}
+# Innovation is the one game with two: the Ultimate mark says "Innovation
+# Ultimate", and the two cascades that hold a single set say just "Innovation"
+# (Allan). Anything not listed gets the game's default mark, `None`.
+LID_LOGO_EDITION = {
+    "Innovation": {"S3.15.10": "plain", "XS5.15.10": "plain"},
+}

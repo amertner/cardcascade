@@ -30,11 +30,18 @@ there and writes 3MFs, but is about 2% heavy and NOT printable yet
 whole `automation/` pipeline is still live and authoritative for all three.
 =======
 generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done,
-the Lid including the logo pattern in its underside — but only for the games
-whose artwork is in `logos/<Game>/lid_logo.dxf` (Dominion and Innovation;
-`spec/LID.md`). Holder, TokenHolder and Topper still come from Onshape, and the
-whole `automation/` pipeline is still live and authoritative for them.
->>>>>>> 80a5e00e8cec61b9effabbaa38ef2a781779cf61
+the Lid including the logo pattern in its underside, for all four games
+(`logos/<Game>/*.dxf`; `spec/LID.md`). Holder, TokenHolder and Topper still
+come from Onshape, and the whole `automation/` pipeline is still live and
+authoritative for them.
+
+- The Lid's logo is the one place `cad/` **deliberately differs** from
+  Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
+  sizes. Two constants in `cad/parts/lid.py` are the whole policy.
+- A mark is either a DRAWING (`logos/<Game>/*.dxf`, scaled) or GENERATED
+  (`cad/marks.py`, built from the font and the geometry hung off it, so its
+  strokes do not scale). `cad/marks.py` is the one interface over both; only
+  Innovation's plain mark is generated so far. A generated name starts `@`.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and
@@ -47,11 +54,12 @@ whole `automation/` pipeline is still live and authoritative for them.
   its 44 lids are still 6.6 — and those stay Onshape's until their cascades
   migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
-  every pusher is the bare `python -m cad.build`, and `--part all` does the lot.
-  A box takes about ten seconds, a holder three, a lid or a pusher under one.
-- **`--part holder` writes INCOMPLETE geometry** — about 2% heavy, because
-  `Lip Rest`, `Remove little front lip` and the bottom text are not built yet.
-  It is wired up so the shape can be LOOKED at, not so it can be printed.
+  every pusher is the bare `python -m cad.build`, and `--part all` does all
+  three. A box takes about ten seconds and a pusher under one; a LID costs
+  whatever its logo artwork costs, because every region of the mark is its own
+  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
+  in the background. Artwork lifted from a STEP has far fewer edges than the
+  same mark lifted from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — it skips a reference that is absent),

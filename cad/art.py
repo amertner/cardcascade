@@ -13,7 +13,7 @@ The artwork lives in `logos/<Game>/` and is already in the part's own frame —
 from functools import lru_cache
 from pathlib import Path
 
-from build123d import Face, Wire, import_dxf
+from build123d import Compound, Face, Wire, import_dxf
 
 LOGO_DIR = Path(__file__).resolve().parent.parent / "logos"
 
@@ -81,3 +81,30 @@ def logo(game, filename="lid_logo.dxf"):
     """A game's lid artwork, or None where the game has none on file."""
     path = LOGO_DIR / game / filename
     return load(path) if path.exists() else None
+
+
+@lru_cache(maxsize=16)
+def _box(game, filename):
+    faces = logo(game, filename)
+    if not faces:
+        return None
+    bb = Compound(children=list(faces)).bounding_box()
+    return bb.min.X, bb.min.Y, bb.max.X, bb.max.Y
+
+
+def extent(game, filename="lid_logo.dxf"):
+    """(width, height) of a drawing, or None where there is no such file.
+
+    Cached, because `lid.logo_choice` asks it of every variant of every lid
+    just to decide which one fits — that question needs the size and not the
+    geometry.
+    """
+    bb = _box(game, filename)
+    return None if bb is None else (bb[2] - bb[0], bb[3] - bb[1])
+
+
+def centre(game, filename="lid_logo.dxf"):
+    """(x, y) of a drawing's bounding-box centre — what a fit scales about, so
+    that a mark drawn off-centre stays where it was drawn."""
+    bb = _box(game, filename)
+    return None if bb is None else ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2)

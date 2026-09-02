@@ -12,11 +12,11 @@ Local frame (the part studio's, and the assembly's — a Lid is not offset):
         4.500 of rear storage, so `lid_y = box_y - 2.250`
     Z   0 at the outside of the floor, LidHeight at the rim, opening UP
 
-Complete for the games whose logo artwork is on file: shell, sockets, closing
-grooves, the outer rounds, the floor's engraving, and the logo pattern in the
-underside. `cad/tables.LID_LOGO` says which games have artwork — Compile and
-FCM do not yet, and their lids build without a pattern rather than with a
-guessed one. See `spec/LID.md`.
+Complete: shell, sockets, closing grooves, the outer rounds, the floor's
+engraving, and the logo pattern in the underside — every game has artwork now
+(`cad/tables.LID_LOGO`). The pattern is where `cad/` first parts company with
+Onshape on purpose: the mark is FITTED to the lid rather than drawn at one or
+two fixed sizes. See `spec/LID.md`, "Sizing the mark".
 """
 from build123d import (
     Align, Axis, Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane,
@@ -24,9 +24,9 @@ from build123d import (
 )
 
 from . import box as box_part
-from .. import art as A
 from .. import derive as D
 from .. import lock as L
+from .. import marks as MK
 from .. import tables as TB
 from .. import text as T
 
@@ -423,35 +423,119 @@ PATTERN_DEPTH = 0.810
 PATTERN_PROUD = 0.010
 
 
-def logo_factor(p, d):
-    """`#LogoScaleFactor` for this lid — 1.000 for a game that has none.
+# How the mark is SIZED
+# ---------------------
+# Onshape draws each mark at one size and, on Innovation alone, at a second one
+# through `#LogoScaleFactor = (#LidWidth < 70mm ? 1.6 : 1)`. That rule is a
+# blunt instrument, and Allan has asked for the mark to follow the box instead:
+# take the biggest drawing that fits, then size it to the lid.
+#
+# "As big as fits" on its own is not the rule, though. The floor a lid can
+# spare grows much faster than the mark should: fitted to the flat, Dominion's
+# mark would be 199 x 69 on its deepest lid and Innovation's plain one 218 mm
+# across a 220 mm lid, edge to edge. What the catalogue actually holds to is a
+# PROPORTION — the marks Allan has drawn sit at 22..79 % of their tightest
+# lid's width — so that is the rule here, with the floor as a hard limit
+# underneath it:
+#
+#     want = min(WIDTH_FRACTION * W / w,  DEPTH_FRACTION * D / h)
+#     hard = min((W - 2*ROUND) / w,       (D - 2*ROUND) / h)
+#     scale = min(max(want, 1.0), hard)
+#
+# The two clamps are what keep it honest at the ends. A mark is never taken
+# BELOW its drawn size to satisfy a proportion — that would shrink marks Allan
+# has already published, and he asked for bigger, not smaller — but it is taken
+# below to satisfy `hard`, because a pocket that runs into a round is a defect.
+# Compile's smallest lid is the one that needs it: its mark is 39.333 deep on a
+# 37.700 lid and has to come down to 0.908 (Onshape draws that lid at 0.798).
+#
+# WIDTH_FRACTION 0.600 is Dominion's own — its mark is 124.693 on a 207.900
+# lid — and it is the constant that does the work, because depth is otherwise
+# slack on every deep lid. DEPTH_FRACTION 0.850 is Innovation's big mark on the
+# 62.100 lid it was drawn for. Between them they leave 20 of the catalogue's 50
+# lids exactly as they are today and grow the rest.
+#
+# Both are Allan's to set, and so is `LID_LOGO_EDITION` beside them.
+LOGO_WIDTH_FRACTION = 0.600
+LOGO_DEPTH_FRACTION = 0.850
 
-    Innovation's is `#LidWidth < 70mm ? 1.6 : 1`, and `#LidWidth` there is the
-    lid's DEPTH. The sketch's dimensions are DIVIDED by it, so the factor runs
-    the opposite way to its name: 1.6 is the SMALL logo, on a shallow lid.
+
+def logo_room(p, d):
+    """(width, depth) of FLAT outer floor — the hard limit, past which the
+    pocket would run into an outer round."""
+    return (lid_width(p, d) - 2 * OUTER_ROUND,
+            lid_depth(d) - 2 * OUTER_ROUND)
+
+
+def logo_target(p, d):
+    """(width, depth) the mark is sized to — the proportion of the lid it
+    should take, which is a smaller rectangle than `logo_room` on all but the
+    shallowest lids."""
+    return (lid_width(p, d) * LOGO_WIDTH_FRACTION,
+            lid_depth(d) * LOGO_DEPTH_FRACTION)
+
+
+def logo_edition(p, d):
+    """Which of the game's marks this cascade carries, or None for its default.
+
+    Keyed on the base model — `calModelName` up to its third dot — because it
+    is a question about which sets the box holds. Innovation's two single-set
+    cascades say just "Innovation" where the other four say "Innovation
+    Ultimate" (`TB.LID_LOGO_EDITION`).
     """
-    rule = TB.LID_LOGO_FACTOR.get(p.GameName)
-    return rule(d) if rule else 1.0
+    rule = TB.LID_LOGO_EDITION.get(p.GameName)
+    if not rule:
+        return None
+    return rule.get(".".join(d.calModelName.split(".")[:3]))
+
+
+def logo_scale(p, d, name):
+    """The nominal factor this lid sizes `name` to — see above.
+
+    A mark's size is AFFINE in that factor, `a*n + b`, because a generated
+    mark's letters scale and its strokes do not (`cad/marks.growth`). A drawing
+    has `b = 0` and this is then the plain scale it is drawn at.
+    """
+    (rw, rd), (tw, td) = logo_room(p, d), logo_target(p, d)
+    (aw, bw), (ah, bh) = MK.growth(p.GameName, name)
+    hard = min((rw - bw) / aw, (rd - bh) / ah)
+    want = min((tw - bw) / aw, (td - bh) / ah)
+    return min(max(want, 1.0), hard)
+
+
+def logo_choice(p, d):
+    """(mark, nominal factor) — which of the game's marks this lid gets and how
+    far it is sized, or (None, 0.0) for a game with no artwork on file.
+
+    The marks are listed largest first, so the first that fits the flat floor
+    as drawn is the biggest that fits. If none does — the lid is smaller than
+    every drawing — the last, smallest one is taken and shrunk to fit. A
+    generated mark is one entry, not a ladder: it has no fixed sizes.
+    """
+    names = (TB.LID_LOGO.get(p.GameName) or {}).get(logo_edition(p, d))
+    if not names:
+        return None, 0.0
+    chosen = None
+    for name in names:
+        if MK.growth(p.GameName, name) is None:
+            continue
+        chosen = name
+        if logo_scale(p, d, name) >= 1.0:
+            break
+    if chosen is None:
+        return None, 0.0
+    return chosen, logo_scale(p, d, chosen)
 
 
 def logo_art(p, d):
-    """The game's artwork as filled faces in the lid's frame, or None.
+    """The game's mark as filled faces in the lid's frame, or None.
 
-    The DXF is drawn in that frame already — lifted from, or exported beside,
-    a reference lid — so nothing is placed or scaled here. A game whose logo
-    has a scale factor keeps ONE FILE PER FACTOR instead: the letters would
-    scale, but `#LineWidth` and the flourish dashes are absolute and would not,
-    so one drawing cannot serve two factors.
+    A drawing is already in that frame — lifted from, or exported beside, a
+    reference lid — so `cad.marks` sizes it about its OWN centre and at n = 1
+    it stays exactly where Onshape put it. A generated mark is built centred.
     """
-    by_factor = TB.LID_LOGO_BY_FACTOR.get(p.GameName)
-    if by_factor is not None:
-        name = by_factor.get(logo_factor(p, d))
-    else:
-        name = TB.LID_LOGO.get(p.GameName)
-    if not name:
-        return None
-    faces = A.logo(p.GameName, name)
-    return list(faces) if faces else None
+    name, n = logo_choice(p, d)
+    return MK.faces(p.GameName, name, n) or None if name else None
 
 
 def logo_pattern(p, d, part):

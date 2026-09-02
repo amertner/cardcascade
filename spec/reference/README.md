@@ -43,7 +43,7 @@ one splits, and what has been measured off them, is in `spec/BOX.md`.
 
 ### Lid
 
-Five. What each one splits, and what has been measured off them, is in
+Eight. What each one splits, and what has been measured off them, is in
 `spec/LID.md`.
 
 | file | cascade |
@@ -53,11 +53,16 @@ Five. What each one splits, and what has been measured off them, is in
 | `Lid Dominion 244U.step` | Dominion 244 Card Un `M4.21.10.32-Un` — M: three sockets, unsleeved |
 | `Lid Dominion 333S.step` | Dominion 333 Card Sl `S9.21.10.62-Sl` — `RisingSliders 9`, past the logo block's eight-riser branch, and the only C5 lock among them |
 | `Lid Innovation 130U.step` | Innovation 130 Card Un `XS5.15.10.32-Un` — XS: the narrowest lid, two horizontal slots, 31 pattern inlays, and the only one whose logo carries no staircase |
+| `Lid Compile 126S.step` | Compile 126 Card Sl `S5.7.7.45-Sl` — a **second game's card size**, which nothing else here reaches, and the only Lid reference whose lock is C4. It found two bugs in the test's own probes on the day it arrived |
+| `Lid FCM 105S.step` | **not a parts.csv row** — `213.900 x 44.700`, which no FCM row produces. Its staircase and sockets pin it to `RisingSliders 4` and `calSlotwidth 65.000`, which still leaves four model codes that differ only in the text engraved on the floor. Kept for its artwork, not as a structural reference |
+| `Lid Innovation 270S.step` | Innovation 270 Card Sl `S5.15.15.62-Sl` — the `#LogoScaleFactor 1` export. Its LETTERS are sound and pinned Noto Serif Bold Italic for `Ultimate`; its **flourishes are corrupted** (two pattern instances missing, the rest displaced), so its artwork is not used. `spec/LID.md` has the comparison |
 
 Each Lid file holds the lid body **plus** the logo pattern's inlays as separate
 solids. The body is the biggest by volume, which is how the tests take it — and
-the inlays are where `logos/<Game>/lid_logo.dxf` came from, lifted by
-`make_lid_logo_dxf.py` until Allan's own sketch exports replace them.
+the inlays are where `logos/<Game>/*.dxf` came from, lifted by
+`make_lid_logo_dxf.py`. Four of the five marks now come from a STEP; only
+Innovation's big one is still lifted from a cached mesh, for want of an export
+whose flourishes are intact.
 
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather

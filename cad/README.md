@@ -8,9 +8,21 @@ downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
 **Done so far: the Pusher, the Box and the Lid**, the Lid including its logo
-pattern wherever the game's artwork is on file (Dominion and Innovation today;
-Compile and FCM want a DXF). Holder, TokenHolder and Topper are not written
+pattern for all four games. Holder, TokenHolder and Topper are not written
 yet, so the Onshape path is still the one that builds a cascade.
+
+The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
+is FITTED to the lid — the biggest mark that fits, sized to a proportion of
+the lid — where Onshape draws it at one or two fixed sizes. `spec/LID.md`,
+"Sizing the mark", is the record, and the two constants behind it are two
+lines in `cad/parts/lid.py`.
+
+Fitting is why Innovation's plain mark is GENERATED rather than drawn
+(`cad/marks.py`): scaling an outline scales its `0.600` strokes with it, and
+Allan's sketch holds them absolute. It is built from Noto Serif and the
+geometry hung off the letters — the annulus round the `I`, the five arms
+through the `i`'s tittle — every number of it measured off the two drawings it
+replaces, which stay in `logos/Innovation/` as its regression reference.
 
 ---
 
