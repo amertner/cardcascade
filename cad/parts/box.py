@@ -765,7 +765,8 @@ LABEL_GROOVE_IN = 1.300    # inset where the slot's own chamfer meets the wall
 LABEL_OPEN_IN = 4.000      # inset of the opening cut clean through
 LABEL_ROOT = 0.800         # how far the pad reaches INTO the wall
 
-FRONT_LABEL_LEN = 160.000  # constant on all five references
+FRONT_LABEL_WIDE = 156.400   # the front label itself; the holder is 3.600 more
+FRONT_LABEL_NARROW = 62.000  # ... where the wide one will not fit
 SIDE_LABEL_EXTRA = 3.800   # + calSideLabelWidth
 SIDE_LABEL_Y = 2.250       # the same centre the closing bump uses
 
@@ -838,6 +839,24 @@ def label_holder(length, fasteners=False):
     return pad
 
 
+def front_label_len(p, d):
+    """Overall length of the front label holder — the label plus 3.600.
+
+    The wide label does not fit every box. `cc.cfg` has known this all along
+    from the labels' side: "The XS box is only 150.9 mm wide, too narrow for
+    the 156.4 front label, so the 62 is a FRONT there (its pocket is cut for it
+    at 62.4 mm outer)" — and 62.400 is exactly what `Box Innovation 130U`
+    measures. 62 is `calSideLabelWidth`'s widest rung, so the XS box's front
+    takes what is elsewhere a large SIDE label.
+
+    Keyed on whether the wide holder fits rather than on the size letter,
+    because that is the reason. XS is the only row in the catalogue it catches:
+    every S box is at least 209.300 wide.
+    """
+    wide = FRONT_LABEL_WIDE + 3.600
+    return wide if box_width(p, d) >= wide else FRONT_LABEL_NARROW + 3.600
+
+
 def label_holders(p, d, part):
     """`Front Label Holder` and `Side Label Holder`, behind
     `isLabelHoldersOnBox`.
@@ -854,7 +873,12 @@ def label_holders(p, d, part):
     if not d.isLabelHoldersOnBox:
         return part
     BW, BD = box_width(p, d), box_depth(p, d)
-    part = part + label_holder(FRONT_LABEL_LEN, fasteners=True).moved(
+    # Only the WIDE front holder carries fasteners. `Box Innovation 130U`'s
+    # narrow one has none — at 65.600 long there is nothing above its frame but
+    # the two post tops.
+    wide = FRONT_LABEL_WIDE + 3.600
+    front = front_label_len(p, d)
+    part = part + label_holder(front, fasteners=front >= wide).moved(
         Location((0, -BD / 2, 0)))
     side = label_holder(d.calSideLabelWidth + SIDE_LABEL_EXTRA)
     return part + side.rotate(Axis.Z, -90).moved(
@@ -983,10 +1007,11 @@ def sharp_edges(p, d, part):
     * **the back wall's rim** is notched for the pusher tabs and stays sharp
       (Allan), so only the END WALLS' rim is rounded, and only its outer edge:
       on the inner one the slider ribs' 0.700 top rounds run into the fillet;
-    * **`Lower the front`'s inner edge** likewise. The front pocket's pads and
-      dividers land on it, and two adjacent segments of it are the minimal pair
-      that OCCT refuses. The reference rounds the outer edge, at
-      `y = -#BoxDepth/2`.
+    * **`Lower the front`** is not rounded AT ALL. Its inner edge is where the
+      pocket's pads and dividers land, and two adjacent segments of it are the
+      minimal pair OCCT refuses; its outer edge survives all three reference
+      fillets untouched, merely growing 1.200 longer as the two vertical
+      corners are cut back beside it.
     """
     BW, BD = box_width(p, d), box_depth(p, d)
     inner, x_out = BW / 2 - WALL, BW / 2
@@ -1009,8 +1034,7 @@ def sharp_edges(p, d, part):
             out.append(e)          # the four outer vertical corners
         elif flat and near(m.Z, d.BoxHeight) and near(abs(m.X), x_out):
             out.append(e)          # the END WALLS' rim, OUTER edge only
-        elif flat and near(m.Z, FRONT_TOP) and near(m.Y, y_front):
-            out.append(e)          # `Lower the front`, OUTER edge only
+
         elif (flat and near(m.Z, REAR_TOP) and abs(t.X) > 1 - 1e-6
               and (near(m.Y, y_back) or near(m.Y, y_back - WALL))):
             out.append(e)          # the `Top of back` ledge, across the OUTER

@@ -43,6 +43,20 @@ REFS = [
     # same gap the Dominion 246 STEP closed for the Pusher.
     ("Dominion 246 Sl", "Box Dominion 246S.step",
      params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
+    # The three Allan exported once the first six showed what they could not
+    # reach. Every one of the first six is SLEEVED, so half the catalogue had
+    # nothing behind it.
+    ("Dominion 244 Un", "Box Dominion 244U.step",
+     params.Primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
+    # Innovation, XS and unsleeved at once — the only game with no reference,
+    # the only size (HorizontalSlots 2) with none, and it is the exception that
+    # takes 2 pusher slots where its size would otherwise take 3.
+    ("Innovation 130 Un", "Box Innovation 130U.step",
+     params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
+    # Nine risers: the RisingSliders > 8 branch of the logo margin, the lowest
+    # rise in the catalogue (9.667, clamped) and the pusher rest at its floor.
+    ("Dominion 333 Sl", "Box Dominion 333S.step",
+     params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
 ]
 fails = []
 
@@ -476,9 +490,9 @@ for name, fn, p in REFS:
               (len(front), len(side)), (1, 1))
         if front and side:
             fb, sb = front[0].bounding_box(), side[0].bounding_box()
-            check(f"{who}: front holder is FRONT_LABEL_LEN less two chamfers",
+            check(f"{who}: front holder is its label less two chamfers",
                   round(fb.size.X, 3),
-                  round(box.FRONT_LABEL_LEN - 2 * box.LABEL_CHAMFER, 3), 1e-3)
+                  round(box.front_label_len(p, d) - 2 * box.LABEL_CHAMFER, 3), 1e-3)
             check(f"{who}: side holder is calSideLabelWidth + 0.600",
                   round(sb.size.Y, 3), round(d.calSideLabelWidth + 0.6, 3), 1e-3)
             check(f"{who}: side holder is centred on SIDE_LABEL_Y",
@@ -493,7 +507,10 @@ for name, fn, p in REFS:
         # constants, not from a measured literal — the probe cell is CENTRED on
         # its point, so the reading is at the edge nearest the ridge's middle,
         # and a literal silently bakes that offset in.
-        R, cx = box.FASTENER_R, box.FRONT_LABEL_LEN / 6
+        # ... and only the WIDE holder has fasteners at all.
+        R, cx = box.FASTENER_R, box.front_label_len(p, d) / 6
+        if box.front_label_len(p, d) < box.FRONT_LABEL_WIDE + 3.6:
+            continue
         thin = 0.02
         for z in (64.6, 65.0):
             col = Box(0.1, 4.0, thin).moved(

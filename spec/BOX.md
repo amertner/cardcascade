@@ -718,7 +718,8 @@ chamfer     1.600 on the outer face's bottom and two ends — NOT its top,
             which is the side the label slides in from
 slot        0.800 deep, its rim 2.100 in, its own chamfer starting 1.300 in
 opening     4.000 in, cut clean through
-front       160.000 long, CONSTANT on all five references
+front       the label plus 3.600 — 156.400 wide, or 62.000 where the wide
+            one will not fit, which is the XS box alone
 side        calSideLabelWidth + 3.800, centred on y = 2.250
 ```
 
@@ -731,6 +732,31 @@ first time the two agree on the outside.
 The chamfer is measured **from the outer face**, so it reaches the wall exactly
 and `chamfer()` on a plain pad reproduces it without any construction geometry.
 The slot is chamfered the same way off its own deep face.
+
+### The front holder is NOT one size — the XS box takes a 62
+
+`Box Innovation 130U` measures its front holder's outer face at `62.400`, where
+every other reference measures `156.800`. The section is identical; only the
+length changes, and the groove (`L - 4.200`) and opening (`L - 8.000`) both
+follow it.
+
+**`cc.cfg` has known this all along, from the labels' side:** "The XS box is
+only 150.9 mm wide, too narrow for the 156.4 front label, so the 62 is a FRONT
+there (its pocket is cut for it at 62.4 mm outer)." So the front holder is the
+label plus `3.600`, and the XS box's front takes what is elsewhere a large SIDE
+label — `62` is `calSideLabelWidth`'s widest rung.
+
+`cad/` keys it on whether the wide holder fits rather than on the size letter,
+because that is the reason cc.cfg gives. XS is the only row it catches: every S
+box is at least `209.300` wide.
+
+**And the narrow holder carries no fasteners** — at `65.600` long there is
+nothing above its frame but the two post tops.
+
+This was a real defect, not a missing detail: the wide holder is `160.000` on a
+box `148.300` across, so it stood proud of both ends. The build's envelope came
+out `160.000` where the STEP's is `150.900`, which is exactly what the
+envelope assertion caught the moment the reference arrived.
 
 ### The fastener is three cylinders, and its section is a LENS
 
