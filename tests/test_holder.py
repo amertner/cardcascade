@@ -15,8 +15,10 @@ therefore asserted against a case that would fail if the wrong one were used.
 
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
 plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, the finger scallops
-and their modelled fillet, the side slots, and the rear lips.
+and their modelled fillet, the side slots, the rear lips,
+the dropped floor and the lip rests.
 """
+import math
 import sys
 from pathlib import Path
 
@@ -373,6 +375,44 @@ for name, fn, p, first in REFS:
                         Location((rb.center().X, 10.0 + 1e-4,
                                   rb.center().Z)))).solids()), 3),
           round(holder.slant_top(d) - holder.SLANT_STEP, 3), 1e-3)
+
+    # --- `Card holder bottom` and `Lip Rest` --------------------------------
+    # The floor sits FLOOR_DROP below the sketch datum. Probed either side of
+    # it, which is the check an earlier 1.000-spaced probe was too coarse to
+    # make: it straddled the step and reported the feature as absent.
+    pz0, _ = holder.pocket_z(d)
+    for dz, want in ((-0.100, True), (+0.100, False)):
+        cell = Box(0.4, 0.4, 0.05).moved(
+            Location((0.0, -holder.holder_depth(p, d, first) / 2,
+                      pz0 - holder.FLOOR_DROP + dz)))
+        for who, shape in (("STEP", ref), ("build", mine)):
+            got = shape & cell
+            check(f"{who}: {'material' if want else 'none'} "
+                  f"{abs(dz)} {'below' if dz < 0 else 'above'} the dropped floor",
+                  bool(got and got.volume > 1e-9), want)
+
+    # The rest is an OBLIQUE prism: its cross-sections are upright, so its near
+    # face is at constant Y, exactly `2 * calSlotDepth` along the slant. A right
+    # prism puts that face 0.769 further forward and 0.6 low, which `333` — the
+    # only reference whose cut starts INSIDE the back wall — can see.
+    slope = holder.slant_slope(p, d, first)
+    y_start = -2.0 * d.calSlotDepth / (1.0 + slope * slope) ** 0.5
+    check("the rest starts 2*calSlotDepth along the slant",
+          round(y_start, 3),
+          round(-2.0 * d.calSlotDepth * math.cos(math.atan(slope)), 3), 1e-3)
+    # It reaches the back wall on the shallow holders and not on the steep ones,
+    # and either way the build must agree with the STEP about which.
+    yb = -holder.holder_depth(p, d, first)
+    for frac, lbl in ((0.25, "near"), (0.75, "far")):
+        yy = yb + holder.WALL * (1.0 - frac)
+        zz = (holder.slant_top(d) - holder.SLANT_STEP / 2) + slope * yy
+        x = holder.FINGER_R + holder.FINGER_FILLET + holder.LIP_GAP \
+            + holder.LIP_LEN / 2
+        cell = Box(0.3, 0.05, 0.3).moved(Location((x, yy, zz)))
+        a = ref & cell
+        b = mine & cell
+        check(f"the back wall {lbl} the rest's line agrees with the STEP",
+              bool(b and b.volume > 1e-9), bool(a and a.volume > 1e-9))
 
 
 print("\n=== held out ===")

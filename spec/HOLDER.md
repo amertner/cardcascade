@@ -349,34 +349,63 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 ## What is left, measured
 
 `python -m cad.build --part holder` writes all 56, about three seconds each. The
-geometry is **2.01% heavy** against the eight references it is tested on, and
-that excess is material still to be REMOVED. A Z-band diff localises it to two
-places and nowhere else — eight of ten bands agree to `0.00`:
+geometry is **+0.33% heavy** against the eight references, down from `+2.01%`,
+and every cubic millimetre of the remainder is now accounted for:
 
-| Z band | STEP | build | diff |
-|---|---|---|---|
-| `-45.25 .. -43.25` | 3364.51 | 3737.92 | **+373.41** |
-| `-43.25 .. -41.25` | 846.88 | 846.88 | 0.00 |
-| `-41.25 .. -25.00` | 2980.90 | 2980.90 | 0.00 |
-| `-25.00 .. -10.00` | 3231.60 | 3231.60 | 0.00 |
-| `-10.00 .. 5.00` | 3231.60 | 3231.60 | 0.00 |
-| `5.00 .. 20.00` | 3411.60 | 3411.60 | 0.00 |
-| `20.00 .. 32.25` | 4425.83 | 4541.25 | **+115.42** |
-| `32.25 .. 42.25` | 1601.73 | 1601.73 | 0.00 |
-| `42.25 .. 44.25` | 215.71 | 215.71 | 0.00 |
-| `44.25 .. 47.00` | 62.22 | 62.22 | 0.00 |
+| | mm3 |
+|---|---|
+| engraved bottom text, not built | **+733.43** |
+| `Chamfer lip rest`, not built (over-cut) | **-66.32** |
+| unexplained | -11.27 |
+| net | **+655.84** |
 
-**The base band** loses `373.41`, all of it BETWEEN the walls — the two wall
-faces themselves are exact — of which the engraved text accounts for `84.3`.
+### `Card holder bottom` drops the floor `0.200`
 
-**The band below the scallop** loses `115.42`, symmetric about the compartment
-centre and zero within `|x| < 12` of it. So whatever it is sits outside the
-finger hole and is mirrored, which fits `Lip Rest` cutting behind each lip.
+An earlier revision of this file said the feature needed no code. That was wrong,
+and wrong for an instructive reason: the check probed at `-43.750` and `-42.750`,
+which straddle a step at `-43.450`, so a `1.000`-spaced probe could not see a
+`0.200` feature. The diff found it at once — one lump per compartment, exactly
+the pocket's footprint by `0.200`, `63.400 * 7.600 * 0.200 = 96.368` on `246`.
+
+`pocket_z` still returns the UNDROPPED datum, because that is what the `Hole
+outline` sketch's `2.000` inset is measured from.
+
+### The scallop stops at the back wall
+
+The reference keeps the back wall whole behind the finger hole — it is what
+holds the cards in. Sampling only the front wall cannot see this, and on a steep
+holder like `246` the slant has already removed the back wall at the scallop's
+height, so even a volume diff stays silent. `333`, the shallowest rise in the
+catalogue, is the only reference where that wall still reaches up there.
+
+### `Lip Rest` is an OBLIQUE prism
+
+A REMOVE: the lip's face, extruded along `LipPlane` "through all" from a start
+of `#calSlotDepth * 2`. Three things about it are measured rather than assumed.
+
+**The direction is along the slant.** On `333` the cut first meets material at
+`Y -7.668`, and `2 * calSlotDepth = 12.000` taken along the slant from `Y = 0`
+lands at `-7.673`.
+
+**It is oblique, not a right prism.** The lip's face lies in the plane `Y = 0`
+and is swept along a direction that is not its normal, so every cross-section at
+constant `Y` is that same upright rectangle translated. Building it as a rotated
+box puts the near face `0.769` further forward in `Y` and `0.6` low in `Z` —
+both visible on `333`, and the difference between an over-cut of `103` and one
+of `14`.
+
+**"Through all" is literal.** The removed volume stops changing once the sweep
+passes about `20`, and every longer value gives the same solid.
+
+What remains is `Chamfer lip rest`: twelve thin slivers on `246`, two at each
+rest's ends, `0.977` wide there and `0.850` on `Innovation M Sl`. Neither a
+constant width nor a constant taper fits both, so it is left unbuilt rather than
+guessed — `66.32 mm3` across all eight, or `0.03%`.
 
 ## Still open
 
 - Where the slant plane sits, not just its slope.
-- The tabs between the scallops.
+- `Chamfer lip rest` — see above, `66.32 mm3` over eight references.
 - `Lip Rest` and `Chamfer lip rest`: a REMOVE, extruding the lip's own faces
   through all along `LipPlane` from a starting offset of `#calSlotDepth * 2`.
   Measured on the references but not yet built.

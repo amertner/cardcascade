@@ -34,7 +34,7 @@ import math
 
 from build123d import (
     Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Location,
-    Plane, Polyline, Torus, extrude, make_face,
+    Plane, Polyline, Rectangle, Torus, Vector, extrude, make_face,
 )
 
 from .. import derive as D
@@ -193,14 +193,27 @@ def compartment_x(p, d):
     return [k * d.calSlotwidth for k in range(p.HorizontalSlots)]
 
 
+# `Card holder bottom` drops the pocket's floor FLOOR_DROP below the sketch
+# datum. It is invisible to a probe coarser than 0.200 — an earlier check at
+# -43.750 and -42.750 straddled it and concluded the feature needed no code —
+# and shows in the diff as one lump per compartment, exactly the pocket's
+# footprint by 0.200: 63.400 * 7.600 * 0.200 = 96.368 on `246`.
+#
+# The `Hole outline` sketch is still measured from the UNDROPPED datum, which is
+# what keeps its 2.000 inset landing on -41.250; `pocket_z` therefore returns
+# the datum and this is applied only to the cut.
+FLOOR_DROP = 0.200
+
+
 def card_pockets(p, d, first, part):
-    """`Hole for cards` — one pocket per compartment, cut clean out of the top.
+    """`Hole for cards`, plus `Card holder bottom`'s FLOOR_DROP.
 
     Inset WALL from both faces (measured: the walls are the only material left
     at a lattice rail's height) and DIVIDER/2 from each slot edge.
     """
     depth = holder_depth(p, d, first)
     z0, z1 = pocket_z(d)
+    z0 -= FLOOR_DROP
     w = d.calSlotwidth - DIVIDER
     over = 10.0                            # cut through whatever is above
     tool = Box(w, depth - 2 * WALL, z1 - z0 + over)
@@ -301,8 +314,15 @@ def finger_tool(depth):
     reduces to a point, so the hole is the full FINGER_R + FINGER_FILLET; at
     mid-wall the torus fills the annulus, so the hole necks to FINGER_R.
     """
-    core = Cylinder(FINGER_R, depth + 2.0, rotation=(90, 0, 0)).moved(
-        Location((0, -depth / 2, 0)))
+    # It stops at the BACK wall's inner face — the reference keeps that wall
+    # whole behind the scallop, which is what holds the cards in. Easy to miss:
+    # sampling only the front wall cannot see it, and on a steep holder like
+    # `246` the slant has already removed the back wall at the scallop's height
+    # so even a volume diff stays silent. `333`, the shallowest rise, is where
+    # the back wall still reaches up there and the difference shows.
+    reach = depth - WALL
+    core = Cylinder(FINGER_R, reach + 1.0, rotation=(90, 0, 0)).moved(
+        Location((0, (1.0 - reach) / 2, 0)))
     ring = (Cylinder(FINGER_R + FINGER_FILLET, 2 * FINGER_FILLET,
                      rotation=(90, 0, 0))
             - Cylinder(FINGER_R, 2 * FINGER_FILLET + 1.0, rotation=(90, 0, 0)))
@@ -441,6 +461,55 @@ def rear_lips(p, d, first, part):
     return part
 
 
+# `Lip Rest` / `Chamfer lip rest` — the recess the NEXT holder's lip drops into.
+# A REMOVE: the lip's own face, extruded along `LipPlane` "through all" from a
+# starting offset of `#calSlotDepth * 2`.
+#
+# `LipPlane`'s direction is ALONG the slant, down and back, so the swept prism
+# leans at the cascade angle. Both parts of that are measured. On `333` the cut
+# first meets material at `Y -7.668`, and `calSlotDepth * 2 = 12.000` taken
+# along the slant from `Y = 0` lands at `-7.673`. On `246` the offset is
+# `14.400`, which puts the start inside the cavity, so the cut shows only where
+# it crosses the back wall at `Y -8.400 .. -9.200` — and there its Z runs
+# `25.822 .. 29.249` against `25.821 .. 29.250` measured.
+#
+# The section is the lip's band, SLANT_STEP tall, widened by LIP_REST_CLEAR a
+# side: 12.400 + 0.600 = 13.000 on every reference. It is a rest for another
+# part, so the clearance is the point.
+LIP_REST_CLEAR = 0.300
+# `Through all` in the dialog, and the geometry agrees: the removed volume
+# stops changing once the sweep passes ~20, so anything longer is the same
+# cut. 200 clears the tallest holder's diagonal from any start.
+LIP_REST_THROUGH = 200.0
+
+
+def lip_rests(p, d, first, part):
+    """Cut the lip rests."""
+    slope = slant_slope(p, d, first)
+    t0 = 2.0 * d.calSlotDepth
+    width = (LIP_LEN + 2 * LIP_CHAMFER) + 2 * LIP_REST_CLEAR
+    # An OBLIQUE prism, not a right one: the lip's face lies in the plane Y = 0
+    # and is extruded ALONG the slant, which is not its normal, so every
+    # cross-section at constant Y is that same upright rectangle translated.
+    # Building it as a rotated box instead gives perpendicular end faces, and
+    # the near end then reaches 0.769 further forward in Y and sits 0.6 low in
+    # Z — both measurable against `333`, whose cut starts at Y -7.668 where
+    # `2 * calSlotDepth` along the slant lands, not at the -6.899 a right prism
+    # would give.
+    unit = 1.0 / math.sqrt(1.0 + slope * slope)
+    dirv = Vector(0.0, -unit, -slope * unit)
+    with BuildSketch(Plane.XZ) as sk:
+        Rectangle(width, SLANT_STEP)
+    x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
+    for xc in compartment_x(p, d):
+        for sign in (+1, -1):
+            at = Vector(xc + sign * x_mid, 0.0,
+                        slant_top(d) - SLANT_STEP / 2) + dirv * t0
+            face = sk.sketch.moved(Location(at))
+            part = part - extrude(face, amount=LIP_REST_THROUGH, dir=dirv)
+    return part
+
+
 def build(p, first=False):
     """`p` is a params.Primary. Returns the Holder as a build123d Part.
 
@@ -452,4 +521,5 @@ def build(p, first=False):
     part = lattice(p, d, first, part)
     part = finger_cutouts(p, d, first, part)
     part = side_slots(p, d, first, part)
-    return rear_lips(p, d, first, part)
+    part = rear_lips(p, d, first, part)
+    return lip_rests(p, d, first, part)
