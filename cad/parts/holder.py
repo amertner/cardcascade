@@ -59,10 +59,15 @@ WALL = 0.800                              # front and back wall thickness
 DEPTH_GAP = 0.400                         # depth = sliderDistance - DEPTH_GAP
 
 # `Top slant angle`. Two PARALLEL planes, SLANT_STEP apart, both meeting the
-# front face (Y = 0) at the same Z on every reference: the upper one exactly at
+# rear face (Y = 0) at the same Z on every reference: the upper one exactly at
 # the top of the card pocket. The slope is the cascade diagonal — see
 # `slant_slope` — and `cad/parts/box.lip_slope` is its reciprocal.
-SLANT_STEP = 2.000
+#
+# SLANT_STEP is `#LipHeight`, a constant 2.000 (Allan). It was measured here as
+# the separation of the two planes before the variable was known, and the two
+# agree — which is the only confirmation either has. Its whole purpose is the
+# rear lip, whose section is the band between them.
+SLANT_STEP = 2.000         # `#LipHeight`
 
 
 def pocket_height(d):
@@ -361,6 +366,9 @@ def side_slots(p, d, first, part):
 LIP_LEN = 10.000           # `#LipLength`
 LIP_GAP = 3.000            # `#LipDistanceFromFingerHole`, from the scallop edge
 LIP_CHAMFER = 1.200        # `Chamfer lip`, 45 degrees, measured in Y
+# NOT `#LipHeight` — that is SLANT_STEP, the band's VERTICAL thickness. This is
+# how far the lip reaches ALONG the slant, and no studio variable is known for
+# it; it is measured 2.100 on all five references across five different slopes.
 LIP_REACH = 2.100          # along the slant plane, from Y = 0
 
 

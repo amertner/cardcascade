@@ -85,10 +85,16 @@ faces by (slope, intercept) finds both on every reference:
 | 246 First | 0.7812 | **44.250** | 721.6 | **42.250** | 197.9 |
 | 333 Default | 1.2037 | **44.250** | 643.6 | **42.250** | 172.1 |
 
-`44.250` is exactly half the `88.500` pocket, so the upper slant meets the front
-face at the top of the card pocket, and `Z = 0` is the pocket's centre. Both
-intercepts are the same three numbers on all three holders whatever the slope,
-which is what makes them a datum rather than a coincidence.
+`44.250` is exactly half the `88.500` pocket, so the upper slant meets the rear
+face at the top of the card pocket. Both intercepts are the same numbers on
+every holder whatever the slope, which is what makes them a datum rather than a
+coincidence.
+
+The `2.000` separation is **`#LipHeight`** (Allan). It was measured here as the
+gap between the two planes before the variable was known, and the two agree —
+which is the only confirmation either has. Its whole purpose is the rear lip,
+whose section is the band between them. Note this is NOT the lip's `2.100`
+reach along the slant, which remains an unnamed constant.
 
 This is the trap in measuring the slant from wall tops: the front wall's top is
 on the `44.250` plane on all three, but which plane the BACK wall's top lands on
