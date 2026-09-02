@@ -109,13 +109,16 @@ Transcribed as written; none blocks the rebuild.
   so it is always `calSliderSpaceLeftRight`. Its description ("Dominion needs
   the right pocket to be big; all other games want the front pockets to align")
   describes a branch that cannot be taken.
-- **Two games the rest of the toolchain does not know**: `Colours` (the only
-  user of the `115 mm` box and `55 mm` lid) and `CraftGutermann` (the only user
-  of the `58 mm` card height and of `ProductName = "Craft Cascade"`).
-  `components.py` has neither.
-- **`game10SleevedCardThickness` has no `CraftGutermann` row**, so a sleeved
-  CraftGutermann cascade fails the lookup. `derive.py` fails there too, rather
-  than defaulting.
+- **One game the rest of the toolchain does not know**: `Colours`, the only
+  user of the `115 mm` box and `55 mm` lid. `components.py` has no entry for it.
+  It is kept, because the studio has it and a one-off may yet want it (Allan).
+- **`CraftGutermann` is REMOVED, and that is the one place `cad/` knowingly
+  differs from the studio.** The design is deprecated (Allan). Onshape still
+  carries it — as the only user of the `58 mm` card height, of
+  `ProductName = "Craft Cascade"`, and the only game with no
+  `game10SleevedCardThickness` row, so a sleeved one failed the lookup there
+  too. `cad/tables.py` says so at the top; do not restore it when diffing the
+  transcription against Onshape.
 - ~~**`isOnlyTwoPusherSlots` is Innovation-wide**, but `components.py` gives
   Innovation `{"S": 2, "M": 2, "L": 3}`.~~ **Fixed.** The per-size map was the
   wrong shape and had a second, reachable hole: no `XS` key, so `Single Mini`
