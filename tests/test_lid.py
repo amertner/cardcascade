@@ -25,7 +25,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from build123d import Compound, GeomType, import_step   # noqa: E402
-from cad import params, derive as D, lock as L, text as TX  # noqa: E402
+from cad import art, build, params, derive as D, lock as L  # noqa: E402
+from cad import tables as TB, text as TX                    # noqa: E402
 from cad.parts import lid                       # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -120,6 +121,20 @@ def socket_walls(solid, x, y0, y1):
                 and lid.WALL < c.Z < lid.WALL + lid.SOCKET_H):
             out[round(c.X, 3)] = round(out.get(round(c.X, 3), 0.0) + f.area, 2)
     return out
+
+
+# ## The fit rule is PINNED for the reference suite
+#
+# Every reference was exported before `lid.logo_choice` existed, so each
+# carries its game's DEFAULT mark at the size it was drawn — including
+# `Lid Innovation 130U`, an XS lid the rule now gives the plain "Innovation"
+# mark instead of "Innovation Ultimate". Pinning the choice to the drawn
+# default is what lets this suite keep asserting the pattern against Onshape:
+# the artwork itself, the odd/even nesting that makes a counter a hole, the
+# extrusion's direction, and the two Z ranges. The rule the pin replaces is
+# asserted on its own at the bottom of this file.
+_choice = lid.logo_choice
+lid.logo_choice = lambda p, d: (TB.LID_LOGO[p.GameName][None][-1], 1.0)
 
 
 for name, fn, P in REFS:
@@ -399,6 +414,58 @@ else:
     check("so it stands proud of the with-logo export by the pocket",
           round(body.volume - sum(x.volume for x in inlays), 2),
           round(lid.build(P).volume, 2), 1.0)
+
+# --- the fit rule -------------------------------------------------------
+# The pin comes off: from here on `lid.logo_choice` is the rule itself, which
+# is `cad/` policy and not a transcription of Onshape (spec/LID.md, "Sizing the
+# mark"). Four lids are named because each is a different branch, and then the
+# whole catalogue is held to the two invariants that make the rule safe.
+lid.logo_choice = _choice
+print("\n=== the fit rule ===")
+
+for model, want_file, want_scale in [
+        # the mark is drawn to this lid, so it neither grows nor shrinks
+        ("S4.16.10.32-Un", "lid_logo.dxf", 1.000),
+        # too deep for the mark as drawn: the width fraction sizes it
+        ("L8.50.10.62-Sl", "lid_logo.dxf", 1.655),
+        # shallower than the mark is drawn: shrunk to clear the outer round
+        ("S4.7.7.20-Un", "lid_logo.dxf", 0.908),
+        # Innovation's two editions, and its two drawings of each
+        ("S5.15.15.45-Un", "lid_logo_big.dxf", 1.000),
+        ("S5.10.10.32-Un", "lid_logo.dxf", 1.210),
+        ("XS5.15.10.32-Un", "lid_logo_plain.dxf", 1.000),
+        ("S3.15.10.20-Un", "lid_logo_plain_big.dxf", 1.000)]:
+    hit = [(pp, dd) for _f, fn, pp in build.lid_catalogue()
+           for dd in [D.derive(pp)] if fn == f"Lid {model}.3mf"]
+    if not hit:
+        check(f"{model}: in the catalogue", False, True)
+        continue
+    pp, dd = hit[0]
+    got_file, got_scale = lid.logo_choice(pp, dd)
+    check(f"{model}: drawing", got_file, want_file)
+    check(f"{model}: scale", round(got_scale, 3), want_scale, 1e-3)
+
+# Two invariants, over every lid there is. The first is a defect if it fails —
+# a pocket that runs into an outer round breaks the rim — and the second is the
+# promise the rule makes: a mark Allan has already published is never made
+# smaller to satisfy a proportion, only ever to fit.
+worst_room, worst_shrink = 0.0, []
+for _folder, fn, pp in build.lid_catalogue():
+    dd = D.derive(pp)
+    name, scale = lid.logo_choice(pp, dd)
+    if not name:
+        check(f"{fn}: has artwork", False, True)
+        continue
+    w, h = art.extent(pp.GameName, name)
+    room_w, room_d = lid.logo_room(pp, dd)
+    worst_room = max(worst_room, w * scale / room_w, h * scale / room_d)
+    if scale < 1.0:
+        # only where the drawing genuinely does not fit the flat floor
+        if min(room_w / w, room_d / h) >= 1.0:
+            worst_shrink.append(fn)
+check("every mark is inside the flat floor", worst_room <= 1.0, True)
+print(f"       tightest lid uses {worst_room * 100:.1f} % of its flat floor")
+check("no mark is shrunk that did not have to be", worst_shrink, [])
 
 print(f"\n{'FAILED: ' + ', '.join(fails) if fails else 'all checks passed'}")
 sys.exit(1 if fails else 0)

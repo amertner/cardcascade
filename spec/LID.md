@@ -339,39 +339,123 @@ has and what `make_cascade.load_export` pairs by name.
 
 ### The artwork
 
-One DXF per game in `logos/<Game>/lid_logo.dxf`, drawn in the lid's own frame,
-so nothing is placed here — only scaled. `cad/art.py` loads it: a DXF holds
+One DXF per drawing in `logos/<Game>/`, drawn in the lid's own frame, so
+nothing is placed here — only scaled. `cad/art.py` loads it: a DXF holds
 outlines, not regions, so a loop nested in an odd number of others is a hole
 and one nested in an even number is an island, exactly as
 `labelmaker.load_art` reads the printed labels' artwork.
 
-**The files on disk were LIFTED from the references**, by
-`make_lid_logo_dxf.py`, and should be replaced by Allan's own exports of the
-sketches when those arrive — `tests/test_lid.py` compares either against the
-reference, so the swap is checkable. Dominion's artwork is 459 straight lines
-and round-trips exactly; Innovation's carries 361 arcs and 234 B-splines and
-holds its area to `0.09 %` and its bounding box to `0.000`.
+**Every file on disk was LIFTED from a reference**, by `make_lid_logo_dxf.py`,
+and should be replaced by Allan's own exports of the sketches when those
+arrive; `tests/test_lid.py` compares the built pattern against the reference
+either way, so the swap is checkable.
 
-**Compile and FCM have no artwork on file** — no lid STEP has been exported
-for either — so their lids build without a pattern, and `cad.build` says so
-rather than passing it over.
+| file | lifted from | regions | area mm2 | drawn size |
+|---|---|---|---|---|
+| `Dominion/lid_logo.dxf` | `Lid Dominion 246S with logo.step` | 6 | 975.420 | 124.693 x 42.850 |
+| `Compile/lid_logo.dxf` | `individual/Compile/Lid S5.7.7.20-Un.3mf` | 12 | 740.054 | 97.771 x 39.333 |
+| `FCM/lid_logo.dxf` | `individual/FCM/Lid L3.18.6.20-Un.3mf` | 10 | 546.843 | 45.029 x 27.598 |
+| `Innovation/lid_logo.dxf` | `Lid Innovation 130U.step` | 31 | 685.790 | 109.028 x 33.498 |
+| `Innovation/lid_logo_big.dxf` | `individual/Innovation/Lid S5.15.15.45-Un.3mf` | 31 | 1719.252 | 174.078 x 52.739 |
+| `Innovation/lid_logo_plain*.dxf` | the two above, `--above` | 11 | — | see below |
 
-### Two traps, both worth the note
+A **STEP** keeps the curves and is the better source where one exists. A
+**cached component 3MF** has been meshed, so its outlines come back as
+polylines — but every game already has one, which is what closed the artwork
+gap for Compile, FCM and Innovation's big mark without an export or an API
+call. The error that costs is small and measured: lifted from the mesh, the
+same Innovation mark that the STEP gives as `685.790 mm2` comes back as
+`685.614`, `0.026 %`, in 2773 segments over 31 regions — about 90 a region,
+which is Onshape's own export tolerance and invisible in a `0.810` inlay.
 
-**A DXF's loops wind whichever way they were drawn.** Six of the Innovation
-logo's 31 regions come back facing `-Z`. Extruded along their own normals
-those six went DOWN: they cut nothing, and their inlays floated below the lid.
-It cost exactly their `134.484 mm2 x 0.810`. `logo_pattern` passes `dir` to
-`extrude` explicitly.
+The lift takes the top faces of the solids that are not the lid body. From a
+mesh that means the triangles at the object's maximum z, whose singly-used
+directed edges are the outline; **two loops can meet at a vertex**, so the
+chaining is the standard face traversal — arriving along `u->v`, leave along
+the first edge clockwise from `v->u` — and not "follow the only other edge",
+which turned one FCM inlay into a single 1592-point figure of eight that no
+plane could be fitted to. Every lifted file reconstructs its mesh's top area
+to `0.000 %`, which is the check that says the loops are right.
 
-**The chaining tolerance is 0.010, and that is not a geometric tolerance.** A
-curve exported to DXF comes back with its coordinates rounded, so the loops
-have to be re-chained with slack. The result holds its area to `0.003 %` and
-its bounding box exactly; a file of closed polylines needs no slack at all.
+### Sizing the mark — `cad/` policy, not Onshape's
 
-### The scale, and why the factor runs backwards
+Onshape draws each mark at one size, and on Innovation alone at a second one
+through `#LogoScaleFactor` (below). Allan has asked for the mark to follow the
+box instead — "if the bigger version fits, I'd like to use that one ... having
+scaling factors that adapt to the size of the box would be better" — so from
+here the Lid's mark is **fitted**, and this section is the first place `cad/`
+deliberately parts company with the Onshape model.
 
-Innovation's logo sketch alone carries a scale factor (Allan):
+"As big as fits" alone is not it. Fitted to the flat floor, Dominion's mark
+would be `199 x 69` on its deepest lid and Innovation's plain one `218` across
+a `220` lid, edge to edge. What the catalogue actually holds to is a
+PROPORTION — Allan's drawn marks sit at 22..79 % of their tightest lid's width
+— so that is the rule, with the floor as a hard limit underneath it:
+
+```
+want  = min(WIDTH_FRACTION * W / w,  DEPTH_FRACTION * D / h)     0.600, 0.850
+hard  = min((W - 2*OUTER_ROUND) / w, (D - 2*OUTER_ROUND) / h)
+scale = min(max(want, 1.0), hard)
+```
+
+The two clamps are what keep it honest at the ends:
+
+* a mark is **never taken below its drawn size to satisfy a proportion** —
+  that would shrink marks already published, and the ask was for bigger;
+* it **is** taken below to satisfy `hard`, because a pocket that runs into an
+  outer round breaks the rim. Compile's smallest lid is the one that needs it:
+  its mark is `39.333` deep on a `37.700` lid and comes down to `0.908`.
+  Onshape draws that lid at `0.798`, its own second Compile size.
+
+`WIDTH_FRACTION 0.600` is Dominion's own — `124.693` on a `207.900` lid — and
+it is the constant that does the work, because depth is slack on every deep
+lid. `DEPTH_FRACTION 0.850` is Innovation's big mark on the `62.100` lid it
+was drawn for. Between them, 13 of the 50 lids keep exactly the mark they have
+today and the rest grow; the extremes land at 15..79 % of width and 27..95 %
+of depth. Both constants are Allan's to set — they are two lines in
+`cad/parts/lid.py`.
+
+Where a game has more than one DRAWING, the list in `cad/tables.LID_LOGO` is
+largest first and the first that fits the flat floor as drawn is taken, then
+scaled. A second drawing is only needed where the two sizes are not a scale of
+each other:
+
+* **Compile's are.** Its small mark is the big one at `1/1.25297` — line
+  weights and all, `740.054 / 471.383 = 1.2530^2` — so one file serves its six
+  lids.
+* **Innovation's are not.** `#LineWidth` and the flourish dashes are absolute
+  in that sketch, so between the two drawings 25 of 31 regions scale by
+  `1.600` while the five dashes stay `1.500 x 0.600` and the long flourish
+  scales in length but not in width. Measured on the marks themselves: X
+  scales `1.5966` and Y `1.5744`.
+
+### Two editions of the Innovation mark
+
+Allan: "one that is just Innovation, and one that is Innovation Ultimate. The
+two single-set boxes would be the Innovation version, without it saying
+Ultimate on the box." So the mark is chosen by WHICH SETS the cascade holds,
+which is not a dimension — `cad/tables.LID_LOGO_EDITION` keys it on the base
+model, `calModelName` up to its third dot:
+
+```
+S3.15.10   Single Set      plain
+XS5.15.10  Single Mini     plain
+```
+
+and the other four Innovation rows keep the Ultimate mark.
+
+**The plain drawings are DERIVED, and are the one piece of artwork here that
+is not Allan's.** The Ultimate composition splits cleanly into two bands — the
+`Innovation` wordmark, 11 regions, and everything below it: `Ultimate`, its
+`i` dot, the left flourish and the two runs of five dashes — with a clear gap
+at `y -1.455 .. -4.392` in the small drawing and `-2.328 .. -7.028` in the
+big. `make_lid_logo_dxf.py --above -3 --recentre` keeps the top band and puts
+it back on the full mark's own centre in Y. That is a reading of "without it
+saying Ultimate", not an export, and one DXF from Allan replaces it.
+
+### The `#LogoScaleFactor` this replaces
+
+Innovation's logo sketch carries (Allan):
 
 ```
 #LogoScaleFactor = (#LidWidth < 70mm ? 1.6 : 1)
@@ -388,21 +472,11 @@ with two things worth stating plainly, because both invite a wrong reading:
 
 The rule reproduces 10 of the 12 cached Innovation lids. The two it does not
 are `S5.15.15.45-Un` and `M5.15.15.45-Un`, both `62.100` deep, which carry the
-big mark where the rule asks for the small one — they predate it. Allan has
-since recreated the logo as sketches, so those two are one revision behind, the
-same way 19 of the 44 cached lids are one generation behind on the lock.
-`tests/test_lid_corpus.py` reports them rather than asserting them.
-
-**One drawing cannot serve both factors.** Almost everything in the sketch
-scales, but `#LineWidth` (`0.600`) and the flourish dashes' `1.500` are
-absolute: measured across the two variants, 25 of the 31 regions scale by
-exactly `1.600` while the five dashes stay `1.500 x 0.600` and the long
-flourish scales in length but not in width. So `cad/tables.LID_LOGO_BY_FACTOR`
-keeps one file per factor, and a lid whose factor has no file builds without
-its pattern rather than with a uniformly-scaled — and wrong — one.
-
-`logos/Innovation/lid_logo.dxf` is the `1.6` drawing, lifted from
-`Lid Innovation 130U` (`52.100` deep). The `1` drawing has no file yet.
+big mark where the rule asks for the small one. **They are not stale.** The
+fit rule above gives them the big mark too, because it fits: `62.100` of depth
+takes `52.739` of mark at `0.850`, to `1.0007`. The cached corpus agrees with
+the fit rather than with the factor, and the four Innovation lids that carry
+the big mark are exactly the four `15.15` rows.
 
 ### What the Innovation sketch actually is
 
@@ -410,14 +484,32 @@ Not imported artwork at all, unlike Dominion's: Allan has recreated it as two
 sketches — the words in **Noto Serif** (`Ultimate` in Bold Italic) and a
 separate `Logo Flourishes` sketch holding the circle-and-`I`, the five-armed
 star (`5x` at `270°`) and the dashed lead-in (`5x`, `1.500` by `#LineWidth`).
-Rebuilding it from the font and those dimensions would make it parametric at
-any factor, and is the obvious next step for it; what is on file today is the
-lifted outline, which is exact at one factor and silent at the other.
+Rebuilding it from the font and those dimensions would make it parametric —
+letters scaling while strokes hold — which is the only way a fitted mark keeps
+its drawn stroke weight at every size. What is on file is two lifted outlines
+scaled uniformly, so a mark at `1.210` has strokes `21 %` heavier than drawn.
+
+### Dominion's mark is 180° out from the other three
+
+Seen from `+Z` — the direction the floor's engraving reads from — Compile's,
+FCM's and Innovation's marks are mirrored left-to-right and the right way up,
+which is what a mark cut into the far side of the floor should be. Dominion's
+reads left-to-right correctly and is **upside down**. Those two differ by a
+half turn in the plane, so one of them is a half turn out relative to the
+other, and it is not something `cad/` can decide: the artwork is reproduced as
+drawn, and `logos/dominion_logo_v1_0/dl_black_640px.png` is in the repository
+for comparison. Raised with Allan 2026-09-02.
 
 ## What is NOT built yet
 
-Nothing on the Lid's shape. What is missing is DATA: the artwork for Compile
-and FCM, and the rule behind the scale.
+Nothing on the Lid's shape, and every game now has artwork. What is left is
+Allan's to settle, not the model's:
+
+* the two fit constants, `LOGO_WIDTH_FRACTION` and `LOGO_DEPTH_FRACTION`;
+* the plain Innovation drawings, derived here rather than exported;
+* whether Dominion's mark is a half turn out, or the other three are;
+* whether a fitted mark should keep its drawn stroke weight, which needs the
+  Innovation sketch rebuilt from Noto Serif rather than scaled as an outline.
 
 ## Verified
 
@@ -448,19 +540,21 @@ statement; the area check is corroboration at `0.5 mm2`.
 
 - Nothing on the shape. Every number on the Lid is now either the studio's own
   expression or a constant read off a sketch.
-- **The logo artwork for Compile and FCM.** Neither has a lid STEP to lift
-  from; both need the sketch exported as a DXF (Compile needs two — `Compile`
-  and `Compile Small`).
-- **The `1` drawing of the Innovation logo.** The rule needs it for any lid
-  `70.000` deep or more, and one drawing cannot be scaled into the other. A
-  lid STEP of `S5.15.15.62-Sl`, or the sketch as a DXF, would settle it — or a
-  parametric rebuild from Noto Serif and the flourish dimensions, which would
-  settle every factor at once.
-- **Compile's two sketches**, `Compile` and `Compile Small`, and what picks
-  between them. The small one is on the shallowest Compile lid alone, which
-  looks like the same fit-to-depth rule with different numbers.
-- **The logo pattern.** Deferred deliberately — it is a per-game motif and a
-  second filament, and it does not interact with anything above.
+- **The two fit constants.** `LOGO_WIDTH_FRACTION 0.600` and
+  `LOGO_DEPTH_FRACTION 0.850` are read off Allan's own drawings, but they are
+  taste and not measurement — they are what decides how big every mark in the
+  catalogue is.
+- **The plain Innovation drawings** are derived here by dropping the `Ultimate`
+  band, not exported. One DXF from Allan replaces each.
+- **Dominion's mark is a half turn out** from Compile's, FCM's and
+  Innovation's. Reproduced as drawn until Allan says which is right.
+- **Stroke weight under a fit.** Scaling an outline scales its strokes, where
+  the Onshape sketches hold `#LineWidth` absolute. It only bites where a mark
+  is enlarged a long way — FCM's reaches `1.950` — and the fix is the
+  parametric rebuild from Noto Serif, not a different fit.
+- **Allan's own exports.** Every artwork file here was lifted from a reference
+  rather than exported from the sketch; four of the six came off a mesh, which
+  costs `0.026 %` of area and turns curves into ~90-segment polylines.
 - **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but
   `calModelName` carries `-M`, so a Mat cascade's lid differs in its engraved
   model code alone. `plan_exports` keys one `("Lid", model)` for both and

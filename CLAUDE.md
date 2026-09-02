@@ -22,10 +22,14 @@ rebuild.
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
 generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done,
-the Lid including the logo pattern in its underside — but only for the games
-whose artwork is in `logos/<Game>/lid_logo.dxf` (Dominion and Innovation;
-`spec/LID.md`). Holder, TokenHolder and Topper still come from Onshape, and the
-whole `automation/` pipeline is still live and authoritative for them.
+the Lid including the logo pattern in its underside, for all four games
+(`logos/<Game>/*.dxf`; `spec/LID.md`). Holder, TokenHolder and Topper still
+come from Onshape, and the whole `automation/` pipeline is still live and
+authoritative for them.
+
+- The Lid's logo is the one place `cad/` **deliberately differs** from
+  Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
+  sizes. Two constants in `cad/parts/lid.py` are the whole policy.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and
@@ -39,7 +43,9 @@ whole `automation/` pipeline is still live and authoritative for them.
   migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does all
-  three. A box takes about ten seconds, a lid or a pusher under one.
+  three. A box takes about ten seconds and a pusher under one; a LID costs
+  whatever its logo artwork costs — 17 s for Dominion's 459 edges, 119 s for
+  Compile's 6493 — so all 50 is about 35 minutes. Run it in the background.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — it skips a reference that is absent),
