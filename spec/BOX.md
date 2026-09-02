@@ -61,6 +61,11 @@ Hand-exported from the Onshape UI, 0 API calls, in `spec/reference/`.
 | `Box FCM 72S.step` | **not in parts.csv** — see below | `211.900 × 33.700` | 1586 | the smallest box |
 | `Box Dominion 246S.step` | Dominion 246 Card Sl `S2.40.12/30.45-Sl` | `211.900 × 66.100` | 1818 | the ONLY reference with a first-riser override — `calFirstSliderDistance 20.400` against `calSliderDistance 9.600` |
 | `Box Dominion 246S without final fillet.step` | the same box, `Smooth box edges` suppressed | identical | 1774 | **the build target** — see below |
+| `Box Dominion 244U.step` | Dominion 244 Card Un `M4.21.10.32-Un` | `268.900 × 44.880` | 1828 | UNSLEEVED, and 244S's pair-mate, so the diff between them isolates sleeving alone. Every earlier reference was sleeved and half the catalogue had nothing behind it |
+| `Box Dominion 244U without final fillet.step` | the same box, fillet suppressed | identical | 1763 | one of the two twins that settled `Lower the front` — see below |
+| `Box Innovation 130U.step` | Innovation 130 Card Un `XS5.15.10.32-Un` | `150.900 × 50.100` | 1625 | Innovation, XS and unsleeved at once: the only game with no reference, the only size, and the exception that takes 2 pusher slots where its size would otherwise take 3. It caught the front label holder |
+| `Box Innovation 130U without final fillet.step` | the same box, fillet suppressed | identical | 1555 | the second twin |
+| `Box Dominion 333S.step` | Dominion 333 Card Sl `S9.21.10.62-Sl` | `211.900 × 100.300` | 1944 | nine risers: the `RisingSliders > 8` logo margin, the lowest rise in the catalogue, and the pusher rest at its floor |
 
 **`Box FCM 72S` is a row parts.csv does not have.** Its envelope solves uniquely
 to FCM, sleeved, `HorizontalSlots 3, RisingSliders 3, FrontPocketCardCapacity 6,
@@ -69,11 +74,16 @@ CardsPerSlidingSlot 6` — `calModelName` `S3.6.6.20.Sl`, `calCapacityLabel`
 `211.900 × 33.700` on the nose. Treated as a reference, not as a catalogue row,
 until parts.csv says otherwise.
 
-No unsleeved and no Innovation box among the five, and neither is needed:
+~~No unsleeved and no Innovation box among the five, and neither is needed:
 sleeving moves `calCardwidth` and `calCardThickness` only, which reach the box
 through `calSlotwidth` and `calSliderDistance` and add no topology; and
 Innovation's `isOnlyTwoPusherSlots` M box is topologically the Compile/FCM S
-case, which two of the five cover.
+case, which two of the five cover.~~ **Half right, and the wrong half was
+expensive.** Unsleeved really does add no topology — `Box Dominion 244U` and
+`Box Dominion 333S` both passed every check unchanged the moment they landed.
+But the reasoning did not cover XS, and `Box Innovation 130U` found a real
+defect on its first run: a box `150.900` wide carrying a `160.000` front label
+holder. See "The label holders" below.
 
 ## The feature tree, transcribed
 
