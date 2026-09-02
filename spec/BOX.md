@@ -470,9 +470,9 @@ Measured at exactly `68.600` on all six references.
 
 It is treated as a **constant**, and cannot be shown to be anything else: every
 catalogue box has `calPocketHeight 88.5` and `calPocketDrop 8.0`
-(`calMaxPocketHeight` is `CardHeight - 3.5 = 88.5` for every game but Colours and
-CraftGutermann), so nothing in the derived set varies here and a formula could
-not be distinguished from a number.
+(`calMaxPocketHeight` is `CardHeight - 3.5 = 88.5` for every game but Colours),
+so nothing in the derived set varies here and a formula could not be
+distinguished from a number.
 
 **The rim cutouts are `5.000` tall, not the `5.25` `LOCK_STANDARD.md` records.**
 That file says "box rim cutout `4.50` wide, `5.25` deep (`z 99.75 -> 105.00`)".

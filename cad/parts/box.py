@@ -369,7 +369,7 @@ def rear_storage(p, d, part):
 # cards can be seen and reached. Measured at exactly 68.600 on all five
 # references, and constant: every catalogue box has calPocketHeight 88.5 and
 # calPocketDrop 8.0 (calMaxPocketHeight is CardHeight - 3.5 = 88.5 for every
-# game but Colours and CraftGutermann), so nothing in the derived set varies
+# game but Colours), so nothing in the derived set varies
 # here and a formula cannot be told from a constant. Treat it as measured.
 FRONT_TOP = 68.600
 

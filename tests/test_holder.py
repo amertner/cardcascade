@@ -14,7 +14,8 @@ than a factor of two. Every reading below that involves a slider distance is
 therefore asserted against a case that would fail if the wrong one were used.
 
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
-plane pair and its slope, the vertical datum, `Hole for cards`, and the lattice.
+plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, the finger scallops
+and their modelled fillet, the side slots, and the rear lips.
 """
 import sys
 from pathlib import Path
@@ -22,13 +23,31 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from build123d import import_step                    # noqa: E402
+from build123d import import_step, Box, Location, GeomType   # noqa: E402
 from cad import params, derive as D                  # noqa: E402
-from cad.parts import holder                         # noqa: E402
+from cad.parts import holder, box                    # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
+_ROWS = list(params.load_rows(ROOT / "automation" / "parts.csv"))
+
+
+def row_params(short_name, sleeved):
+    """The Primary for a parts.csv row, by its Short name.
+
+    Read from the CSV rather than hand-written: Compile rows leave `Front
+    capacity` blank, and transcribing nine positional ints per reference is a
+    good way to test the wrong parameters against the right STEP.
+    """
+    for row in _ROWS:
+        if row.get("Short name") == short_name:
+            return params.from_row(row, sleeved)
+    raise KeyError(short_name)
+
+
 P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
 P333 = params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
+PINN_SL = params.Primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
+PINN_UN = params.Primary(4, 5, 10, 10, 0, 10, 0, 0, "Innovation")
 REFS = [
     ("Dominion 246 Sl", "Holder S2.40.12-30.45-Sl.step", P246, False),
     # The same row's first riser: same box, deeper holder. calFirstSliderDistance
@@ -37,6 +56,22 @@ REFS = [
     # Nine risers, the catalogue's shallowest rise, and the cascade whose Box
     # and Pusher are already references.
     ("Dominion 333 Sl", "Holder S9.21.10.62-Sl.step", P333, False),
+    # Innovation: a SPANNING game, FOUR compartments, and two slot widths that
+    # are neither Dominion's. Every reading above was confirmed at
+    # calSlotwidth 65.000 only until these arrived.
+    ("Innovation M5.10.10 Sl", "Holder M5.10.10.45-Sl.step", PINN_SL, False),
+    ("Innovation M5.10.10 Un", "Holder M5.10.10.32-Un.step", PINN_UN, False),
+    # The four that close the parameter space. Between them these add every
+    # remaining slot width (63, 68, 70), both remaining compartment counts
+    # (2 and 5), and the two games that had no reference at all.
+    ("Innovation XS5.15.10 Sl", "Holder XS5.15.10.45-Sl.step",
+     row_params("Single Mini", 1), False),
+    ("Compile L5.7.7 Sl", "Holder L5.7.7.45-Sl.step",
+     row_params("210 Card", 1), False),
+    ("Compile L5.7.7 Un", "Holder L5.7.7.20-Un.step",
+     row_params("210 Card", 0), False),
+    ("FCM S4.18.12 Un", "Holder S4.18.12.32-Un.step",
+     row_params("198 Card", 0), False),
 ]
 fails = []
 
@@ -95,7 +130,7 @@ for name, fn, p, first in REFS:
     d = D.derive(p)
     mine = holder.build(p, first)
     rb, mb = ref.bounding_box(), mine.bounding_box()
-    sd = holder.slider_distance(d, first)
+    sd = holder.slider_distance(p, d, first)
 
     # --- the envelope ------------------------------------------------------
     # Width is calSlotwidth * n + 9.800 and has nothing to do with the depth;
@@ -116,10 +151,13 @@ for name, fn, p, first in REFS:
     # proud in +Y (1.026 / 1.655 / 1.342 on the three), so the STEP's bbox is
     # wider than the body and would compare against nothing meaningful.
     check("the back face is at -(sliderDistance - 0.400)", round(rb.min.Y, 3),
-          round(-holder.holder_depth(d, first), 3), 1e-3)
+          round(-holder.holder_depth(p, d, first), 3), 1e-3)
     check("... and the build agrees", round(mb.min.Y, 3),
           round(rb.min.Y, 3), 1e-3)
-    check("the front face is Y = 0", round(mb.max.Y, 3), 0.0, 1e-3)
+    # Y = 0 is the REAR face — the `Rear lip` tabs stand proud of it — so the
+    # bounding box reaches past it by exactly the lip's reach.
+    check("the build stands as proud of Y=0 as the STEP does",
+          round(mb.max.Y, 3), round(rb.max.Y, 3), 1e-3)
 
     # The base is (CardHeight - 1.5)/2 below the origin on every holder.
     check("base = -(CardHeight - 1.5)/2", round(rb.min.Z, 3),
@@ -130,7 +168,7 @@ for name, fn, p, first in REFS:
     # --- `Top slant angle` --------------------------------------------------
     # Two PARALLEL planes 2.000 apart, both meeting Y = 0 at the same Z on every
     # reference whatever the slope. Asserted on the STEP and on the build.
-    want = round(holder.slant_slope(d, first), 4)
+    want = round(holder.slant_slope(p, d, first), 4)
     rival = round((d.calHeightIncrement - 1.0)
                   / ((d.calSliderDistance if first else d.calFirstSliderDistance)
                      - 1.2), 4)
@@ -177,15 +215,15 @@ for name, fn, p, first in REFS:
     # pocket is inset WALL from both faces. Four Y-planes, and the two inner
     # ones move with the holder's own depth.
     want_y = [round(v, 3) for v in
-              (-holder.holder_depth(d, first),
-               -holder.holder_depth(d, first) + holder.WALL,
+              (-holder.holder_depth(p, d, first),
+               -holder.holder_depth(p, d, first) + holder.WALL,
                -holder.WALL, 0.0)]
-    check("build: four Y-planes, the walls WALL thick",
-          [round(abs(v), 3) if v == 0 else round(v, 3)
-           for v in planes(mine, "Y")], want_y)
+    # Present, not exhaustive: the side slots add two more Y-planes of their own,
+    # and the rear lip will add more again.
     for v in want_y:
-        check(f"STEP has the Y-plane at {v}",
-              any(abs(q - v) < 1e-3 for q in planes(ref, "Y")), True)
+        for who, shape in (("STEP", ref), ("build", mine)):
+            check(f"{who} has the wall Y-plane at {v}",
+                  any(abs(q - v) < 1e-3 for q in planes(shape, "Y")), True)
     # The compartment edges: DIVIDER/2 in from each slot edge, patterned at
     # calSlotwidth. Every one of them is a face of the STEP too.
     edges = []
@@ -225,6 +263,108 @@ for name, fn, p, first in REFS:
     for _, _, z0, z1 in grid[::holder.COLS]:
         check(f"build has the window edge Z = {round(z0, 3)}",
               any(abs(q - z0) < 1e-3 for q in mzs), True)
+
+    # --- `Finger Cutouts` ---------------------------------------------------
+    # Compared as a PROFILE, sampled at the front wall's mid-depth, which is the
+    # only place the true circle survives: `Fillet 1` puts 0.400 on each face of
+    # an 0.800 wall, so the two fillets meet and consume the cylindrical face
+    # entirely — every scallop surface in the STEP is torus, and the circular
+    # edges report 12.400 rather than the real 12.000. Same trap as the Box's
+    # thumb. Sampling the STEP and the build the same way sidesteps it.
+    def top_at(shape, x, y):
+        col = Box(0.08, 0.06, 400).moved(Location((x, y, 0)))
+        got = shape & col
+        if not got or not got.solids():
+            return None
+        return round(max(q.bounding_box().max.Z for q in got.solids()), 3)
+
+    check("the scallop's lowest point is slant_top - FINGER_R",
+          round(holder.slant_top(d) - holder.FINGER_R, 3), 32.250, 1e-3)
+    for x in (0.0, 3.0, 6.0, 10.0, 11.0):
+        a, b = top_at(ref, x, -0.40), top_at(mine, x, -0.40)
+        check(f"the scallop profile at x={x} matches the STEP", a, b)
+    # ... and it is centred on each compartment, not just the first.
+    for xc in holder.compartment_x(p, d)[1:]:
+        a, b = top_at(ref, xc, -0.40), top_at(mine, xc, -0.40)
+        check(f"... and at the compartment on x={round(xc, 1)}", a, b)
+
+    # `Fillet 1` is MODELLED into the cut, because OCCT will not compute it:
+    # the wall is 2 * FINGER_FILLET thick so the rounds from its two faces meet,
+    # and fillet(..., 0.400) fails on every reference. Checked by sampling ACROSS
+    # the wall — at the face, part way in, and at mid-wall — which is where a
+    # wrong bead would show up and a bounding box would not.
+    check("one torus per scallop, as the reference has",
+          sum(1 for f in mine.faces() if f.geom_type == GeomType.TORUS),
+          sum(1 for f in ref.faces() if f.geom_type == GeomType.TORUS))
+    for y in (-0.05, -0.15, -0.40):
+        for x in (0.0, 6.0, 11.0):
+            check(f"the rounded scallop at y={y}, x={x} matches the STEP",
+                  top_at(ref, x, y), top_at(mine, x, y))
+    # The back wall carries NO fillet: the reference's only torus is at the
+    # front wall's mid-depth, so the back edge must stay sharp.
+    check("every torus is on the front wall's mid-depth",
+          sorted({round(f.center().Y, 3) for f in ref.faces()
+                  if f.geom_type == GeomType.TORUS}),
+          [-round(holder.FINGER_FILLET, 3)])
+
+    # --- the side slots -----------------------------------------------------
+    # SLOT_W wide, centred on mid-depth, END_BLOCK deep from each end. This is
+    # the one group that can be checked against a SECOND part: it is the box's
+    # slider rib plus clearance, and both parts were measured independently.
+    check("the slot takes the box's rib with clearance a side",
+          round((holder.SLOT_W - box.SLIDER_W) / 2, 3), 0.200, 1e-3)
+    check("... and is as deep as the rib stands proud",
+          round(holder.END_BLOCK, 3), round(box.SLIDER_PROUD, 3), 1e-3)
+    dep = holder.holder_depth(p, d, first)
+    for zc in (-44.0, -20.0, 0.0, 20.0):
+        for xc in (x0 + 2.0, x1 - 2.0):
+            cell = Box(0.3, dep + 2.0, 0.3).moved(Location((xc, -dep / 2, zc)))
+            def bands(shape):
+                got = shape & cell
+                if not got or not got.solids():
+                    return []
+                return sorted(tuple(round(v, 3) for v in
+                                    (s.bounding_box().min.Y,
+                                     s.bounding_box().max.Y))
+                              for s in got.solids())
+            check(f"the end at x={round(xc, 1)}, z={zc} is slotted like the STEP",
+                  bands(mine), bands(ref))
+
+    # --- `Rear lip` ---------------------------------------------------------
+    # Everything standing proud of Y = 0 is lip. Compared as COUNT and VOLUME
+    # per solid, which catches the chamfer: the base is always LIP_CHAMFER out,
+    # and where the lip is shorter in Y than that the chamfer plane simply runs
+    # out of lip rather than starting closer in. Getting that backwards leaves
+    # the base 12.052 wide instead of 12.400 and shows up only in the volume —
+    # the bounding box, the reach and the tip width are all still right.
+    def lips(shape):
+        bb = shape.bounding_box()
+        got = shape & Box(bb.size.X + 4, 20.0, bb.size.Z + 4).moved(
+            Location((bb.center().X, 10.0 + 1e-4, bb.center().Z)))
+        if not got or not got.solids():
+            return []
+        return sorted((round(x.bounding_box().min.X, 3), round(x.volume, 3))
+                      for x in got.solids())
+
+    a, b = lips(ref), lips(mine)
+    check("two lips per compartment", len(b), 2 * p.HorizontalSlots)
+    check("... and the same count as the STEP", len(b), len(a))
+    check("every lip is where the STEP's is, and the same size", b, a)
+    check("the lip reaches LIP_REACH along the slant",
+          round(holder.lip_reach_y(p, d, first)
+                * (1 + holder.slant_slope(p, d, first) ** 2) ** 0.5, 3),
+          round(holder.LIP_REACH, 3), 1e-3)
+    check("the lip's flat starts LIP_GAP out from the scallop's edge",
+          round(holder.FINGER_R + holder.FINGER_FILLET + holder.LIP_GAP, 3),
+          15.400, 1e-3)
+    # Its section is the band between the TWO slant planes — which is what the
+    # lower one, otherwise unused, is for.
+    check("the lip sits between the two slant planes",
+          round(min(x.bounding_box().min.Z for x in
+                    (ref & Box(rb.size.X + 4, 20.0, rb.size.Z + 4).moved(
+                        Location((rb.center().X, 10.0 + 1e-4,
+                                  rb.center().Z)))).solids()), 3),
+          round(holder.slant_top(d) - holder.SLANT_STEP, 3), 1e-3)
 
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))

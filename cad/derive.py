@@ -72,7 +72,9 @@ def derive(p):
 
     v["BoxHeight"] = 115.0 if g == "Colours" else 105.0
     v["LidHeight"] = 55.0 if g == "Colours" else 40.0
-    v["CardHeight"] = 58.0 if g == "CraftGutermann" else 92.0
+    # 92.0 for every game. The studio branches to 58.0 for CraftGutermann,
+    # which is deprecated and removed here — see cad/tables.py.
+    v["CardHeight"] = 92.0
     v["gameUnsleevedCardWidth"] = T.UNSLEEVED_CARD_WIDTH[g]
     v["game10UnsleevedCardThickness"] = T.TEN_UNSLEEVED_THICKNESS[g]
     v["game10SleevedCardThickness"] = T.TEN_SLEEVED_THICKNESS.get(g)
@@ -145,7 +147,9 @@ def derive(p):
                           + v["calFrontTotalCapacity"])
     v["calAllTypeCapacity"] = v["calRisingTypeCapacity"] + p.HorizontalSlots
 
-    v["ProductName"] = "Craft Cascade" if g == "CraftGutermann" else "Card Cascade"
+    # The studio's other branch was "Craft Cascade" for CraftGutermann; see
+    # cad/tables.py for why that game is gone.
+    v["ProductName"] = "Card Cascade"
     v["gameShortName"] = T.GAME_SHORT_NAME[g]
     v["isLabelHoldersOnBox"] = 0 if g == "Colours" else (1 if p.HorizontalSlots > 1 else 0)
     v["isOnlyTwoPusherSlots"] = 1 if g == "Innovation" else 0
