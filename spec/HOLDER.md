@@ -268,6 +268,35 @@ the other way leaves the base `12.052` and is invisible to the bounding box, the
 reach AND the tip width — all three stay right — and shows up only in the lip
 volume. So the test compares per-solid volumes, not envelopes.
 
+## Compile's depth is a FIXED CARD COUNT, and nobody knows why it is 12
+
+Adding Innovation XS (2 compartments), FCM (`calSlotwidth 63.000`, rise
+`20.000`) and Compile (5 compartments, `68.000` and `70.000`) closed every axis
+of the parameter space. XS and FCM passed on the first run with no change to any
+rule. **Compile did not**, and all twelve of its failures were one thing.
+
+Its slider distance is `12.000` sleeved and `7.200` unsleeved, against a
+`calSliderDistance` of `8.000` and `5.200`. Both are exactly **12 cards**:
+
+    12 * 0.800 + 2.0 + 0.4 = 12.000        12 * 0.400 + 2.0 + 0.4 = 7.200
+
+where `CardsPerSlidingSlot` is `7`. Substituting that ONE number fixes
+everything at once — the slant slope becomes the measured `1.5185` / `2.7333`,
+both slant planes land back on `44.250` and `42.250`, the walls, the side slot
+and the lip all follow, and the lip's reach is `2.100` again. So the model is
+right and only its input differs.
+
+**Where `12` comes from is not known**, and the corpus says it is new: the old
+`Holder 5x7-r5-Sl.3mf` measures `8.404` deep, which is the 7-card rule plus its
+lip. So this changed in the CAD at some point rather than always having been so.
+
+Compile has two rows and only `210 Card` has a reference. On that row `12` is
+also `CardsPerSlidingSlot + HorizontalSlots` and `CardsPerSlidingSlot +
+RisingSliders`, which are `7 + 5` both ways; on `105 Card` those give `10` and
+`11` and a flat constant gives `12`. **A `105 Card` (`S4.7.7`) export would
+settle it in one measurement.** Until then `COMPILE_DEPTH_CARDS` is measured on
+one row, not derived, and says so.
+
 ## The engraved text is a DELIBERATE DIVERGENCE
 
 Onshape can constrain a text box in one dimension only — the same limitation
@@ -317,10 +346,8 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 - Whether the row rail stays `2.000` at other card heights; only `CardHeight
   92.0` has a reference.
 - `Remove little front lip`, `Remove Slant Angle`, `Middle`.
-- Whether any of this differs for the spanning games (Compile, Innovation),
-  which have no reference yet. Every reference is Dominion sleeved at
-  `calSlotwidth 65.000` and `CardHeight 92.0`, so the row rail's `2.000`, the
-  side slot and the rear lip are all confirmed at ONE slot width only. The
-  lattice columns were saved by the corpus; the rest cannot be, because 20 of
-  those 38 files are the stale `+10.000` revision and a mesh cannot show a
-  surface type or a fillet radius.
+- **`COMPILE_DEPTH_CARDS`**: measured `12` on `210 Card` only. See above — a
+  `105 Card` (`S4.7.7`) export discriminates a constant from the two derived
+  readings that also fit.
+- The row rail's `2.000` at another `CardHeight`. Every reference is `92.0`,
+  and only `Colours` is not.

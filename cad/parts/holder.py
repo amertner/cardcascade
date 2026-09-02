@@ -101,7 +101,26 @@ def slant_top(d):
     return pocket_height(d) / 2
 
 
-def slider_distance(d, first):
+# COMPILE holds a fixed card count in the depth, NOT `CardsPerSlidingSlot`.
+#
+# On `210 Card` (`CardsPerSlidingSlot` 7) the reference's slider distance is
+# 12.000 sleeved and 7.200 unsleeved against `calSliderDistance` 8.000 and
+# 5.200. Both come to exactly COMPILE_DEPTH_CARDS cards — 12 * 0.800 + 2.4 and
+# 12 * 0.400 + 2.4 — and substituting that one number fixes EVERY Compile
+# failure at once: the slant slope becomes the measured 1.5185 / 2.7333, both
+# slant planes land on 44.250 and 42.250, and the lip's reach is 2.100 again.
+# So the model is right and only the input differs.
+#
+# **Where 12 comes from is NOT known**, and the corpus says it is new: the old
+# `Holder 5x7-r5-Sl.3mf` measures 8.404 deep, which is the 7-card rule. Compile
+# has two rows and only `210 Card` has a reference, so a `105 Card` export would
+# say whether 12 is a constant or something derived (it is also
+# `CardsPerSlidingSlot + HorizontalSlots` and `+ RisingSliders` on this row,
+# which disagree on the other). Until then this is measured, not derived.
+COMPILE_DEPTH_CARDS = 12
+
+
+def slider_distance(p, d, first):
     """The holder's OWN slider distance.
 
     The first-riser holder is the same box's holder made deeper, so everything
@@ -109,16 +128,18 @@ def slider_distance(d, first):
     is the only evidence that could tell these apart — everywhere else the two
     are equal — and it settles both the depth and the slant.
     """
+    if p.GameName == "Compile":
+        return d.calCardThickness * COMPILE_DEPTH_CARDS + 2.0 + D.CardHolderGap
     return d.calFirstSliderDistance if first else d.calSliderDistance
 
 
-def holder_depth(d, first):
+def holder_depth(p, d, first):
     """Front face to back face: `sliderDistance - 0.400`.
 
     9.200 / 20.000 / 8.000 on the three references against 9.600 / 20.400 /
     8.400, exact.
     """
-    return slider_distance(d, first) - DEPTH_GAP
+    return slider_distance(p, d, first) - DEPTH_GAP
 
 
 def holder_width(p, d):
@@ -135,7 +156,7 @@ def x_span(p, d):
     return -half, (p.HorizontalSlots - 1) * d.calSlotwidth + half
 
 
-def slant_slope(d, first):
+def slant_slope(p, d, first):
     """`dZ/dY` of `Top slant angle` — the cascade diagonal.
 
         (calHeightIncrement - 1.0) / (sliderDistance - 1.2)
@@ -144,12 +165,12 @@ def slant_slope(d, first):
     references, against 1.7857 / 0.7812 / 1.2037 predicted. The rival reading
     (the other slider distance) is 2.3x out on the 246 pair.
     """
-    return (d.calHeightIncrement - 1.0) / (slider_distance(d, first) - 1.2)
+    return (d.calHeightIncrement - 1.0) / (slider_distance(p, d, first) - 1.2)
 
 
-def slant_z(d, first, y, lower=False):
+def slant_z(p, d, first, y, lower=False):
     """Z of the slant plane at depth `y` (y <= 0)."""
-    return slant_top(d) - (SLANT_STEP if lower else 0.0) + slant_slope(d, first) * y
+    return slant_top(d) - (SLANT_STEP if lower else 0.0) + slant_slope(p, d, first) * y
 
 
 def shell(p, d, first):
@@ -162,14 +183,14 @@ def shell(p, d, first):
     lips all come off this.
     """
     x0, x1 = x_span(p, d)
-    depth = holder_depth(d, first)
+    depth = holder_depth(p, d, first)
     z0 = base_z(d)
     with BuildPart() as part:
         with BuildSketch(Plane.YZ) as sec:
             with BuildLine():
                 Polyline((0.0, z0), (-depth, z0),
-                         (-depth, slant_z(d, first, -depth)),
-                         (0.0, slant_z(d, first, 0.0)),
+                         (-depth, slant_z(p, d, first, -depth)),
+                         (0.0, slant_z(p, d, first, 0.0)),
                          close=True)
             make_face()
         extrude(amount=x1 - x0)
@@ -194,7 +215,7 @@ def card_pockets(p, d, first, part):
     Inset WALL from both faces (measured: the walls are the only material left
     at a lattice rail's height) and DIVIDER/2 from each slot edge.
     """
-    depth = holder_depth(d, first)
+    depth = holder_depth(p, d, first)
     z0, z1 = pocket_z(d)
     w = d.calSlotwidth - DIVIDER
     over = 10.0                            # cut through whatever is above
@@ -256,7 +277,7 @@ def window_grid(p, d):
 
 def lattice(p, d, first, part):
     """Cut the windows through both walls, in every compartment."""
-    depth = holder_depth(d, first)
+    depth = holder_depth(p, d, first)
     for x0, x1, z0, z1 in window_grid(p, d):
         tool = Box(x1 - x0, depth + 2.0, z1 - z0)
         for xc in compartment_x(p, d):
@@ -308,7 +329,7 @@ def finger_tool(depth):
 
 def finger_cutouts(p, d, first, part):
     """Cut the finger scallops through the full depth."""
-    depth = holder_depth(d, first)
+    depth = holder_depth(p, d, first)
     tool = finger_tool(depth)
     for x in compartment_x(p, d):
         part = part - tool.moved(Location((x, 0.0, slant_top(d))))
@@ -333,7 +354,7 @@ SLOT_W = 1.900
 def side_slots(p, d, first, part):
     """Cut the two end grooves."""
     x0, x1 = x_span(p, d)
-    depth = holder_depth(d, first)
+    depth = holder_depth(p, d, first)
     z0 = base_z(d)
     tall = slant_top(d) - z0 + 2.0
     # END_BLOCK deep, plus 1.0 of overshoot past the end so the cut leaves no
@@ -372,18 +393,18 @@ LIP_CHAMFER = 1.200        # `Chamfer lip`, 45 degrees, measured in Y
 LIP_REACH = 2.100          # along the slant plane, from Y = 0
 
 
-def lip_reach_y(d, first):
+def lip_reach_y(p, d, first):
     """How far a lip stands proud in Y — LIP_REACH taken along the slant."""
-    slope = slant_slope(d, first)
+    slope = slant_slope(p, d, first)
     return LIP_REACH / math.sqrt(1.0 + slope * slope)
 
 
-def lip_plan(d, first):
+def lip_plan(p, d, first):
     """The lip's plan-view outline, as (x, y) relative to its own inner edge.
 
     x is |x| from the compartment centre; the caller mirrors it.
     """
-    y1 = lip_reach_y(d, first)
+    y1 = lip_reach_y(p, d, first)
     lo = FINGER_R + FINGER_FILLET + LIP_GAP
     hi = lo + LIP_LEN
     # The base is ALWAYS the full LIP_CHAMFER out. Where the lip is shorter in Y
@@ -402,10 +423,10 @@ def slant_band(p, d, first, x0, x1):
     with BuildPart() as part:
         with BuildSketch(Plane.YZ):
             with BuildLine():
-                Polyline((0.0, slant_z(d, first, 0.0, lower=True)),
-                         (0.0, slant_z(d, first, 0.0)),
-                         (4.0, slant_z(d, first, 4.0)),
-                         (4.0, slant_z(d, first, 4.0, lower=True)),
+                Polyline((0.0, slant_z(p, d, first, 0.0, lower=True)),
+                         (0.0, slant_z(p, d, first, 0.0)),
+                         (4.0, slant_z(p, d, first, 4.0)),
+                         (4.0, slant_z(p, d, first, 4.0, lower=True)),
                          close=True)
             make_face()
         extrude(amount=x1 - x0)
@@ -414,8 +435,8 @@ def slant_band(p, d, first, x0, x1):
 
 def rear_lips(p, d, first, part):
     """Add the lips: the plan outline, clipped to the band between the slants."""
-    y1 = lip_reach_y(d, first)
-    pts = lip_plan(d, first)
+    y1 = lip_reach_y(p, d, first)
+    pts = lip_plan(p, d, first)
     # Tall enough to reach the slant band, which sits around Z = 44; extruding
     # +-40 about the origin misses it entirely.
     tall = 200.0

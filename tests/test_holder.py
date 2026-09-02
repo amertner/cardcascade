@@ -28,6 +28,22 @@ from cad import params, derive as D                  # noqa: E402
 from cad.parts import holder, box                    # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
+_ROWS = list(params.load_rows(ROOT / "automation" / "parts.csv"))
+
+
+def row_params(short_name, sleeved):
+    """The Primary for a parts.csv row, by its Short name.
+
+    Read from the CSV rather than hand-written: Compile rows leave `Front
+    capacity` blank, and transcribing nine positional ints per reference is a
+    good way to test the wrong parameters against the right STEP.
+    """
+    for row in _ROWS:
+        if row.get("Short name") == short_name:
+            return params.from_row(row, sleeved)
+    raise KeyError(short_name)
+
+
 P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
 P333 = params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
 PINN_SL = params.Primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
@@ -45,6 +61,17 @@ REFS = [
     # calSlotwidth 65.000 only until these arrived.
     ("Innovation M5.10.10 Sl", "Holder M5.10.10.45-Sl.step", PINN_SL, False),
     ("Innovation M5.10.10 Un", "Holder M5.10.10.32-Un.step", PINN_UN, False),
+    # The four that close the parameter space. Between them these add every
+    # remaining slot width (63, 68, 70), both remaining compartment counts
+    # (2 and 5), and the two games that had no reference at all.
+    ("Innovation XS5.15.10 Sl", "Holder XS5.15.10.45-Sl.step",
+     row_params("Single Mini", 1), False),
+    ("Compile L5.7.7 Sl", "Holder L5.7.7.45-Sl.step",
+     row_params("210 Card", 1), False),
+    ("Compile L5.7.7 Un", "Holder L5.7.7.20-Un.step",
+     row_params("210 Card", 0), False),
+    ("FCM S4.18.12 Un", "Holder S4.18.12.32-Un.step",
+     row_params("198 Card", 0), False),
 ]
 fails = []
 
@@ -103,7 +130,7 @@ for name, fn, p, first in REFS:
     d = D.derive(p)
     mine = holder.build(p, first)
     rb, mb = ref.bounding_box(), mine.bounding_box()
-    sd = holder.slider_distance(d, first)
+    sd = holder.slider_distance(p, d, first)
 
     # --- the envelope ------------------------------------------------------
     # Width is calSlotwidth * n + 9.800 and has nothing to do with the depth;
@@ -124,7 +151,7 @@ for name, fn, p, first in REFS:
     # proud in +Y (1.026 / 1.655 / 1.342 on the three), so the STEP's bbox is
     # wider than the body and would compare against nothing meaningful.
     check("the back face is at -(sliderDistance - 0.400)", round(rb.min.Y, 3),
-          round(-holder.holder_depth(d, first), 3), 1e-3)
+          round(-holder.holder_depth(p, d, first), 3), 1e-3)
     check("... and the build agrees", round(mb.min.Y, 3),
           round(rb.min.Y, 3), 1e-3)
     # Y = 0 is the REAR face — the `Rear lip` tabs stand proud of it — so the
@@ -141,7 +168,7 @@ for name, fn, p, first in REFS:
     # --- `Top slant angle` --------------------------------------------------
     # Two PARALLEL planes 2.000 apart, both meeting Y = 0 at the same Z on every
     # reference whatever the slope. Asserted on the STEP and on the build.
-    want = round(holder.slant_slope(d, first), 4)
+    want = round(holder.slant_slope(p, d, first), 4)
     rival = round((d.calHeightIncrement - 1.0)
                   / ((d.calSliderDistance if first else d.calFirstSliderDistance)
                      - 1.2), 4)
@@ -188,8 +215,8 @@ for name, fn, p, first in REFS:
     # pocket is inset WALL from both faces. Four Y-planes, and the two inner
     # ones move with the holder's own depth.
     want_y = [round(v, 3) for v in
-              (-holder.holder_depth(d, first),
-               -holder.holder_depth(d, first) + holder.WALL,
+              (-holder.holder_depth(p, d, first),
+               -holder.holder_depth(p, d, first) + holder.WALL,
                -holder.WALL, 0.0)]
     # Present, not exhaustive: the side slots add two more Y-planes of their own,
     # and the rear lip will add more again.
@@ -288,7 +315,7 @@ for name, fn, p, first in REFS:
           round((holder.SLOT_W - box.SLIDER_W) / 2, 3), 0.200, 1e-3)
     check("... and is as deep as the rib stands proud",
           round(holder.END_BLOCK, 3), round(box.SLIDER_PROUD, 3), 1e-3)
-    dep = holder.holder_depth(d, first)
+    dep = holder.holder_depth(p, d, first)
     for zc in (-44.0, -20.0, 0.0, 20.0):
         for xc in (x0 + 2.0, x1 - 2.0):
             cell = Box(0.3, dep + 2.0, 0.3).moved(Location((xc, -dep / 2, zc)))
@@ -324,8 +351,8 @@ for name, fn, p, first in REFS:
     check("... and the same count as the STEP", len(b), len(a))
     check("every lip is where the STEP's is, and the same size", b, a)
     check("the lip reaches LIP_REACH along the slant",
-          round(holder.lip_reach_y(d, first)
-                * (1 + holder.slant_slope(d, first) ** 2) ** 0.5, 3),
+          round(holder.lip_reach_y(p, d, first)
+                * (1 + holder.slant_slope(p, d, first) ** 2) ** 0.5, 3),
           round(holder.LIP_REACH, 3), 1e-3)
     check("the lip's flat starts LIP_GAP out from the scallop's edge",
           round(holder.FINGER_R + holder.FINGER_FILLET + holder.LIP_GAP, 3),
