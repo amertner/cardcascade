@@ -24,7 +24,10 @@ CardHolderGap = 0.4                 # gap between holders, for the slider lid
 PusherFootDepth = 5.0
 PusherThickness = 3.0
 PusherFootThickness = 1.6
-FootDistanceFromWall = 7.4          # the lid's pusher socket, in from the wall
+# How far the Lid's pusher socket sits in from its inner wall — and, less
+# 1.000, where the logo's cap top goes. Allan's expression: the box's two walls
+# and the plate between them, plus 1.2 of clearance.
+FootDistanceFromWall = 2 * WallThickness + PusherThickness + 1.2      # 7.4
 TabLeftMargin = 4.0                 # pre-7.0 tab placement (see lock.py)
 TabWidth = 4.0
 ClosingBumpDepth = 1.0

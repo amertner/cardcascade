@@ -175,9 +175,16 @@ The Pusher and the Box have hand-exported STEPs and nothing else; the Lid has
 both — four structural STEPs **and** 46 cached meshes in `individual/`. Both
 are used, because they answer different questions. A STEP is exact and gives
 faces, so it settles a section; four of them cannot tell a rule from a
-coincidence across a 50-lid catalogue, which is what the meshes are for. The
-`x = -0.300` the socket set sits on and the `9.000` its back edge is inset by
-are constants on all 46 — that is what makes them rules rather than readings.
+coincidence across a 50-lid catalogue, which is what the meshes are for.
+
+Neither settles WHY, and on the Lid that mattered twice. Two placements
+reproduced all 46 lids exactly and were still attached to the wrong datum — the
+engraving hung off the pusher sockets where the sketch hangs it off the wall,
+and the socket set read as centred with a mysterious `-0.300` where the sketch
+anchors its first socket and lets the margin fall where it falls. Both are
+recorded in `spec/LID.md` under "What the fit got wrong", because the lesson
+generalises: a rule that reproduces the whole catalogue can still be the wrong
+rule, and the tell is a term no derived variable produces.
 
 ## Order of work
 

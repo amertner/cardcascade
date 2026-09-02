@@ -25,7 +25,9 @@ TAB_PROUD = 1.500         # one face only
 NOTCH_W = 5.400
 NOTCH_D = 5.200
 BOX_SLOT_DEPTH = 3.200
-LID_CHANNEL_W = 3.300     # the socket's plain channel: the 3.000 plate + 0.300
+LID_CHANNEL_W = PLATE + 0.300   # `#PusherThickness + 0.3mm` in the Lid's own
+#                                 sketch, and the 0.300 is this file's
+#                                 tightest running clearance
 LID_SOCKET_CLEARANCE = 0.400   # socket span is D - this, 0.200 at each end
 LID_RECESS_LEN = 4.000
 LID_RECESS_STEP = 1.700   # set on a test print, NOT calculated — do not tune

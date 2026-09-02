@@ -110,9 +110,10 @@ edge, leading edge down**, so the socket is `5.000` tall — the tab's own lengt
 along the insertion direction.
 
 ```
-block    9.200 wide x (calPusherTotalDepth - 0.400) long x 5.000 tall
-channel  3.300 wide down the middle, open at BOTH ends
-walls    2.950 each side of it
+block    #calFootTotalWidth (9.200) wide x (calPusherTotalDepth - 0.400) long
+         x 5.000 tall
+channel  #PusherThickness + 0.3mm (3.300) down the middle, open at BOTH ends
+walls    2.950 each side of it — what the block leaves
 rib      5.000 of channel left standing on the socket's centreline, C3-C5 only
 recess   4.000 long x 1.700 deep, in the channel's -X wall, at centreline +- s
 ```
@@ -143,16 +144,34 @@ On `Lid Dominion 246S` those are `148.000 / 122.995 / 82.995 / 40.000`, and
 ### Where the sockets sit
 
 ```
-count        2 for XS and S, 3 for M and L
-X            the set spans (HorizontalSlots - 1) * calSlotwidth
-             and is centred on x = -0.300
-Y            back edge 9.000 in from the lid's back face,
-             running forward by calPusherTotalDepth - 0.400
+count   2 for XS and S, 3 for M and L
+X       first block's LEFT edge = the left inner wall
+                                  + #calSlotwidth/2 + #calSliderSpaceLeftRight/2
+        then the set spans (HorizontalSlots - 1) * calSlotwidth
+Y       back edge #FootDistanceFromWall in from the inner back face,
+        running forward by calPusherTotalDepth - 0.400
 ```
 
-Both are exact on all 46 lids and all 5 STEPs — the `9.000` across depths from
-`34.980` to `111.300`, which is what says it is an offset from the back and not
-a centring rule.
+with
+
+```
+#calFootTotalWidth    = 2*#PusherThickness + 2*#PusherFootThickness    9.200
+#FootDistanceFromWall = 2*#WallThickness + #PusherThickness + 1.2mm    7.400
+channel               = #PusherThickness + 0.3mm                       3.300
+```
+
+so **not one number in the socket is its own**: the block is the pusher's foot,
+the channel is its plate and the standard's tightest running clearance, and the
+inset is the box's two walls with the plate between them.
+
+`35.450` in on a `calSlotwidth 65` lid, and exact on all 46 lids and all 5
+STEPs — the `#FootDistanceFromWall` across depths from `34.980` to `111.300`,
+which is what says it is an offset from the back and not a centring rule.
+
+**The first socket is placed and the rest step off it**, which is why the set
+is not centred on the lid: it leaves `35.450` at the left and `36.050` at the
+right. That `0.300` of asymmetry is the `x = -0.300` this file carried as a
+measured constant until the sketch turned up.
 
 **The count is the plain size rule and NOT `isOnlyTwoPusherSlots`.** An
 Innovation M lid carries three sockets where its Box has two rear storage slots
@@ -161,11 +180,12 @@ being the box's answer). The third socket is harmless — a spare — but it is
 Onshape's own inconsistency between the two parts, and `cad/` reproduces the
 lid as it is rather than tidying it.
 
-**`x = -0.300` is measured, not derived.** It is constant on every lid, and no
-expression in the derived set produces it: the card slots' own centres are
-`-0.450` (`box.thumb_centres` less half a slot), the front pocket's dividers
-`-0.050`. So the socket set sits `0.300` left of the lid's centreline and
-nothing yet says why. **Open — worth an answer from the sketch.**
+**`x = -0.300` was measured before it was derived**, and it is worth keeping
+the story: it is constant on every lid, and nothing in the derived set produces
+it — the card slots' own centres are `-0.450`, the front pocket's dividers
+`-0.050`. It reads as a centring rule with a mysterious offset, and it is not
+one. The sketch anchors the FIRST socket to the left wall and lets the rest
+follow; the `0.300` is what the right-hand margin comes out at.
 
 ## The closing groove
 
@@ -270,9 +290,9 @@ R equal steps fill exactly `(R + 1) / 2R` of the rectangle they descend, which
 is what `tests/test_lid.py` asserts, against each solid's OWN box so the
 `0.31 %` cancels.
 
-**Suppressed on an XS lid**, which carries the word alone. That one is
-inferred rather than read off a sketch: it is the third feature to branch on
-`#HorizontalSlots > 2`, and both XS lids in `individual/` agree.
+**Suppressed on an XS lid**, which carries the word alone — dynamic
+suppression in the studio, and Allan's reason is the obvious one: there is not
+really room for it.
 
 ### What the fit got wrong
 
@@ -339,11 +359,8 @@ statement; the area check is corroboration at `0.5 mm2`.
 
 ## Still open
 
-- **`x = -0.300`**, the socket set's centre. Measured constant, underived —
-  the last number on the Lid that is.
-- **Whether the staircase's suppression on an XS lid is really
-  `#HorizontalSlots > 2`**, or a bound that only XS crosses. Inferred, and the
-  only unread branch left.
+- Nothing on the shape. Every number on the Lid is now either the studio's own
+  expression or a constant read off a sketch.
 - **The logo pattern.** Deferred deliberately — it is a per-game motif and a
   second filament, and it does not interact with anything above.
 - **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but

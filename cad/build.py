@@ -222,7 +222,7 @@ def main(argv=None):
         if args.list:
             for folder, fn, p in lids:
                 print(f"  {folder + '/' + fn}")
-            print(f"\n  {len(lids)} lids")
+            print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}")
         else:
             print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
             total = 0
@@ -232,7 +232,8 @@ def main(argv=None):
                 print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
                       f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
                 total += r["bytes"]
-            print(f"\n  {len(lids)} lids, {total / 1e6:.1f} MB, in {args.out}")
+            print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}, "
+                  f"{total / 1e6:.1f} MB, in {args.out}")
         if args.part == "lid":
             return 0
 

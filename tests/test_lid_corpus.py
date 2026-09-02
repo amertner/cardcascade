@@ -162,7 +162,7 @@ for game in GAMES:
         z = lid.WALL + lid.SOCKET_H / 2 + EPS    # mid-socket, clear of both faces
         centres = lid.socket_centres(p, d)
         _cls, s = L.lock_class(d.calPusherTotalDepth)
-        chan, half = L.LID_CHANNEL_W / 2, lid.SOCKET_W / 2
+        chan, half = L.LID_CHANNEL_W / 2, d.calFootTotalWidth / 2
         inner = W - lid.WALL - 1e-6              # anything beyond is end wall
 
         def cavity(axis, u, v, limit):

@@ -75,12 +75,13 @@ def shell(p, d):
 # notch. Every dimension below is `LOCK_STANDARD.md`'s or is constant across
 # the whole corpus; see `spec/LID.md` for what each was measured on.
 SOCKET_H = 5.000             # above the floor, which is the tab's own length
-SOCKET_WALL = 2.950          # either side of the channel
-SOCKET_W = 2 * SOCKET_WALL + L.LID_CHANNEL_W          # 9.200
 SOCKET_BACK = D.FootDistanceFromWall + WALL   # 9.000 from the lid's BACK FACE,
 #                              i.e. #FootDistanceFromWall in from its inner one
 KEY_RIB_LEN = 5.000          # along the channel, on the centreline
-SOCKET_X_CENTRE = -0.300     # the socket SET's centre — see spec/LID.md
+
+# A socket block is `#calFootTotalWidth` wide — the pusher's own foot, plate
+# and both feet — with the channel down the middle of it, so its two walls are
+# what is left. Nothing here is a number of its own.
 
 
 def socket_count(p):
@@ -97,12 +98,25 @@ def socket_count(p):
 def socket_centres(p, d):
     """Channel centre X of each socket, left to right.
 
-    The set spans `(HorizontalSlots - 1) * calSlotwidth` — the card slots'
-    own span — and is centred on `SOCKET_X_CENTRE`. Exact on all 46 lids.
+    The FIRST one is placed and the rest step off it, which is the sketch's own
+    shape (Allan):
+
+        first block's left edge = the left inner wall
+                                  + #calSlotwidth/2 + #calSliderSpaceLeftRight/2
+
+    and the set then spans `(HorizontalSlots - 1) * calSlotwidth`, the card
+    slots' own span. `35.45` in on a `calSlotwidth 65` lid.
+
+    That anchor is why the set is NOT centred on the lid: it leaves `35.450` at
+    the left and `36.050` at the right, so its centre lands `0.300` to the left
+    of the lid's. This file carried that `-0.300` as a measured constant until
+    the sketch turned up — see spec/LID.md, "What the fit got wrong".
     """
     n = socket_count(p)
     span = (p.HorizontalSlots - 1) * d.calSlotwidth
-    return [SOCKET_X_CENTRE - span / 2 + k * span / (n - 1) for k in range(n)]
+    first = (-(lid_width(p, d) / 2 - WALL) + d.calSlotwidth / 2
+             + d.calSliderSpaceLeftRight / 2 + d.calFootTotalWidth / 2)
+    return [first + k * span / (n - 1) for k in range(n)]
 
 
 def socket_span(p, d):
@@ -116,8 +130,8 @@ def socket_span(p, d):
 def socket(p, d, x):
     """One socket, centred on channel X `x`.
 
-    The block is `SOCKET_W` x span x `SOCKET_H` and everything else is taken
-    out of it:
+    The block is `#calFootTotalWidth` x span x `SOCKET_H` and everything else
+    is taken out of it:
 
     * the **channel**, `L.LID_CHANNEL_W` wide, open at both ends and running
       the full height — the pusher's `3.000` plate with the standard's
@@ -138,7 +152,8 @@ def socket(p, d, x):
         return Box(x_hi - x_lo, yhi - ylo, z1 - z0).moved(
             Location(((x_lo + x_hi) / 2, (ylo + yhi) / 2, (z0 + z1) / 2)))
 
-    block = slab(x - SOCKET_W / 2, x + SOCKET_W / 2, y0, y1)
+    block = slab(x - d.calFootTotalWidth / 2, x + d.calFootTotalWidth / 2,
+                 y0, y1)
     chan_lo, chan_hi = x - L.LID_CHANNEL_W / 2, x + L.LID_CHANNEL_W / 2
     cuts = []
     if L.has_notch(s):

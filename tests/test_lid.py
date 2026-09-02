@@ -190,7 +190,7 @@ for name, fn, P in REFS:
     for who, solid in (("STEP ", ref), ("build", mine)):
         xs = sorted(k[0] for k, a in planes(solid, 0).items()
                     if abs(a - side) < 1e-2)
-        check(f"{who}: one block per socket, SOCKET_W wide", len(xs),
+        check(f"{who}: one block per socket, calFootTotalWidth wide", len(xs),
               2 * lid.socket_count(P))
         if len(xs) != 2 * lid.socket_count(P):
             continue
@@ -199,19 +199,19 @@ for name, fn, P in REFS:
               [round(x, 3) for x in lid.socket_centres(P, d)])
         check(f"{who}: block width",
               sorted({round(b - a, 3) for a, b in zip(xs[0::2], xs[1::2])}),
-              [round(lid.SOCKET_W, 3)])
+              [round(d.calFootTotalWidth, 3)])
         rib = lid.KEY_RIB_LEN if L.has_notch(s) else 0.0
         want_chan = round(lid.SOCKET_H * ((y1 - y0) - rib), 2)
         for x in lid.socket_centres(P, d):
             got = socket_walls(solid, x, y0, y1)
             want = {
-                round(x - lid.SOCKET_W / 2, 3): side,
+                round(x - d.calFootTotalWidth / 2, 3): side,
                 round(x - L.LID_CHANNEL_W / 2 - L.LID_RECESS_STEP, 3):
                     round(2 * L.LID_RECESS_LEN * lid.SOCKET_H, 2),
                 round(x - L.LID_CHANNEL_W / 2, 3):
                     round(want_chan - 2 * L.LID_RECESS_LEN * lid.SOCKET_H, 2),
                 round(x + L.LID_CHANNEL_W / 2, 3): want_chan,
-                round(x + lid.SOCKET_W / 2, 3): side,
+                round(x + d.calFootTotalWidth / 2, 3): side,
             }
             ok = (sorted(got) == sorted(want)
                   and all(abs(got[k] - want[k]) < 0.02 for k in want))

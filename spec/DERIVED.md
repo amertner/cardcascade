@@ -141,9 +141,11 @@ The transcription was made from the variable studio; two more surfaced later,
 in the Lid's own sketches (Allan, 2026-09-02), and are now in `derive.py`
 beside their neighbours:
 
-- **`#FootDistanceFromWall = 7.400`** — a constant. Where the Lid's pusher
-  sockets sit in from its inner wall, and the datum both engraved blocks hang
-  off. `lid.SOCKET_BACK` is it plus `WallThickness`.
+- **`#FootDistanceFromWall = 2*#WallThickness + #PusherThickness + 1.2mm`** —
+  `7.400`. Where the Lid's pusher sockets sit in from its inner wall, and the
+  datum both engraved blocks hang off. `lid.SOCKET_BACK` is it plus
+  `WallThickness`. The expression reads as the box's two walls and the plate
+  between them, plus clearance.
 - **`#calLidTextOffset = #calSliderSpaceLeftRight`** — an alias, like
   `calPocketHeight`, and the base of both engraved blocks' horizontal offset.
 
