@@ -55,7 +55,9 @@ Five. What each one splits, and what has been measured off them, is in
 | `Lid Innovation 130U.step` | Innovation 130 Card Un `XS5.15.10.32-Un` — XS: the narrowest lid, two horizontal slots, 31 pattern inlays, and the only one whose logo carries no staircase |
 
 Each Lid file holds the lid body **plus** the logo pattern's inlays as separate
-solids. The body is the biggest by volume, which is how the tests take it.
+solids. The body is the biggest by volume, which is how the tests take it — and
+the inlays are where `logos/<Game>/lid_logo.dxf` came from, lifted by
+`make_lid_logo_dxf.py` until Allan's own sketch exports replace them.
 
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather

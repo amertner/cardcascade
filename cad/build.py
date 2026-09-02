@@ -109,14 +109,31 @@ def lid_catalogue(csv=CSV, game=None, model=None):
 
 def build_lid(p, out_dir, folder, filename):
     """Build one lid and write the 3MF. Like the Box, a Lid sits at the part
-    studio's origin, which is the assembly's."""
+    studio's origin, which is the assembly's.
+
+    A lid is MORE THAN ONE BODY: the logo pattern's inlays print in the second
+    filament, so Onshape exports them as their own objects and so does this.
+    `make_cascade.load_export` pairs bodies to template parts by name and
+    reconciles the rest onto same-extruder slots, so the names matter and the
+    order does not — but the order is fixed anyway (down the artwork, largest
+    first) to keep a rebuild byte-identical.
+    """
     part = lid_part.build(p)
+    inlays = lid_part.inlays(p)
+    bodies = [("Lid", part)]
+    bodies += [(f"Part {i}", s) for i, s in enumerate(
+        sorted(inlays, key=lambda s: (-round(s.volume, 6),
+                                      round(s.bounding_box().min.X, 6),
+                                      round(s.bounding_box().min.Y, 6))),
+        start=2)]
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
-    meshed = mesh3mf.write(path, [("Lid", part)])
-    _, verts, tris = meshed[0]
-    return {"path": path, "verts": len(verts), "tris": len(tris),
-            "volume": part.volume, "bytes": path.stat().st_size,
+    meshed = mesh3mf.write(path, bodies)
+    verts = sum(len(v) for _n, v, _t in meshed)
+    tris = sum(len(t) for _n, _v, t in meshed)
+    return {"path": path, "verts": verts, "tris": tris,
+            "volume": part.volume, "bodies": len(bodies),
+            "bytes": path.stat().st_size,
             "changed": before is not None and before != path.read_bytes(),
             "new": before is None}
 
@@ -224,14 +241,23 @@ def main(argv=None):
                 print(f"  {folder + '/' + fn}")
             print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}")
         else:
-            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
-            total = 0
+            print(f"  {'file':44s} {'mm3':>11s} {'bod':>4s} {'verts':>7s} "
+                  f"{'tris':>7s} {'KB':>6s}")
+            total, plain = 0, []
             for folder, fn, p in lids:
                 r = build_lid(p, args.out, folder, fn)
                 mark = "new" if r["new"] else ("changed" if r["changed"] else "")
+                if r["bodies"] == 1:
+                    plain.append(p.GameName)
                 print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
-                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
+                      f"{r['bodies']:4d} {r['verts']:7d} {r['tris']:7d} "
+                      f"{r['bytes'] / 1024:6.0f}  {mark}")
                 total += r["bytes"]
+            if plain:
+                # Not silently: a lid without its logo is a lid that cannot be
+                # printed in two filaments.
+                print(f"\n  NO LOGO ARTWORK for {sorted(set(plain))} — those "
+                      f"lids built without a pattern (cad/tables.LID_LOGO)")
             print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}, "
                   f"{total / 1e6:.1f} MB, in {args.out}")
         if args.part == "lid":

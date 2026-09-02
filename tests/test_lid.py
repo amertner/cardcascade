@@ -6,13 +6,10 @@
 Four references in `spec/reference/`, listed in `spec/LID.md`. The Lid is being
 built group by group; this asserts only what is written, and grows with it.
 
-Proven so far: the envelope, the shell, the sockets — the lid's half of the 7.0
-lock, channel, key rib and both tab recesses — the closing grooves, the `1.000`
-round on all twelve outer edges, and the floor's engraving: three right-aligned
-lines, the logo, its version and the staircase. Only the underside's logo
-PATTERN is not built, so the reference is short of the build by exactly its
-pocket; that difference is itself asserted, which is what keeps this test
-honest about what is missing.
+Proven: the envelope, the shell, the sockets — the lid's half of the 7.0 lock,
+channel, key rib and both tab recesses — the closing grooves, the `1.000` round
+on all twelve outer edges, the floor's engraving, and the logo pattern: the
+pocket in the underside and the inlay solids that fill it.
 
 Every check runs against the STEP **and** the build wherever it can, because a
 check that only reads the build cannot tell a wrong probe from a wrong model —
@@ -27,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from build123d import GeomType, import_step   # noqa: E402
+from build123d import Compound, GeomType, import_step   # noqa: E402
 from cad import params, derive as D, lock as L, text as TX  # noqa: E402
 from cad.parts import lid                       # noqa: E402
 
@@ -36,7 +33,7 @@ REFS = [
     # The only reference with a first-riser override, and the cascade whose Box
     # and Pusher are both referenced too — so the lock can be followed across
     # all three parts of one design.
-    ("Dominion 246 Sl", "Lid Dominion 246S.step",
+    ("Dominion 246 Sl", "Lid Dominion 246S with logo.step",
      params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
     # M: three sockets, and unsleeved.
     ("Dominion 244 Un", "Lid Dominion 244U.step",
@@ -333,38 +330,75 @@ for name, fn, P in REFS:
             check(f"{who}: XS carries the word alone, no staircase",
                   len(emboss_lines(solid, lid.WALL + lid.LOGO_PROUD)), 1)
 
-    # --- what is NOT built yet ---------------------------------------------
-    # Only the logo PATTERN: a per-game motif in the underside of the floor,
-    # in a 0.810 pocket. It is present in the exports Allan took "with logo
-    # meshes embedded" and absent from the first 246S, which is why it is
-    # measured here rather than assumed — and the whole of what the two solids
-    # differ by, so nothing else can hide behind it.
-    #
-    # The pocket's ceiling faces DOWN — it is open at the lid's underside —
-    # and is the one clean face it has, so it is the measure. What it takes
-    # out of the underside corroborates it, and the inlay solids fill it.
-    floor = round((2 * W - 2 * lid.OUTER_ROUND)
-                  * (2 * DD - 2 * lid.OUTER_ROUND), 3)
-    pattern = area_at(ref, 2, PATTERN_DEPTH, "-")
-    check("STEP: the pattern pocket is what the underside is missing",
-          round(floor - area_at(ref, 2, 0.0, "-"), 2), round(pattern, 2), 0.6)
-    inlays = round(sum(x.volume for x in solids if x is not ref), 2)
-    if pattern:
-        check("STEP: and the inlay solids fill exactly that", inlays,
-              round(pattern * PATTERN_DEPTH, 2), 0.1)
-    else:
-        # `Lid Dominion 246S.step` is the one export taken WITHOUT the logo
-        # meshes embedded: the inlays are there as solids, but the body is not
-        # pocketed for them. The pair with `...246S with logo.step` is what
-        # makes the pocket measurable on its own — the same trick as the Box's
-        # filleted/unfilleted pair.
-        check("STEP: no pocket, but the inlay solids are still in the file",
-              inlays > 0, True)
-    # To 0.3 mm3 in 6e4. The residual is the engraving: OCCT integrates a
-    # glyph face to a few parts in 1e5, and our advance is not Onshape's.
-    check("reference - build = the unbuilt pattern pocket, and nothing else",
-          round(ref.volume - mine.volume, 2),
-          round(-pattern * PATTERN_DEPTH, 2), 0.3)
+    # --- the logo pattern --------------------------------------------------
+    # Two features off one sketch: `Remove logo` cuts the pocket and
+    # `Add Logo Material` fills it. They are asserted together, because the
+    # whole point of building them from one set of regions is that the inlay
+    # cannot drift out of its pocket.
+    ref_inlays = [x for x in solids if x is not ref]
+    mine_inlays = lid.inlays(P)
+    check("the reference carries inlay solids", len(ref_inlays) > 0, True)
+    check("one inlay per artwork region", len(mine_inlays), len(ref_inlays))
+    if mine_inlays:
+        rv = sum(x.volume for x in ref_inlays)
+        mv = sum(x.volume for x in mine_inlays)
+        # 0.1 %: the artwork is a DXF, and a curve exported from CAD comes
+        # back with its coordinates rounded. Dominion's logo is all straight
+        # lines and matches to 0.000; Innovation's carries 361 arcs and 234
+        # B-splines and lands at 0.09 %.
+        check("inlay volume", round(mv, 3), round(rv, 3), rv * 1e-3)
+        rb = Compound(children=ref_inlays).bounding_box()
+        mb = Compound(children=mine_inlays).bounding_box()
+        check("inlay footprint",
+              [round(v, 3) for v in (mb.min.X, mb.max.X, mb.min.Y, mb.max.Y)],
+              [round(v, 3) for v in (rb.min.X, rb.max.X, rb.min.Y, rb.max.Y)])
+        # The one number that says the two features agree: the inlay sits
+        # PATTERN_PROUD below the underside and its top is PATTERN_DEPTH above
+        # that, so it fills a pocket cut 0.810 up from z = 0.
+        check("inlays sit PATTERN_PROUD below the underside",
+              [round(mb.min.Z, 3), round(mb.max.Z, 3)],
+              [round(-lid.PATTERN_PROUD, 3),
+               round(lid.PATTERN_DEPTH - lid.PATTERN_PROUD, 3)])
+        check("STEP: and the reference's do too",
+              [round(rb.min.Z, 3), round(rb.max.Z, 3)],
+              [round(-lid.PATTERN_PROUD, 3),
+               round(lid.PATTERN_DEPTH - lid.PATTERN_PROUD, 3)])
+        # The pocket, from the body's own faces: its ceiling faces DOWN.
+        for who, solid in (("STEP ", ref), ("build", mine)):
+            check(f"{who}: the pocket is PATTERN_DEPTH deep",
+                  area_at(solid, 2, lid.PATTERN_DEPTH, "-") > 0, True)
+        check("pocket area", area_at(mine, 2, lid.PATTERN_DEPTH, "-"),
+              area_at(ref, 2, lid.PATTERN_DEPTH, "-"),
+              area_at(ref, 2, lid.PATTERN_DEPTH, "-") * 1e-3)
+
+    # --- nothing else may differ -------------------------------------------
+    # To 1 mm3 in 6e4. What is left is the engraving's 0.31 % advance and the
+    # artwork's DXF round trip, both documented in spec/LID.md; every feature
+    # on the part is now built.
+    check("reference - build, the whole body", round(ref.volume - mine.volume, 2),
+          0.0, 1.0)
+
+# --- the export pair ----------------------------------------------------
+# `Lid Dominion 246S.step` is the one export Allan took WITHOUT the logo
+# meshes embedded: it carries the inlay solids but its body is NOT pocketed
+# for them. The pair is what made the pocket measurable on its own — the same
+# trick as the Box's filleted/unfilleted pair — so it is asserted rather than
+# left as a note.
+print("\n=== the export pair ===")
+plain = STEP_DIR / "Lid Dominion 246S.step"
+if not plain.exists():
+    print(f"  SKIP — {plain} not present")
+else:
+    P = REFS[0][2]
+    solids = import_step(str(plain)).solids()
+    body = max(solids, key=lambda s: s.volume)
+    inlays = [s for s in solids if s is not body]
+    check("the plain export has the inlay solids", len(inlays), 6)
+    check("but its body is NOT pocketed",
+          area_at(body, 2, lid.PATTERN_DEPTH, "-"), 0.0)
+    check("so it stands proud of the with-logo export by the pocket",
+          round(body.volume - sum(x.volume for x in inlays), 2),
+          round(lid.build(P).volume, 2), 1.0)
 
 print(f"\n{'FAILED: ' + ', '.join(fails) if fails else 'all checks passed'}")
 sys.exit(1 if fails else 0)

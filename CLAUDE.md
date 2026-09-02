@@ -21,11 +21,11 @@ rebuild.
 ### The rebuild is partial — don't assume it covers a part
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
-generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done —
-the Lid but for its logo PATTERN, the per-game motif in its underside that
-prints in the second filament (`spec/LID.md`). Holder, TokenHolder and Topper
-still come from Onshape, and the whole `automation/` pipeline is still live and
-authoritative for them.
+generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done,
+the Lid including the logo pattern in its underside — but only for the games
+whose artwork is in `logos/<Game>/lid_logo.dxf` (Dominion and Innovation;
+`spec/LID.md`). Holder, TokenHolder and Topper still come from Onshape, and the
+whole `automation/` pipeline is still live and authoritative for them.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and
@@ -73,7 +73,8 @@ authoritative for them.
 - **The CAD is the authority on a box's model code**, not `parts.csv`.
 - A **Lid 3MF carries more than the lid**: the logo pattern's inlays are
   separate objects in it (up to 31), and the lid body is the biggest one. The
-  same is true of the hand-exported Lid STEPs.
+  same is true of the hand-exported Lid STEPs, and `cad.build` writes them the
+  same way — `Lid`, `Part 2`, `Part 3`, ...
 - Every generated project carries exactly **two filament slots: white 1,
   black 2**, and `wall_generator: arachne` (forced by
   `make_cascade.PRINT_SETTINGS` on every path).
