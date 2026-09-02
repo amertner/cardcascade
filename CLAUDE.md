@@ -30,6 +30,10 @@ authoritative for them.
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
   sizes. Two constants in `cad/parts/lid.py` are the whole policy.
+- A mark is either a DRAWING (`logos/<Game>/*.dxf`, scaled) or GENERATED
+  (`cad/marks.py`, built from the font and the geometry hung off it, so its
+  strokes do not scale). `cad/marks.py` is the one interface over both; only
+  Innovation's plain mark is generated so far. A generated name starts `@`.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and

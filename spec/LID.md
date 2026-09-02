@@ -444,14 +444,20 @@ XS5.15.10  Single Mini     plain
 
 and the other four Innovation rows keep the Ultimate mark.
 
-**The plain drawings are DERIVED, and are the one piece of artwork here that
-is not Allan's.** The Ultimate composition splits cleanly into two bands — the
-`Innovation` wordmark, 11 regions, and everything below it: `Ultimate`, its
-`i` dot, the left flourish and the two runs of five dashes — with a clear gap
-at `y -1.455 .. -4.392` in the small drawing and `-2.328 .. -7.028` in the
-big. `make_lid_logo_dxf.py --above -3 --recentre` keeps the top band and puts
-it back on the full mark's own centre in Y. That is a reading of "without it
-saying Ultimate", not an export, and one DXF from Allan replaces it.
+**The plain mark is the one that is not Allan's drawing.** It began as a crop
+— the Ultimate composition splits cleanly into two bands, the `Innovation`
+wordmark and everything below it (`Ultimate`, its `i` dot, the left flourish
+and the two runs of five dashes), with a clear gap at `y -1.455 .. -4.392` in
+the small drawing and `-2.328 .. -7.028` in the big, and
+`make_lid_logo_dxf.py --above -3 --recentre` keeps the top band and puts it
+back on the full mark's own centre in Y. Those two crops are still in
+`logos/Innovation/`, but they are now the REFERENCE and not the source: the
+mark itself is generated, "The Innovation mark, rebuilt" below.
+
+That the composition is right — the wordmark keeps the circle round its `I`
+and the star over its `i`, and the flourishes that go with `Ultimate` leave
+with it — is a reading of "without it saying Ultimate", and Allan's to
+overrule.
 
 ### The `#LogoScaleFactor` this replaces
 
@@ -478,16 +484,64 @@ takes `52.739` of mark at `0.850`, to `1.0007`. The cached corpus agrees with
 the fit rather than with the factor, and the four Innovation lids that carry
 the big mark are exactly the four `15.15` rows.
 
-### What the Innovation sketch actually is
+### The Innovation mark, rebuilt
 
-Not imported artwork at all, unlike Dominion's: Allan has recreated it as two
-sketches — the words in **Noto Serif** (`Ultimate` in Bold Italic) and a
-separate `Logo Flourishes` sketch holding the circle-and-`I`, the five-armed
-star (`5x` at `270°`) and the dashed lead-in (`5x`, `1.500` by `#LineWidth`).
-Rebuilding it from the font and those dimensions would make it parametric —
-letters scaling while strokes hold — which is the only way a fitted mark keeps
-its drawn stroke weight at every size. What is on file is two lifted outlines
-scaled uniformly, so a mark at `1.210` has strokes `21 %` heavier than drawn.
+Allan's Innovation logo is not imported artwork, unlike Dominion's: he
+recreated it as two sketches — the words in **Noto Serif** (`Ultimate` in Bold
+Italic) and a separate `Logo Flourishes` sketch. So the PLAIN mark, the one
+the two single-set cascades carry, is **generated** rather than drawn:
+`cad/marks.py` builds it, and `logos/Innovation/lid_logo_plain*.dxf` are what
+it is checked against rather than what is used.
+
+That is worth the trouble for one reason: **an outline cannot be scaled
+without scaling its strokes.** `#LineWidth` is `0.600` at every size in
+Allan's sketch. Scale the crop to the `1.436` the fit gives `S5.10.10.32-Un`
+and the `0.600` becomes `0.862`. A generated mark scales its letters and
+leaves its strokes alone, which is what `cad/marks.growth` states: the mark's
+width is `108.4596*n + 0.600`, affine and not proportional, and the `0.600` is
+exactly the strokes.
+
+Every number in it was measured off Allan's own two drawings.
+
+**The word is Noto Serif Regular**, set at default advances with no kerning.
+Fitted over its nine clean glyphs, every glyph edge lands within `0.016` on
+the small drawing and `0.026` on the big, over 109 mm and 174 mm of wordmark;
+`build123d`'s own `Text` then reproduces the same to `0.019`. The two sizes
+are `20.8416` and `33.3466`, whose ratio is `1.59999` — `#LogoScaleFactor` to
+five figures, which is what says the reading is right. Neither is a round
+number in any standard metric (cap `14.881` / `23.810`, x-height `11.379` /
+`18.207`), so the text was sized to fit rather than dimensioned.
+
+**The circle round the `I`** is an annulus on the middle of that letter's top
+serif — `693` font units up, where the slab runs `672..714` — with its bore
+the letter's own ink half-width and its wall `LINE_WIDTH`. Measured
+`r 3.0306 / 3.6306` on the small drawing against `3.0325` for the half-width:
+a wall of `0.6000` exactly.
+
+**The star over the `i`** is that letter's own tittle with five arms driven
+through it — `LINE_WIDTH` wide, `2.500` long at the small size and `4.0002` at
+the big, `67.5` apart, which is the `5x at 270` circular pattern the Logo
+Flourishes sketch holds. Two things only came out of the numbers:
+
+* each arm is offset `0.1039` off the centre, a slight pinwheel, and that
+  offset is **absolute** — `-0.1039` on both drawings, where the arm length
+  between them scales `1.6002`. With it the five arm tips land on the drawing
+  to `0.0005` and `0.0003`; without it they are `0.10` out.
+* the disc the arms seemed to stand on **is the tittle**. Fitting a circle to
+  the central blob left a `+-0.09` wobble that no circle explains; the
+  letter's own dot is `114 x 124` font units, and that ellipse is the wobble.
+
+Against the two drawings the rebuild holds every region's edges to `0.019` at
+the small size and `0.109` at the big, with the same 11 regions and the same
+holes, and its area within `0.13 %`. The `0.109` is the star, and it is not an
+error in the rebuild: **the star is hand-placed in Allan's sketches and the
+two drawings disagree with each other** about where it sits by `3.4` font
+units. The letters land within `0.035` at both sizes.
+
+`Ultimate` is NOT rebuilt. It needs the second sketch's left flourish, its two
+runs of dashes and its end circle, none of which is determined by the two
+drawings alone; that mark stays the pair of lifted outlines and its strokes
+still scale with it. `fonts/NotoSerif-BoldItalic.ttf` is bundled ready for it.
 
 ### Dominion's mark is 180° out from the other three
 
@@ -502,14 +556,16 @@ for comparison. Raised with Allan 2026-09-02.
 
 ## What is NOT built yet
 
-Nothing on the Lid's shape, and every game now has artwork. What is left is
+Nothing on the Lid's shape, and every game now has a mark. What is left is
 Allan's to settle, not the model's:
 
 * the two fit constants, `LOGO_WIDTH_FRACTION` and `LOGO_DEPTH_FRACTION`;
-* the plain Innovation drawings, derived here rather than exported;
+* whether the plain Innovation composition is the right reading of "without it
+  saying Ultimate";
 * whether Dominion's mark is a half turn out, or the other three are;
-* whether a fitted mark should keep its drawn stroke weight, which needs the
-  Innovation sketch rebuilt from Noto Serif rather than scaled as an outline.
+* the marks that are still outlines — Dominion, Compile, FCM and Innovation
+  `Ultimate` — whose strokes scale with the fit where the generated plain mark
+  holds its own.
 
 ## Verified
 
@@ -519,6 +575,15 @@ without the pattern embedded, the build's volume lands within `0.01 mm3` of the
 reference's `59542.001`. `tests/test_lid_corpus.py` — all 44 cached lids that
 have a parts.csv row, against the placement rules and the engraving's two
 anchors.
+
+The references all predate the fit, so `test_lid.py` PINS `lid.logo_choice` to
+each game's default mark at the size it was drawn while it checks them —
+`Lid Innovation 130U` is an XS lid the rule now gives the plain mark, and its
+pattern would otherwise be a different mark altogether. The fit is then
+asserted on its own: seven named lids, and two invariants over all 50 — every
+mark inside the flat floor, and none shrunk that did not have to be. The
+generated Innovation mark is checked against both drawings it replaced, region
+for region.
 
 Two things worth keeping in mind for the next part:
 
@@ -544,14 +609,19 @@ statement; the area check is corroboration at `0.5 mm2`.
   `LOGO_DEPTH_FRACTION 0.850` are read off Allan's own drawings, but they are
   taste and not measurement — they are what decides how big every mark in the
   catalogue is.
-- **The plain Innovation drawings** are derived here by dropping the `Ultimate`
-  band, not exported. One DXF from Allan replaces each.
+- **The plain Innovation composition** — the wordmark with the circle round
+  its `I` and the star over its `i`, and none of the flourishes that go with
+  `Ultimate` — is a reading, not an export. The mark that renders it is
+  measured off Allan's own drawings to `0.019`; whether it is the right
+  composition is his call.
 - **Dominion's mark is a half turn out** from Compile's, FCM's and
   Innovation's. Reproduced as drawn until Allan says which is right.
-- **Stroke weight under a fit.** Scaling an outline scales its strokes, where
-  the Onshape sketches hold `#LineWidth` absolute. It only bites where a mark
-  is enlarged a long way — FCM's reaches `1.950` — and the fix is the
-  parametric rebuild from Noto Serif, not a different fit.
+- **Stroke weight on the marks that are still outlines.** Scaling an outline
+  scales its strokes, where the Onshape sketches hold `#LineWidth` absolute.
+  Innovation's plain mark no longer does this because it is generated; the
+  other five drawings do, and it bites hardest where a mark is enlarged a long
+  way — FCM's reaches `1.950`, and Innovation `Ultimate` `1.271`. The fix is
+  the same rebuild, and `Ultimate` needs its Logo Flourishes sketch to do it.
 - **Allan's own exports.** Every artwork file here was lifted from a reference
   rather than exported from the sketch; four of the six came off a mesh, which
   costs `0.026 %` of area and turns curves into ~90-segment polylines.

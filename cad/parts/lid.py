@@ -24,9 +24,9 @@ from build123d import (
 )
 
 from . import box as box_part
-from .. import art as A
 from .. import derive as D
 from .. import lock as L
+from .. import marks as MK
 from .. import tables as TB
 from .. import text as T
 
@@ -489,56 +489,53 @@ def logo_edition(p, d):
     return rule.get(".".join(d.calModelName.split(".")[:3]))
 
 
-def logo_scale(p, d, size):
-    """How far a drawing of `size` is scaled on this lid — see above."""
+def logo_scale(p, d, name):
+    """The nominal factor this lid sizes `name` to — see above.
+
+    A mark's size is AFFINE in that factor, `a*n + b`, because a generated
+    mark's letters scale and its strokes do not (`cad/marks.growth`). A drawing
+    has `b = 0` and this is then the plain scale it is drawn at.
+    """
     (rw, rd), (tw, td) = logo_room(p, d), logo_target(p, d)
-    hard = min(rw / size[0], rd / size[1])
-    want = min(tw / size[0], td / size[1])
+    (aw, bw), (ah, bh) = MK.growth(p.GameName, name)
+    hard = min((rw - bw) / aw, (rd - bh) / ah)
+    want = min((tw - bw) / aw, (td - bh) / ah)
     return min(max(want, 1.0), hard)
 
 
 def logo_choice(p, d):
-    """(filename, scale) — which drawing of the game's mark this lid gets and
-    how far it is scaled, or (None, 0.0) for a game with no artwork on file.
+    """(mark, nominal factor) — which of the game's marks this lid gets and how
+    far it is sized, or (None, 0.0) for a game with no artwork on file.
 
-    The drawings are listed largest first, so the first one that fits the flat
-    floor as drawn is the biggest that fits. If none does — the lid is smaller
-    than every drawing — the last, smallest one is taken and shrunk to fit.
+    The marks are listed largest first, so the first that fits the flat floor
+    as drawn is the biggest that fits. If none does — the lid is smaller than
+    every drawing — the last, smallest one is taken and shrunk to fit. A
+    generated mark is one entry, not a ladder: it has no fixed sizes.
     """
     names = (TB.LID_LOGO.get(p.GameName) or {}).get(logo_edition(p, d))
     if not names:
         return None, 0.0
     chosen = None
     for name in names:
-        size = A.extent(p.GameName, name)
-        if size is None:
+        if MK.growth(p.GameName, name) is None:
             continue
         chosen = name
-        if logo_scale(p, d, size) >= 1.0:
+        if logo_scale(p, d, name) >= 1.0:
             break
     if chosen is None:
         return None, 0.0
-    return chosen, logo_scale(p, d, A.extent(p.GameName, chosen))
+    return chosen, logo_scale(p, d, chosen)
 
 
 def logo_art(p, d):
     """The game's mark as filled faces in the lid's frame, or None.
 
-    The DXF is drawn in that frame already — lifted from, or exported beside, a
-    reference lid — so the fit is applied about the drawing's OWN centre, not
-    the lid's. At scale 1 that leaves the artwork exactly where Onshape put it.
+    A drawing is already in that frame — lifted from, or exported beside, a
+    reference lid — so `cad.marks` sizes it about its OWN centre and at n = 1
+    it stays exactly where Onshape put it. A generated mark is built centred.
     """
-    name, scale = logo_choice(p, d)
-    if not name:
-        return None
-    faces = A.logo(p.GameName, name)
-    if not faces:
-        return None
-    if abs(scale - 1.0) < 1e-9:
-        return list(faces)
-    cx, cy = A.centre(p.GameName, name)
-    return [f.moved(Location((-cx, -cy, 0))).scale(scale)
-             .moved(Location((cx, cy, 0))) for f in faces]
+    name, n = logo_choice(p, d)
+    return MK.faces(p.GameName, name, n) or None if name else None
 
 
 def logo_pattern(p, d, part):

@@ -62,7 +62,12 @@ LID_LOGO = {
     "Dominion": {None: ("lid_logo.dxf",)},
     "FCM": {None: ("lid_logo.dxf",)},
     "Innovation": {None: ("lid_logo_big.dxf", "lid_logo.dxf"),
-                   "plain": ("lid_logo_plain_big.dxf", "lid_logo_plain.dxf")},
+                   # GENERATED, not drawn — `cad/marks.py` builds it from Noto
+                   # Serif and the flourishes, so its 0.600 strokes hold at
+                   # every size the fit picks. The two `lid_logo_plain*.dxf`
+                   # beside it are what it is CHECKED against, not what is
+                   # used: they are the crop this replaced.
+                   "plain": ("@innovation-plain",)},
 }
 
 # Which EDITION of a game's mark a cascade carries — keyed on the base model,

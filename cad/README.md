@@ -12,10 +12,17 @@ pattern for all four games. Holder, TokenHolder and Topper are not written
 yet, so the Onshape path is still the one that builds a cascade.
 
 The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
-is FITTED to the lid — the biggest drawing that fits, sized to a proportion of
+is FITTED to the lid — the biggest mark that fits, sized to a proportion of
 the lid — where Onshape draws it at one or two fixed sizes. `spec/LID.md`,
 "Sizing the mark", is the record, and the two constants behind it are two
 lines in `cad/parts/lid.py`.
+
+Fitting is why Innovation's plain mark is GENERATED rather than drawn
+(`cad/marks.py`): scaling an outline scales its `0.600` strokes with it, and
+Allan's sketch holds them absolute. It is built from Noto Serif and the
+geometry hung off the letters — the annulus round the `I`, the five arms
+through the `i`'s tittle — every number of it measured off the two drawings it
+replaces, which stay in `logos/Innovation/` as its regression reference.
 
 ---
 

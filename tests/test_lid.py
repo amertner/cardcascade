@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from build123d import Compound, GeomType, import_step   # noqa: E402
-from cad import art, build, params, derive as D, lock as L  # noqa: E402
+from cad import art, build, marks, params, derive as D, lock as L  # noqa: E402
 from cad import tables as TB, text as TX                    # noqa: E402
 from cad.parts import lid                       # noqa: E402
 
@@ -433,8 +433,11 @@ for model, want_file, want_scale in [
         # Innovation's two editions, and its two drawings of each
         ("S5.15.15.45-Un", "lid_logo_big.dxf", 1.000),
         ("S5.10.10.32-Un", "lid_logo.dxf", 1.210),
-        ("XS5.15.10.32-Un", "lid_logo_plain.dxf", 1.000),
-        ("S3.15.10.20-Un", "lid_logo_plain_big.dxf", 1.000)]:
+        # the generated plain mark: held at its drawn size on the XS lid,
+        # which is already wider than the width fraction allows, and sized to
+        # that fraction on the S one
+        ("XS5.15.10.32-Un", "@innovation-plain", 1.000),
+        ("S3.15.10.20-Un", "@innovation-plain", 1.211)]:
     hit = [(pp, dd) for _f, fn, pp in build.lid_catalogue()
            for dd in [D.derive(pp)] if fn == f"Lid {model}.3mf"]
     if not hit:
@@ -456,16 +459,58 @@ for _folder, fn, pp in build.lid_catalogue():
     if not name:
         check(f"{fn}: has artwork", False, True)
         continue
-    w, h = art.extent(pp.GameName, name)
+    w, h = marks.extent(pp.GameName, name, scale)
     room_w, room_d = lid.logo_room(pp, dd)
-    worst_room = max(worst_room, w * scale / room_w, h * scale / room_d)
+    worst_room = max(worst_room, w / room_w, h / room_d)
     if scale < 1.0:
-        # only where the drawing genuinely does not fit the flat floor
-        if min(room_w / w, room_d / h) >= 1.0:
+        # only where the mark genuinely does not fit the flat floor
+        w1, h1 = marks.extent(pp.GameName, name, 1.0)
+        if min(room_w / w1, room_d / h1) >= 1.0:
             worst_shrink.append(fn)
 check("every mark is inside the flat floor", worst_room <= 1.0, True)
 print(f"       tightest lid uses {worst_room * 100:.1f} % of its flat floor")
 check("no mark is shrunk that did not have to be", worst_shrink, [])
+
+# --- the generated Innovation mark ---------------------------------------
+# `cad/marks.py` builds the plain mark rather than loading it, so that its
+# 0.600 strokes hold at every size the fit picks. What says the rebuild is
+# right is the two drawings it replaced — the crop of Allan's own artwork,
+# kept in `logos/Innovation/` as the reference and no longer used to build.
+print("\n=== the generated Innovation mark ===")
+for n, ref in ((1.0, "lid_logo_plain.dxf"), (1.6, "lid_logo_plain_big.dxf")):
+    drawn = art.logo("Innovation", ref)
+    built = marks.faces("Innovation", "@innovation-plain", n)
+    if not drawn:
+        check(f"n={n}: {ref} present", False, True)
+        continue
+
+    def boxes(faces):
+        whole = Compound(children=list(faces)).bounding_box()
+        cx = (whole.min.X + whole.max.X) / 2
+        cy = (whole.min.Y + whole.max.Y) / 2
+        return sorted((f.bounding_box().min.X - cx, f.bounding_box().max.X - cx,
+                       f.bounding_box().min.Y - cy, f.bounding_box().max.Y - cy,
+                       f.area, len(f.wires())) for f in faces)
+
+    b, l = boxes(built), boxes(drawn)
+    check(f"n={n}: one region per drawn region", len(b), len(l))
+    if len(b) != len(l):
+        continue
+    check(f"n={n}: the same holes", [x[5] for x in b], [x[5] for x in l])
+    check(f"n={n}: total area", round(sum(x[4] for x in b), 3),
+          round(sum(x[4] for x in l), 3), sum(x[4] for x in l) * 2e-3)
+    worst = max(max(abs(x[i] - y[i]) for i in range(4)) for x, y in zip(b, l))
+    # The letters land inside 0.035; the star is HAND-PLACED in Allan's sketch
+    # and the two drawings disagree with each other about where it sits by
+    # 0.11 (3.4 font units), which is the whole of the tolerance below.
+    check(f"n={n}: worst region edge", round(worst, 3), 0.0, 0.12)
+    print(f"       worst region edge {worst:.4f} mm over {len(b)} regions")
+
+# The strokes are the point: they must NOT scale.
+w1, _ = marks.extent("Innovation", "@innovation-plain", 1.0)
+w2, _ = marks.extent("Innovation", "@innovation-plain", 2.0)
+check("the strokes do not scale", round(2 * w1 - w2, 3),
+      round(marks.LINE_WIDTH, 3), 1e-3)
 
 print(f"\n{'FAILED: ' + ', '.join(fails) if fails else 'all checks passed'}")
 sys.exit(1 if fails else 0)
