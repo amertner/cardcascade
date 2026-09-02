@@ -138,8 +138,12 @@ for game in GAMES:
         model = path.stem[4:]
         p = cat.get((game, model))
         if p is None:
-            # Two Dominion M8.40.10 lids are on disk from a row parts.csv no
-            # longer carries. Nothing to derive from, so nothing to check.
+            # Empty today. It used to catch the two Dominion M8.40.10 lids,
+            # read at the time as "a row parts.csv no longer carries" — wrong:
+            # they are the Mat `400 Card`'s, and they went unmatched only
+            # because individual/ spelled a Mat lid without the `-M` its
+            # calModelName carries. Renaming them put the whole corpus under
+            # test. Kept as the guard for the next name that drifts.
             skipped.append(f"{game}/{path.name}")
             continue
         d = D.derive(p)

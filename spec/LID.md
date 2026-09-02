@@ -315,22 +315,109 @@ The second was the XS branch. Fitted, it read as "the text block sits 13.000
 lower"; the sketch says the same thing as `2mm : 15mm` on one dimension, and
 the 13 is the difference rather than a number in the model.
 
+## The logo pattern
+
+The game's logo, in the UNDERSIDE of the floor, printed in the second
+filament. In Onshape it is one sketch and two features (Allan's screenshots,
+2026-09-02):
+
+```
+Remove logo         blind extrude, 0.810, Remove, merge scope Lid
+Add Logo Material   blind extrude, 0.810, NEW solid, starting offset -0.800
+```
+
+So one set of regions makes both: the pocket runs `z 0.000..0.810` up into the
+floor, and the inlay `-0.010..0.800`, which fills it and stands `0.010` proud
+of the lid's underside. That `0.010` is what gives the slicer an unambiguous
+boundary between the two filaments, and it is why a cached lid mesh measures
+`40.010` tall rather than `40.000`.
+
+`cad/parts/lid.py` builds both from one list of faces, so the inlay cannot
+drift out of its pocket, and `cad.build` writes the inlays as their own
+objects — `Lid`, `Part 2`, `Part 3`, ... — which is the shape Onshape's export
+has and what `make_cascade.load_export` pairs by name.
+
+### The artwork
+
+One DXF per game in `logos/<Game>/lid_logo.dxf`, drawn in the lid's own frame,
+so nothing is placed here — only scaled. `cad/art.py` loads it: a DXF holds
+outlines, not regions, so a loop nested in an odd number of others is a hole
+and one nested in an even number is an island, exactly as
+`labelmaker.load_art` reads the printed labels' artwork.
+
+**The files on disk were LIFTED from the references**, by
+`make_lid_logo_dxf.py`, and should be replaced by Allan's own exports of the
+sketches when those arrive — `tests/test_lid.py` compares either against the
+reference, so the swap is checkable. Dominion's artwork is 459 straight lines
+and round-trips exactly; Innovation's carries 361 arcs and 234 B-splines and
+holds its area to `0.09 %` and its bounding box to `0.000`.
+
+**Compile and FCM have no artwork on file** — no lid STEP has been exported
+for either — so their lids build without a pattern, and `cad.build` says so
+rather than passing it over.
+
+### Two traps, both worth the note
+
+**A DXF's loops wind whichever way they were drawn.** Six of the Innovation
+logo's 31 regions come back facing `-Z`. Extruded along their own normals
+those six went DOWN: they cut nothing, and their inlays floated below the lid.
+It cost exactly their `134.484 mm2 x 0.810`. `logo_pattern` passes `dir` to
+`extrude` explicitly.
+
+**The chaining tolerance is 0.010, and that is not a geometric tolerance.** A
+curve exported to DXF comes back with its coordinates rounded, so the loops
+have to be re-chained with slack. The result holds its area to `0.003 %` and
+its bounding box exactly; a file of closed polylines needs no slack at all.
+
+### The scale, and why the factor runs backwards
+
+Innovation's logo sketch alone carries a scale factor (Allan):
+
+```
+#LogoScaleFactor = (#LidWidth < 70mm ? 1.6 : 1)
+```
+
+with two things worth stating plainly, because both invite a wrong reading:
+
+* **`#LidWidth` there is the lid's DEPTH**, `calLidDepth`. The name belongs to
+  the lid's own rectangle sketch, where it really is the width.
+* **Every dimension in the logo sketch is DIVIDED by the factor** — `24 mm /
+  #LogoScaleFactor` reads `15` at 1.6 — so the factor runs the opposite way to
+  its name. `1.6` draws the SMALL mark, on a shallow lid; `1` draws the big
+  one.
+
+The rule reproduces 10 of the 12 cached Innovation lids. The two it does not
+are `S5.15.15.45-Un` and `M5.15.15.45-Un`, both `62.100` deep, which carry the
+big mark where the rule asks for the small one — they predate it. Allan has
+since recreated the logo as sketches, so those two are one revision behind, the
+same way 19 of the 44 cached lids are one generation behind on the lock.
+`tests/test_lid_corpus.py` reports them rather than asserting them.
+
+**One drawing cannot serve both factors.** Almost everything in the sketch
+scales, but `#LineWidth` (`0.600`) and the flourish dashes' `1.500` are
+absolute: measured across the two variants, 25 of the 31 regions scale by
+exactly `1.600` while the five dashes stay `1.500 x 0.600` and the long
+flourish scales in length but not in width. So `cad/tables.LID_LOGO_BY_FACTOR`
+keeps one file per factor, and a lid whose factor has no file builds without
+its pattern rather than with a uniformly-scaled — and wrong — one.
+
+`logos/Innovation/lid_logo.dxf` is the `1.6` drawing, lifted from
+`Lid Innovation 130U` (`52.100` deep). The `1` drawing has no file yet.
+
+### What the Innovation sketch actually is
+
+Not imported artwork at all, unlike Dominion's: Allan has recreated it as two
+sketches — the words in **Noto Serif** (`Ultimate` in Bold Italic) and a
+separate `Logo Flourishes` sketch holding the circle-and-`I`, the five-armed
+star (`5x` at `270°`) and the dashed lead-in (`5x`, `1.500` by `#LineWidth`).
+Rebuilding it from the font and those dimensions would make it parametric at
+any factor, and is the obvious next step for it; what is on file today is the
+lifted outline, which is exact at one factor and silent at the other.
+
 ## What is NOT built yet
 
-### The logo pattern, and its pocket
-
-The per-game motif in the underside of the floor, printed in the second
-filament. It is a pocket `0.810` deep cut up from `z = 0`, and the inlay solids
-are `0.810` prisms sitting `0.010` LOWER, so they stand `0.010` proud of the
-lid's underside — which is what gives the slicer an unambiguous boundary, and
-what makes a cached lid mesh measure `40.010` tall rather than `40.000`.
-
-The pocket's footprint is a constant per game: `975.420` on both Dominion
-lids, `685.682` on the Innovation one. The inlays fill it exactly.
-
-**`Lid Dominion 246S.step` has the inlay solids but NO pocket**; the four later
-exports have both. The pair is what settles the depth, and `tests/test_lid.py`
-asserts both sides of it.
+Nothing on the Lid's shape. What is missing is DATA: the artwork for Compile
+and FCM, and the rule behind the scale.
 
 ## Verified
 
@@ -361,6 +448,17 @@ statement; the area check is corroboration at `0.5 mm2`.
 
 - Nothing on the shape. Every number on the Lid is now either the studio's own
   expression or a constant read off a sketch.
+- **The logo artwork for Compile and FCM.** Neither has a lid STEP to lift
+  from; both need the sketch exported as a DXF (Compile needs two — `Compile`
+  and `Compile Small`).
+- **The `1` drawing of the Innovation logo.** The rule needs it for any lid
+  `70.000` deep or more, and one drawing cannot be scaled into the other. A
+  lid STEP of `S5.15.15.62-Sl`, or the sketch as a DXF, would settle it — or a
+  parametric rebuild from Noto Serif and the flourish dimensions, which would
+  settle every factor at once.
+- **Compile's two sketches**, `Compile` and `Compile Small`, and what picks
+  between them. The small one is on the shallowest Compile lid alone, which
+  looks like the same fit-to-depth rule with different numbers.
 - **The logo pattern.** Deferred deliberately — it is a per-game motif and a
   second filament, and it does not interact with anything above.
 - **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but

@@ -131,17 +131,44 @@ def holder(ctx, capacity, first=False, spans=False):
             "instance": "first" if first else None}
 
 
+def lid_model(model, merged):
+    """The lid's model code, with the Mat marker parts.csv drops.
+
+    Nothing in a lid's SHAPE reads MatPocket — a Mat lid and its non-Mat twin
+    are byte-equal but for the floor — so the two look interchangeable and were
+    treated as one file. They are not. The floor engraving carries
+    `calModelName`, which ends `-M.Un` on a Mat cascade, and `calCapacityLabel`,
+    which counts the merged deck: Dominion 202 (Mat) and 244 share the parts.csv
+    string `M4.21.10.32-Un`, and the single file shipped the 244 a lid reading
+    "202 Cards/U / Dominion / M4.21.10.32-M.Un".
+
+    This is the Box's `(model, merged)` key on the Lid, and for the same stated
+    reason (spec/DERIVED.md): it recovers a distinction the CAD had already made
+    and parts.csv's transcription dropped. The marker goes BEFORE the sleeving
+    suffix because that is where `calModelName` puts it, which also makes the
+    name `cad.build`'s `lid_file` already writes."""
+    if not merged:
+        return model
+    stem, dash, slv = model.rpartition("-")
+    if not dash or slv not in ("Un", "Sl"):
+        raise ValueError(f"model code {model!r} does not end in -Un/-Sl, so "
+                         "there is nowhere to put the Mat marker")
+    return f"{stem}-M-{slv}"
+
+
 def compose(ctx, spec, labels):
     """All component instances for one cascade. Each dict: type, key (dedup
     identity), file, object (make_cascade name), count, [instance]."""
     m, sl, slv = ctx["model"], ctx["sl"], ctx["sleeved"]
     mf = m.replace("/", "-")     # model codes can carry '/' (S2.40.12/30) — a
     #                              path separator; fold it for filenames
+    lm = lid_model(m, ctx["merged"])          # the Lid carries the Mat axis too
+    lmf = lm.replace("/", "-")
     items = [
         {"type": "Box", "key": ("Box", m, ctx["merged"]),
          "file": f"Box {mf}{' merged' if ctx['merged'] else ''}.3mf",
          "object": "Box", "count": 1},
-        {"type": "Lid", "key": ("Lid", m), "file": f"Lid {mf}.3mf",
+        {"type": "Lid", "key": ("Lid", lm), "file": f"Lid {lmf}.3mf",
          "object": "Lid", "count": 1},
         {"type": "Pusher",
          "key": ("Pusher", ctx["risers"], ctx["cards_per_slot"], slv),

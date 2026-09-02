@@ -475,21 +475,21 @@ def rear_lips(p, d, first, part):
 # it crosses the back wall at `Y -8.400 .. -9.200` — and there its Z runs
 # `25.822 .. 29.249` against `25.821 .. 29.250` measured.
 #
-# The section is the lip's band, SLANT_STEP tall, widened by LIP_REST_CLEAR a
-# side: 12.400 + 0.600 = 13.000 on every reference. It is a rest for another
-# part, so the clearance is the point.
-LIP_REST_CLEAR = 0.300
+# The section is the lip's OWN band — `LIP_LEN + 2 * LIP_CHAMFER` wide, exactly
+# the lip's base, with NO clearance. Allowing 0.300 a side leaves 14.66 of error
+# against 4.88 without it.
 # `Through all` in the dialog, and the geometry agrees: the removed volume
 # stops changing once the sweep passes ~20, so anything longer is the same
 # cut. 200 clears the tallest holder's diagonal from any start.
 LIP_REST_THROUGH = 200.0
+LIP_REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan)
 
 
 def lip_rests(p, d, first, part):
     """Cut the lip rests."""
     slope = slant_slope(p, d, first)
     t0 = 2.0 * d.calSlotDepth
-    width = (LIP_LEN + 2 * LIP_CHAMFER) + 2 * LIP_REST_CLEAR
+    width = LIP_LEN + 2 * LIP_CHAMFER
     # An OBLIQUE prism, not a right one: the lip's face lies in the plane Y = 0
     # and is extruded ALONG the slant, which is not its normal, so every
     # cross-section at constant Y is that same upright rectangle translated.
@@ -500,8 +500,21 @@ def lip_rests(p, d, first, part):
     # would give.
     unit = 1.0 / math.sqrt(1.0 + slope * slope)
     dirv = Vector(0.0, -unit, -slope * unit)
+    # `Chamfer lip rest` — LIP_REST_CHAMFER at 45 degrees on the rest's two long
+    # side edges, so the section is a HEXAGON and not a rectangle: `width` at
+    # the top and `width - 2 * LIP_REST_CHAMFER` at the bottom. Which PAIR of
+    # edges is measured, not assumed. Against the eight references the residual
+    # in this band is 4.88 for the lower pair, 25.59 for the upper, and 66.32
+    # for a plain rectangle.
+    c = LIP_REST_CHAMFER
+    w, h = width / 2, SLANT_STEP / 2
+    lo = -1.0                              # the LOWER pair
     with BuildSketch(Plane.XZ) as sk:
-        Rectangle(width, SLANT_STEP)
+        with BuildLine():
+            Polyline((-w, -lo * h), (w, -lo * h), (w, lo * (c - h)),
+                     (w - c, lo * h), (-(w - c), lo * h), (-w, lo * (c - h)),
+                     close=True)
+        make_face()
     x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
     for xc in compartment_x(p, d):
         for sign in (+1, -1):

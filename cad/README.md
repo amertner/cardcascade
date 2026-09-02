@@ -7,10 +7,10 @@ is generated from `parts.csv` with **zero API calls** and the design is in git.
 downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
-**Done so far: the Pusher, the Box and the Lid** — the Lid but for its logo
-pattern, a per-game motif in a second filament. Holder, TokenHolder and Topper
-are not written yet, so the Onshape path is still the one that builds a
-cascade.
+**Done so far: the Pusher, the Box and the Lid**, the Lid including its logo
+pattern wherever the game's artwork is on file (Dominion and Innovation today;
+Compile and FCM want a DXF). Holder, TokenHolder and Topper are not written
+yet, so the Onshape path is still the one that builds a cascade.
 
 ---
 
@@ -53,13 +53,14 @@ cad/
   tables.py     per-game lookups, transcribed from the variable studio
   lock.py       LOCK_STANDARD.md in code; shared by box, lid, pusher
   text.py       fonts and the sizing rules
+  art.py        imported 2D artwork: a DXF's loops -> filled regions
   mesh3mf.py    read/write a component 3MF in the shape Onshape's have
   build.py      the CLI: parts.csv -> build/<Game>/*.3mf
   render.py     shaded PNGs, for looking at a build without Studio
   parts/
     pusher.py   done
     box.py      done
-    lid.py      done but for the logo PATTERN — see spec/LID.md
+    lid.py      done, logo pattern included — see spec/LID.md
                 holder.py token_holder.py topper.py — to come
 spec/
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
@@ -199,8 +200,8 @@ of the API budget the moment it is done in Onshape instead.
 
 Then the **Box**, which went first in the end because Allan had its feature
 tree and five STEPs to hand, and then the **Lid**: shell, sockets, closing
-grooves, outer rounds and the floor's engraving. What is left on it is the logo
-PATTERN alone — a per-game motif printed in the second filament, which nothing
-else on the part interacts with.
+grooves, outer rounds, the floor's engraving and the logo pattern. What is left
+there is DATA rather than shape — the artwork for two games, and the rule
+behind the logo's scale.
 
 Then Holder, then TokenHolder, then Topper.

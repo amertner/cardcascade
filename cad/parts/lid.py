@@ -12,10 +12,11 @@ Local frame (the part studio's, and the assembly's — a Lid is not offset):
         4.500 of rear storage, so `lid_y = box_y - 2.250`
     Z   0 at the outside of the floor, LidHeight at the rim, opening UP
 
-INCOMPLETE in one respect: the underside carries the logo PATTERN — a per-game
-motif in a second filament, sitting in a `0.810` pocket — and neither the
-pocket nor the inlays are built. Everything else is: shell, sockets, closing
-grooves, the outer rounds and the floor's engraving. See `spec/LID.md`.
+Complete for the games whose logo artwork is on file: shell, sockets, closing
+grooves, the outer rounds, the floor's engraving, and the logo pattern in the
+underside. `cad/tables.LID_LOGO` says which games have artwork — Compile and
+FCM do not yet, and their lids build without a pattern rather than with a
+guessed one. See `spec/LID.md`.
 """
 from build123d import (
     Align, Axis, Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane,
@@ -23,8 +24,10 @@ from build123d import (
 )
 
 from . import box as box_part
+from .. import art as A
 from .. import derive as D
 from .. import lock as L
+from .. import tables as TB
 from .. import text as T
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEP at +-105.350
@@ -404,6 +407,84 @@ def floor_text(p, d, part):
     return part
 
 
+# --- the logo pattern ------------------------------------------------------
+#
+# The game's logo, in the UNDERSIDE of the floor, printed in the second
+# filament. In Onshape it is one sketch and two features, and this is both of
+# them: `Remove logo` blind-extrudes the artwork `0.810` into the floor, and
+# `Add Logo Material` extrudes the same regions `0.810` from a starting offset
+# of `-0.800` — so the inlay fills the pocket and stands `PATTERN_PROUD` below
+# the lid's own underside, which is what gives the slicer an unambiguous
+# boundary between the two filaments.
+#
+# The inlays are separate SOLIDS, not part of the lid: `cad.build` writes them
+# as their own objects in the 3MF, exactly as Onshape's export does.
+PATTERN_DEPTH = 0.810
+PATTERN_PROUD = 0.010
+
+
+def logo_factor(p, d):
+    """`#LogoScaleFactor` for this lid — 1.000 for a game that has none.
+
+    Innovation's is `#LidWidth < 70mm ? 1.6 : 1`, and `#LidWidth` there is the
+    lid's DEPTH. The sketch's dimensions are DIVIDED by it, so the factor runs
+    the opposite way to its name: 1.6 is the SMALL logo, on a shallow lid.
+    """
+    rule = TB.LID_LOGO_FACTOR.get(p.GameName)
+    return rule(d) if rule else 1.0
+
+
+def logo_art(p, d):
+    """The game's artwork as filled faces in the lid's frame, or None.
+
+    The DXF is drawn in that frame already — lifted from, or exported beside,
+    a reference lid — so nothing is placed or scaled here. A game whose logo
+    has a scale factor keeps ONE FILE PER FACTOR instead: the letters would
+    scale, but `#LineWidth` and the flourish dashes are absolute and would not,
+    so one drawing cannot serve two factors.
+    """
+    by_factor = TB.LID_LOGO_BY_FACTOR.get(p.GameName)
+    if by_factor is not None:
+        name = by_factor.get(logo_factor(p, d))
+    else:
+        name = TB.LID_LOGO.get(p.GameName)
+    if not name:
+        return None
+    faces = A.logo(p.GameName, name)
+    return list(faces) if faces else None
+
+
+def logo_pattern(p, d, part):
+    """(the body with its pocket cut, the inlay solids).
+
+    Both come from one set of regions, so the inlay cannot drift out of the
+    pocket: they are the same extrusion at two Z ranges.
+    """
+    faces = logo_art(p, d)
+    if not faces:
+        return part, []
+    inlays = []
+    for f in faces:
+        # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
+        # whichever way they were drawn, and six of the Innovation logo's 31
+        # regions come back facing -Z. Extruded along their normals those six
+        # went DOWN — cutting nothing and leaving their inlays floating below
+        # the lid, which cost exactly their 134.484 mm2 x 0.810.
+        prism = extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
+        part = part - prism
+        inlays.append(prism.moved(Location((0, 0, -PATTERN_PROUD))))
+    return part, inlays
+
+
+def inlays(p):
+    """Just the logo's inlay solids — what `build` cuts the pocket for."""
+    d = D.derive(p)
+    faces = logo_art(p, d)
+    return [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
+            .moved(Location((0, 0, -PATTERN_PROUD)))
+            for f in (faces or [])]
+
+
 # --- the outer rounds ------------------------------------------------------
 
 
@@ -428,14 +509,16 @@ def outer_edges(p, d, part):
 
 
 def build(p):
-    """`p` is a params.Primary. Returns the Lid as a build123d Part.
+    """`p` is a params.Primary. Returns the Lid BODY as a build123d Part.
 
-    The floor's embossed text and logo, and the underside pattern pocket, are
-    still to come — see the module docstring.
+    The logo pattern's inlays are separate solids — `inlays(p)` — because they
+    print in the second filament and Onshape exports them as their own bodies.
+    The pocket for them is cut here, so the two always agree.
     """
     d = D.derive(p)
     part = shell(p, d)
     part = sockets(p, d, part)
     part = closing_grooves(p, d, part)
     part = floor_text(p, d, part)
+    part, _inlays = logo_pattern(p, d, part)
     return fillet(outer_edges(p, d, part), OUTER_ROUND)
