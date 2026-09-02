@@ -43,6 +43,20 @@ REFS = [
     # same gap the Dominion 246 STEP closed for the Pusher.
     ("Dominion 246 Sl", "Box Dominion 246S.step",
      params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
+    # The three Allan exported once the first six showed what they could not
+    # reach. Every one of the first six is SLEEVED, so half the catalogue had
+    # nothing behind it.
+    ("Dominion 244 Un", "Box Dominion 244U.step",
+     params.Primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
+    # Innovation, XS and unsleeved at once — the only game with no reference,
+    # the only size (HorizontalSlots 2) with none, and it is the exception that
+    # takes 2 pusher slots where its size would otherwise take 3.
+    ("Innovation 130 Un", "Box Innovation 130U.step",
+     params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
+    # Nine risers: the RisingSliders > 8 branch of the logo margin, the lowest
+    # rise in the catalogue (9.667, clamped) and the pusher rest at its floor.
+    ("Dominion 333 Sl", "Box Dominion 333S.step",
+     params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
 ]
 fails = []
 
@@ -476,9 +490,9 @@ for name, fn, p in REFS:
               (len(front), len(side)), (1, 1))
         if front and side:
             fb, sb = front[0].bounding_box(), side[0].bounding_box()
-            check(f"{who}: front holder is FRONT_LABEL_LEN less two chamfers",
+            check(f"{who}: front holder is its label less two chamfers",
                   round(fb.size.X, 3),
-                  round(box.FRONT_LABEL_LEN - 2 * box.LABEL_CHAMFER, 3), 1e-3)
+                  round(box.front_label_len(p, d) - 2 * box.LABEL_CHAMFER, 3), 1e-3)
             check(f"{who}: side holder is calSideLabelWidth + 0.600",
                   round(sb.size.Y, 3), round(d.calSideLabelWidth + 0.6, 3), 1e-3)
             check(f"{who}: side holder is centred on SIDE_LABEL_Y",
@@ -493,7 +507,11 @@ for name, fn, p in REFS:
         # constants, not from a measured literal — the probe cell is CENTRED on
         # its point, so the reading is at the edge nearest the ridge's middle,
         # and a literal silently bakes that offset in.
-        R, cx = box.FASTENER_R, box.FRONT_LABEL_LEN / 6
+        # ... at the thirds of the WIDE holder. The narrow one is checked
+        # separately below, because there the build and the STEP differ.
+        R, cx = box.FASTENER_R, box.fastener_centres(p, d)[-1]
+        if len(box.fastener_centres(p, d)) < 2:
+            continue
         thin = 0.02
         for z in (64.6, 65.0):
             col = Box(0.1, 4.0, thin).moved(
@@ -557,6 +575,82 @@ for name, fn, p in REFS:
             for i, what in enumerate(("inset", "start")):
                 check(f"build: {lbl} engraving {what} matches the STEP's",
                       band[("build", lbl)][i], band[("STEP", lbl)][i], 0.3)
+    # A single CENTRED fastener on the NARROW front holder is a DELIBERATE
+    # DIVERGENCE (Allan). `Box Innovation 130U` has none at all, and a label
+    # with nothing gripping its top edge is what that fixes. Asserted from both
+    # ends: one on the build, none on the STEP.
+    if len(box.fastener_centres(p, d)) == 1:
+        for who, shape, want in (("STEP", ref, 0), ("build", mine, 1)):
+            # 10.5 wide about the centre — clear of the frame's posts, which
+            # stand at |x| >= 28.800 on the narrow holder.
+            cell = Box(10.5, 1.8, 2.2).moved(Location((0, -BD / 2 - 0.95, 65.0)))
+            found = (shape & cell)
+            check(f"{who}: the narrow holder has {want} centred fastener",
+                  len(found.solids()) if found else 0, want)
+    # --- `Smooth box edges` ------------------------------------------------
+    # Every rounded corner is probed the same way: a CUBE_ centred on where the
+    # sharp edge WOULD be, positioned from the constants and not from either
+    # solid. At a right convex corner a quarter of it is material while the
+    # corner is sharp; a SMOOTH_R round takes all of it, because the far corner
+    # of that quarter is sqrt(2) * (0.600 - 0.120) = 0.679 from the fillet
+    # cylinder's centre and the cylinder is only 0.600. So "rounded" is exactly
+    # zero and "sharp" is about 0.0035 mm3 — no tolerance to tune.
+    CUBE_ = 0.24
+    x_out = box_w / 2                      # `inner` is already box_w/2 - WALL
+    y_front, y_back = -BD / 2, BD / 2 + box.REAR_DEPTH
+    c = box.CORNER_R * (1 - 2 ** -0.5)          # an arc midpoint's inset, 1.347
+
+    def corner_stock(shape, x, y, z):
+        cell = Box(CUBE_, CUBE_, CUBE_).moved(Location((x, y, z)))
+        got = shape & cell
+        return round(got.volume, 5) if got else 0.0
+
+    for sx in (-1, +1):
+        side = "+X" if sx > 0 else "-X"
+        for lbl, x, y, z in (
+                # The end wall's vertical corners on its INNER face: front from
+                # FRONT_TOP up, back from REAR_TOP up, both stopping where the
+                # corner round starts. Their outer twins were already rounded.
+                (f"{side} inner back corner", sx * inner, y_back, 92.0),
+                # `Round top box corners` leaves one arc on each face of each
+                # end wall. Rounding all four closes the perimeter chain.
+                (f"{side} outer back arc", sx * x_out, y_back - c, d.BoxHeight - c),
+                (f"{side} inner back arc", sx * inner, y_back - c, d.BoxHeight - c),
+                (f"{side} outer front arc", sx * x_out, y_front + c, d.BoxHeight - c)):
+            for who, shape in (("STEP", ref), ("build", mine)):
+                check(f"{who}: {lbl} is rounded",
+                      corner_stock(shape, x, y, z), 0.0, 1e-9)
+
+    # Two things Onshape rounds on the end walls' INNER face and OCCT will not,
+    # both recorded in cad/parts/box.py sharp_edges: the rim, in every segment
+    # the ribs break it into, and the front vertical corner with the arc above
+    # it. Each is asserted from BOTH ends — rounded on the STEP, sharp on the
+    # build — so a future kernel that manages them fails here rather than
+    # passing quietly.
+    twin = STEP_DIR / fn.replace(".step", " without final fillet.step")
+    if twin.exists():
+        raw = import_step(str(twin)).solids()[0]
+        # Locations from the UNFILLETED reference, on the +X wall only: the
+        # segments as Onshape cut them, before its own fillet consumed them.
+        segs = sorted((e for e in raw.edges()
+                       if abs(e.tangent_at(0.5).Z) < 1e-6
+                       and abs(e.tangent_at(0.5).Y) > 1 - 1e-6
+                       and abs((e @ 0.5).Z - d.BoxHeight) < 1e-3
+                       and abs((e @ 0.5).X - inner) < 1e-3
+                       and e.length > 0.5),
+                      key=lambda e: (e @ 0.5).Y)
+        check("the ribs break the inner rim into segments", len(segs) >= 3, True)
+        spots = [(f"{lbl} inner rim segment", (s_ @ 0.5).X, (s_ @ 0.5).Y,
+                  (s_ @ 0.5).Z)
+                 for lbl, s_ in (("front-most", segs[0]), ("rear-most", segs[-1]))]
+        spots.append(("inner front corner", inner, y_front, 85.0))
+        spots.append(("inner front arc", inner, y_front + c, d.BoxHeight - c))
+        for lbl, x, y, z in spots:
+            check(f"STEP: Onshape rounds the {lbl}",
+                  corner_stock(ref, x, y, z), 0.0, 1e-9)
+            check(f"build: ... and OCCT leaves it sharp",
+                  corner_stock(mine, x, y, z) > 1e-4, True)
+
     # The version line is a DELIBERATE DIVERGENCE: Allan's sketch still reads
     # "Rev <version>" and the build says calVersion, as the Lid does. Told
     # apart by the line's ink-length-to-cap ratio, which is a property of the

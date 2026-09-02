@@ -27,7 +27,7 @@ cascade.
 
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
-.venv/bin/python tests/test_box.py               # source vs the six STEPs
+.venv/bin/python tests/test_box.py               # source vs the nine STEPs
 .venv/bin/python tests/test_lid.py               # source vs the four STEPs
 .venv/bin/python tests/test_lid_corpus.py        # the rules vs 44 cached lids
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
@@ -71,7 +71,7 @@ tests/
   test_derive.py            formulae vs every measured anchor on record
   test_pusher.py            the part vs both reference STEPs
   test_pusher_regression.py the 34 written 3MFs vs the 32 in individual/
-  test_box.py               the part vs the six Box STEPs
+  test_box.py               the part vs the nine Box STEPs
   test_lid.py               the part vs the four structural Lid STEPs
   test_lid_corpus.py        the Lid's placement rules vs 44 cached meshes
 ```
@@ -163,7 +163,10 @@ on `Box Dominion 244S` all three, at full width, so each is severed at every
 hole row. `cad/` stops them at the slot band and leaves the dividers solid
 (Allan). The Box's version line is the second: Onshape's sketches still read
 `Rev <version>` and Allan wants `calVersion`, as the Lid has, so the build
-engraves `CC 7.0` where every reference engraves `Rev 7.0`. The rule these set
+engraves `CC 7.0` where every reference engraves `Rev 7.0`. The third is the
+XS box's front label holder, which in Onshape carries no fastener at all — the
+build puts one in the middle, the only place a `10.000` ridge fits on a
+`65.600` holder. The rule these set
 is the point: a divergence is recorded in `spec/`, and asserted from both ends
 — the build has the new behaviour, the reference still has the old one — so
 re-converging fails the tests rather than passing quietly. Anything else that
