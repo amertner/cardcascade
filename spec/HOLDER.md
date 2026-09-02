@@ -108,6 +108,30 @@ against measured, all five rail faces, both rises:
 
 exact in both.
 
+### The lattice column is a FIXED `10.000`, and the mullion absorbs the rest
+
+`#LipLength` is a constant `10 mm` (Allan), and `Vertical slits in holder` uses
+it for the window width. The three STEPs cannot show this on their own — all
+three are Dominion sleeved at `calSlotwidth 65.000` — so it was checked against
+the corpus instead, probing the front wall's own plane at a rail's Z, where the
+only vertices are the window corners:
+
+| game | `calSlotwidth` | pitch `(W+2)/5` | measured gaps |
+|---|---|---|---|
+| Dominion Sl | 65.00 | 12.2 | `10.0 2.2 10.0 2.2 10.0 2.2 10.0 2.2 10.0` |
+| Innovation Un | 67.00 | 12.6 | `10.0 2.6 ...` |
+| Compile Un | 68.00 | 12.8 | `10.0 2.8 ...` |
+| Innovation Sl | 69.00 | 13.0 | `10.0 3.0 ...` |
+| Compile Sl | 70.00 | 13.2 | `10.0 3.2 ...` |
+
+Five slot widths, three games, and the window is `10.000` every time. So the
+mullion is `pitch - 10.000` and is **not** the rows' `2.000` rail.
+
+The pattern is LEFT-ALIGNED on the outline. Five windows and four mullions come
+to `4 * pitch + 10`, against an outline of `5 * pitch - 2`, so `pitch - 12.000`
+is left over on the right — `0.2` on Dominion, `1.2` on Compile sleeved. That
+asymmetry is the reference's and is reproduced, not corrected.
+
 ## The engraved text is a DELIBERATE DIVERGENCE
 
 Onshape can constrain a text box in one dimension only — the same limitation
@@ -153,7 +177,9 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 - `Side slot solid` / `Side slot` / `Side slot hole` — the `1.900` slot in the
   `4.000` end block that takes the box's `1.500` rib.
 - The whole `Rear lip` group (12 features), including `#LipLength = 10`.
-- `Leftmost Pusher Pos` and `Horizontal capacity` — the compartment pattern.
+- `Leftmost Pusher Pos` — what it positions.
+- Whether the row rail stays `2.000` at other card heights; only `CardHeight
+  92.0` has a reference.
 - `Remove little front lip`, `Remove Slant Angle`, `Middle`.
 - Whether any of this differs for the spanning games (Compile, Innovation),
   which have no reference yet.

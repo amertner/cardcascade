@@ -196,6 +196,67 @@ def card_pockets(p, d, first, part):
     return part
 
 
+# `Hole outline` / `Vertical slits in holder` / `Remove card holes` — the
+# lattice, cut clean through both walls.
+#
+# The outline is inset 3.000 each side of the slot and sits on the floor:
+#
+#     HoleOutlineWidth  = calSlotwidth - 6.000
+#     HoleOutlineHeight = 76.500 - calHeightIncrement
+#
+# Rows are three windows of (H - 6)/3 with a RAIL between and above them, so the
+# three windows and three rails fill H exactly. Columns are five windows of a
+# FIXED LIP_LENGTH at (W + 2)/5 pitch, left-aligned on the outline, and the
+# mullion absorbs every bit of the variation. That last point is measured, not
+# assumed: across five slot widths and three games the corpus reads
+#
+#     65 -> 10.0 2.2 ...   67 -> 10.0 2.6 ...   68 -> 10.0 2.8 ...
+#     69 -> 10.0 3.0 ...   70 -> 10.0 3.2 ...
+#
+# with the window a flat 10.000 every time. Because the pattern is left-aligned
+# and 5 windows plus 4 mullions come to 4*pitch + 10, `pitch - 12.000` is left
+# over on the right; that asymmetry is the reference's, not an error.
+LIP_LENGTH = 10.000        # `#LipLength`, a constant (Allan)
+RAIL = 2.000               # between the window rows
+ROWS = 3
+COLS = 5
+OUTLINE_INSET = 3.000      # each side of the slot
+OUTLINE_BASE = 2.000       # above the card pocket's bottom
+OUTLINE_TOP_TERM = 76.500  # HoleOutlineHeight = this - calHeightIncrement
+
+
+def outline(p, d):
+    """(width, height, bottom Z) of one compartment's `Hole outline`."""
+    return (d.calSlotwidth - 2 * OUTLINE_INSET,
+            OUTLINE_TOP_TERM - d.calHeightIncrement,
+            pocket_z(d)[0] + OUTLINE_BASE)
+
+
+def window_grid(p, d):
+    """(x0, x1, z0, z1) of every lattice window in the FIRST compartment."""
+    w, h, z0 = outline(p, d)
+    win_h = (h - ROWS * RAIL) / ROWS
+    pitch = (w + 2.0) / COLS
+    out = []
+    for r in range(ROWS):
+        zr = z0 + r * (win_h + RAIL)
+        for c in range(COLS):
+            xc = -w / 2 + c * pitch
+            out.append((xc, xc + LIP_LENGTH, zr, zr + win_h))
+    return out
+
+
+def lattice(p, d, first, part):
+    """Cut the windows through both walls, in every compartment."""
+    depth = holder_depth(d, first)
+    for x0, x1, z0, z1 in window_grid(p, d):
+        tool = Box(x1 - x0, depth + 2.0, z1 - z0)
+        for xc in compartment_x(p, d):
+            part = part - tool.moved(
+                Location((xc + (x0 + x1) / 2, -depth / 2, (z0 + z1) / 2)))
+    return part
+
+
 def build(p, first=False):
     """`p` is a params.Primary. Returns the Holder as a build123d Part.
 
@@ -203,4 +264,5 @@ def build(p, first=False):
     """
     d = D.derive(p)
     part = shell(p, d, first)
-    return card_pockets(p, d, first, part)
+    part = card_pockets(p, d, first, part)
+    return lattice(p, d, first, part)

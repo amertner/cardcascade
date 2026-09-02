@@ -14,7 +14,7 @@ than a factor of two. Every reading below that involves a slider distance is
 therefore asserted against a case that would fail if the wrong one were used.
 
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
-plane pair and its slope, the vertical datum, and `Hole for cards`.
+plane pair and its slope, the vertical datum, `Hole for cards`, and the lattice.
 """
 import sys
 from pathlib import Path
@@ -195,6 +195,37 @@ for name, fn, p, first in REFS:
     for v in edges:
         check(f"STEP has the compartment edge at {v}",
               any(abs(q - v) < 1e-3 for q in planes(ref, "X")), True)
+
+    # --- the lattice --------------------------------------------------------
+    # Three window rows of (H-6)/3 between 2.000 rails, five columns of a FIXED
+    # 10.000 at (W+2)/5 pitch. Every window edge is a face of the STEP too.
+    grid = holder.window_grid(p, d)
+    check("15 windows per compartment", len(grid), holder.ROWS * holder.COLS)
+    check("every window is LIP_LENGTH wide",
+          sorted({round(x1 - x0, 3) for x0, x1, _, _ in grid}),
+          [round(holder.LIP_LENGTH, 3)])
+    w, h, _ = holder.outline(p, d)
+    check("the mullion is the pitch less LIP_LENGTH, not a constant",
+          round((w + 2.0) / holder.COLS - holder.LIP_LENGTH, 3),
+          round((d.calSlotwidth - 6.0 + 2.0) / 5 - 10.0, 3), 1e-3)
+    xs, zs = planes(ref, "X"), planes(ref, "Z")
+    for x0, x1, z0, z1 in grid[:holder.COLS]:
+        for v in (x0, x1):
+            check(f"STEP has the window edge X = {round(v, 3)}",
+                  any(abs(q - v) < 1e-3 for q in xs), True)
+    for _, _, z0, z1 in grid[::holder.COLS]:
+        for v in (z0, z1):
+            check(f"STEP has the window edge Z = {round(v, 3)}",
+                  any(abs(q - v) < 1e-3 for q in zs), True)
+    # ... and so does the build.
+    mxs, mzs = planes(mine, "X"), planes(mine, "Z")
+    for x0, x1, z0, z1 in grid[:holder.COLS]:
+        check(f"build has the window edge X = {round(x0, 3)}",
+              any(abs(q - x0) < 1e-3 for q in mxs), True)
+    for _, _, z0, z1 in grid[::holder.COLS]:
+        check(f"build has the window edge Z = {round(z0, 3)}",
+              any(abs(q - z0) < 1e-3 for q in mzs), True)
+
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
 sys.exit(1 if fails else 0)
