@@ -30,8 +30,8 @@ INCOMPLETE. `build()` stops after the card pocket. See `spec/HOLDER.md`
 Nothing writes a Holder to build/ yet.
 """
 from build123d import (
-    Box, BuildLine, BuildPart, BuildSketch, Location, Plane, Polyline,
-    extrude, make_face,
+    Box, BuildLine, BuildPart, BuildSketch, Cylinder, Location, Plane,
+    Polyline, extrude, make_face,
 )
 
 from .. import derive as D
@@ -257,6 +257,30 @@ def lattice(p, d, first, part):
     return part
 
 
+# `Finger Cutouts` — one per compartment, on its centre. A plain circle of
+# FINGER_R with its centre ON the upper slant plane at the front face, so its
+# lowest point is `slant_top - FINGER_R` = 32.250, which is one of the constant
+# Z-planes on all three references whatever the depth or the rise.
+#
+# The radius is 12.000 and NOT the 12.400 the circular edges report — the same
+# trap as the Box's thumb, and for the same reason: `Fillet 1` puts 0.400 on
+# each face, and since the wall is 0.800 the two fillets meet in the middle and
+# consume the cylindrical face entirely, leaving only torus. Sectioning at
+# mid-wall recovers the true circle; the residual there is exactly the probe
+# window's width times the local slope.
+FINGER_R = 12.000
+FINGER_FILLET = 0.400
+
+
+def finger_cutouts(p, d, first, part):
+    """Cut the finger scallops through the full depth."""
+    depth = holder_depth(d, first)
+    tool = Cylinder(FINGER_R, depth + 2.0, rotation=(90, 0, 0))
+    for x in compartment_x(p, d):
+        part = part - tool.moved(Location((x, -depth / 2, slant_top(d))))
+    return part
+
+
 def build(p, first=False):
     """`p` is a params.Primary. Returns the Holder as a build123d Part.
 
@@ -265,4 +289,5 @@ def build(p, first=False):
     d = D.derive(p)
     part = shell(p, d, first)
     part = card_pockets(p, d, first, part)
-    return lattice(p, d, first, part)
+    part = lattice(p, d, first, part)
+    return finger_cutouts(p, d, first, part)

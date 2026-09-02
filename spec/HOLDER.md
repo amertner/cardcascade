@@ -132,6 +132,45 @@ to `4 * pitch + 10`, against an outline of `5 * pitch - 2`, so `pitch - 12.000`
 is left over on the right — `0.2` on Dominion, `1.2` on Compile sleeved. That
 asymmetry is the reference's and is reproduced, not corrected.
 
+## `Finger Cutouts` is a `12.000` circle on the slant top
+
+One per compartment, on its centre, and its centre sits exactly on the UPPER
+slant plane at the front face — so its lowest point is
+
+    slant_top - 12.000 = 32.250
+
+which is one of the constant Z-planes on all three references whatever the depth
+or the rise.
+
+**The radius is `12.000` and not the `12.400` the circular edges report.** This
+is the Box's thumb trap again, and for the same reason: `Fillet 1` puts `0.400`
+on each face, the wall is `0.800`, so the two fillets meet in the middle and
+consume the cylindrical face entirely. Every scallop surface in the STEP is a
+TORUS — a scan for cylinders above `Z 20` finds none — and the only circular
+edges are the fillets' outer boundaries at `12.400`.
+
+Sectioning at the wall's mid-depth recovers the true circle. Fitting one from
+the near-face profile does not, and drifts: `R` reads `11.71` at `x = 3` and
+`11.93` at `x = 10`. At mid-depth the residual against `R = 12.000` centred on
+`44.250` is `0.010 / 0.023 / 0.060 / 0.093` at `x = 3 / 6 / 10 / 11`, which is
+exactly the probe window's `0.080` times the local slope `x / sqrt(R^2 - x^2)` —
+an artefact of the measurement, not of the model. The test therefore compares
+the STEP and the build as PROFILES sampled the same way, rather than fitting a
+radius at all.
+
+## `Card holder bottom` needs no code
+
+The base is already right. Probing a compartment's centre finds material at
+`-44.750` and `-43.750` and none at `-42.750` or `-41.750` on all three
+references — exactly the `2.000` left between the base at `-45.250` and the card
+pocket's bottom at `-43.250`, which `shell` and `card_pockets` already produce.
+Whatever the feature does in the studio's own order, the final solid matches.
+
+The `Z -41.250` plane is NOT a floor, which is what it looked like at first: its
+area is exactly `240.00` on every holder, and that is the bottom face of the
+first window row — `10.000 x 0.800` per window, five columns, two walls, three
+compartments.
+
 ## The engraved text is a DELIBERATE DIVERGENCE
 
 Onshape can constrain a text box in one dimension only — the same limitation
@@ -173,7 +212,9 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 ## Still open
 
 - Where the slant plane sits, not just its slope.
-- The scalloped top: `Finger Cutouts`, and the tabs between the scallops.
+- `Fillet 1` on the scallops: the `0.400` is measured but not yet built, so the
+  build's scallop is a sharp-edged cylinder where the reference is all torus.
+- The tabs between the scallops.
 - `Side slot solid` / `Side slot` / `Side slot hole` — the `1.900` slot in the
   `4.000` end block that takes the box's `1.500` rib.
 - The whole `Rear lip` group (12 features), including `#LipLength = 10`.

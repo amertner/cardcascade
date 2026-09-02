@@ -14,7 +14,7 @@ than a factor of two. Every reading below that involves a slider distance is
 therefore asserted against a case that would fail if the wrong one were used.
 
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
-plane pair and its slope, the vertical datum, `Hole for cards`, and the lattice.
+plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, and the finger scallops.
 """
 import sys
 from pathlib import Path
@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from build123d import import_step                    # noqa: E402
+from build123d import import_step, Box, Location      # noqa: E402
 from cad import params, derive as D                  # noqa: E402
 from cad.parts import holder                         # noqa: E402
 
@@ -225,6 +225,30 @@ for name, fn, p, first in REFS:
     for _, _, z0, z1 in grid[::holder.COLS]:
         check(f"build has the window edge Z = {round(z0, 3)}",
               any(abs(q - z0) < 1e-3 for q in mzs), True)
+
+    # --- `Finger Cutouts` ---------------------------------------------------
+    # Compared as a PROFILE, sampled at the front wall's mid-depth, which is the
+    # only place the true circle survives: `Fillet 1` puts 0.400 on each face of
+    # an 0.800 wall, so the two fillets meet and consume the cylindrical face
+    # entirely — every scallop surface in the STEP is torus, and the circular
+    # edges report 12.400 rather than the real 12.000. Same trap as the Box's
+    # thumb. Sampling the STEP and the build the same way sidesteps it.
+    def top_at(shape, x, y):
+        col = Box(0.08, 0.06, 400).moved(Location((x, y, 0)))
+        got = shape & col
+        if not got or not got.solids():
+            return None
+        return round(max(q.bounding_box().max.Z for q in got.solids()), 3)
+
+    check("the scallop's lowest point is slant_top - FINGER_R",
+          round(holder.slant_top(d) - holder.FINGER_R, 3), 32.250, 1e-3)
+    for x in (0.0, 3.0, 6.0, 10.0, 11.0):
+        a, b = top_at(ref, x, -0.40), top_at(mine, x, -0.40)
+        check(f"the scallop profile at x={x} matches the STEP", a, b)
+    # ... and it is centred on each compartment, not just the first.
+    for xc in holder.compartment_x(p, d)[1:]:
+        a, b = top_at(ref, xc, -0.40), top_at(mine, xc, -0.40)
+        check(f"... and at the compartment on x={round(xc, 1)}", a, b)
 
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
