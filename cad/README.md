@@ -8,8 +8,10 @@ downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
 **Done so far: the Pusher, the Box and the Lid**, the Lid including its logo
-pattern for all four games. Holder, TokenHolder and Topper are not written
-yet, so the Onshape path is still the one that builds a cascade.
+pattern for all four games. The Holder is most of the way there and writes
+3MFs, but is about 2% heavy and not printable yet (`spec/HOLDER.md`);
+TokenHolder and Topper are not written at all. The Onshape path is still the
+one that builds a cascade.
 
 The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
 is FITTED to the lid — the biggest mark that fits, sized to a proportion of

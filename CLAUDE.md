@@ -21,19 +21,12 @@ rebuild.
 ### The rebuild is partial — don't assume it covers a part
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
-<<<<<<< HEAD
-generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done —
-the Lid but for its logo PATTERN, the per-game motif in its underside that
-prints in the second filament (`spec/LID.md`). The **Holder** is most of the way
-there and writes 3MFs, but is about 2% heavy and NOT printable yet
-(`spec/HOLDER.md`). TokenHolder and Topper still come from Onshape, and the
-whole `automation/` pipeline is still live and authoritative for all three.
-=======
 generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done,
 the Lid including the logo pattern in its underside, for all four games
-(`logos/<Game>/*.dxf`; `spec/LID.md`). Holder, TokenHolder and Topper still
-come from Onshape, and the whole `automation/` pipeline is still live and
-authoritative for them.
+(`logos/<Game>/*.dxf`; `spec/LID.md`). The **Holder** is most of the way there
+and writes 3MFs, but is about 2% heavy and NOT printable yet
+(`spec/HOLDER.md`). TokenHolder and Topper still come from Onshape, and the
+whole `automation/` pipeline is still live and authoritative for all three.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -55,11 +48,12 @@ authoritative for them.
   migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does all
-  three. A box takes about ten seconds and a pusher under one; a LID costs
-  whatever its logo artwork costs, because every region of the mark is its own
-  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
-  in the background. Artwork lifted from a STEP has far fewer edges than the
-  same mark lifted from a cached mesh, so a STEP is worth asking for.
+  four, holders included — and those come out INCOMPLETE. A box takes about
+  ten seconds and a pusher under one; a LID costs whatever its logo artwork
+  costs, because every region of the mark is its own boolean — 17 s for
+  Dominion's 459 edges, 57 s for Compile's 1885. Run all 50 in the background.
+  Artwork lifted from a STEP has far fewer edges than the same mark lifted
+  from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — it skips a reference that is absent),
