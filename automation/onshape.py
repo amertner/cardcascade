@@ -22,6 +22,13 @@ from requests.auth import HTTPBasicAuth
 
 BASE = "https://cad.onshape.com"
 OP_ITEM = "OnshapeCC"                 # 1Password item with access_key/secret_key
+# ...and WHICH 1Password account holds it. `op` resolves a bare `item get`
+# against its default account; this machine is signed in to three, and the
+# default is not the one carrying OnshapeCC — the failure reads
+# '"OnshapeCC" isn\'t an item', which looks like a missing secret rather than a
+# lookup in the wrong place. Naming the account makes the command independent of
+# whatever `op` last defaulted to. Override with OP_ACCOUNT for another sign-in.
+OP_ACCOUNT = os.environ.get("OP_ACCOUNT", "mertner.1password.com")
 ANNUAL_LIMIT = 2500
 LOG = Path(__file__).with_name("onshape_api_log.csv")
 LOG_COLUMNS = ["date", "time", "run_id", "reason", "method", "status",
@@ -67,14 +74,15 @@ RUN_ID = ""
 def op_creds():
     try:
         out = subprocess.check_output(
-            ["op", "item", "get", OP_ITEM, "--fields",
+            ["op", "item", "get", OP_ITEM, "--account", OP_ACCOUNT, "--fields",
              "access_key,secret_key", "--reveal", "--format", "json"],
             text=True, stderr=subprocess.PIPE)
     except FileNotFoundError:
         sys.exit("op CLI not found; install the 1Password CLI, or set "
                  "ONSHAPE_ACCESS_KEY / ONSHAPE_SECRET_KEY env vars.")
     except subprocess.CalledProcessError as e:
-        sys.exit(f"`op item get {OP_ITEM}` failed:\n{e.stderr.strip()}")
+        sys.exit(f"`op item get {OP_ITEM} --account {OP_ACCOUNT}` failed:\n"
+                 f"{e.stderr.strip()}")
     data = json.loads(out)
     if isinstance(data, dict):
         data = [data]

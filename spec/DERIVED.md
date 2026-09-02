@@ -54,7 +54,11 @@ model code in parts.csv, with two divergences that are parts.csv's:
 - **Mat rows lose their `-M`.** The CAD emits `M4.21.10.32-M.Un`; parts.csv
   records `M4.21.10.32-Un`, the same string as the non-Mat `244 Card`. So the
   `(model, merged)` Box key in `components.py` exists to recover a distinction
-  the CAD had already made and the transcription dropped.
+  the CAD had already made and the transcription dropped. **The Lid needed the
+  same key and did not have it** — `calModelName` is engraved in its floor, so
+  the 244 shipped with the 202's lid until `plan_exports.lid_model` was added;
+  see spec/LID.md. Any component whose geometry or engraving reads `MatPocket`
+  wants the axis in its key.
 - **`290 Card (Mat)` carries `.0` where the label width goes**, a placeholder
   from before it was built. The formula fills in `45` (Un) and `62` (Sl).
 

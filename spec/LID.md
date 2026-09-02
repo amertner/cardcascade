@@ -461,8 +461,50 @@ statement; the area check is corroboration at `0.5 mm2`.
   looks like the same fit-to-depth rule with different numbers.
 - **The logo pattern.** Deferred deliberately — it is a per-game motif and a
   second filament, and it does not interact with anything above.
-- **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but
-  `calModelName` carries `-M`, so a Mat cascade's lid differs in its engraved
-  model code alone. `plan_exports` keys one `("Lid", model)` for both and
-  `individual/` has a single lid where `cad.build` will write two. Harmless
-  today; it wants a decision when the engraving lands.
+- ~~**The Mat branch.**~~ **Closed, and it was never harmless.** Nothing in the
+  lid's geometry reads `MatPocket`, but the FLOOR is not geometry-from-shape:
+  `calModelName` carries `-M` and `calCapacityLabel` counts the merged deck, and
+  both are engraved. `plan_exports` keyed one `("Lid", model)` for both, so
+  Dominion `202 Card (Mat)` and `244 Card` — which collide on
+  `M4.21.10.32-Un`/`M4.21.10.45-Sl` — shared one file, and the 202 won it
+  because it is the earlier parts.csv row. Both published 244 projects therefore
+  shipped a lid reading `202 Cards/U · Dominion · M4.21.10.32-M.Un`. A buyer
+  found it, not a check: no guard reads the engraving, and `check_lid` measures
+  only W/D, which are equal by construction here.
+
+  The key is now `("Lid", lid_model(model, merged))` — the Box's `(model,
+  merged)` key, spelled the way `calModelName` and `cad.build`'s `lid_file`
+  already spell it — and `individual/Dominion` names its four Mat lids `-M-`.
+  Two of those four (`M8.40.10.62-M-{Un,Sl}`, the Mat `400 Card`'s) had been
+  falling out of `test_lid_corpus` unmatched; with the two the 244's re-export
+  adds, the corpus is now 48 lids with nothing skipped. (The counts elsewhere in
+  this file and in `cad/README.md` still say 46 and want a sweep.)
+
+- **`244 Card` Sl needed a 6.6 lid, and no such thing can be had.** The
+  Unsleeved half was always a clean re-export — a 7.0 cascade with a 7.0 box and
+  a 7.0 pusher, so a fresh lid fits. The Sleeved half was `Build: Sl:6.6` with a
+  6.6 box and pusher, and a fresh lid would have been 7.0 geometry sitting on a
+  6.6 box: exactly the mixture the generation lock exists to prevent. Onshape
+  cannot serve the 6.6 lid instead (see below), so the only ways out were to
+  migrate or to hand-restore the studio's pre-7.0 state.
+
+  **Resolved by migrating `244 Card` to 7.0, both sleevings.** That is not a
+  one-cascade move: `Pusher 4x10-Sl` is keyed `(risers, cards, sleeved)` and one
+  file serves `168 Card` Sl and `202 Card (Mat)` Sl too, so all three unpin
+  together or the other two silently get a 7.0 pusher under a 6.6 box. Their
+  `Build` cells lose `Sl:6.6`; four projects rebuild (244 Un, 244 Sl, 168 Sl,
+  202 Sl) for ~28 calls. The 244's Unsleeved BOX is re-exported too, though its
+  geometry was already 7.0 — only to replace the stale `Rev 6.6` in its floor.
+
+- **`Version` is the ENGRAVED STRING ONLY — it does not select a generation.**
+  Worth writing down because the name suggests otherwise and a wrong guess here
+  costs calls. `set_variables.build_primary` hardcodes it, and every Dominion
+  lid on disk was exported with `"6.6"` in that field; yet
+  `test_lid_corpus`'s recess-step classification (`1.700` = 7.0, `1.800` =
+  pre-7.0) correlates 100% with the EXPORT DATE and 0% with that string — the
+  six lids exported 2026-08-31 are 7.0, the ones from 08-12/13/20 are not. The
+  studio is a single live design that moved between 20 and 31 August. So the
+  generation a component comes out at is whatever the studio currently is, and
+  `onshape_config.GENERATIONS` records intent, not a switch the API can throw.
+  A corollary already on disk: `Box M4.21.10.32-Un` is 7.0 geometry engraved
+  `Rev 6.6`.
