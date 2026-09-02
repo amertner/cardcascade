@@ -101,25 +101,6 @@ def slant_top(d):
     return pocket_height(d) / 2
 
 
-# COMPILE holds a fixed card count in the depth, NOT `CardsPerSlidingSlot`.
-#
-# On `210 Card` (`CardsPerSlidingSlot` 7) the reference's slider distance is
-# 12.000 sleeved and 7.200 unsleeved against `calSliderDistance` 8.000 and
-# 5.200. Both come to exactly COMPILE_DEPTH_CARDS cards — 12 * 0.800 + 2.4 and
-# 12 * 0.400 + 2.4 — and substituting that one number fixes EVERY Compile
-# failure at once: the slant slope becomes the measured 1.5185 / 2.7333, both
-# slant planes land on 44.250 and 42.250, and the lip's reach is 2.100 again.
-# So the model is right and only the input differs.
-#
-# **Where 12 comes from is NOT known**, and the corpus says it is new: the old
-# `Holder 5x7-r5-Sl.3mf` measures 8.404 deep, which is the 7-card rule. Compile
-# has two rows and only `210 Card` has a reference, so a `105 Card` export would
-# say whether 12 is a constant or something derived (it is also
-# `CardsPerSlidingSlot + HorizontalSlots` and `+ RisingSliders` on this row,
-# which disagree on the other). Until then this is measured, not derived.
-COMPILE_DEPTH_CARDS = 12
-
-
 def slider_distance(p, d, first):
     """The holder's OWN slider distance.
 
@@ -127,9 +108,12 @@ def slider_distance(p, d, first):
     keyed to the slot depth takes `calFirstSliderDistance` instead. The 246 pair
     is the only evidence that could tell these apart — everywhere else the two
     are equal — and it settles both the depth and the slant.
+
+    Takes the Primary because the GAME could matter here — Compile's `210 Card`
+    reference does not satisfy this rule, though its `105 Card` one does exactly.
+    See spec/HOLDER.md; the discrepancy is one row's, not the formula's, so
+    nothing is special-cased.
     """
-    if p.GameName == "Compile":
-        return d.calCardThickness * COMPILE_DEPTH_CARDS + 2.0 + D.CardHolderGap
     return d.calFirstSliderDistance if first else d.calSliderDistance
 
 

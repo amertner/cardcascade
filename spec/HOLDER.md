@@ -268,34 +268,45 @@ the other way leaves the base `12.052` and is invisible to the bounding box, the
 reach AND the tip width — all three stay right — and shows up only in the lip
 volume. So the test compares per-solid volumes, not envelopes.
 
-## Compile's depth is a FIXED CARD COUNT, and nobody knows why it is 12
+## `210 Card` disagrees with its own sibling, and the rule stands
 
 Adding Innovation XS (2 compartments), FCM (`calSlotwidth 63.000`, rise
-`20.000`) and Compile (5 compartments, `68.000` and `70.000`) closed every axis
-of the parameter space. XS and FCM passed on the first run with no change to any
-rule. **Compile did not**, and all twelve of its failures were one thing.
+`20.000`) and Compile (`68.000` and `70.000`, 3 and 5 compartments) closed every
+axis of the parameter space. All of them pass on the standard rule — **including
+Compile's `105 Card`**, whose slider distance is `8.000` and depth `7.600`,
+exactly `CardsPerSlidingSlot = 7` cards.
 
-Its slider distance is `12.000` sleeved and `7.200` unsleeved, against a
-`calSliderDistance` of `8.000` and `5.200`. Both are exactly **12 cards**:
+`210 Card` does not:
 
-    12 * 0.800 + 2.0 + 0.4 = 12.000        12 * 0.400 + 2.0 + 0.4 = 7.200
+| holder | `n` | `calCardThickness` | depth | implied cards | row says |
+|---|---|---|---|---|---|
+| `105 Card` Sl | 3 | 0.800 | **7.600** | **7.00** | 7 |
+| `210 Card` Sl | 5 | 0.800 | 11.600 | **12.00** | 7 |
+| `210 Card` Un | 5 | 0.400 | 6.800 | **12.00** | 7 |
 
-where `CardsPerSlidingSlot` is `7`. Substituting that ONE number fixes
-everything at once — the slant slope becomes the measured `1.5185` / `2.7333`,
-both slant planes land back on `44.250` and `42.250`, the walls, the side slot
-and the lip all follow, and the lip's reach is `2.100` again. So the model is
-right and only its input differs.
+Both `210` holders are `12.00` cards deep in a game whose other row is exactly
+`7.00`, and `12` is a whole number under both thicknesses, so it is a CARD COUNT
+and not an offset. The files are the rows they claim: widths of `359.800`,
+`349.800` and `219.800` are `calSlotwidth * n + 9.800` for 5, 5 and 3
+compartments at `70.000`, `68.000` and `70.000`, and `210`'s rise of `17.400` is
+`(105 - 18)/5`, so its `HorizontalSlots` and `RisingSliders` are both confirmed
+as `5` independently of the depth.
 
-**Where `12` comes from is not known**, and the corpus says it is new: the old
-`Holder 5x7-r5-Sl.3mf` measures `8.404` deep, which is the 7-card rule plus its
-lip. So this changed in the CAD at some point rather than always having been so.
+Three readings were tried and all three are dead. A flat `12`, and
+`CardsPerSlidingSlot` plus either `HorizontalSlots` or `RisingSliders`, all fit
+`210` — `7 + 5` twice over — and all three predict `12`, `10` and `11` for
+`105`, which measures `7`.
 
-Compile has two rows and only `210 Card` has a reference. On that row `12` is
-also `CardsPerSlidingSlot + HorizontalSlots` and `CardsPerSlidingSlot +
-RisingSliders`, which are `7 + 5` both ways; on `105 Card` those give `10` and
-`11` and a flat constant gives `12`. **A `105 Card` (`S4.7.7`) export would
-settle it in one measurement.** Until then `COMPILE_DEPTH_CARDS` is measured on
-one row, not derived, and says so.
+**So this is a question about one row, not about the formula**, and nothing is
+special-cased for it. An earlier revision of this file recorded a
+`COMPILE_DEPTH_CARDS = 12` override; the `105 Card` export killed it, which is
+exactly what it was requested for. The likeliest explanation is that the `210`
+export was configured with a `Cards/Riser slot` other than the `7` in parts.csv
+— the corpus agrees the geometry changed, since the old `Holder 5x7-r5-Sl.3mf`
+measures `8.404`, which is the 7-card rule plus its lip.
+
+The two `210` references are held out in `tests/test_holder.py`, not deleted,
+and the suite prints their measured depth against the rule on every run.
 
 ## The engraved text is a DELIBERATE DIVERGENCE
 
@@ -346,8 +357,8 @@ pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 - Whether the row rail stays `2.000` at other card heights; only `CardHeight
   92.0` has a reference.
 - `Remove little front lip`, `Remove Slant Angle`, `Middle`.
-- **`COMPILE_DEPTH_CARDS`**: measured `12` on `210 Card` only. See above — a
-  `105 Card` (`S4.7.7`) export discriminates a constant from the two derived
-  readings that also fit.
+- **`210 Card`'s depth**: 12 cards where the row says 7 and its sibling
+  measures 7. See above. Needs the row's real `Cards/Riser slot`, or a
+  re-export.
 - The row rail's `2.000` at another `CardHeight`. Every reference is `92.0`,
   and only `Colours` is not.
