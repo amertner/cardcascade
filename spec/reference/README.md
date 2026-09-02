@@ -64,6 +64,23 @@ the inlays are where `logos/<Game>/*.dxf` came from, lifted by
 Innovation's big one is still lifted from a cached mesh, for want of an export
 whose flourishes are intact.
 
+### TokenHolder
+
+Two, and they are the SAME cascade — Dominion `324 Card` Sl,
+`M6.21.10.62-Sl` — exported in both configurations. What has been measured off
+them is in `spec/TOKENHOLDER.md`.
+
+| file | configuration |
+|---|---|
+| `TokenHolder M6.21.10.62-Sl.step` | FULL — the tray takes the whole front pocket, `calFrontPocketDepth` deep |
+| `HalfTokenHolder M6.21.10.62-Sl.step` | HALF — `2.600 + calFrontPocketDepth/2`. The PAIR is the point: one configuration exported twice, so the diff isolates what `half` changes, which turns out to be one number. Same 231 faces and 644 edges on both |
+
+Neither is unsleeved and neither is merged, so the unsleeved widths, the doubled
+merged width and the single centred divider at 128 mm all rest on the 18 cached
+meshes in `individual/Dominion/` instead — which, unusually, ARE a regression
+target here: the token holder did not change in 7.0 (Allan), so only the
+engraved version string differs. `tests/test_token_holder_corpus.py`.
+
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather
 than any API budget.

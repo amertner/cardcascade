@@ -30,8 +30,14 @@ WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
 
 
 def box_width(p, d):
-    """`#BoxWidth`. Allan's sketch variable, verified on all 48 boxes."""
-    return 2 * WALL + 11.1 + d.calSlotwidth * p.HorizontalSlots
+    """`#BoxWidth`. Allan's sketch variable, verified on all 48 boxes.
+
+    The expression moved into `derive.py` when the TokenHolder arrived, because
+    `calTokenHolderSlotWidth` is a studio variable written in terms of it and
+    two copies of one formula is what that module exists to prevent. This stays
+    as the name every caller already uses.
+    """
+    return d.BoxWidth
 
 
 def box_depth(p, d):
