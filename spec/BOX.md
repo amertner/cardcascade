@@ -1033,10 +1033,71 @@ Not recovered. Everything needed is a model constant: the horizontal levels are
 divider positions, and the arcs are `Round top box corners`. Written that way it
 is fast, deterministic and generalises across the catalogue.
 
-One caveat found the hard way, and the reason this is not yet written: the rim
-cutouts also reach `z = 105.000`, and the reference does NOT fillet the rim
-pieces between them. So a plain "every horizontal edge at these levels" rule
-over-selects, and the statement needs to exclude the back wall's own rim.
+One caveat found the hard way: the rim cutouts also reach `z = 105.000`, and the
+reference does NOT fillet the rim pieces between them. So a plain "every
+horizontal edge at these levels" rule over-selects, and the statement needs to
+exclude the back wall's own rim.
+
+### What `sharp_edges` states, and what a second pass added
+
+Written that way it is four clauses, and the second pass over it — diffing each
+of the three UNFILLETED twins against its filleted self, which is a much
+sharper instrument than one box's edge census — showed the first version
+reached about 16 of the 30-odd edges. The families it was missing were the same
+three on every box, no exceptions:
+
+| family | per box | where |
+|---|---|---|
+| inner vertical corners | 4 | the end wall's INNER face, front `FRONT_TOP..100.400` and back `REAR_TOP..100.400` |
+| corner-round arcs | 8 | `Round top box corners` leaves one on EACH face of each end wall |
+| inner rim | 6–12 | the rim on the inner face, in the segments the ribs break it into |
+
+Read together with what was already there, it is one thing: **the perimeter of
+an end wall, on both of its faces** — along the bed, up the front and back
+corners, round the arcs, along the rim. The arcs matter because they are what
+makes it a CHAIN: the arc's tangent where it leaves `z = BoxHeight - CORNER_R`
+is vertical, so it runs straight into the corner below it, and at the top it
+runs into the rim.
+
+### Two of those families are a KERNEL LIMIT, and stay sharp
+
+Onshape rounds them; OCCT will not, and the reason is measurable.
+
+**The inner rim.** A slider rib runs the full height of the wall and is
+`SLIDER_W` wide with a `SLIDER_TOP_R` round on each flank, so where it meets
+the rim it presents a flat only
+
+    1.500 - 2 * 0.700 = 0.100
+
+wide. A `0.600` fillet on either neighbouring segment has to die into a `0.700`
+cylinder across that. OCCT refuses, and refuses in every order tried: the whole
+family at once, after everything else, before everything else, one segment at a
+time.
+
+**The inner face's FRONT corner and the arc above it** — one tangent chain.
+Fine on `246S`, `244U` and `130U`; on `S9.21.10`, the nine-riser Dominion,
+refused. Given the whole chain, given one link, given the link reversed, before
+or after the rest: refused.
+
+That neither is about the SHAPE is plain from the symmetry. In both cases the
+`+X` wall takes the edges and the `-X` wall, its exact mirror, does not — the
+two differ in edge ORIENTATION and in nothing else. Parasolid manages both. A
+per-edge `try/except` would recover them, and is exactly what Allan ruled out:
+generation is to be fast and deterministic. So the rule keeps the back inner
+corner and its arc, all four outer corners, both outer arcs, the outer rim, the
+footprint and the ledge — and leaves the inner rim and the front inner chain
+sharp. **Everything a hand touches is rounded**; what is given up is a `0.600`
+round on interior edges no finger reaches.
+
+Proven by building the whole catalogue: **50 of 50 boxes, 0 failures, 370 s**.
+`tests/test_box.py` probes twelve rounded corners per reference with a `0.240`
+cube — at a right convex corner a quarter of it is material while the corner is
+sharp, and a `0.600` round takes all of it, because the far corner of that
+quarter is `sqrt(2) * (0.600 - 0.120) = 0.679` from the fillet cylinder's
+centre and the cylinder is only `0.600`. So "rounded" is exactly zero and
+"sharp" is about `0.0035 mm³`, with no tolerance to tune. The four sharp ones
+are asserted from BOTH ends — rounded on the STEP, sharp on the build — so a
+future kernel that manages them fails the suite rather than passing quietly.
 
 ## Still open
 
@@ -1053,10 +1114,10 @@ over-selects, and the statement needs to exclude the back wall's own rim.
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
   on `Box Dominion 246S`. (The "shelf" that used to be listed here was the top
   of the pusher rest's lattice — see above; it is built now.)
-- Still to build: `Smooth box edges`. The radius, the edge set and the query's
-  definition are all known; what is missing is a geometric rule that selects
-  those edges without Onshape's feature history — see above for the two
-  approaches that failed and why.
+- `Smooth box edges` is built and the rule is stated, but it is NOT complete:
+  the inner rim and the inner face's front corner-and-arc chain stay sharp
+  because OCCT refuses them. See "Two of those families are a KERNEL LIMIT"
+  above. Worth revisiting if OCCT's filleting improves.
 - **The `RisingSliders > 8` branch** of the `Card Cascade` sketch's margin —
   see above. `S9.21.10` is the row that needs it. Nothing else — `box_diff` on `Dom246S_raw` now shows
   MISSING of `0.000` and an EXTRA that is exactly the deliberate whole-divider

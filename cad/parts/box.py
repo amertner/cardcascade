@@ -10,15 +10,16 @@ Local frame (the part studio's):
     Y   depth, 0 at the centre, -BoxDepth/2 the FRONT, +BoxDepth/2 the back
     Z   height, 0 at the bed, BoxHeight at the rim
 
-INCOMPLETE. `build()` stops after the label holders; the engraved text and
-`Smooth box edges` are still to come. See `spec/BOX.md` "Still open" for what is
-left and `tests/test_box.py` for what is proven. Nothing writes a Box to build/
-yet.
+Complete: `build()` runs the whole tree through `Smooth box edges`, and
+`python -m cad.build --part box` writes the catalogue. See `spec/BOX.md` for
+every measurement and `tests/test_box.py` for what is proven against the nine
+reference STEPs.
 """
 from build123d import (
-    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Kind, Line,
-    Location, Mode, Plane, Polygon, Pos, Rectangle, SlotOverall, Text,
-    ThreePointArc, add, chamfer, extrude, fillet, make_face, offset, revolve,
+    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, GeomType,
+    Kind, Line, Location, Mode, Plane, Polygon, Pos, Rectangle, SlotOverall,
+    Text, ThreePointArc, add, chamfer, extrude, fillet, make_face, offset,
+    revolve,
 )
 
 from .. import derive as D
@@ -1016,17 +1017,45 @@ SMOOTH_R = 0.600
 def sharp_edges(p, d, part):
     """The edges `Smooth box edges` rounds, as an explicit geometric set.
 
+    Most of it is the **perimeter of an end wall**, on both of its faces: the
+    footprint at the bed, up the front and back corners, round the CORNER_R
+    arcs and along the rim. Diffing each of the three unfilleted references
+    against its filleted twin gives the same four families every time, so the
+    rule is the reference's own and not a fit to one box.
+
     Two exclusions are the reference's own, and both also happen to be what
     OCCT will not fillet — which is a good sign the rule is the right one:
 
     * **the back wall's rim** is notched for the pusher tabs and stays sharp
-      (Allan), so only the END WALLS' rim is rounded, and only its outer edge:
-      on the inner one the slider ribs' 0.700 top rounds run into the fillet;
+      (Allan), so only the END WALLS' rim is rounded;
     * **`Lower the front`** is not rounded AT ALL. Its inner edge is where the
       pocket's pads and dividers land, and two adjacent segments of it are the
       minimal pair OCCT refuses; its outer edge survives all three reference
       fillets untouched, merely growing 1.200 longer as the two vertical
       corners are cut back beside it.
+
+    One exclusion is OURS, and it is a KERNEL LIMIT, not a design decision.
+    Onshape rounds the end walls' rim on the INNER face too, in the segments
+    the slider ribs break it into — 3 a wall on `246S`, 5 on `244U`, 6 on
+    `130U` — and OCCT will not, at SMOOTH_R or in any order: alone, after the
+    rest, before the rest, one segment at a time. The reason is measurable. A
+    rib runs the full height and is SLIDER_W wide with a SLIDER_TOP_R round on
+    each flank, so where it meets the rim it presents a flat only
+
+        1.500 - 2 * 0.700 = 0.100
+
+    wide, and a 0.600 fillet on either neighbouring segment has to die into a
+    0.700 cylinder across it. That it is a limit and not a shape is plain from
+    the symmetry: the +X wall takes every segment on its own and the -X wall,
+    its mirror, refuses several — the two differ in edge ORIENTATION and
+    nothing else. Parasolid manages; we do not, and a per-edge retry would be
+    neither fast nor deterministic.
+
+    The same limit costs the INNER face's front vertical corner and the arc
+    above it — see `rear_ok` — so of the end wall's inner perimeter we keep the
+    back corner and its arc and leave the front pair and the rim sharp. What is
+    lost is a 0.600 round on interior edges no finger reaches. Everything a
+    hand touches is rounded.
     """
     BW, BD = box_width(p, d), box_depth(p, d)
     inner, x_out = BW / 2 - WALL, BW / 2
@@ -1036,21 +1065,48 @@ def sharp_edges(p, d, part):
     def near(a, b):
         return abs(a - b) < tol
 
+    def rear_ok(m):
+        """True unless this is the INNER face's front corner or its arc.
+
+        Those two are one tangent chain — the arc's tangent where it leaves
+        z = BoxHeight - CORNER_R is vertical, so it runs straight into the
+        corner below it — and on `S9.21.10` OCCT refuses the whole chain on the
+        -X wall while taking its mirror on +X. Given the whole chain, given one
+        link, given the link reversed, before or after everything else: it
+        refuses. The outer face's front corner and both back corners are fine
+        on all 50 boxes, so only this chain is dropped.
+        """
+        return near(abs(m.X), x_out) or abs(m.Y - y_back) < abs(m.Y - y_front)
+
     out = []
     for e in part.edges():
         m, t = e @ 0.5, e.tangent_at(0.5)
         flat, upright = abs(t.Z) < 1e-6, abs(t.Z) > 1 - 1e-6
+        along_x, along_y = abs(t.X) > 1 - 1e-6, abs(t.Y) > 1 - 1e-6
+        # Both faces of an end wall: the outer one at BW/2 and the inner one a
+        # WALL in. The perimeter clauses below want either.
+        end_wall = near(abs(m.X), x_out) or near(abs(m.X), inner)
+
         if flat and near(m.Z, 0.0) and (near(abs(m.X), x_out)
                                         or near(m.Y, y_front)
                                         or near(m.Y, y_back)):
             out.append(e)          # the box's footprint, all four sides
-        elif upright and near(abs(m.X), x_out) and (near(m.Y, y_front)
-                                                    or near(m.Y, y_back)):
-            out.append(e)          # the four outer vertical corners
-        elif flat and near(m.Z, d.BoxHeight) and near(abs(m.X), x_out):
-            out.append(e)          # the END WALLS' rim, OUTER edge only
+        elif upright and end_wall and (near(m.Y, y_front)
+                                       or near(m.Y, y_back)) and rear_ok(m):
+            out.append(e)          # the end walls' vertical corners: all four
+#                                    outside, and inside the BACK pair only,
+#                                    running from REAR_TOP up to where the
+#                                    corner round starts.
+        elif flat and along_y and near(m.Z, d.BoxHeight) and near(abs(m.X), x_out):
+            out.append(e)          # the end walls' rim, OUTER edge only
+        elif (end_wall and abs(t.X) < 1e-6 and rear_ok(m)
+              and e.geom_type == GeomType.CIRCLE and near(e.radius, CORNER_R)):
+            out.append(e)          # `Round top box corners` leaves one arc on
+#                                    each face of each end wall; rounding them
+#                                    closes the perimeter chain the clauses
+#                                    above start, so the outline is soft.
 
-        elif (flat and near(m.Z, REAR_TOP) and abs(t.X) > 1 - 1e-6
+        elif (flat and near(m.Z, REAR_TOP) and along_x
               and (near(m.Y, y_back) or near(m.Y, y_back - WALL))):
             out.append(e)          # the `Top of back` ledge, across the OUTER
 #                                    back wall. The short segments around the
