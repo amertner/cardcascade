@@ -308,30 +308,58 @@ measures `8.404`, which is the 7-card rule plus its lip.
 The two `210` references are held out in `tests/test_holder.py`, not deleted,
 and the suite prints their measured depth against the rule on every run.
 
-## The engraved text is a DELIBERATE DIVERGENCE
+## `Bottom Text`, and where it is a DELIBERATE DIVERGENCE
 
-Onshape can constrain a text box in one dimension only — the same limitation
-`spec/PUSHER.md` records — and on the deep first-riser holder it fails outright.
-Measured as the void in a `1.200` slab above the base:
+Two blocks engraved `0.200` into the underside, in **two faces**, as the Pusher
+has: the name in Orbitron Bold and the capacity in Open Sans Bold. Calculated
+ink width against measured, on every reference:
 
-| holder | lumps | runs of ink | volume | widest run |
+| holder | name | calc / meas | capacity | calc / meas |
 |---|---|---|---|---|
-| 333 Default | 25 | 23 | `59.0 mm3` | `6.0` |
-| 246 Default | 25 | 23 | `84.3 mm3` | `5.7` |
-| **246 First** | **8** | **7** | **`340.4 mm3`** | **`62.3`** |
+| 246 Sl | `CC 7.0 - Dominion` | 97.230 / 97.231 | `12 Sleeved` | 50.967 / 50.947 |
+| 333 Sl | `CC 7.0 - Dominion` | 81.025 / 81.026 | `10 Sleeved` | 42.472 / 42.456 |
+| Inno M Sl | `CC 7.0 - Innovation` | 94.981 / 94.982 | `10 Sleeved` | 46.012 / 45.994 |
+| Compile 105 | `CC 7.0 - Compile` | 70.684 / 70.685 | `7 Sleeved` | 35.444 / 35.436 |
+| FCM 198 Un | `CC 7.0 - FCM` | 45.328 / 45.328 | `12 Unsleeved` | 40.888 / 40.876 |
 
-Two of the First holder's runs are `46.3` and `62.3` wide: whole words fused
-into solid bars, `5.8x` the ink of the others. The cause is in the numbers — the
-glyph size tracks the bar's depth, `20.000` against `9.200`, a `2.17x` jump, and
-ink area goes as the square. The string is scaled up until it overruns its own
-length and the letters collide.
+The second font is what the ink width identifies: the capacity block is `42.456`
+wide on `333`, which is `10 Sleeved` in Open Sans (`42.472`) and nothing like it
+in Orbitron (`51.342`).
 
-Allan: "hopefully we can make this work better out of Onshape." So the rebuild
-sizes the text by rule from real glyph metrics (`cad/text.py`, already doing
-this for the Pusher and the Box) rather than reproducing the collision, and the
-tests assert it from both ends so it cannot silently converge back.
+The name is `CC <version> - <GameName>` — `GameName`, so FCM engraves its short
+form. The capacity is the holder's OWN card count, so the first-riser holder
+shows `FirstSlidingSlotCards`. Both are inset `10.000` past the end blocks, the
+name left-aligned and the capacity right, matching Allan's sketch dimension.
 
-Engraving depth is `0.200` on all three.
+### The size
+
+Onshape's rule is **cap height = `depth - 2.000`**, and it reproduces every
+reference to a thousandth. It also takes no account of how long the strings are,
+and Onshape can constrain a text box in one dimension only, so on a short or a
+deep holder the two blocks run into each other:
+
+| holder | Onshape size | blocks' ink | room | |
+|---|---|---|---|---|
+| 246 Sl | 10.000 | 148.2 | 176.8 | fits |
+| 333 Sl | 8.333 | 123.5 | 176.8 | fits |
+| **FirstHolder 246** | **25.000** | **370.5** | **176.8** | **2.1x over** |
+| **Innovation XS** | **9.028** | **141.0** | **119.8** | **1.2x over** |
+
+`FirstHolder 246` is the one Allan flagged: 7 runs of ink against a legible
+holder's 23, two of them `46.3` and `62.3` wide — whole words fused into bars —
+and `5.8x` the ink volume.
+
+So the size is the **lesser** of Onshape's and one that makes both blocks fit.
+That changes only what was broken: on all five references whose text does not
+collide, the depth term is the smaller and the result is Onshape's size exactly,
+to `1e-4`. On the two that do, the build's blocks are separated where the STEP's
+overlap — and the test asserts both directions, so a future Onshape fix would
+fail here rather than converging silently.
+
+The baseline is CENTRED on the cap band. The reference's moves with each
+string's own ink extents — `0.598` to `1.353` above the back face across the
+five — and lands within `0.4` of centre; with the size already a divergence,
+centring is the rule that stays sensible when it binds.
 
 ## `individual/` is a mixed catalogue, again
 

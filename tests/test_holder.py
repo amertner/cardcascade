@@ -16,7 +16,8 @@ therefore asserted against a case that would fail if the wrong one were used.
 Proven so far: the envelope (width, depth, the base), the `Top slant angle`
 plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, the finger scallops
 and their modelled fillet, the side slots, the rear lips,
-the dropped floor and the lip rests.
+the dropped floor, the lip rests
+and the engraved bottom text.
 """
 import math
 import sys
@@ -26,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from build123d import import_step, Box, Location, GeomType   # noqa: E402
-from cad import params, derive as D                  # noqa: E402
+from cad import params, derive as D, text as TX      # noqa: E402
 from cad.parts import holder, box                    # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -257,22 +258,27 @@ for name, fn, p, first in REFS:
           round((w + 2.0) / holder.COLS - holder.LIP_LENGTH, 3),
           round((d.calSlotwidth - 6.0 + 2.0) / 5 - 10.0, 3), 1e-3)
     xs, zs = planes(ref, "X"), planes(ref, "Z")
-    for x0, x1, z0, z1 in grid[:holder.COLS]:
-        for v in (x0, x1):
+    # NB not x0/x1: those are the PART's ends, used again further down, and
+    # rebinding them here made the side-slot probes sample a window edge. They
+    # still passed, because both solids were probed at the same wrong place —
+    # which is the whole reason this file probes the STEP and the build
+    # together and never the build alone.
+    for wx0, wx1, wz0, wz1 in grid[:holder.COLS]:
+        for v in (wx0, wx1):
             check(f"STEP has the window edge X = {round(v, 3)}",
                   any(abs(q - v) < 1e-3 for q in xs), True)
-    for _, _, z0, z1 in grid[::holder.COLS]:
-        for v in (z0, z1):
+    for _, _, wz0, wz1 in grid[::holder.COLS]:
+        for v in (wz0, wz1):
             check(f"STEP has the window edge Z = {round(v, 3)}",
                   any(abs(q - v) < 1e-3 for q in zs), True)
     # ... and so does the build.
     mxs, mzs = planes(mine, "X"), planes(mine, "Z")
-    for x0, x1, z0, z1 in grid[:holder.COLS]:
-        check(f"build has the window edge X = {round(x0, 3)}",
-              any(abs(q - x0) < 1e-3 for q in mxs), True)
-    for _, _, z0, z1 in grid[::holder.COLS]:
-        check(f"build has the window edge Z = {round(z0, 3)}",
-              any(abs(q - z0) < 1e-3 for q in mzs), True)
+    for wx0, wx1, wz0, wz1 in grid[:holder.COLS]:
+        check(f"build has the window edge X = {round(wx0, 3)}",
+              any(abs(q - wx0) < 1e-3 for q in mxs), True)
+    for _, _, wz0, wz1 in grid[::holder.COLS]:
+        check(f"build has the window edge Z = {round(wz0, 3)}",
+              any(abs(q - wz0) < 1e-3 for q in mzs), True)
 
     # --- `Finger Cutouts` ---------------------------------------------------
     # Compared as a PROFILE, sampled at the front wall's mid-depth, which is the
@@ -413,6 +419,85 @@ for name, fn, p, first in REFS:
         b = mine & cell
         check(f"the back wall {lbl} the rest's line agrees with the STEP",
               bool(b and b.volume > 1e-9), bool(a and a.volume > 1e-9))
+
+    # --- `Bottom Text` ------------------------------------------------------
+    # Two blocks in TWO faces, as the Pusher has: the name in Orbitron Bold and
+    # the capacity in Open Sans Bold. Checked as INK WIDTH against the STEP's
+    # own engraving, which is what identifies both the string and the font — the
+    # capacity block is 42.456 wide on `333`, which is `10 Sleeved` in Open Sans
+    # (42.472) and not in Orbitron (51.342).
+    name, cap_txt = holder.text_blocks(p, d, first)
+    size = holder.text_size(p, d, first)
+    by_depth = (holder.holder_depth(p, d, first) - 2.0) / TX.CAP
+    capped = size < by_depth - 1e-6
+
+    def ink_blocks(shape):
+        """(left, right) spans of engraved ink on the underside.
+
+        The slab is pulled in past the END BLOCKS, because the side slots are
+        voids too and would read as ink. The two blocks are then separated at
+        the LARGEST gap: a block is itself broken by its spaces, so a fixed
+        threshold splits it in the wrong place.
+        """
+        dep = holder.holder_depth(p, d, first)
+        lo, hi = x0 + holder.END_BLOCK + 1.0, x1 - holder.END_BLOCK - 1.0
+        slab = Box(hi - lo, dep - 0.5, 1.0).moved(
+            Location(((lo + hi) / 2, -dep / 2, holder.base_z(d) + 0.5)))
+        void = slab - shape
+        got = [q for q in void.solids() if q.volume > 0.02] if void else []
+        if not got:
+            return None
+        spans = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
+                       for q in got)
+        gaps = [(spans[i + 1][0] - spans[i][1], i) for i in range(len(spans) - 1)]
+        if not gaps:
+            return None
+        _g, i = max(gaps)
+        return ((spans[0][0], spans[i][1]), (spans[i + 1][0], spans[-1][1]))
+
+    if not capped:
+        # Where Onshape's own size fits, the build must reproduce it exactly.
+        check("the text size is Onshape's (cap = depth - 2.000)",
+              round(size, 4), round(by_depth, 4), 1e-4)
+        blocks = ink_blocks(ref)
+        for (lbl, txt, font), span in zip(
+                (("name", name, TX.LOGO_FONT),
+                 ("capacity", cap_txt, TX.DETAIL_FONT)), blocks):
+            check(f"the STEP's {lbl} block is {txt!r} at this size",
+                  round(span[1] - span[0], 2),
+                  round(TX.ink(txt, font=font, size=size)[0], 2), 0.05)
+    else:
+        # The DIVERGENCE. Onshape's size makes the two blocks collide; ours is
+        # the lesser of its rule and one that fits. Asserted from BOTH ends.
+        check("Onshape's size would not fit both blocks",
+              round(TX.ink(name, size=by_depth)[0]
+                    + TX.ink(cap_txt, font=TX.DETAIL_FONT, size=by_depth)[0], 1)
+              > round((x1 - x0) - 2 * (holder.END_BLOCK + holder.TEXT_INSET), 1),
+              True)
+        check("... so ours is smaller", size < by_depth, True)
+        # Proof of the collision, without needing to know where the two blocks
+        # were meant to divide: at Onshape's size their ink comes to more than
+        # the STEP's total engraved SPAN, so they must be overlapping. The
+        # build's span, by construction, is at least their sum.
+        want = (TX.ink(name, size=by_depth)[0]
+                + TX.ink(cap_txt, font=TX.DETAIL_FONT, size=by_depth)[0])
+        a, b = ink_blocks(ref), ink_blocks(mine)
+        check("the STEP's blocks overlap each other",
+              round(a[1][1] - a[0][0], 1) < round(want, 1), True)
+        mine_ink = (TX.ink(name, size=size)[0]
+                    + TX.ink(cap_txt, font=TX.DETAIL_FONT, size=size)[0])
+        check("... and the build's do not",
+              round(b[1][1] - b[0][0], 1) >= round(mine_ink, 1), True)
+        check("the build's ink stays inside its inset",
+              b[1][1] <= x1 - holder.END_BLOCK - holder.TEXT_INSET + 0.1, True)
+    # Either way the engraving is ENGRAVE deep and no deeper.
+    for who, shape in (("STEP", ref), ("build", mine)):
+        cell = Box(x1 - x0, holder.holder_depth(p, d, first), 0.06).moved(
+            Location(((x0 + x1) / 2, -holder.holder_depth(p, d, first) / 2,
+                      holder.base_z(d) + holder.ENGRAVE + 0.05)))
+        got = shape & cell
+        check(f"{who}: material just above the engraving floor",
+              bool(got and got.volume > 1.0), True)
 
 
 print("\n=== held out ===")

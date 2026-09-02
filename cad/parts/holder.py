@@ -33,11 +33,13 @@ Nothing writes a Holder to build/ yet.
 import math
 
 from build123d import (
-    Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, Location,
-    Plane, Polyline, Rectangle, Torus, Vector, extrude, make_face,
+    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
+    Location, Mode, Plane, Polyline, Pos, Rectangle, Text, Torus, Vector,
+    add, extrude, make_face,
 )
 
 from .. import derive as D
+from .. import text as T
 
 # The vertical datum. The base and the TOP OF THE CARD POCKET are symmetric
 # about Z = 0, both at (CardHeight - 1.500)/2 = 45.250, and the pocket is
@@ -510,6 +512,97 @@ def lip_rests(p, d, first, part):
     return part
 
 
+# `Bottom Text` — two blocks engraved ENGRAVE into the underside, in TWO faces
+# as the Pusher is: the name in Orbitron Bold and the capacity in Open Sans
+# Bold. Confirmed exactly, calculated against measured ink width:
+#
+#     246 Sl   'CC 7.0 - Dominion'    97.230 / 97.231   '12 Sleeved'   50.967 / 50.947
+#     333 Sl   'CC 7.0 - Dominion'    81.025 / 81.026   '10 Sleeved'   42.472 / 42.456
+#     InnoMSl  'CC 7.0 - Innovation'  94.981 / 94.982   '10 Sleeved'   46.012 / 45.994
+#     Cmp105   'CC 7.0 - Compile'     70.684 / 70.685   '7 Sleeved'    35.444 / 35.436
+#     FCM198   'CC 7.0 - FCM'         45.328 / 45.328   '12 Unsleeved' 40.888 / 40.876
+#
+# The name reads `CC <version> - <GameName>` — `GameName`, so FCM gets its short
+# form, which is what the studio has. The capacity is the holder's OWN card
+# count, so the first-riser holder shows `FirstSlidingSlotCards`.
+#
+# Both blocks are inset TEXT_INSET past the end blocks, the name left-aligned
+# and the capacity right-aligned, and both are engraved ENGRAVE deep.
+ENGRAVE = 0.200
+TEXT_INSET = 10.000        # past the end block, from Allan's sketch
+TEXT_GAP = 4.000           # the least space left between the two blocks
+
+
+def text_blocks(p, d, first):
+    """(name, capacity) — the two strings, in reading order."""
+    cards = p.FirstSlidingSlotCards if first else p.CardsPerSlidingSlot
+    return (f"CC {p.Version} - {p.GameName}",
+            f"{cards} {'Sleeved' if p.isSleeved else 'Unsleeved'}")
+
+
+def text_size(p, d, first):
+    """The em size, and a DELIBERATE DIVERGENCE.
+
+    Onshape sizes by the DEPTH alone — the cap height is `depth - 2.000`, which
+    reproduces every reference to a thousandth. It also takes no account of how
+    long the strings are, and Onshape can only constrain a text box in one
+    dimension, so on a short or a deep holder the two blocks collide: on
+    `FirstHolder 246` they fuse into bars 46 and 62 mm wide, 5.8x the ink of a
+    legible one, and run off the end of the part. Allan asked for that fixed.
+
+    So the size is the LESSER of Onshape's and one that makes both blocks fit
+    between their insets. That changes only what was broken — on all five
+    references whose text does not collide the depth term is the smaller and the
+    result is Onshape's own size exactly.
+    """
+    name, cap = text_blocks(p, d, first)
+    by_depth = (holder_depth(p, d, first) - 2.0) / T.CAP
+    x0, x1 = x_span(p, d)
+    room = (x1 - x0) - 2 * (END_BLOCK + TEXT_INSET) - TEXT_GAP
+    per_em = (T.ink(name, size=1.0)[0]
+              + T.ink(cap, font=T.DETAIL_FONT, size=1.0)[0])
+    return min(by_depth, room / per_em)
+
+
+def engrave(txt, font, size, x, baseline, mirror):
+    """One block, as a solid to subtract from the underside.
+
+    Placed by the PEN ORIGIN — `cad.text.metrics` gives the bearings, which no
+    measurement of rendered ink can recover. `mirror` flips it in X so the text
+    reads the right way round when the holder is turned over.
+    """
+    _adv, lsb, lo, _hi = T.metrics(txt, font)
+    with BuildPart() as part:
+        with BuildSketch(Plane.XY) as sk:
+            glyphs = Text(txt, font_size=size, font_path=font,
+                          align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
+            add(Pos(lsb * size, lo * size) * glyphs)
+        extrude(amount=ENGRAVE)
+    solid = part.part
+    if mirror:
+        solid = solid.mirror(Plane.YZ)
+    return solid.moved(Location((x, baseline, 0)))
+
+
+def bottom_text(p, d, first, part):
+    """Cut both blocks into the underside."""
+    name, cap = text_blocks(p, d, first)
+    size = text_size(p, d, first)
+    x0, x1 = x_span(p, d)
+    depth = holder_depth(p, d, first)
+    # The cap band centred in the depth. The reference's baseline moves with the
+    # string's own ink extents and lands within 0.4 of this; since the size is a
+    # divergence anyway, centring is the rule that stays sensible when it binds.
+    baseline = -(depth + T.CAP * size) / 2
+    z = base_z(d)
+    for txt, font, xa, mirror in (
+            (name, T.LOGO_FONT, x0 + END_BLOCK + TEXT_INSET, False),
+            (cap, T.DETAIL_FONT, x1 - END_BLOCK - TEXT_INSET, True)):
+        tool = engrave(txt, font, size, xa, baseline, mirror)
+        part = part - tool.moved(Location((0, 0, z)))
+    return part
+
+
 def build(p, first=False):
     """`p` is a params.Primary. Returns the Holder as a build123d Part.
 
@@ -522,4 +615,5 @@ def build(p, first=False):
     part = finger_cutouts(p, d, first, part)
     part = side_slots(p, d, first, part)
     part = rear_lips(p, d, first, part)
-    return lip_rests(p, d, first, part)
+    part = lip_rests(p, d, first, part)
+    return bottom_text(p, d, first, part)
