@@ -3,7 +3,8 @@
 
     .venv/bin/python tests/test_box.py
 
-Five references in `tmp/step/`, listed in `spec/BOX.md`. The Box is being built
+Nine references in `spec/reference/`, listed in `spec/BOX.md` — six of them
+distinct boxes, three of those with an unfilleted twin. The Box is being built
 group by group against a boolean diff (see that file); this asserts only what
 has actually been written, and grows with it.
 
