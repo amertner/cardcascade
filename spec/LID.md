@@ -197,41 +197,84 @@ Constant on every lid and every STEP, and it has to be: `BoxHeight` is
 Three things, all on the floor, and `tests/test_lid.py` accounts for the whole
 volume difference with them so that nothing else can hide behind them.
 
-### The engraving, `0.400` proud
+### The engraving, `0.400` proud, and the logo, `0.600`
 
-Three lines standing on the inner floor, right-aligned, reading up in Y:
-`calModelName`, then `GameName`, then `calCapacityLabel`, with `calVersion`
-("CC 7.0") on the far left of the GameName's line — except on the XS lid,
-which is too narrow and gives the version a line of its own. Every line is
-Orbitron Bold, as the Box's are, and the cap heights differ line to line
-(`3.000 / 2.819 / 3.500` on `Lid Dominion 246S`), so the sizes are fitted
-rather than set — the same problem `cad/text.py` solves for the Pusher and the
-Box.
+Not built, but MEASURED — on the four STEPs and on all 44 cached lids. Most of
+it is pinned; what is not is listed at the end of this section, and it is the
+placement rather than the sizing.
 
-Note this is EMBOSSED where the Box's floor text is ENGRAVED.
+Two blocks. On the `+X` side, three lines right-aligned on a common edge and
+reading up in Y: `calModelName`, `GameName`, `calCapacityLabel`. On the `-X`
+side, `calVersion` over `ProductName` over a staircase — the Card Cascade
+logo, and it has `RisingSliders` steps. Everything is Orbitron Bold, as the
+Box's floor text is, and it is EMBOSSED where the Box's is engraved.
 
-### The staircase logo, `0.600` proud
+**The sizes are two constants and one fitted box.** Cap heights, `0.720` em:
 
-`ProductName` over a staircase pad with **`RisingSliders` equal steps**,
-descending to the right. Measured on three references:
+| line | cap | |
+|---|---|---|
+| `calModelName` | `3.000` | constant on all four references |
+| `GameName` | `3.500` | constant |
+| `calCapacityLabel` | `3.500` | the same size as the game line |
+| `ProductName` | fitted | its text box is `calSlotwidth - 21.200` |
+| `calVersion` | `2/3` of `ProductName`'s | exact on all four |
 
-| | R | pad | step |
-|---|---|---|---|
-| `246S` | 2 | `43.800 x 22.018` | `21.900 x 11.009` |
-| `244U` | 4 | `41.800 x 17.119` | `10.450 x 4.280` |
-| `333S` | 9 | `43.800 x 67.618` | `4.867 x 7.513` |
+`ProductName`'s size is a pure function of `calSlotwidth` across all 44 cached
+lids — `5.2346` at `w = 63` through `6.1112` at `w = 70`, a straight line in
+`w` — and fitting its ADVANCE to `w - 21.200` reproduces every one to a
+**constant `0.31 %`**. That is the same residual `spec/BOX.md` records for the
+Box's `ProductName`, to two decimals, so it is the same cause: how Onshape
+measures an advance, not the rule. `cad/text.fit_size` is the tool.
 
-Two of its four edges are already pinned:
+**The vertical placement is a ladder of constants.**
 
-* its **front edge is the socket span's own `y0`** — `-4.550`, `-9.960` and
-  `-33.050`, exact on all three;
-* its **width is the `ProductName` line's text box**, and its top sits
-  `0.6234 x` that line's ink height below it — `2.633 / 2.512 / 2.633` against
-  ink heights of `4.223 / 4.030 / 4.223`.
+```
+calCapacityLabel  cap top    = calLidDepth/2 - 11.000
+GameName          baseline     5.500 below the capacity line's
+calModelName      baseline     5.000 below the game line's
+ProductName       cap top    = calLidDepth/2 - 10.000
+calVersion        baseline   = ProductName's baseline - its own cap - 2.000
+staircase         from the socket span's own y0, up to
+                             ProductName's baseline - calVersion's cap
+```
 
-`Lid Innovation 130U` has **no staircase at all**, only the `Card Cascade`
-line. Whatever suppresses it — the XS width, or the lid's depth against nine
-risers' worth of steps — is not yet known.
+Every one is exact on all four STEPs and on all 44 cached lids. The staircase
+is fully determined by the two rules above it: its front edge is the socket's
+`y0` and its top is where the version's line begins, which is why the `R = 9`
+lid's logo is `67.618` tall and the `R = 2` lid's is `22.018`.
+
+Its width is `ProductName`'s own text box — `43.800` at `w = 65`, `41.800` at
+`w = 63` — so the staircase and the word above it are one block, and the
+version sits in the notch at the block's top right, clear of the top step.
+
+**The horizontal placement is measured but not derived.** Both blocks are a
+constant distance from the END SOCKET nearest them, and that constant carries a
+`calSlotwidth/6` term nothing in the derived set explains:
+
+```
+text block, ink right edge = last socket centre  - calSlotwidth/6 - 9.320
+logo block, box left edge  = first socket centre + calSlotwidth/6 + 9.550
+```
+
+Exact on all 44 lids — the socket-relative form is what makes it exact, since
+the same numbers hold at `HorizontalSlots` 3, 4 and 5 with the block moving
+`w/2` per slot. **Open**: `w/6` is the sort of term a sketch dimension explains
+in one line and a curve fit should not be trusted to have got right.
+
+### XS is a different layout, and it is not solved
+
+`Lid Innovation 130U` — the only XS reference — keeps the text block's x rule
+and `ProductName`'s cap top, and changes three things:
+
+* **no staircase at all**, only the `Card Cascade` line;
+* the text block sits `13.000` lower — its cap top is `calLidDepth/2 - 24.000`
+  against everything else's `- 11.000`;
+* `ProductName`'s box loses the `calSlotwidth/6` term from its left edge.
+
+Both XS lids in `individual/` agree with the reference, so it is a real branch
+and not a one-off. What it is a branch ON — `HorizontalSlots <= 2`, a width
+that will not take the two blocks side by side, or a separate Mini sketch — is
+**open**, and with two examples of it a fit would be a guess.
 
 ### The logo pattern, and its pocket
 
@@ -273,9 +316,9 @@ statement; the area check is corroboration at `0.5 mm2`.
 ## Still open
 
 - **`x = -0.300`**, the socket set's centre. Measured constant, underived.
-- **The engraving's sizing rules**, and the staircase's height rule. The
-  fitted-text problem the Box needed Allan's four sketches to close.
-- **Why `Lid Innovation 130U` has no staircase.**
+- **The `calSlotwidth/6` term** in both engraved blocks' horizontal placement.
+- **The XS layout**, above: what it branches on, and where its `ProductName`
+  and text block are anchored.
 - **The logo pattern.** Deferred deliberately — it is a per-game motif and a
   second filament, and it does not interact with anything above.
 - **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but
