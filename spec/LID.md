@@ -64,10 +64,22 @@ Hand-exported from the Onshape UI, 0 API calls, in `spec/reference/`.
 | `Lid Dominion 244U.step` | Dominion 244 Card Un `M4.21.10.32-Un` | `270.900 x 46.880` | M: three sockets, and unsleeved |
 | `Lid Dominion 333S.step` | Dominion 333 Card Sl `S9.21.10.62-Sl` | `213.900 x 102.300` | `RisingSliders 9`, past the logo block's eight-riser branch, and the only C5 lock among the references |
 | `Lid Innovation 130U.step` | Innovation 130 Card Un `XS5.15.10.32-Un` | `152.900 x 52.100` | XS: the narrowest lid in the catalogue, two horizontal slots, and the only reference whose logo has no staircase |
+| `Lid Compile 126S.step` | Compile 126 Card Sl `S5.7.7.45-Sl` | `228.900 x 59.700` | a **second game's card size**, which nothing else in the lid references reaches, and the only Lid reference whose lock is C4 |
+| `Lid FCM 105S.step` | FCM, `213.900 x 44.700`, **not a parts.csv row** | `213.900 x 44.700` | artwork only — see below |
+| `Lid Innovation 270S.step` | Innovation 270 Card Sl `S5.15.15.62-Sl` | `225.900 x 84.600` | `#LogoScaleFactor 1`, and the export that shows its flourishes are **broken** — see below |
 
 Each file carries the lid body plus the logo pattern's inlays as **separate
-solids** — 6 for the Dominion lids, 31 for the Innovation one. The body is the
-big one; `tests/test_lid.py` takes it by volume.
+solids** — 6 for the Dominion lids, 31 for `Lid Innovation 130U`, 12 for
+Compile, 10 for FCM. The body is the big one; `tests/test_lid.py` takes it by
+volume.
+
+`Lid FCM 105S` is **not a structural reference**: its envelope is
+`213.900 x 44.700`, which no FCM row in parts.csv produces, and the envelope
+alone does not pin the model — 30 parameter sets give that lid. Its staircase
+has 10 edges, so `RisingSliders 4`, and its sockets sit at `+-65.3 / 64.7`, so
+`calSlotwidth 65.000`; that narrows it to `S4.7.7 / S4.11.6 / S4.15.5 /
+S4.19.4` at `.32.Sl`, all `105 Cards/S` and all geometrically identical apart
+from the model code engraved on the floor. It is kept for its artwork.
 
 ## The corpus is a MIXED generation, exactly as the pushers are
 
@@ -353,20 +365,32 @@ either way, so the swap is checkable.
 | file | lifted from | regions | area mm2 | drawn size |
 |---|---|---|---|---|
 | `Dominion/lid_logo.dxf` | `Lid Dominion 246S with logo.step` | 6 | 975.420 | 124.693 x 42.850 |
-| `Compile/lid_logo.dxf` | `individual/Compile/Lid S5.7.7.20-Un.3mf` | 12 | 740.054 | 97.771 x 39.333 |
-| `FCM/lid_logo.dxf` | `individual/FCM/Lid L3.18.6.20-Un.3mf` | 10 | 546.843 | 45.029 x 27.598 |
+| `Compile/lid_logo.dxf` | `Lid Compile 126S.step` | 12 | 740.286 | 97.771 x 39.333 |
+| `FCM/lid_logo.dxf` | `Lid FCM 105S.step` | 10 | 547.218 | 45.029 x 27.598 |
 | `Innovation/lid_logo.dxf` | `Lid Innovation 130U.step` | 31 | 685.790 | 109.028 x 33.498 |
 | `Innovation/lid_logo_big.dxf` | `individual/Innovation/Lid S5.15.15.45-Un.3mf` | 31 | 1719.252 | 174.078 x 52.739 |
-| `Innovation/lid_logo_plain*.dxf` | the two above, `--above` | 11 | — | see below |
+| `Innovation/lid_logo_plain*.dxf` | the two above, `--above` | 11 | — | the REFERENCE for `cad/marks.py`, not built from |
 
 A **STEP** keeps the curves and is the better source where one exists. A
 **cached component 3MF** has been meshed, so its outlines come back as
-polylines — but every game already has one, which is what closed the artwork
-gap for Compile, FCM and Innovation's big mark without an export or an API
-call. The error that costs is small and measured: lifted from the mesh, the
-same Innovation mark that the STEP gives as `685.790 mm2` comes back as
-`685.614`, `0.026 %`, in 2773 segments over 31 regions — about 90 a region,
-which is Onshape's own export tolerance and invisible in a `0.810` inlay.
+polylines. Both were needed: the meshes closed the artwork gap for Compile,
+FCM and Innovation's big mark at 0 exports and 0 API calls, and Allan's STEPs
+then replaced two of the three.
+
+The mesh error is small and measured — lifted from the mesh, the same
+Innovation mark the STEP gives as `685.790 mm2` comes back as `685.614`,
+`0.026 %`, in 2773 segments over 31 regions. What a STEP really buys is
+**edges, and so build time**, because every region is a separate boolean
+against the floor:
+
+| mark | from a mesh | from a STEP |
+|---|---|---|
+| Compile | 6493 edges | 1885 |
+| FCM | 3664 | 1499 |
+| Innovation, big | 2762 | 738 |
+
+A Compile lid took `119 s` off the mesh-lifted mark where a Dominion lid, whose
+459-edge artwork came off a STEP all along, takes `17 s`.
 
 The lift takes the top faces of the solids that are not the lid body. From a
 mesh that means the triangles at the object's maximum z, whose singly-used
@@ -543,6 +567,51 @@ runs of dashes and its end circle, none of which is determined by the two
 drawings alone; that mark stays the pair of lifted outlines and its strokes
 still scale with it. `fonts/NotoSerif-BoldItalic.ttf` is bundled ready for it.
 
+### `Ultimate` — measured, not yet built, and its scale-1 export is broken
+
+`Lid Innovation 270S.step` is the `#LogoScaleFactor 1` export, taken so that
+`Ultimate` could be rebuilt the way the plain mark was. **Its flourishes come
+out wrong**, and that has to be fixed in Onshape before the rebuild is worth
+doing. Against the cached `S5.15.15.45-Un`, which is the same mark at the same
+factor and is right:
+
+| | cached, correct | the scale-1 export |
+|---|---|---|
+| lead-in dashes | 5, `1.500 x 0.600`, pitch `4.500` | **4**, with a gap where the third belongs |
+| the fan under the `U` | 5 dashes on an arc | **gone** — two have landed in that gap, rotated |
+| stray | — | one `1.000 x 2.000` dash at `y -26.691`, `4.5` below anything else |
+
+Two instances are missing outright and the rest are displaced, so it is a
+corrupted pattern and not a revision. The letters are untouched. So
+`logos/Innovation/lid_logo_big.dxf` stays the mesh lift of the cached lid, and
+`Ultimate` stays a pair of drawings whose strokes scale with the fit.
+
+What the export IS good for is the letters, and between it and the two good
+drawings the whole line is now measured. When the sketch is fixed, this is
+what a rebuild needs:
+
+* **`Ultimate` is Noto Serif Bold Italic**, default advances, no kerning, at
+  `12.1539` on the small drawing — `0.5832` of the wordmark's size. Fitted
+  over all eight glyphs the worst edge is `0.0030 mm`, which is the cleanest
+  fit anywhere in this file. Its letters scale `1.6000` exactly between the
+  drawings, and its baseline sits `12.620 * n` below the wordmark's.
+* **The lead-in is 5 dashes**, each `1.500 x 0.600` ABSOLUTE, at a pitch of
+  `2.8125 * n`. Their top edge and the flourish's horizontal bar share a line
+  `7.500 * n` below the wordmark's baseline.
+* **The end flourish is a ring with a cross through it.** The ring is
+  `r 1.4000 / 2.0000` — a `0.600` wall, and **absolute**: identical in both
+  drawings. Its centre is on that same bar line; the bar runs `8.750 * n` back
+  from the centre, and the upright runs from the ring's bottom tangent up to
+  `3.750 * n` below the wordmark's baseline.
+* **The fan is 5 dashes of `1.250 x 0.625`** — not the lead-in's size — on an
+  arc of `R 6.394` about a point `4.170` below the `Ultimate` baseline, at
+  `18` degrees apart through `53..127`.
+
+The one thing two drawings could not settle is where the lead-in run is
+anchored in X: its span is exactly `4 * 2.8125 * n + 1.500`, but its position
+decomposes to `a*n + b` with a `b` of `1.0..2.5` that nothing else explains.
+A corrected scale-1 export would settle it.
+
 ### Dominion's mark is 180° out from the other three
 
 Seen from `+Z` — the direction the floor's engraving reads from — Compile's,
@@ -569,7 +638,7 @@ Allan's to settle, not the model's:
 
 ## Verified
 
-`tests/test_lid.py` — the source against the four structural STEPs, every check
+`tests/test_lid.py` — the source against the five structural STEPs, every check
 run against the reference AND the build. On `Lid Dominion 246S`, the one export
 without the pattern embedded, the build's volume lands within `0.01 mm3` of the
 reference's `59542.001`. `tests/test_lid_corpus.py` — all 44 cached lids that
@@ -593,6 +662,18 @@ which cancels: the face vanishes from the reading. Aimed at the centres, half
 the Compile lids read as pre-7.0 because their recess walls disappeared. Every
 probe in `test_lid_corpus.py` is offset by an `EPS` no dimension is a multiple
 of.
+
+**A baseline is the modal glyph bottom, not the bottom of a box.** Adding the
+Compile reference failed two probes at once, and both times the STEP and the
+build agreed exactly on the wrong number — which is what said the model was
+right and the probe was not. `Compile` has a descending `p` and `126 Cards/S` a
+descending slash, so clustering the engraved text by bounding box merged two of
+its three lines and read the third `1.118` low. `tests/test_lid.baselines`
+takes the most common bottom edge instead. The other probe rounded the
+staircase's height to 1 dp and compared exactly: Compile's reference slope is
+`31.3` where ours is `31.2`, which is the `0.31 %` text divergence below
+landing on a rounding boundary rather than a defect, so that dimension now
+carries a tolerance.
 
 **The volume closes where the areas do not.** The build's floor face and the
 reference's differ by `0.02 .. 0.33 mm2` more than the engraving's own
@@ -622,9 +703,10 @@ statement; the area check is corroboration at `0.5 mm2`.
   other five drawings do, and it bites hardest where a mark is enlarged a long
   way — FCM's reaches `1.950`, and Innovation `Ultimate` `1.271`. The fix is
   the same rebuild, and `Ultimate` needs its Logo Flourishes sketch to do it.
-- **Allan's own exports.** Every artwork file here was lifted from a reference
-  rather than exported from the sketch; four of the six came off a mesh, which
-  costs `0.026 %` of area and turns curves into ~90-segment polylines.
+- **A corrected scale-1 Innovation export.** The one on file has a corrupted
+  flourish pattern (above), so `Innovation/lid_logo_big.dxf` is still the mesh
+  lift of a cached lid — 2762 edges where a STEP would give ~740 — and
+  `Ultimate` cannot be rebuilt until the sketch is fixed.
 - **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but
   `calModelName` carries `-M`, so a Mat cascade's lid differs in its engraved
   model code alone. `plan_exports` keys one `("Lid", model)` for both and

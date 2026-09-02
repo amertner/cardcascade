@@ -19,6 +19,7 @@ the 5.000 mm3 of the four chamfers.
 """
 import math
 import sys
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +46,9 @@ REFS = [
     # XS: the narrowest lid in the catalogue, two horizontal slots.
     ("Innovation 130 Un", "Lid Innovation 130U.step",
      params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
+    # A second GAME's card size, and the only reference whose lock is C4.
+    ("Compile 126 Sl", "Lid Compile 126S.step",
+     params.Primary(3, 5, 7, 7, 0, 7, 1, 0, "Compile")),
 ]
 # The logo pattern's pocket in the underside of the floor. Deferred with the
 # pattern itself; measured here only so the volume gap can be accounted for.
@@ -106,6 +110,23 @@ def emboss_lines(solid, z):
         else:
             out.append([bb.min.X, bb.max.X, bb.min.Y, bb.max.Y])
     return [[round(v, 3) for v in line] for line in out]
+
+
+def baselines(solid, z, n):
+    """The `n` baselines of the text standing `z - WALL` proud.
+
+    A line's baseline is where MOST of its glyphs sit, so it is the modal
+    bottom edge and not the bounding box's floor: `Compile` has a descending
+    `p` and `126 Cards/S` a descending slash, either of which puts a line's box
+    a millimetre below the line. Clustering by box merged two of Compile's
+    three lines and read the third 1.118 low — the reference and the build
+    agreeing exactly on the wrong number, which is what said it was the probe.
+    """
+    bottoms = Counter(round(f.bounding_box().min.Y, 2) for f in solid.faces()
+                      if f.geom_type == GeomType.PLANE
+                      and abs(f.center().Z - z) < 1e-6
+                      and f.normal_at(f.center()).Z > 0.999)
+    return sorted(v for v, _n in bottoms.most_common(n))
 
 
 def socket_walls(solid, x, y0, y1):
@@ -295,9 +316,7 @@ for name, fn, P in REFS:
     want = [round(base - 5.5 - 5.0, 3), round(base - 5.5, 3), base]
     for who, solid in (("STEP ", ref), ("build", mine)):
         lines = emboss_lines(solid, lid.WALL + lid.TEXT_PROUD)
-        # The version shares the game line's band on most lids and has a band
-        # of its own on an XS one, so compare the SET of baselines.
-        got = sorted({round(line[2], 3) for line in lines})
+        got = baselines(solid, lid.WALL + lid.TEXT_PROUD, 3)
         check(f"{who}: the three lines' baselines, 5.500 and 5.000 apart",
               [b for b in got if b in want], want)
         # Only the three lines: the version is right-aligned on the LOGO
@@ -329,9 +348,13 @@ for name, fn, P in REFS:
                          and f.normal_at(f.center()).Z > 0.999), key=lambda f: f.area)
             bb = stair.bounding_box()
             check(f"{who}: staircase, {P.RisingSliders} steps",
-                  [len(stair.edges()), round(bb.size.X, 2), round(bb.size.Y, 1)],
-                  [2 * P.RisingSliders + 2, round(lid.logo_width(d), 2),
-                   round(slope, 1)], 0.1)
+                  [len(stair.edges()), round(bb.size.X, 2)],
+                  [2 * P.RisingSliders + 2, round(lid.logo_width(d), 2)])
+            # Its HEIGHT is where the 0.31 % divergence between our fitted cap
+            # and Onshape's lands, so it gets a tolerance rather than a round:
+            # on Compile the reference's slope is 31.3 and ours 31.2.
+            check(f"{who}: staircase height = the slope",
+                  round(bb.size.Y, 3), round(slope, 3), 0.15)
             # Against its OWN box, so the 0.31 % that separates our slope
             # height from Onshape's cancels: R equal steps fill exactly
             # (R + 1) / 2R of the rectangle they descend.

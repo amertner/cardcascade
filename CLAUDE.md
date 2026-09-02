@@ -48,8 +48,10 @@ authoritative for them.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does all
   three. A box takes about ten seconds and a pusher under one; a LID costs
-  whatever its logo artwork costs — 17 s for Dominion's 459 edges, 119 s for
-  Compile's 6493 — so all 50 is about 35 minutes. Run it in the background.
+  whatever its logo artwork costs, because every region of the mark is its own
+  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
+  in the background. Artwork lifted from a STEP has far fewer edges than the
+  same mark lifted from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — it skips a reference that is absent),
