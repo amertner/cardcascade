@@ -7,9 +7,10 @@ is generated from `parts.csv` with **zero API calls** and the design is in git.
 downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
-**Done so far: the Pusher, the Box, and the Lid's structure.** Holder,
-TokenHolder and Topper are not written yet, so the Onshape path is still the
-one that builds a cascade.
+**Done so far: the Pusher, the Box and the Lid** — the Lid but for its logo
+pattern, a per-game motif in a second filament. Holder, TokenHolder and Topper
+are not written yet, so the Onshape path is still the one that builds a
+cascade.
 
 ---
 
@@ -58,8 +59,7 @@ cad/
   parts/
     pusher.py   done
     box.py      done
-    lid.py      structure done; the floor's engraving and the logo pattern
-                are not built yet — see spec/LID.md "What is NOT built yet"
+    lid.py      done but for the logo PATTERN — see spec/LID.md
                 holder.py token_holder.py topper.py — to come
 spec/
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
@@ -188,9 +188,9 @@ pushers to regress against; and the C1–C5 re-cut it is owed costs a real slice
 of the API budget the moment it is done in Onshape instead.
 
 Then the **Box**, which went first in the end because Allan had its feature
-tree and five STEPs to hand, and then the **Lid**, whose structure is now
-built: shell, sockets, closing grooves and the outer rounds. What is left on it
-is one layer — the floor's embossed text, the staircase logo and the underside
-pattern — and it wants the sketch dimensions the way the Box's engraving did.
+tree and five STEPs to hand, and then the **Lid**: shell, sockets, closing
+grooves, outer rounds and the floor's engraving. What is left on it is the logo
+PATTERN alone — a per-game motif printed in the second filament, which nothing
+else on the part interacts with.
 
 Then Holder, then TokenHolder, then Topper.

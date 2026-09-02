@@ -21,11 +21,11 @@ rebuild.
 ### The rebuild is partial — don't assume it covers a part
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
-generated with **zero API calls**. **Pusher** and **Box** are done, and the
-**Lid**'s structure is (its floor engraving, staircase logo and underside
-pattern are not — `spec/LID.md` says what is left). Holder, TokenHolder and
-Topper still come from Onshape, and the whole `automation/` pipeline is still
-live and authoritative for them.
+generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done —
+the Lid but for its logo PATTERN, the per-game motif in its underside that
+prints in the second filament (`spec/LID.md`). Holder, TokenHolder and Topper
+still come from Onshape, and the whole `automation/` pipeline is still live and
+authoritative for them.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and

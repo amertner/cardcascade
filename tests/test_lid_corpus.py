@@ -7,7 +7,8 @@
 references cannot tell a rule from a coincidence across a 46-lid catalogue, so
 this reads the cached meshes instead — 0 API calls — and holds every one of
 them to the placement rules: the envelope, the socket count, where the sockets
-sit in X and Y, and the closing groove.
+sit in X and Y, the closing groove, and where the floor's two engraved blocks
+are anchored.
 
 ## The corpus is a MIXED generation, exactly as the pushers are
 
@@ -40,7 +41,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from cad import mesh3mf, params, derive as D, lock as L   # noqa: E402
+from cad import mesh3mf, params, derive as D, lock as L, text as TX  # noqa: E402
 from cad.parts import lid                                 # noqa: E402
 
 EPS = 0.013            # see the module docstring: never probe down a diagonal
@@ -74,9 +75,12 @@ def spans(V, T, axis, u, v, tol=1e-6):
     b = np.column_stack([B[:, j], B[:, k]])
     c = np.column_stack([C[:, j], C[:, k]])
     p = np.array([u, v])
-    d1, d2, d3 = (np.cross(b - a, p - a), np.cross(c - b, p - b),
-                  np.cross(a - c, p - c))
-    area = np.cross(b - a, c - a)
+
+    def cross(m, n):        # numpy 2.0 deprecates cross() on 2-vectors
+        return m[:, 0] * n[:, 1] - m[:, 1] * n[:, 0]
+
+    d1, d2, d3 = (cross(b - a, p - a), cross(c - b, p - b), cross(a - c, p - c))
+    area = cross(b - a, c - a)
     inside = (((d1 >= 0) & (d2 >= 0) & (d3 >= 0))
               | ((d1 <= 0) & (d2 <= 0) & (d3 <= 0))) & (np.abs(area) > 1e-12)
     idx = np.where(inside)[0]
@@ -89,6 +93,22 @@ def spans(V, T, axis, u, v, tol=1e-6):
         else:
             merged.append(float(x))
     return list(zip(merged[0::2], merged[1::2]))
+
+
+def faces_at(V, T, z, tol=1e-6):
+    """[(x0, x1, y0, y1)] of the triangles lying in the plane `z` and facing
+    up — the top of one embossed feature."""
+    A, B, C = V[T[:, 0]], V[T[:, 1]], V[T[:, 2]]
+    n = np.cross(B - A, C - A)
+    ln = np.linalg.norm(n, axis=1)
+    keep = (ln > 1e-12)
+    up = np.zeros(len(T), dtype=bool)
+    up[keep] = (n[keep, 2] / ln[keep] > 0.999) & (np.abs(A[keep, 2] - z) < tol)
+    out = []
+    for tri in T[up]:
+        P = V[tri]
+        out.append((P[:, 0].min(), P[:, 0].max(), P[:, 1].min(), P[:, 1].max()))
+    return out
 
 
 def near(spans_, want, tol=1e-3):
@@ -170,6 +190,30 @@ for game in GAMES:
         check(f"{model}: groove is GROOVE_LEN long, centred on y = 0",
               near(spans(V, T, 1, (z0 + z1) / 2 + EPS, -W + lid.WALL - 0.2),
                    [(-DD, -lid.GROOVE_LEN / 2), (lid.GROOVE_LEN / 2, DD)]), True)
+
+        # --- the engraving's two anchors -----------------------------------
+        # Not the geometry — that is tests/test_lid.py's job against the STEPs
+        # — but the two expressions that place it, which four references
+        # cannot tell from a coincidence. Read off the emboss's own top faces:
+        # 0.400 proud for the text and 0.600 for the logo.
+        text_gap = 2.0 if p.HorizontalSlots > 2 else 15.0
+        base = (lid.lid_depth(d) / 2 - lid.WALL - D.FootDistanceFromWall
+                - text_gap - lid.CAP_LINE)
+        # One of the 0.400-proud lines is calCapacityLabel, and the rule says
+        # where. Matched by ink TOP rather than by position in the block: the
+        # version is 0.400 proud too, and on an XS lid it sits ABOVE the block
+        # rather than beside it.
+        want_top = round(base + TX.metrics(d.calCapacityLabel)[3]
+                         * lid.CAP_LINE / TX.CAP, 3)
+        tops = {round(b[3], 3) for b in faces_at(V, T, lid.WALL + lid.TEXT_PROUD)}
+        check(f"{model}: calCapacityLabel's baseline off the socket line",
+              any(abs(t - want_top) < 2e-3 for t in tops), True)
+        logo = faces_at(V, T, lid.WALL + lid.LOGO_PROUD)
+        left = -(lid.lid_width(p, d) / 2 - lid.WALL) + lid.logo_offset(p, d)
+        check(f"{model}: the logo block starts at logo_offset",
+              round(min(b[0] for b in logo), 2),
+              round(left + (0.0 if p.HorizontalSlots > 2
+                            else 0.056 * lid.logo_size(d)), 2), 0.35)
 
         # --- which generation this lid is, and then the 7.0 lock ------------
         # The recess step is the tell: probe the -X channel wall where 7.0 puts

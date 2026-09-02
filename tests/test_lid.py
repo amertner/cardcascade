@@ -7,11 +7,12 @@ Four references in `spec/reference/`, listed in `spec/LID.md`. The Lid is being
 built group by group; this asserts only what is written, and grows with it.
 
 Proven so far: the envelope, the shell, the sockets — the lid's half of the 7.0
-lock, channel, key rib and both tab recesses — the closing grooves, and the
-`1.000` round on all twelve outer edges. The floor's embossed text and logo are
-not built, so the reference stands proud of the build by exactly their volume;
-that difference is itself asserted, which is what keeps this test honest about
-what is missing.
+lock, channel, key rib and both tab recesses — the closing grooves, the `1.000`
+round on all twelve outer edges, and the floor's engraving: three right-aligned
+lines, the logo, its version and the staircase. Only the underside's logo
+PATTERN is not built, so the reference is short of the build by exactly its
+pocket; that difference is itself asserted, which is what keeps this test
+honest about what is missing.
 
 Every check runs against the STEP **and** the build wherever it can, because a
 check that only reads the build cannot tell a wrong probe from a wrong model —
@@ -27,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from build123d import GeomType, import_step   # noqa: E402
-from cad import params, derive as D, lock as L  # noqa: E402
+from cad import params, derive as D, lock as L, text as TX  # noqa: E402
 from cad.parts import lid                       # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -36,16 +37,16 @@ REFS = [
     # and Pusher are both referenced too — so the lock can be followed across
     # all three parts of one design.
     ("Dominion 246 Sl", "Lid Dominion 246S.step",
-     params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion"), 167.642, 800.231),
+     params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
     # M: three sockets, and unsleeved.
     ("Dominion 244 Un", "Lid Dominion 244U.step",
-     params.Primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion"), 147.535, 517.295),
+     params.Primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
     # R = 9 — past the logo block's eight-riser branch — and a C5 lock.
     ("Dominion 333 Sl", "Lid Dominion 333S.step",
-     params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion"), 155.747, 1722.310),
+     params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
     # XS: the narrowest lid in the catalogue, two horizontal slots.
     ("Innovation 130 Un", "Lid Innovation 130U.step",
-     params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation"), 160.419, 84.121),
+     params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
 ]
 # The logo pattern's pocket in the underside of the floor. Deferred with the
 # pattern itself; measured here only so the volume gap can be accounted for.
@@ -91,6 +92,24 @@ def radius(face):
         return None
 
 
+def emboss_lines(solid, z):
+    """[(x0, x1, y0, y1)] of the embossed lines standing `z - WALL` proud,
+    clustered into lines by Y. The order is up the lid."""
+    fs = [f for f in solid.faces()
+          if f.geom_type == GeomType.PLANE
+          and abs(f.center().Z - z) < 1e-6
+          and f.normal_at(f.center()).Z > 0.999]
+    out = []
+    for bb in sorted((f.bounding_box() for f in fs), key=lambda b: b.min.Y):
+        if out and bb.min.Y <= out[-1][3] + 0.6:
+            o = out[-1]
+            out[-1] = [min(o[0], bb.min.X), max(o[1], bb.max.X),
+                       min(o[2], bb.min.Y), max(o[3], bb.max.Y)]
+        else:
+            out.append([bb.min.X, bb.max.X, bb.min.Y, bb.max.Y])
+    return [[round(v, 3) for v in line] for line in out]
+
+
 def socket_walls(solid, x, y0, y1):
     """{X: area} of the X-normal faces inside one socket — the whole of the
     lock in one probe: block sides, recess floor, and both channel walls."""
@@ -106,7 +125,7 @@ def socket_walls(solid, x, y0, y1):
     return out
 
 
-for name, fn, P, text_area, logo_area in REFS:
+for name, fn, P in REFS:
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
@@ -247,19 +266,80 @@ for name, fn, P, text_area, logo_area in REFS:
               [len(sph), sorted({round(f.area, 4) for f in sph})],
               [8, [round(math.pi * lid.OUTER_ROUND ** 2 / 2, 4)]])
 
+    # --- the floor's engraving --------------------------------------------
+    # The lines are placed by rule, so their BASELINES are what to compare:
+    # every one is a ladder of constants off the pusher socket line. Ink
+    # widths are not, and cannot be — Onshape's advance for a string runs
+    # 0.31 % wider than the font file's, so the build's ink stops up to
+    # 0.25 mm further right. That is the divergence cad/README.md records.
+    for who, solid in (("STEP ", ref), ("build", mine)):
+        check(f"{who}: the text stands {lid.TEXT_PROUD} proud of the floor",
+              area_at(solid, 2, lid.WALL + lid.TEXT_PROUD, "+") > 0, True)
+        check(f"{who}: the logo stands {lid.LOGO_PROUD} proud",
+              area_at(solid, 2, lid.WALL + lid.LOGO_PROUD, "+") > 0, True)
+    text_gap = 2.0 if P.HorizontalSlots > 2 else 15.0
+    base = round(d.calLidDepth / 2 - lid.WALL - D.FootDistanceFromWall
+                 - text_gap - lid.CAP_LINE, 3)
+    want = [round(base - 5.5 - 5.0, 3), round(base - 5.5, 3), base]
+    for who, solid in (("STEP ", ref), ("build", mine)):
+        lines = emboss_lines(solid, lid.WALL + lid.TEXT_PROUD)
+        # The version shares the game line's band on most lids and has a band
+        # of its own on an XS one, so compare the SET of baselines.
+        got = sorted({round(line[2], 3) for line in lines})
+        check(f"{who}: the three lines' baselines, 5.500 and 5.000 apart",
+              [b for b in got if b in want], want)
+        # Only the three lines: the version is right-aligned on the LOGO
+        # block, and on an XS lid that block reaches further right than this
+        # one does, so it belongs to neither this check nor this edge.
+        right = max(line[1] for line in lines if round(line[2], 3) in want)
+        check(f"{who}: text block right edge = text_offset in from the wall",
+              right < W - lid.WALL - lid.text_offset(d) + 1e-6, True)
+    # The logo: its box, its own two lines, and the staircase.
+    size = lid.logo_size(d)
+    left = round(-(W - lid.WALL) + lid.logo_offset(P, d), 3)
+    logo_base = round(d.calLidDepth / 2 - lid.WALL - D.FootDistanceFromWall
+                      - lid.LOGO_DROP - TX.CAP * size, 3)
+    for who, solid in (("STEP ", ref), ("build", mine)):
+        logo = emboss_lines(solid, lid.WALL + lid.LOGO_PROUD)
+        check(f"{who}: ProductName's box starts at logo_offset",
+              round(logo[-1][0], 1), round(left + 0.056 * size, 1), 0.15)
+        check(f"{who}: ProductName's baseline = FootDistanceFromWall + 1 down",
+              round(logo[-1][2], 1), round(logo_base, 1), 0.06)
+    # The staircase is the whole of the rest of the 0.600 group, and its area
+    # is closed form: R steps of #LogoStepWidth by #LogoStepHeight.
+    if P.HorizontalSlots > 2:
+        top = logo_base - 2 * TX.CAP * size / 3
+        slope = top - lid.socket_span(P, d)[0]
+        for who, solid in (("STEP ", ref), ("build", mine)):
+            stair = max((f for f in solid.faces()
+                         if f.geom_type == GeomType.PLANE
+                         and abs(f.center().Z - lid.WALL - lid.LOGO_PROUD) < 1e-6
+                         and f.normal_at(f.center()).Z > 0.999), key=lambda f: f.area)
+            bb = stair.bounding_box()
+            check(f"{who}: staircase, {P.RisingSliders} steps",
+                  [len(stair.edges()), round(bb.size.X, 2), round(bb.size.Y, 1)],
+                  [2 * P.RisingSliders + 2, round(lid.logo_width(d), 2),
+                   round(slope, 1)], 0.1)
+            # Against its OWN box, so the 0.31 % that separates our slope
+            # height from Onshape's cancels: R equal steps fill exactly
+            # (R + 1) / 2R of the rectangle they descend.
+            check(f"{who}: staircase area = R steps of LogoStepWidth x Height",
+                  round(stair.area, 2),
+                  round(bb.size.X * bb.size.Y
+                        * (P.RisingSliders + 1) / (2 * P.RisingSliders), 2),
+                  0.02)
+    else:
+        for who, solid in (("STEP ", ref), ("build", mine)):
+            check(f"{who}: XS carries the word alone, no staircase",
+                  len(emboss_lines(solid, lid.WALL + lid.LOGO_PROUD)), 1)
+
     # --- what is NOT built yet ---------------------------------------------
-    # Three things, all on the floor. Above it, three embossed lines 0.400
-    # proud and the ProductName over its staircase logo 0.600 proud. Below it,
-    # the logo PATTERN's pocket, 0.800 deep — present in the exports Allan took
-    # "with logo meshes embedded" and absent from the first 246S, which is why
-    # it is measured here rather than assumed.
+    # Only the logo PATTERN: a per-game motif in the underside of the floor,
+    # in a 0.810 pocket. It is present in the exports Allan took "with logo
+    # meshes embedded" and absent from the first 246S, which is why it is
+    # measured here rather than assumed — and the whole of what the two solids
+    # differ by, so nothing else can hide behind it.
     #
-    # Nothing else may differ, so those three account for the whole volume
-    # gap, and the build's floor is bigger by exactly the two on top of it.
-    check("STEP: the text stands 0.400 proud of the floor",
-          area_at(ref, 2, lid.WALL + 0.4, "+"), round(text_area, 3), 1e-3)
-    check("STEP: the logo stands 0.600 proud",
-          area_at(ref, 2, lid.WALL + 0.6, "+"), round(logo_area, 3), 1e-3)
     # The pocket's ceiling faces DOWN — it is open at the lid's underside —
     # and is the one clean face it has, so it is the measure. What it takes
     # out of the underside corroborates it, and the inlay solids fill it.
@@ -280,23 +360,11 @@ for name, fn, P, text_area, logo_area in REFS:
         # filleted/unfilleted pair.
         check("STEP: no pocket, but the inlay solids are still in the file",
               inlays > 0, True)
-    # Everything the two solids differ by, and nothing else: the emboss adds,
-    # the pattern pocket takes away. To 0.3 mm3 in 6e4 — the residual is
-    # OCCT's area integration over faces carrying a thousand glyph wires, and
-    # it is what it is on the Innovation lid, whose pattern has 31 pieces.
-    check("reference - build = the unbuilt text, logo and pattern pocket",
+    # To 0.3 mm3 in 6e4. The residual is the engraving: OCCT integrates a
+    # glyph face to a few parts in 1e5, and our advance is not Onshape's.
+    check("reference - build = the unbuilt pattern pocket, and nothing else",
           round(ref.volume - mine.volume, 2),
-          round(text_area * 0.4 + logo_area * 0.6
-                - pattern * PATTERN_DEPTH, 2), 0.3)
-    # The floor at 0.5 mm2, where the volume closes at 0.03: the reference's
-    # floor face carries about a thousand inner wires — every glyph — and
-    # OCCT's area integration over it is good to a few parts in 1e5, which on
-    # 1e4 mm2 is a tenth of a mm2. The volume is the tighter statement of the
-    # same fact, so this is the loose corroboration of it and not the check.
-    check("and the build's floor is bigger by the two ON it",
-          round(area_at(mine, 2, lid.WALL, "+")
-                - area_at(ref, 2, lid.WALL, "+"), 2),
-          round(text_area + logo_area, 2), 0.5)
+          round(-pattern * PATTERN_DEPTH, 2), 0.3)
 
 print(f"\n{'FAILED: ' + ', '.join(fails) if fails else 'all checks passed'}")
 sys.exit(1 if fails else 0)

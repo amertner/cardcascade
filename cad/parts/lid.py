@@ -12,19 +12,20 @@ Local frame (the part studio's, and the assembly's — a Lid is not offset):
         4.500 of rear storage, so `lid_y = box_y - 2.250`
     Z   0 at the outside of the floor, LidHeight at the rim, opening UP
 
-INCOMPLETE. `build()` stops after the closing grooves. The floor carries three
-embossed lines and a `ProductName` + staircase logo that are not written yet,
-and the underside carries the logo pattern's pocket, which is deferred with the
-pattern itself. See `spec/LID.md` "Still open".
+INCOMPLETE in one respect: the underside carries the logo PATTERN — a per-game
+motif in a second filament, sitting in a `0.810` pocket — and neither the
+pocket nor the inlays are built. Everything else is: shell, sockets, closing
+grooves, the outer rounds and the floor's engraving. See `spec/LID.md`.
 """
 from build123d import (
-    Axis, Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane, Rectangle,
-    chamfer, extrude, fillet, offset,
+    Align, Axis, Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane,
+    Polygon, Pos, Rectangle, Text, add, chamfer, extrude, fillet, offset,
 )
 
 from . import box as box_part
 from .. import derive as D
 from .. import lock as L
+from .. import text as T
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEP at +-105.350
 
@@ -76,7 +77,8 @@ def shell(p, d):
 SOCKET_H = 5.000             # above the floor, which is the tab's own length
 SOCKET_WALL = 2.950          # either side of the channel
 SOCKET_W = 2 * SOCKET_WALL + L.LID_CHANNEL_W          # 9.200
-SOCKET_BACK = 9.000          # the socket's back edge, in from the lid's back
+SOCKET_BACK = D.FootDistanceFromWall + WALL   # 9.000 from the lid's BACK FACE,
+#                              i.e. #FootDistanceFromWall in from its inner one
 KEY_RIB_LEN = 5.000          # along the channel, on the centreline
 SOCKET_X_CENTRE = -0.300     # the socket SET's centre — see spec/LID.md
 
@@ -209,6 +211,184 @@ def closing_grooves(p, d, part):
     return part - tool - tool.mirror(Plane.YZ)
 
 
+# --- the floor's engraving -------------------------------------------------
+#
+# Two blocks, both EMBOSSED — where the Box's floor text is engraved. On the
+# +X side three right-aligned lines reading up in Y; on the -X side the
+# `Card Cascade` logo, its version, and the staircase. Every expression below
+# is the part studio's own, from Allan's sketches (2026-09-02); `spec/LID.md`
+# records them and what each was checked against.
+TEXT_PROUD = 0.400           # calModelName, GameName, calCapacityLabel, version
+LOGO_PROUD = 0.600           # ProductName and its staircase
+CAP_MODEL = 3.000            # calModelName's cap height
+CAP_LINE = 3.500             # GameName's and calCapacityLabel's
+LINE_GAP = 2.000             # a line's cap top to the baseline above it
+VERSION_DROP = 2.000         # ProductName's baseline to the version's cap top
+LOGO_DROP = 1.000            # + FootDistanceFromWall, to ProductName's cap top
+
+
+def text_offset(d):
+    """How far the +X text block's right edge sits in from the right inner wall.
+
+        #calLidTextOffset + 2*#calSlotwidth/3 + #calFootTotalWidth + 2mm
+
+    Allan's sketch, verbatim — `60.43` on a `calSlotwidth 65` lid. It carries
+    no conditional, unlike the logo block's, which is what puts an XS lid's two
+    blocks on top of each other rather than side by side.
+    """
+    return (d.calLidTextOffset + 2 * d.calSlotwidth / 3
+            + d.calFootTotalWidth + 2.0)
+
+
+def logo_offset(p, d):
+    """The same, for the -X logo block's left edge from the left inner wall.
+
+        #calLidTextOffset + 2*#calSlotwidth/3
+        + (#HorizontalSlots > 2 ? #calFootTotalWidth + 2mm : 0)
+
+    So on every lid but an XS one the two blocks are mirror images; on an XS
+    lid the logo keeps the bare offset and the text block moves DOWN instead —
+    see `text_block`. Exact on all 44 cached lids.
+    """
+    extra = d.calFootTotalWidth + 2.0 if p.HorizontalSlots > 2 else 0.0
+    return d.calLidTextOffset + 2 * d.calSlotwidth / 3 + extra
+
+
+def logo_width(d):
+    """`#LogoWidth = #calSlotwidth - 12mm - #calFootTotalWidth`.
+
+    The box `ProductName` is fitted to, and the staircase's own width. `43.800`
+    at `calSlotwidth 65`, and it is what makes the logo's size a pure function
+    of the slot width across the whole catalogue.
+    """
+    return d.calSlotwidth - 12.0 - d.calFootTotalWidth
+
+
+def logo_size(d):
+    """`ProductName`'s font size, and with it `#LogoHeight` (its cap) and
+    `#LogoHeight23` (two thirds of that, the version's cap).
+
+    Fitted to `#LogoWidth` by ADVANCE. Onshape's own advance for this string
+    runs `0.31 %` wider than the font file's, so this comes out `0.31 %` larger
+    than the reference — the identical residual `spec/BOX.md` records for the
+    Box's `ProductName`, and the same cause. See `cad/README.md`, "Text sizing
+    is a rule, not a transcription".
+    """
+    return T.fit_size(d.ProductName, logo_width(d))
+
+
+def emboss(txt, size, x_pen, baseline, proud):
+    """One line of embossed text, as a solid to fuse.
+
+    `x_pen` is where the pen starts and `baseline` the baseline. The glyphs are
+    placed by the PEN ORIGIN, which no measurement of rendered ink recovers —
+    `cad.text.metrics` reads the bearings out of the font file. Two traps, both
+    already paid for in `box.engrave_line`: `Text` adds ITSELF to the sketch as
+    well as the shifted copy unless it is `Mode.PRIVATE`, and `align=MIN` leaves
+    the pen at `-lsb`, so the shift is `+lsb, +lo`.
+    """
+    _adv, lsb, lo, _hi = T.metrics(txt)
+    with BuildPart() as part:
+        with BuildSketch(Plane.XY.offset(WALL)):
+            glyphs = Text(txt, font_size=size, font_path=T.LOGO_FONT,
+                          align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
+            add(Pos(lsb * size, lo * size) * glyphs)
+        extrude(amount=proud)
+    return part.part.moved(Location((x_pen, baseline, 0)))
+
+
+def right_aligned(txt, size, right, baseline, proud):
+    """A line whose text box ENDS at `right` — the three +X lines and the
+    version, which are all right-aligned on their block's edge."""
+    adv = T.metrics(txt)[0]
+    return emboss(txt, size, right - adv * size, baseline, proud)
+
+
+def text_block(p, d):
+    """`calCapacityLabel`, `GameName`, `calModelName` — the +X block.
+
+    Right-aligned on `text_offset` in from the right inner wall, reading UP in
+    Y at `CAP_LINE / CAP_LINE / CAP_MODEL`, each line's cap top `LINE_GAP`
+    below the baseline above it.
+
+    The block hangs off the pusher socket line: the capacity line's cap top is
+    `#HorizontalSlots > 2 ? 2mm : 15mm` below the socket's back edge. The 15 is
+    the whole of why an XS lid's text sits lower — see `spec/LID.md`.
+    """
+    right = lid_width(p, d) / 2 - WALL - text_offset(d)
+    gap = 2.0 if p.HorizontalSlots > 2 else 15.0
+    base = (lid_depth(d) / 2 - WALL - D.FootDistanceFromWall - gap) - CAP_LINE
+    out = []
+    lines = ((d.calCapacityLabel, CAP_LINE), (p.GameName, CAP_LINE),
+             (d.calModelName, CAP_MODEL))
+    for i, (txt, cap) in enumerate(lines):
+        out.append(right_aligned(txt, cap / T.CAP, right, base, TEXT_PROUD))
+        if i + 1 < len(lines):
+            # The NEXT line's cap, not this one's: the gap is measured to that
+            # line's cap TOP, so a 3.000 line follows 2.000 + 3.000 below.
+            base = base - LINE_GAP - lines[i + 1][1]
+    return out
+
+
+def logo_block(p, d):
+    """`ProductName`, `calVersion` and the staircase — the -X block.
+
+    `ProductName`'s cap top is `#FootDistanceFromWall + 1mm` below the lid's
+    inner back face, its box `text_offset` in from the left inner wall and
+    `logo_width` long. The version is right-aligned on the same box, its cap
+    top `VERSION_DROP` below `ProductName`'s baseline.
+    """
+    left = -(lid_width(p, d) / 2 - WALL) + logo_offset(p, d)
+    size = logo_size(d)
+    cap = T.CAP * size                       # #LogoHeight
+    cap23 = 2 * cap / 3                      # #LogoHeight23
+    base = (lid_depth(d) / 2 - WALL
+            - (D.FootDistanceFromWall + LOGO_DROP)) - cap
+    out = [emboss(d.ProductName, size, left, base, LOGO_PROUD),
+           right_aligned(d.calVersion, cap23 / T.CAP, left + logo_width(d),
+                         base - VERSION_DROP - cap23, TEXT_PROUD)]
+    stair = staircase(p, d, left, base - cap23)
+    return out + ([stair] if stair else [])
+
+
+def staircase(p, d, left, top):
+    """The Card Cascade logo: `RisingSliders` steps descending to the right,
+    filling `#LogoWidth` by `#SlopeHeight`.
+
+        #LogoStepWidth  = #LogoWidth / #RisingSliders
+        #LogoStepHeight = #SlopeHeight / #RisingSliders
+
+    `#SlopeHeight` is not a number of its own: the slope runs from the pusher
+    sockets' own front edge up to `#LogoHeight23` below `ProductName`'s
+    baseline, so it is `67.620` on the nine-riser lid and `22.018` on the
+    two-riser one by the same rule.
+
+    **Suppressed on an XS lid**, which carries the word alone. That is inferred
+    rather than read off a sketch — it is the third feature to branch on
+    `#HorizontalSlots > 2`, and both XS lids in `individual/` agree.
+    """
+    if p.HorizontalSlots <= 2:
+        return None
+    y0 = socket_span(p, d)[0]
+    sw, sh = logo_width(d) / p.RisingSliders, (top - y0) / p.RisingSliders
+    pts = [(left, y0), (left + logo_width(d), y0)]
+    for k in range(1, p.RisingSliders + 1):
+        pts.append((left + logo_width(d) - (k - 1) * sw, y0 + k * sh))
+        pts.append((left + logo_width(d) - k * sw, y0 + k * sh))
+    with BuildPart() as part:
+        with BuildSketch(Plane.XY.offset(WALL)):
+            Polygon(*pts, align=None)
+        extrude(amount=LOGO_PROUD)
+    return part.part
+
+
+def floor_text(p, d, part):
+    """Both blocks, fused to the floor."""
+    for solid in text_block(p, d) + logo_block(p, d):
+        part = part + solid
+    return part
+
+
 # --- the outer rounds ------------------------------------------------------
 
 
@@ -242,4 +422,5 @@ def build(p):
     part = shell(p, d)
     part = sockets(p, d, part)
     part = closing_grooves(p, d, part)
+    part = floor_text(p, d, part)
     return fillet(outer_edges(p, d, part), OUTER_ROUND)
