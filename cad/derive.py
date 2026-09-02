@@ -24,6 +24,10 @@ CardHolderGap = 0.4                 # gap between holders, for the slider lid
 PusherFootDepth = 5.0
 PusherThickness = 3.0
 PusherFootThickness = 1.6
+# How far the Lid's pusher socket sits in from its inner wall — and, less
+# 1.000, where the logo's cap top goes. Allan's expression: the box's two walls
+# and the plate between them, plus 1.2 of clearance.
+FootDistanceFromWall = 2 * WallThickness + PusherThickness + 1.2      # 7.4
 TabLeftMargin = 4.0                 # pre-7.0 tab placement (see lock.py)
 TabWidth = 4.0
 ClosingBumpDepth = 1.0
@@ -96,6 +100,7 @@ def derive(p):
     v["calTabDepth"] = WallThickness - 0.1
 
     v["calSliderSpaceLeftRight"] = FrontPocketSidePaddingWidth + 0.1
+    v["calLidTextOffset"] = v["calSliderSpaceLeftRight"]
     # NB the studio tests GameName == "None", which no game is, so this is
     # always calSliderSpaceLeftRight. Transcribed as written — see DERIVED.md.
     v["calFrontDividerLeftSpacing"] = 0.0 if g == "None" else v["calSliderSpaceLeftRight"]

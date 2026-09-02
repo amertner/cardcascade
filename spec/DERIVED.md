@@ -135,12 +135,28 @@ Transcribed as written; none blocks the rebuild.
   still-6.6 pushers on disk: `calTabDistance` is their measured tab-centre
   separation, `D - 12.00`, to the millimetre.
 
+## Variables the parts added
+
+The transcription was made from the variable studio; two more surfaced later,
+in the Lid's own sketches (Allan, 2026-09-02), and are now in `derive.py`
+beside their neighbours:
+
+- **`#FootDistanceFromWall = 2*#WallThickness + #PusherThickness + 1.2mm`** —
+  `7.400`. Where the Lid's pusher sockets sit in from its inner wall, and the
+  datum both engraved blocks hang off. `lid.SOCKET_BACK` is it plus
+  `WallThickness`. The expression reads as the box's two walls and the plate
+  between them, plus clearance.
+- **`#calLidTextOffset = #calSliderSpaceLeftRight`** — an alias, like
+  `calPocketHeight`, and the base of both engraved blocks' horizontal offset.
+
+`spec/LID.md` records what each was checked against.
+
 ## Still needed
 
 The derived layer is complete. What the geometry still needs is **shape**, not
-numbers — which feature is cut from which face, in what order. The Pusher is
-settled: `LOCK_STANDARD.md` plus the two hand-exported STEPs in
-`spec/reference/` (0 API calls) covered it, and `cad/parts/pusher.py` builds all
-34. Lid, Box, Holder, TokenHolder and Topper each still want the same
+numbers — which feature is cut from which face, in what order. Three parts are
+settled: the Pusher from `LOCK_STANDARD.md` plus two hand-exported STEPs, the
+Box from its feature tree plus six, and the Lid from four plus its sketches (0
+API calls throughout). Holder, TokenHolder and Topper each still want the same
 treatment — and a STEP each, exported by hand, before their shape can be
 written down.

@@ -146,13 +146,15 @@ def sheet(path, out, width=1200, views=PUSHER_VIEWS):
     """One PNG per part: one view above the next, with a caption."""
     from PIL import ImageDraw
     for name, verts, tris in mesh3mf.read(path):
-        views = [render(verts, tris, az, el, width) for az, el in views]
+        # NB not `views = [...]`: a file with more than one object comes round
+        # again, and rebinding leaves the camera list holding Images.
+        shots = [render(verts, tris, az, el, width) for az, el in views]
         gap, bar = 16, 26
-        w = max(v.width for v in views)
-        h = sum(v.height for v in views) + gap + bar
+        w = max(v.width for v in shots)
+        h = sum(v.height for v in shots) + gap + bar
         canvas = Image.new("L", (w, h), BG)
         y = bar
-        for v in views:
+        for v in shots:
             canvas.paste(v, ((w - v.width) // 2, y))
             y += v.height + gap
         canvas = canvas.convert("RGB")

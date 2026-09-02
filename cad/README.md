@@ -7,8 +7,10 @@ is generated from `parts.csv` with **zero API calls** and the design is in git.
 downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
-**Done so far: the Pusher.** Box, Lid, Holder, TokenHolder and Topper are not
-written yet, so the Onshape path is still the one that builds a cascade.
+**Done so far: the Pusher, the Box and the Lid** — the Lid but for its logo
+pattern, a per-game motif in a second filament. Holder, TokenHolder and Topper
+are not written yet, so the Onshape path is still the one that builds a
+cascade.
 
 ---
 
@@ -18,20 +20,23 @@ written yet, so the Onshape path is still the one that builds a cascade.
 .venv/bin/python -m cad.build                    # 34 pushers -> build/<Game>/
 .venv/bin/python -m cad.build --list             # the catalogue, no writing
 
+.venv/bin/python -m cad.build --part lid         # all 50 — under a minute
 .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
 .venv/bin/python -m cad.build --part box         # all 50 — MINUTES
-.venv/bin/python -m cad.build --part all         # both
+.venv/bin/python -m cad.build --part all         # all three
 
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
-.venv/bin/python tests/test_box.py               # source vs the six STEPs
+.venv/bin/python tests/test_box.py               # source vs the nine STEPs
+.venv/bin/python tests/test_lid.py               # source vs the four STEPs
+.venv/bin/python tests/test_lid_corpus.py        # the rules vs 44 cached lids
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
 .venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
 ```
 
-Pushers are the default because they take under a second each. A box is about
-ten, so `--part box` on the whole catalogue is minutes — `--model` matches on
-the model code and is how to build one. `--box` on the renderer swaps the
+Pushers are the default because they take under a second each, as a lid does. A
+box is about ten, so `--part box` on the whole catalogue is minutes — `--model`
+matches on the model code and is how to build one. `--box` on the renderer swaps the
 camera: its default is aimed at a pusher lying flat and renders a 105 mm-tall
 box as a squashed ribbon.
 
@@ -53,15 +58,22 @@ cad/
   render.py     shaded PNGs, for looking at a build without Studio
   parts/
     pusher.py   done
-                box.py lid.py holder.py token_holder.py topper.py — to come
+    box.py      done
+    lid.py      done but for the logo PATTERN — see spec/LID.md
+                holder.py token_holder.py topper.py — to come
 spec/
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
   PUSHER.md     the Pusher measured, and what the rebuild reproduces
+  BOX.md        the same for the Box
+  LID.md        the same for the Lid
   reference/    hand-exported STEPs — the ground truth, 0 API calls
 tests/
   test_derive.py            formulae vs every measured anchor on record
   test_pusher.py            the part vs both reference STEPs
   test_pusher_regression.py the 34 written 3MFs vs the 32 in individual/
+  test_box.py               the part vs the nine Box STEPs
+  test_lid.py               the part vs the four structural Lid STEPs
+  test_lid_corpus.py        the Lid's placement rules vs 44 cached meshes
 ```
 
 ## What this replaces, and what it does not
@@ -123,7 +135,10 @@ until a component type has passed regression.
 
 **4. One generation: 7.0.**
 `lock.py` is the 7.0 catalogue, and `pusher.build` **refuses** a `Primary` at
-any other version rather than stamp `CC 6.6` on 7.0 tabs. A pre-7.0 pusher put
+any other version rather than stamp `CC 6.6` on 7.0 tabs. The Lid is the same
+story on its own half of the lock: 25 of the 44 cached lids are 7.0 and 19 are
+not, told apart by a `1.700` recess step against the pre-7.0 `1.800`, and
+`tests/test_lid_corpus.py` asserts the first group and reports the second. A pre-7.0 pusher put
 its tabs at a fixed inset from the two depth edges instead (4.20 front, 4.00
 back, notch always — measured identical on all 14 still-6.6 pushers in
 `individual/`), and nothing here reproduces that. So `build/` is the migration
@@ -157,6 +172,23 @@ is the point: a divergence is recorded in `spec/`, and asserted from both ends
 re-converging fails the tests rather than passing quietly. Anything else that
 differs from a reference is a bug.
 
+## What each part is checked against
+
+The Pusher and the Box have hand-exported STEPs and nothing else; the Lid has
+both — four structural STEPs **and** 46 cached meshes in `individual/`. Both
+are used, because they answer different questions. A STEP is exact and gives
+faces, so it settles a section; four of them cannot tell a rule from a
+coincidence across a 50-lid catalogue, which is what the meshes are for.
+
+Neither settles WHY, and on the Lid that mattered twice. Two placements
+reproduced all 46 lids exactly and were still attached to the wrong datum — the
+engraving hung off the pusher sockets where the sketch hangs it off the wall,
+and the socket set read as centred with a mysterious `-0.300` where the sketch
+anchors its first socket and lets the margin fall where it falls. Both are
+recorded in `spec/LID.md` under "What the fit got wrong", because the lesson
+generalises: a rule that reproduces the whole catalogue can still be the wrong
+rule, and the tell is a term no derived variable produces.
+
 ## Order of work
 
 The **Pusher** first, and it is done. It is the simplest part;
@@ -165,5 +197,10 @@ The **Pusher** first, and it is done. It is the simplest part;
 pushers to regress against; and the C1–C5 re-cut it is owed costs a real slice
 of the API budget the moment it is done in Onshape instead.
 
-Then Lid (same lock, plus embossed version text), then Box, then Holder, then
-TokenHolder, then Topper.
+Then the **Box**, which went first in the end because Allan had its feature
+tree and five STEPs to hand, and then the **Lid**: shell, sockets, closing
+grooves, outer rounds and the floor's engraving. What is left on it is the logo
+PATTERN alone — a per-game motif printed in the second filament, which nothing
+else on the part interacts with.
+
+Then Holder, then TokenHolder, then Topper.
