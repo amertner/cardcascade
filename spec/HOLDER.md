@@ -425,10 +425,52 @@ of `14`.
 **"Through all" is literal.** The removed volume stops changing once the sweep
 passes about `20`, and every longer value gives the same solid.
 
-What remains is `Chamfer lip rest`: twelve thin slivers on `246`, two at each
-rest's ends, `0.977` wide there and `0.850` on `Innovation M Sl`. Neither a
-constant width nor a constant taper fits both, so it is left unbuilt rather than
-guessed — `66.32 mm3` across all eight, or `0.03%`.
+What remains is `Chamfer lip rest`: two thin slivers at each rest's ends,
+`0.977` wide on `246 Sl`, `0.850` on `Innovation M Sl`, `0.600` on
+`Innovation M Un`, `0.580` on `FCM 198`. **`66.32 mm3` across all eight, or
+`0.03%`, and it is the ONLY geometric difference left anywhere** — see the band
+table below.
+
+Three readings have been tried and rejected against the references:
+
+* a **constant width** — the slivers are four different widths;
+* a **constant taper** along the sweep — the width falls with depth, but as
+  `0.977 / 0.850 / 0.600 / 0.580` against sweep distances of roughly `3.6 / 6.0
+  / 10.5 / 12.1`, which is not linear in either the sweep or `Y`;
+* the **lip's TIP width** rather than its base, `12.400 - 2*min(reach, 1.200)`,
+  which predicts `1.026 / 0.892 / 0.635 / 0.610` — close, and tempting — but
+  building it makes every measurable case WORSE: the over-cut on the three
+  holders whose boolean diff completes goes from `15.09 / 7.74 / 5.44` to
+  `67.64 / 13.24 / 27.64`, and the net volume from `+175.80` to `+305.29`.
+
+So it stays unbuilt. The chamfer's size from the `Chamfer lip rest` feature
+would settle it in one line.
+
+## Completeness, band by band
+
+Volume alone can hide errors that cancel, and once the text is built the
+boolean diff is unreliable — OCCT fails to clean it on five of the eight and
+returns the whole solid. Comparing INTERSECTIONS band by band does work, and
+gives this:
+
+| holder | text | base | body | rests | lips |
+|---|---|---|---|---|---|
+| 246 Sl | +0.48 | -0.00 | -8.83 | -0.55 | -0.00 |
+| 246 1st | **+230.73** | -0.00 | -13.18 | -1.91 | -0.01 |
+| 333 Sl | +0.90 | -0.00 | -0.00 | -5.09 | -0.00 |
+| Inno M Sl | +1.55 | -0.00 | -10.88 | -0.00 | -0.00 |
+| Inno M Un | +0.75 | -0.00 | -7.74 | -0.03 | -0.01 |
+| Inno XS | **+15.99** | -0.00 | -5.44 | -0.00 | -0.00 |
+| Compile 105 | +0.72 | -0.00 | -7.13 | -0.00 | -0.00 |
+| FCM 198 Un | +0.28 | -0.00 | -5.57 | +0.00 | -0.00 |
+
+The base and the lips are exact on all eight. The `body`/`rests` column is
+`Chamfer lip rest` and nothing else — its Z falls in `rests` on `333` and in
+`body` on the rest, because the band edges are fixed and the cut's height is
+not. The `text` column is exact on the six that fit and carries the deliberate
+divergence on the two that do not.
+
+So the Holder is ONE feature short, not several.
 
 ## Still open
 
