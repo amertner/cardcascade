@@ -23,9 +23,10 @@ rebuild.
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
 generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done —
 the Lid but for its logo PATTERN, the per-game motif in its underside that
-prints in the second filament (`spec/LID.md`). Holder, TokenHolder and Topper
-still come from Onshape, and the whole `automation/` pipeline is still live and
-authoritative for them.
+prints in the second filament (`spec/LID.md`). The **Holder** is most of the way
+there and writes 3MFs, but is about 2% heavy and NOT printable yet
+(`spec/HOLDER.md`). TokenHolder and Topper still come from Onshape, and the
+whole `automation/` pipeline is still live and authoritative for all three.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and
@@ -38,8 +39,11 @@ authoritative for them.
   its 44 lids are still 6.6 — and those stay Onshape's until their cascades
   migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
-  every pusher is the bare `python -m cad.build`, and `--part all` does all
-  three. A box takes about ten seconds, a lid or a pusher under one.
+  every pusher is the bare `python -m cad.build`, and `--part all` does the lot.
+  A box takes about ten seconds, a holder three, a lid or a pusher under one.
+- **`--part holder` writes INCOMPLETE geometry** — about 2% heavy, because
+  `Lip Rest`, `Remove little front lip` and the bottom text are not built yet.
+  It is wired up so the shape can be LOOKED at, not so it can be printed.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — it skips a reference that is absent),

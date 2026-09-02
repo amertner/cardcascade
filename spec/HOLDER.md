@@ -346,6 +346,33 @@ twin `Holder S-21-r9-Sl.3mf` is `+10.000` and otherwise identical to the micron.
 So `+9.800` is current and the 18 are stale — the same shape of problem as the
 pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
 
+## What is left, measured
+
+`python -m cad.build --part holder` writes all 56, about three seconds each. The
+geometry is **2.01% heavy** against the eight references it is tested on, and
+that excess is material still to be REMOVED. A Z-band diff localises it to two
+places and nowhere else — eight of ten bands agree to `0.00`:
+
+| Z band | STEP | build | diff |
+|---|---|---|---|
+| `-45.25 .. -43.25` | 3364.51 | 3737.92 | **+373.41** |
+| `-43.25 .. -41.25` | 846.88 | 846.88 | 0.00 |
+| `-41.25 .. -25.00` | 2980.90 | 2980.90 | 0.00 |
+| `-25.00 .. -10.00` | 3231.60 | 3231.60 | 0.00 |
+| `-10.00 .. 5.00` | 3231.60 | 3231.60 | 0.00 |
+| `5.00 .. 20.00` | 3411.60 | 3411.60 | 0.00 |
+| `20.00 .. 32.25` | 4425.83 | 4541.25 | **+115.42** |
+| `32.25 .. 42.25` | 1601.73 | 1601.73 | 0.00 |
+| `42.25 .. 44.25` | 215.71 | 215.71 | 0.00 |
+| `44.25 .. 47.00` | 62.22 | 62.22 | 0.00 |
+
+**The base band** loses `373.41`, all of it BETWEEN the walls — the two wall
+faces themselves are exact — of which the engraved text accounts for `84.3`.
+
+**The band below the scallop** loses `115.42`, symmetric about the compartment
+centre and zero within `|x| < 12` of it. So whatever it is sits outside the
+finger hole and is mirrored, which fits `Lip Rest` cutting behind each lip.
+
 ## Still open
 
 - Where the slant plane sits, not just its slope.

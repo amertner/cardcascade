@@ -8,7 +8,8 @@
     .venv/bin/python -m cad.build --part lid      # every lid — seconds each
     .venv/bin/python -m cad.build --part box      # every box — MINUTES
     .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
-    .venv/bin/python -m cad.build --part all      # all three
+    .venv/bin/python -m cad.build --part holder   # every holder — INCOMPLETE
+    .venv/bin/python -m cad.build --part all      # all four
 
 Pushers are the default because they are seconds each. A box is about ten, so
 all 50 is minutes; `--model` matches on the model code and is the way to build
@@ -53,6 +54,7 @@ from . import mesh3mf
 from . import params
 from . import lock as L
 from .parts import box as box_part
+from .parts import holder as holder_part
 from .parts import lid as lid_part
 from .parts import pusher
 
@@ -114,6 +116,67 @@ def build_lid(p, out_dir, folder, filename):
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
     meshed = mesh3mf.write(path, [("Lid", part)])
+    _, verts, tris = meshed[0]
+    return {"path": path, "verts": len(verts), "tris": len(tris),
+            "volume": part.volume, "bytes": path.stat().st_size,
+            "changed": before is not None and before != path.read_bytes(),
+            "new": before is None}
+
+
+def holder_file(d, first=False):
+    """`Holder <model>.3mf`, or `FirstHolder ...` for the first-riser one.
+
+    Keyed on `calModelName` like the Box and the Lid. That is a wider key than
+    the geometry needs — a holder does not depend on the front capacity or the
+    Mat branch — so two rows can produce identical files under different names.
+    It is the same trade `lid_file` makes, and the alternative is a name that
+    cannot be looked up from a parts.csv row.
+
+    NB `plan_exports` names these `Holder M-21-r4-Sl`, keyed on
+    `(size, front capacity, risers, sleeved, first)`. That key is missing
+    `HorizontalSlots` for the per-slot games, where the size letter stands in
+    for it, and missing the card count, which sets the depth. Both are in
+    `calModelName`.
+    """
+    name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
+    stem = "FirstHolder " if first else "Holder "
+    return stem + name.replace("/", "-") + ".3mf"
+
+
+def holder_catalogue(csv=CSV, game=None, model=None):
+    """[(folder, filename, Primary, first)] — every distinct holder.
+
+    A row with a first-riser override yields TWO: the standard holder and the
+    deeper `FirstHolder` that replaces one of them, exactly as
+    `plan_exports.compose` emits them.
+    """
+    out = {}
+    for row in params.load_rows(csv):
+        for sleeved in (0, 1):
+            p = params.from_row(row, sleeved)
+            if game and p.GameName.lower() != game.lower():
+                continue
+            d = D.derive(p)
+            for first in ((False, True) if p.isFirstSlidingSlotOverride
+                          else (False,)):
+                fn = holder_file(d, first)
+                if model and model.lower() not in fn.lower():
+                    continue
+                out.setdefault((p.GameName, fn), (p.GameName, fn, p, first))
+    return [out[k] for k in sorted(out)]
+
+
+def build_holder(p, first, out_dir, folder, filename):
+    """Build one holder and write the 3MF.
+
+    INCOMPLETE — `cad/parts/holder.py` stops after the rear lips, so a written
+    holder is about 2% heavy. See spec/HOLDER.md; the object name is the one
+    `plan_exports` uses so the files drop straight in once it is finished.
+    """
+    part = holder_part.build(p, first)
+    path = out_dir / folder / filename
+    before = path.read_bytes() if path.exists() else None
+    meshed = mesh3mf.write(path, [("FirstHolder" if first else "Holder", part)])
     _, verts, tris = meshed[0]
     return {"path": path, "verts": len(verts), "tris": len(tris),
             "volume": part.volume, "bytes": path.stat().st_size,
@@ -209,7 +272,8 @@ def main(argv=None):
     ap.add_argument("--legacy-names", action="store_true",
                     help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
-    ap.add_argument("--part", choices=("pusher", "box", "lid", "all"),
+    ap.add_argument("--part",
+                    choices=("pusher", "box", "lid", "holder", "all"),
                     default="pusher",
                     help="what to build. Pushers are the default because they "
                          "are seconds; a box is about ten, so all 48 is minutes")
@@ -235,6 +299,27 @@ def main(argv=None):
             print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}, "
                   f"{total / 1e6:.1f} MB, in {args.out}")
         if args.part == "lid":
+            return 0
+
+    if args.part in ("holder", "all"):
+        holders = holder_catalogue(args.csv, args.game, args.model)
+        if args.list:
+            for folder, fn, p, first in holders:
+                print(f"  {folder + '/' + fn}")
+            print(f"\n  {len(holders)} holders")
+        else:
+            print("  NB holders are INCOMPLETE — about 2% heavy, see "
+                  "spec/HOLDER.md")
+            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
+            total = 0
+            for folder, fn, p, first in holders:
+                r = build_holder(p, first, args.out, folder, fn)
+                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
+                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
+                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
+                total += r["bytes"]
+            print(f"\n  {len(holders)} holders, {total / 1e6:.1f} MB, in {args.out}")
+        if args.part == "holder":
             return 0
 
     if args.part in ("box", "all"):
