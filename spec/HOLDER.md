@@ -15,11 +15,23 @@ Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`:
 | `FirstHolder S2.40.12-30.45-Sl.step` | the same row's first riser | 3 | 2 | yes | **20.400** | 16.000 |
 | `Holder S9.21.10.62-Sl.step` | Dominion `333 Card` | 3 | 9 | yes | 8.400 | 9.667 |
 
-The 246 pair is the useful one: it is ONE configuration exported twice, so the
-two differ only in what `first` changes, and its `calSliderDistance` and
-`calFirstSliderDistance` differ by more than a factor of two. The 333 holder is
-the same cascade whose Box and Pusher are already references, and its rise is
-the catalogue's shallowest.
+| `Holder M5.10.10.45-Sl.step` | Innovation `4 Later Ages` | 4 | 5 | yes | 8.900 | 17.400 |
+| `Holder M5.10.10.32-Un.step` | the same row, unsleeved | 4 | 5 | no | 6.400 | 17.400 |
+
+The 246 pair is the useful one for `first`: it is ONE configuration exported
+twice, so the two differ only in what `first` changes, and its
+`calSliderDistance` and `calFirstSliderDistance` differ by more than a factor of
+two. The 333 holder is the same cascade whose Box and Pusher are already
+references, and its rise is the catalogue's shallowest.
+
+The **Innovation pair is what makes the rest general**. Everything measured on
+the Dominion three was confirmed at `calSlotwidth 65.000` and three compartments
+only; these are a SPANNING game at `69.000` and `67.000` with FOUR, and the
+whole suite reproduces them with no change to any rule. So the width formula,
+the slant, the pocket, the lattice at two more slot widths, the scallop with its
+modelled fillet, and the side slot are all confirmed across two games, four slot
+widths and both compartment counts. Whatever distinguishes a spanning game, it
+is not any of these.
 
 ## The frame
 

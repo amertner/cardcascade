@@ -30,6 +30,8 @@ from cad.parts import holder, box                    # noqa: E402
 STEP_DIR = ROOT / "spec" / "reference"
 P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
 P333 = params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
+PINN_SL = params.Primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
+PINN_UN = params.Primary(4, 5, 10, 10, 0, 10, 0, 0, "Innovation")
 REFS = [
     ("Dominion 246 Sl", "Holder S2.40.12-30.45-Sl.step", P246, False),
     # The same row's first riser: same box, deeper holder. calFirstSliderDistance
@@ -38,6 +40,11 @@ REFS = [
     # Nine risers, the catalogue's shallowest rise, and the cascade whose Box
     # and Pusher are already references.
     ("Dominion 333 Sl", "Holder S9.21.10.62-Sl.step", P333, False),
+    # Innovation: a SPANNING game, FOUR compartments, and two slot widths that
+    # are neither Dominion's. Every reading above was confirmed at
+    # calSlotwidth 65.000 only until these arrived.
+    ("Innovation M5.10.10 Sl", "Holder M5.10.10.45-Sl.step", PINN_SL, False),
+    ("Innovation M5.10.10 Un", "Holder M5.10.10.32-Un.step", PINN_UN, False),
 ]
 fails = []
 
