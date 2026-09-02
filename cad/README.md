@@ -7,8 +7,9 @@ is generated from `parts.csv` with **zero API calls** and the design is in git.
 downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
-**Done so far: the Pusher.** Box, Lid, Holder, TokenHolder and Topper are not
-written yet, so the Onshape path is still the one that builds a cascade.
+**Done so far: the Pusher, the Box, and the Lid's structure.** Holder,
+TokenHolder and Topper are not written yet, so the Onshape path is still the
+one that builds a cascade.
 
 ---
 
@@ -18,20 +19,23 @@ written yet, so the Onshape path is still the one that builds a cascade.
 .venv/bin/python -m cad.build                    # 34 pushers -> build/<Game>/
 .venv/bin/python -m cad.build --list             # the catalogue, no writing
 
+.venv/bin/python -m cad.build --part lid         # all 50 — under a minute
 .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
 .venv/bin/python -m cad.build --part box         # all 50 — MINUTES
-.venv/bin/python -m cad.build --part all         # both
+.venv/bin/python -m cad.build --part all         # all three
 
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
 .venv/bin/python tests/test_box.py               # source vs the six STEPs
+.venv/bin/python tests/test_lid.py               # source vs the four STEPs
+.venv/bin/python tests/test_lid_corpus.py        # the rules vs 44 cached lids
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
 .venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
 ```
 
-Pushers are the default because they take under a second each. A box is about
-ten, so `--part box` on the whole catalogue is minutes — `--model` matches on
-the model code and is how to build one. `--box` on the renderer swaps the
+Pushers are the default because they take under a second each, as a lid does. A
+box is about ten, so `--part box` on the whole catalogue is minutes — `--model`
+matches on the model code and is how to build one. `--box` on the renderer swaps the
 camera: its default is aimed at a pusher lying flat and renders a 105 mm-tall
 box as a squashed ribbon.
 
@@ -53,15 +57,23 @@ cad/
   render.py     shaded PNGs, for looking at a build without Studio
   parts/
     pusher.py   done
-                box.py lid.py holder.py token_holder.py topper.py — to come
+    box.py      done
+    lid.py      structure done; the floor's engraving and the logo pattern
+                are not built yet — see spec/LID.md "What is NOT built yet"
+                holder.py token_holder.py topper.py — to come
 spec/
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
   PUSHER.md     the Pusher measured, and what the rebuild reproduces
+  BOX.md        the same for the Box
+  LID.md        the same for the Lid
   reference/    hand-exported STEPs — the ground truth, 0 API calls
 tests/
   test_derive.py            formulae vs every measured anchor on record
   test_pusher.py            the part vs both reference STEPs
   test_pusher_regression.py the 34 written 3MFs vs the 32 in individual/
+  test_box.py               the part vs the six Box STEPs
+  test_lid.py               the part vs the four structural Lid STEPs
+  test_lid_corpus.py        the Lid's placement rules vs 44 cached meshes
 ```
 
 ## What this replaces, and what it does not
@@ -123,7 +135,10 @@ until a component type has passed regression.
 
 **4. One generation: 7.0.**
 `lock.py` is the 7.0 catalogue, and `pusher.build` **refuses** a `Primary` at
-any other version rather than stamp `CC 6.6` on 7.0 tabs. A pre-7.0 pusher put
+any other version rather than stamp `CC 6.6` on 7.0 tabs. The Lid is the same
+story on its own half of the lock: 25 of the 44 cached lids are 7.0 and 19 are
+not, told apart by a `1.700` recess step against the pre-7.0 `1.800`, and
+`tests/test_lid_corpus.py` asserts the first group and reports the second. A pre-7.0 pusher put
 its tabs at a fixed inset from the two depth edges instead (4.20 front, 4.00
 back, notch always — measured identical on all 14 still-6.6 pushers in
 `individual/`), and nothing here reproduces that. So `build/` is the migration
@@ -154,6 +169,16 @@ is the point: a divergence is recorded in `spec/`, and asserted from both ends
 re-converging fails the tests rather than passing quietly. Anything else that
 differs from a reference is a bug.
 
+## What each part is checked against
+
+The Pusher and the Box have hand-exported STEPs and nothing else; the Lid has
+both — four structural STEPs **and** 46 cached meshes in `individual/`. Both
+are used, because they answer different questions. A STEP is exact and gives
+faces, so it settles a section; four of them cannot tell a rule from a
+coincidence across a 50-lid catalogue, which is what the meshes are for. The
+`x = -0.300` the socket set sits on and the `9.000` its back edge is inset by
+are constants on all 46 — that is what makes them rules rather than readings.
+
 ## Order of work
 
 The **Pusher** first, and it is done. It is the simplest part;
@@ -162,5 +187,10 @@ The **Pusher** first, and it is done. It is the simplest part;
 pushers to regress against; and the C1–C5 re-cut it is owed costs a real slice
 of the API budget the moment it is done in Onshape instead.
 
-Then Lid (same lock, plus embossed version text), then Box, then Holder, then
-TokenHolder, then Topper.
+Then the **Box**, which went first in the end because Allan had its feature
+tree and five STEPs to hand, and then the **Lid**, whose structure is now
+built: shell, sockets, closing grooves and the outer rounds. What is left on it
+is one layer — the floor's embossed text, the staircase logo and the underside
+pattern — and it wants the sketch dimensions the way the Box's engraving did.
+
+Then Holder, then TokenHolder, then Topper.

@@ -5,9 +5,10 @@
     .venv/bin/python -m cad.build --game Dominion
     .venv/bin/python -m cad.build --list          # what it would build
 
+    .venv/bin/python -m cad.build --part lid      # every lid — seconds each
     .venv/bin/python -m cad.build --part box      # every box — MINUTES
     .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
-    .venv/bin/python -m cad.build --part all      # both
+    .venv/bin/python -m cad.build --part all      # all three
 
 Pushers are the default because they are seconds each. A box is about ten, so
 all 50 is minutes; `--model` matches on the model code and is the way to build
@@ -52,6 +53,7 @@ from . import mesh3mf
 from . import params
 from . import lock as L
 from .parts import box as box_part
+from .parts import lid as lid_part
 from .parts import pusher
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -75,6 +77,48 @@ def box_file(d):
     """
     name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
     return "Box " + name.replace("/", "-") + ".3mf"
+
+
+def lid_file(d):
+    """`Lid <model>.3mf`, the name `individual/` uses.
+
+    Keyed on `calModelName` exactly as the Box is, which means a Mat cascade
+    gets its own lid where `plan_exports` keys one `("Lid", model)` for both.
+    Nothing in the geometry depends on `MatPocket`, so the two are identical
+    files today; they part company when the floor's engraved `calModelName` is
+    built, and the CAD is the authority on that code (CLAUDE.md).
+    """
+    name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
+    return "Lid " + name.replace("/", "-") + ".3mf"
+
+
+def lid_catalogue(csv=CSV, game=None, model=None):
+    """[(folder, filename, Primary)] — every distinct lid, deduplicated."""
+    out = {}
+    for row in params.load_rows(csv):
+        for sleeved in (0, 1):
+            p = params.from_row(row, sleeved)
+            if game and p.GameName.lower() != game.lower():
+                continue
+            fn = lid_file(D.derive(p))
+            if model and model.lower() not in fn.lower():
+                continue
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+    return [out[k] for k in sorted(out)]
+
+
+def build_lid(p, out_dir, folder, filename):
+    """Build one lid and write the 3MF. Like the Box, a Lid sits at the part
+    studio's origin, which is the assembly's."""
+    part = lid_part.build(p)
+    path = out_dir / folder / filename
+    before = path.read_bytes() if path.exists() else None
+    meshed = mesh3mf.write(path, [("Lid", part)])
+    _, verts, tris = meshed[0]
+    return {"path": path, "verts": len(verts), "tris": len(tris),
+            "volume": part.volume, "bytes": path.stat().st_size,
+            "changed": before is not None and before != path.read_bytes(),
+            "new": before is None}
 
 
 def box_catalogue(csv=CSV, game=None, model=None):
@@ -165,12 +209,32 @@ def main(argv=None):
     ap.add_argument("--legacy-names", action="store_true",
                     help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
-    ap.add_argument("--part", choices=("pusher", "box", "all"), default="pusher",
+    ap.add_argument("--part", choices=("pusher", "box", "lid", "all"),
+                    default="pusher",
                     help="what to build. Pushers are the default because they "
                          "are seconds; a box is about ten, so all 48 is minutes")
     ap.add_argument("--model", help="build only boxes whose model code contains "
                                     "this, e.g. S2.40.12-30.45-Sl")
     args = ap.parse_args(argv)
+
+    if args.part in ("lid", "all"):
+        lids = lid_catalogue(args.csv, args.game, args.model)
+        if args.list:
+            for folder, fn, p in lids:
+                print(f"  {folder + '/' + fn}")
+            print(f"\n  {len(lids)} lids")
+        else:
+            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
+            total = 0
+            for folder, fn, p in lids:
+                r = build_lid(p, args.out, folder, fn)
+                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
+                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
+                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
+                total += r["bytes"]
+            print(f"\n  {len(lids)} lids, {total / 1e6:.1f} MB, in {args.out}")
+        if args.part == "lid":
+            return 0
 
     if args.part in ("box", "all"):
         boxes = box_catalogue(args.csv, args.game, args.model)

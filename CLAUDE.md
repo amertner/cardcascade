@@ -21,10 +21,11 @@ rebuild.
 ### The rebuild is partial — don't assume it covers a part
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
-generated with **zero API calls**. Only the **Pusher** exists so far
-(`cad/parts/pusher.py`); Box, Lid, Holder, TokenHolder and Topper still come
-from Onshape, and the whole `automation/` pipeline is still live and
-authoritative for them.
+generated with **zero API calls**. **Pusher** and **Box** are done, and the
+**Lid**'s structure is (its floor engraving, staircase logo and underside
+pattern are not — `spec/LID.md` says what is left). Holder, TokenHolder and
+Topper still come from Onshape, and the whole `automation/` pipeline is still
+live and authoritative for them.
 
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a formula lives. Component modules read a frozen `Derived` and
@@ -33,16 +34,20 @@ authoritative for them.
   and 68 raw assemblies that cannot be re-fetched at any sane budget. The
   rebuild writes to `build/`, never over it.
 - **`cad/` builds 7.0 geometry only** and `pusher.build` refuses any other
-  version. The 14 pushers in `individual/` still at 6.6 stay Onshape's until
-  their cascades migrate; `build/` is the migration target, not a mirror.
+  version. `individual/` is a mixed catalogue — 14 of its 32 pushers and 19 of
+  its 44 lids are still 6.6 — and those stay Onshape's until their cascades
+  migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
-  every pusher is the bare `python -m cad.build`, and `--part all` does both.
-  A box takes about ten seconds, a pusher under one.
+  every pusher is the bare `python -m cad.build`, and `--part all` does all
+  three. A box takes about ten seconds, a lid or a pusher under one.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
   fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
-  STEPs — it skips a reference that is absent), and
+  STEPs — it skips a reference that is absent),
   `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs
-  `individual/`; run `python -m cad.build` first).
+  `individual/`; run `python -m cad.build` first),
+  `.venv/bin/python tests/test_box.py` and `.venv/bin/python tests/test_lid.py`
+  (source vs their STEPs), and `.venv/bin/python tests/test_lid_corpus.py`
+  (the Lid's placement rules against all 44 cached lids).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 
@@ -66,6 +71,9 @@ authoritative for them.
   a lid to 0.2 mm of its row; `check_box`'s depth tolerance is 1.2 mm and
   proves much less.
 - **The CAD is the authority on a box's model code**, not `parts.csv`.
+- A **Lid 3MF carries more than the lid**: the logo pattern's inlays are
+  separate objects in it (up to 31), and the lid body is the biggest one. The
+  same is true of the hand-exported Lid STEPs.
 - Every generated project carries exactly **two filament slots: white 1,
   black 2**, and `wall_generator: arachne` (forced by
   `make_cascade.PRINT_SETTINGS` on every path).
