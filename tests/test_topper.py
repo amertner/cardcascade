@@ -165,7 +165,7 @@ print("\n=== against the rolled-back exports (M15-Sl, a SECOND parameter set) ==
 # All three rollbacks predate `Upside Down`, so they arrive in the pre-flip
 # frame. That transform is itself a measurement: a 180-degree turn about X
 # through (y = -depth, z = Z_BASE) puts every body on the same envelope exactly.
-from build123d import Pos, Rot                            # noqa: E402
+from build123d import Rot                                 # noqa: E402
 Q = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dq = D.derive(Q)
 dpq = T.depth(Q, dq)

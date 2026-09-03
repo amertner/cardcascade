@@ -50,9 +50,9 @@ are not buildable yet. `spec/TOPPER.md` records every rule they will need.
 import math
 
 from build123d import (
-    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Circle, GeomType,
-    Line, Location, Mode, Plane, Polyline, Pos, Rot, Text, ThreePointArc,
-    chamfer, extrude, fillet, make_face, mirror,
+    Align, Box, BuildLine, BuildPart, BuildSketch, Circle, Line, Location,
+    Mode, Plane, Polyline, Pos, Text, ThreePointArc, chamfer, extrude, fillet,
+    make_face, mirror,
 )
 
 from .. import derive as D
@@ -230,7 +230,7 @@ def wedge(p, d):
     """The base solid: the profile swept the full width."""
     x0, x1 = x_span(p, d)
     with BuildPart() as part:
-        with BuildSketch(Plane.YZ) as sk:
+        with BuildSketch(Plane.YZ):
             with BuildLine():
                 pts = wedge_profile(p, d)
                 Polyline(*pts, close=True)
@@ -340,7 +340,7 @@ def front_removal(p, d):
     for c in slot_x(p, d):
         xl, xr = c - hw, c + hw
         with BuildPart() as part:
-            with BuildSketch(Plane.XZ) as sk:
+            with BuildSketch(Plane.XZ):
                 with BuildLine():
                     _arc(None, (xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
                     Line((xl, z0 + r), (xl, z1 - r))

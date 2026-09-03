@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from cad import build as B, mesh3mf, params, derive as D  # noqa: E402
-from cad.parts import holder as H, topper as T            # noqa: E402
+from cad.parts import topper as T                         # noqa: E402
 
 EPS = 0.013            # see the module docstring: never probe down a diagonal
 ARC_TOL = 0.005        # a probe that lands on a fillet, not on a plane
