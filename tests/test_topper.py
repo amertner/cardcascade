@@ -139,6 +139,61 @@ for got, want in zip(T.band_x(P, d),
                       (160.1, 174.9), (227.1, 234.5)]):
     check(f"band at {want}", (round(got[0], 3), round(got[1], 3)), want)
 
+print("\n=== against the rolled-back exports (M15-Sl, a SECOND parameter set) ===")
+# Both rollbacks predate `Upside Down`, so they arrive in the pre-flip frame.
+# That transform is itself a measurement: a 180-degree turn about X through
+# (y = -depth, z = Z_BASE) puts all three bodies on the same envelope exactly.
+from build123d import Pos, Rot                            # noqa: E402
+Q = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
+dq = D.derive(Q)
+dpq = T.depth(Q, dq)
+
+
+def unflip(solid):
+    return Pos(0, -2 * dpq, 2 * T.Z_BASE) * Rot(180, 0, 0) * solid
+
+
+roll1 = unflip(import_step(str(STEP_DIR / "Topper M5.15.15.62-Sl to Remove Inner Hole.step")).solids()[0])
+roll2 = unflip(import_step(str(STEP_DIR / "Topper M5.15.15.62-Sl after More Dividers.step")).solids()[0])
+
+rb1 = roll1.bounding_box()
+wq = T.wedge(Q, dq)
+check("the flip puts the rollback on the wedge's envelope (X)",
+      round(rb1.min.X, 6), round(wq.bounding_box().min.X, 6), 1e-6)
+check("... (Y)", round(rb1.min.Y, 6), round(wq.bounding_box().min.Y, 6), 1e-6)
+check("... (Z)", round(rb1.min.Z, 6), round(wq.bounding_box().min.Z, 6), 1e-6)
+
+pocketed = wq - T.inner_hole(Q, dq)
+check("Remove Inner Hole: volume", round(pocketed.volume, 4),
+      round(roll1.volume, 4), 1e-4)
+check("Remove Inner Hole: face count", len(pocketed.faces()), len(roll1.faces()))
+check("Remove Inner Hole: nothing left over",
+      round((pocketed - roll1).volume if (pocketed - roll1) else 0.0, 6), 0.0, 1e-6)
+check("Remove Inner Hole: nothing missing",
+      round((roll1 - pocketed).volume if (roll1 - pocketed) else 0.0, 6), 0.0, 1e-6)
+
+check("the pocket is inset INNER_END_INSET from each end",
+      round(T.inner_hole(Q, dq).bounding_box().min.X - wq.bounding_box().min.X, 4),
+      round(T.INNER_END_INSET, 4), 1e-4)
+check("... and INNER_INSET * cos(theta) in Y at the rear",
+      round(T.inner_hole(Q, dq).bounding_box().min.Y - rb1.min.Y, 4),
+      round(T.INNER_INSET * T.slant_cos(Q, dq), 4), 1e-4)
+
+grouped = pocketed - T.front_removal(Q, dq) + T.dividers(Q, dq)
+check("front removal + dividers: volume", round(grouped.volume, 3),
+      round(roll2.volume, 3), 1e-3)
+# The r2.0 `Fillet front holes` is NOT built — OCCT will not put a 2.000 round
+# on an 0.800 wall, which is what Onshape's "allow edge overflow" is doing. It
+# moves 5.494 mm3 without changing the total, so volume alone would pass it.
+sym = (grouped - roll2)
+check("what is left is ONLY the unbuilt r2.0 fillet",
+      round(sym.volume if sym else 0.0, 3), 5.494, 0.01)
+check("... which is under 0.1% of the group",
+      round(100 * (sym.volume if sym else 0.0) / roll2.volume, 3) < 0.1, True)
+check("the reference carries it as 16 cylinders at r2.0",
+      sum(1 for f in roll2.faces()
+          if "CYLINDER" in str(f.geom_type) and abs(f.radius - T.FRONT_FILLET) < 1e-6), 16)
+
 print("\n=== it is Innovation-only ===")
 check("(not yet enforced — build() is not written)", True, True)
 

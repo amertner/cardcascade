@@ -22,6 +22,8 @@ lettering**, not six designs.
 | `Topper Unseen M5.15.15.45-Un.step` | 15 cards, unsleeved |
 | `Topper Unseen M5.10.10.32-Un.step` | 10 cards, unsleeved — the PAIR with the one above: same expansion, same size, same sleeving, and only the card count differs |
 | `Topper Cities M5.15.15.62-Sl.step` | 15 cards, SLEEVED. The third axis: sleeving moves the depth without moving the card count, which is what the pair alone could not separate |
+| `Topper M5.15.15.62-Sl to Remove Inner Hole.step` | the feature tree ROLLED BACK to that feature |
+| `Topper M5.15.15.62-Sl after More Dividers.step` | rolled back to there. The two bracket `Main topper`, so each group is a subtraction rather than an inference |
 | 48 cached components | `individual/Innovation/Topper *.3mf` — 6 expansions x S/M x 10/15 cards x Sl/Un |
 
 The STEP holds **13 solids**: the body, the six letters of `Unseen`, and six
@@ -175,6 +177,62 @@ row, because the slope moves with `calSlotDepth`.
 | `Other side` | a FEATURE MIRROR of `Remove Lip Room` + `Fillet Lip Room` about the **Right plane** — so the lip clearance is cut at both ends and the fillet comes with it |
 | `Linear pattern 1` | patterns `Remove Lip Room` + `Fillet Lip Room` + `Other side` along the **Right plane**, `distance = calSlotwidth` (67 on the sample), `count = HorizontalSlots` (4), **Centered**. So the lip clearance is cut once per slot, centred on the part |
 | `Top and front edges` | `r 0.800`, see above |
+
+## The rollbacks arrive in the PRE-`Upside Down` frame
+
+`Upside Down` sits late in the tree, so anything rolled back before it comes
+out turned over: `Y 0 .. -depth` where the finished part is `-2*depth .. -depth`,
+and `Z` mirrored about `Z_BASE`. The transform is
+
+    a 180-degree turn about X through (y = -depth, z = Z_BASE)
+
+    y' = -y - 2*depth        z' = -z + 2*Z_BASE
+
+and it puts all three bodies on the same envelope to `1e-6`. Worth knowing
+before comparing any future rollback, because the two frames differ by exactly
+the amount that makes a wrong answer look plausible.
+
+## `Remove Inner Hole` — solved exactly
+
+Differencing `wedge()` against the first rollback gives the tool itself: **one
+prism of six faces**, swept along X, whose top IS the wedge's own slant plane —
+so the cut needs no top of its own, it simply runs out through the slant.
+
+    floor   Z_BASE + FLOOR
+    front   FRONT_WALL (0.800) in from the front face, in Y
+    rear    INNER_INSET (0.800) from the rear edge, ALONG THE SLANT
+    ends    INNER_END_INSET (1.400) in from each end of the part
+
+Those last two are the `Inner Hole Outline` sketch's `0.8` and `1.4`, and the
+rear one is why the sketch plane matters: `0.800` along a slant of `1.4977`
+lands `0.4442` in Y, and `0.242` on the `3.1538` row. `cad/` reproduces the
+rollback with **zero volume difference either way** and the same 12 faces.
+
+## `Divider` is the pocket, filled back in
+
+The same difference on the second rollback gives three solids of six faces
+whose YZ section is **identical to the pocket's** — the same area to four
+decimals, the same four edges. So a rib is not a shape of its own: it is
+`Remove Inner Hole`'s own profile put back over `RIB_W`, at each slot boundary.
+
+## The front-wall removal, and the fillet that is not built
+
+`Remove most of front` and its companions take the front wall away above
+`FRONT_WALL_RISE`, over `calSlotwidth - 2*BAND_HALF`, centred on each SLOT
+CENTRE — which is what leaves the `14.800` band at each boundary.
+
+The rollback's removed solids measure `58.200` wide against that rule's
+`54.200`, and the difference is not the cut. It is `Fillet front holes`: a
+`2.000` round on each vertical corner, with "allow edge overflow", reaching
+`2.000` past each end. The band measures `14.800` on all four references, which
+is what says the cut is the narrower number.
+
+**That fillet is not built.** OCCT will not put a `2.000` round on an `0.800`
+wall, which is precisely what Onshape's overflow option is for. It moves
+`5.494 mm3` — `0.086%` of the group — WITHOUT changing the total, so a volume
+check alone would pass a body that does not have it; the test asserts the
+symmetric difference instead, and that the reference carries it as 16 cylinders
+at `r 2.000`.
 
 ## Ribs and front bands — a T in plan, not a post
 
