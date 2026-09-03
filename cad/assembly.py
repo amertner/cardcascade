@@ -354,3 +354,61 @@ def holder_play(p, d, j):
     closed = holder_closed(p, d, j)
     return Place(origin=(closed.origin[0], closed.origin[1],
                          tread_z(p, d, j) + holder_z_base(d)))
+
+
+# --- the Topper ------------------------------------------------------------
+#
+# Allan: "The topper fits snugly on top of the card holder, with the
+# protrusions on the side ensuring it doesn't slide down the diagonal. There is
+# no mate per se." So the cached component's position is NOT an assembly
+# position and nothing may be read off it directly — which is what an earlier
+# draft of `spec/ASSEMBLY.md` did, and it was wrong twice over.
+#
+# What the part IS, from sectioning `Topper Blank S15-Un`: a long bar with two
+# thin fins at its extreme ends, ~45 mm long, and a shorter protrusion at each
+# compartment DIVIDER. The label is an inlay in the bar's `z_min` face, the same
+# `-0.010 .. 0.800` signature the Lid's logo has. That face must be visible, so
+# it is UP in use and the fins hang DOWN — which is what makes them protrusions
+# that stop the bar sliding down the diagonal.
+#
+# X is not a choice: two independent features fix it, and both are exact.
+# The bar's ends inset `holder.END_EXTRA` 4.900 from the holder's, so it spans
+# exactly between the end blocks; and its protrusions sit at 33.500 and 100.500
+# on an Innovation `S5.15.15`, which are `(k + 0.5) * calSlotwidth` — the
+# holder's own dividers. So the Topper is drawn in the HOLDER's frame with no X
+# offset at all.
+
+
+def topper(p, d, j, drawn_face_z, first=False):
+    """The topper on riser `j`, in the cascade frame.
+
+    A half turn about **X** — label up, fins down — and then:
+
+    * **X** unchanged, per above.
+    * **Y** the topper's depth equals the holder's exactly (8.000 against
+      8.000, and 6.000 against 6.000 on the 10-card pair), so laying it over
+      the holder is the only alignment there is. The drawn part sits at
+      `-2 * depth .. -depth`, so the turn about X and an origin of
+      `-2 * depth` bring it onto the holder's own `-depth .. 0`.
+    * **Z** the label face lands on `holder.card_top` — the topper caps the
+      cards it names.
+
+    `drawn_face_z` is the cached mesh's own minimum Z, the label face, and it is
+    a PARAMETER rather than a constant because there is no `cad/` Topper to
+    derive it from: the part is only available as the cached component, so its
+    drawn frame is a fact about a file. `cad/assemble.py` reads it off the mesh
+    it is about to place. It measures 48.450 against a `card_top` of 48.550.
+    """
+    depth = holder_part.holder_depth(p, d, first)
+    base = holder_closed(p, d, j).origin
+    return Place(x_dir=(1, 0, 0), z_dir=(0, 0, -1),
+                 origin=(base[0], base[1] - 2 * depth,
+                         base[2] + holder_part.card_top(d) + drawn_face_z))
+
+
+def topper_play(p, d, j, drawn_face_z, first=False):
+    """The same, on a cascaded holder — only the tread's height differs."""
+    pl = topper(p, d, j, drawn_face_z, first)
+    lift = holder_play(p, d, j).origin[2] - holder_closed(p, d, j).origin[2]
+    return Place(x_dir=pl.x_dir, z_dir=pl.z_dir,
+                 origin=(pl.origin[0], pl.origin[1], pl.origin[2] + lift))

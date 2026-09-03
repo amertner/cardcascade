@@ -214,46 +214,51 @@ they are not meant to stack in depth. A merged cascade ships one of each and
 the slot takes whichever suits; the assembly places the FULL, which every
 token-holder row gets.
 
-### Topper — sectioned, and one question left
+### Topper — one per holder, capping its cards
 
-Allan: **the toppers slide into the top of the holders, covering the cards**.
-The cached Topper is exported in the **Holder's own frame**, so the mate is
-measured off two meshes rather than guessed. On Innovation `S5.15.15`, and
-confirmed on the 10-card pair:
+Allan: *"The topper fits snugly on top of the card holder, with the protrusions
+on the side ensuring it doesn't slide down the diagonal. There is no mate per
+se."*
 
-| | X | Y | Z |
-|---|---|---|---|
-| `Holder 3x15-r5-Un` | -38.400 … 172.400 | -8.000 … 0.844 | -45.250 … 46.173 |
-| `Topper Blank S15-Un` | -33.500 … 167.500 | -16.000 … -8.000 | 48.450 … 93.650 |
+**No mate means nothing may be read off the cached component's position**, and
+an earlier draft of this file read two things off it and got both wrong. What
+the placement is derived from instead is the PART, sectioned.
 
-**What the topper is.** Sectioning it: the material at `x -33` and `x 167` — its
-two ends — spans the full 45.200 of Z and the full 8.000 of Y, and between them
-there is almost nothing except a rail at `z ~51.6` and another at `z ~93`. So it
-is a FRAME: two tall end plates joined by two rails, which is exactly the shape
-of the loose toppers in Allan's third photo, a long bar with an arm at each end.
+**What it is.** A long bar; two thin fins ~45 mm long at its extreme ends; a
+shorter protrusion at each compartment DIVIDER. The label is an inlay in the
+bar's `z_min` face, carrying the same `-0.010 .. 0.800` signature the Lid's
+logo pattern has. That face has to be visible, so it is **up** in use and the
+fins hang **down** — which is what makes them protrusions that stop the bar
+sliding down the diagonal. The placement is therefore a half turn about X.
 
-**X is settled and is a real mate.** The end plates run `-33.500 … -32.700`,
-0.800 thick, and the holder's end block's inner face is at `-34.400` with the
-first compartment wall's outer face at `-33.500`. The plate therefore sits
-inside the outermost card compartment, hard against its outer wall — and a card
-is `calSlotwidth - 3.000` wide in a compartment `calSlotwidth - 1.600` wide, so
-there is 1.500 of slack at each end of the compartment for a 0.800 plate to
-slide down in. That is the "slides into the top of the holder".
+**X is not a choice**, and two independent features fix it exactly:
 
-**Z says which holder it belongs to.** The topper's underside is `48.450`. Its
-own holder's cards top out at `48.550` — a 92.000 card in a pocket whose floor
-is at `-43.450`. The topper caps its own holder's cards with 0.100 of overlap.
-Under the alternative reading (the topper belonging to the holder one slot
-forward, which in a cascade is one `calHeightIncrement` lower) its underside
-would float 17.300 above that holder's cards, which is not a mate at all.
+* the bar's ends are inset `holder.END_EXTRA` 4.900 from the holder's, so it
+  spans exactly between the two end blocks;
+* its protrusions sit at **33.500 and 100.500** on an Innovation `S5.15.15`,
+  which are `(k + 0.5) * calSlotwidth` — the holder's own dividers.
 
-**The one question left.** The export has the topper exactly one holder DEPTH
-(8.000, not the 8.400 of a slider distance) forward of the holder drawn with
-it. Either the studio drew the holder alongside for reference and the mate is
-`topper Y = holder Y`, or the offset is deliberate. Z says the first; the
-suspiciously exact 8.000 says the offset means something. Both positions are
-collision-free against the cached holder, so the meshes cannot separate them.
-**Allan.** Until then Innovation assembles without toppers, as it does now.
+So the Topper is drawn in the HOLDER's frame with no X offset at all.
+
+**Y** follows from the depths being equal — 8.000 against 8.000, and 6.000
+against 6.000 on the 10-card pair — so laying it over the holder is the only
+alignment there is. The drawn part sits at `-2*depth .. -depth`, so the turn
+about X with an origin of `-2*depth` brings it onto the holder's `-depth .. 0`.
+That is what the "one holder depth" offset in the export turns out to be: room
+to draw the two parts without overlapping, not a mate.
+
+**Z** puts the label face on `holder.card_top` — the topper caps the cards it
+names. `card_top` is `pocket_z[0] - FLOOR_DROP + CardHeight` = 48.550 on every
+game, and the drawn label face measures 48.450, so the two agree to 0.100.
+
+The drawn face's Z is a **parameter** of `assembly.topper`, not a constant,
+because there is no `cad/` Topper to derive it from: the part exists only as a
+cached component, so its drawn frame is a fact about a file, and
+`cad/assemble.py` reads it off the mesh it is about to place.
+
+Checked: 700 topper vertices sampled against the cached holder, **none inside
+it**, and the render puts five labelled toppers on five holders reading the
+right way up — which is Allan's own photograph.
 
 ## The finding: the treads sit 0.150 forward of the ribs
 
@@ -294,7 +299,7 @@ A resolver, because two of them are not finished:
 |---|---|---|
 | Box, Lid, Pusher, TokenHolder | `cad/` source (B-rep) | done, and they are the whole lock mechanism |
 | Holder | cached `individual/<Game>/Holder *.3mf` | the source Holder is ~2 % heavy and not printable (`spec/HOLDER.md`) |
-| Topper | cached `individual/Innovation/Topper *.3mf` | not written in `cad/`; the mate is measured off the cached mesh, see above |
+| Topper | cached `individual/Innovation/Topper *.3mf` | not written in `cad/`; the placement is derived from the part's own features, see above |
 
 `cad.assemble --holder source` swaps the build123d Holder in, and is how the
 Holder's convergence gets watched. It is also the only way to assemble the two
@@ -379,9 +384,6 @@ that holds on one cascade and not on 50 is the finding worth having.
   (`logo_scale`, `logo_offset`), and a half turn preserves that exactly — same
   size, same position, same fit. Cost is a wash either way: Dominion is 24 of
   the 50 lids, the other three games 26 between them.
-* **The topper's Y** — whether the exported 8.000 offset is the mate or a
-  reference layout. Sectioning settled everything else about the part; this it
-  cannot settle. Allan.
 * **A `--holder=source` run will report Holder margins that fail.** That is the
   Holder's known 2 %, not the assembly's, and the report says which part came
   from where so the two never get confused.

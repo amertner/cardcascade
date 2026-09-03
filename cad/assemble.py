@@ -142,8 +142,41 @@ def holder_mesh(p, d, folder, first=False, source=False):
     return _one(path)
 
 
+# The six Innovation toppers, from `components.GAMES["Innovation"]["toppers"]`.
+# One per riser in catalogue order, back to front; nothing in the geometry
+# picks which expansion goes where, and a cascade with more risers than
+# expansions repeats.
+TOPPERS = ("Cities", "Echoes", "Artifacts", "Figures", "Unseen", "Blank")
+
+# Rows that carry no toppers, by parts.csv Short name — `components.no_toppers`.
+NO_TOPPERS = {"Single Set", "Single Mini"}
+
+
+def topper_file(p, d, expansion):
+    """`plan_exports.compose`'s name: `Topper Cities S15-Un.3mf`. Keyed on the
+    cards per slot as well as the size, because a topper's depth is 2.000 plus
+    a card thickness per card and a 15-card one will not fit a 10-card slot."""
+    slv = "Sl" if p.isSleeved else "Un"
+    return (f"Topper {expansion} {d.calSizeLetter}"
+            f"{p.CardsPerSlidingSlot}-{slv}.3mf")
+
+
+def topper_mesh(p, d, folder, expansion):
+    path = ROOT / "individual" / folder / topper_file(p, d, expansion)
+    if not path.exists():
+        raise MissingHolder(f"no cached {path.name} in individual/{folder}")
+    return _one(path)
+
+
+def topper_risers(p, d, folder, short_name=None):
+    """[(riser, first)] that carry a topper. Innovation only."""
+    if p.GameName != "Innovation" or short_name in NO_TOPPERS:
+        return []
+    return A.holders(p, d)
+
+
 def assemble(p, d, state, folder, out_dir, take_tokens=False,
-             half=False, holder_source=False):
+             half=False, holder_source=False, short_name=None):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
     parts, instances = [], []
@@ -169,6 +202,17 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
             add(holder_mesh(p, d, folder, first, holder_source),
                 [place(p, d, j) for j in js])
 
+    # Toppers — Innovation only, one per riser, and only where the row has them
+    # (`components.no_toppers`: a box built for ONE set has nothing for a
+    # topper to say). Each is its own cached component, so each is its own mesh
+    # with one instance; the expansion order is the catalogue's and is
+    # arbitrary as far as the geometry is concerned.
+    for j, first in topper_risers(p, d, folder, short_name):
+        mesh = topper_mesh(p, d, folder, TOPPERS[j % len(TOPPERS)])
+        face = min(z for _x, _y, z in mesh[1])
+        pl = (A.topper if closed else A.topper_play)(p, d, j, face, first)
+        add(mesh, [pl])
+
     # The token holder is the FULL one: a merged cascade ships a HALF as well,
     # but the two are alternatives for one slot, not both at once — see
     # `assembly.token_holder`. A row with no `TokenHolder` gets neither.
@@ -190,7 +234,7 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
 
 
 def catalogue(csv=CSV, game=None, model=None):
-    """[(folder, Primary, tokens)] — every cascade, both sleevings.
+    """[(folder, Primary, tokens, short name)] — every cascade, both sleevings.
 
     `tokens` is parts.csv's own `TokenHolder` column, which is per ROW and not
     derivable from the geometry: only the sets whose expansions need one carry
@@ -207,7 +251,8 @@ def catalogue(csv=CSV, game=None, model=None):
             tokens = (row.get("TokenHolder") or "").strip().lower()
             out.append((params.GAME_NAME.get((row.get("Game") or "").strip(),
                                              p.GameName), p,
-                        tokens not in ("", "none")))
+                        tokens not in ("", "none"),
+                        (row.get("Short name") or "").strip()))
     return out
 
 
@@ -232,7 +277,7 @@ def main(argv=None):
     rows = catalogue(args.csv, args.game, args.model)
     states = A.STATES if args.state == "all" else (args.state,)
     if args.list:
-        for folder, p, _tk in rows:
+        for folder, p, _tk, _sn in rows:
             print(f"  {folder}/{D.derive(p).calModelName}")
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
@@ -242,14 +287,15 @@ def main(argv=None):
              if args.holder == "source" else ""))
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
     skipped = []
-    for folder, p, tokens in rows:
+    for folder, p, tokens, short_name in rows:
         d = D.derive(p)
         for state in states:
             try:
                 parts, instances = assemble(p, d, state, folder, args.out,
                                             take_tokens=tokens,
                                             half=args.half,
-                                            holder_source=args.holder == "source")
+                                            holder_source=args.holder == "source",
+                                            short_name=short_name)
             except MissingHolder as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break

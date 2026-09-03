@@ -311,7 +311,7 @@ def main(argv=None):
     rows = assemble.catalogue(args.csv, args.game, args.model)
     states = A.STATES if args.state == "all" else (args.state,)
     ok = True
-    for folder, p, _tokens in rows:
+    for folder, p, _tokens, _sn in rows:
         d = D.derive(p)
         for state in states:
             ok &= report(p, d, folder, state, solids=not args.no_solids)

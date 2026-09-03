@@ -93,6 +93,16 @@ def pocket_z(d):
     return top - pocket_height(d), top
 
 
+def card_top(d):
+    """Z where a card in the pocket tops out.
+
+    The pocket's floor — `FLOOR_DROP` below the sketch datum — plus
+    `CardHeight`. 48.550 on every game, since `CardHeight` is 92.000 for all of
+    them. It is what the Topper caps, so `cad/assembly.topper` reads it.
+    """
+    return pocket_z(d)[0] - FLOOR_DROP + d.CardHeight
+
+
 def slant_top(d):
     """Z where the upper slant plane meets the front face.
 

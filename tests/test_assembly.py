@@ -42,7 +42,7 @@ rows = assemble.catalogue()
 seen = {"cascades": 0, "margins": 0, "skipped": [], "unchecked": []}
 offsets = set()
 
-for folder, p, _tokens in rows:
+for folder, p, _tokens, _sn in rows:
     d = D.derive(p)
     model = f"{folder}/{d.calModelName}"
     cached = fit.cached_holders(p, d, folder)
