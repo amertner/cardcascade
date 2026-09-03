@@ -311,7 +311,7 @@ A resolver, because two of them are not finished:
 | part | default | why |
 |---|---|---|
 | Box, Lid, Pusher, TokenHolder | `cad/` source (B-rep) | done, and they are the whole lock mechanism |
-| Holder | cached `individual/<Game>/Holder *.3mf` | the source Holder is ~2 % heavy and not printable (`spec/HOLDER.md`) |
+| Holder | cached `individual/<Game>/Holder *.3mf` | `cad/parts/holder.py` is finished, but `individual/` is what SHIPPED, and an assembly is a statement about a real cascade |
 | Topper | cached `individual/Innovation/Topper *.3mf` | `cad/parts/topper.py` builds the BLANK, but the `Expansion Name` group is not written yet, so the five labelled ones are only available cached |
 
 `cad.assemble --holder source` swaps the build123d Holder in, and is how the
@@ -397,6 +397,7 @@ that holds on one cascade and not on 50 is the finding worth having.
   (`logo_scale`, `logo_offset`), and a half turn preserves that exactly — same
   size, same position, same fit. Cost is a wash either way: Dominion is 24 of
   the 50 lids, the other three games 26 between them.
-* **A `--holder=source` run will report Holder margins that fail.** That is the
-  Holder's known 2 %, not the assembly's, and the report says which part came
-  from where so the two never get confused.
+* **`--holder source` is now an equal alternative, not a compromise.** The
+  Holder is finished and regressed against all 50 cached ones, so the two
+  sources should agree; where they do not, the report says which part came from
+  where.

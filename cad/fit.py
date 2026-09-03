@@ -19,10 +19,12 @@ Two tiers, because the parts do not all come from the same place
   against what `LOCK_STANDARD.md` and the part modules say it should be. A
   margin outside its band is a warning with its number, never a pass.
 
-The Holder is not intersected: the source one is ~2 % heavy and not printable,
-so an interference figure for it would measure the Holder's own defect rather
-than the assembly's. Its mates are checked as margins, off the CACHED mesh —
-which is what an assembly actually places.
+The Holder is not intersected, though it could be now that
+`cad/parts/holder.py` is finished: an assembly places the CACHED mesh by
+default, because `individual/` is what shipped, and its mates are checked as
+margins off that same mesh. Intersecting the source Holder against a cached
+everything-else would measure the difference between the two rather than a
+fit.
 """
 import argparse
 import sys

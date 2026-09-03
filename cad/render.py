@@ -171,7 +171,7 @@ VIEWS = {
     "right":  (270, 0),
     "top":    (0, 90),
     "bottom": (0, -90),
-    "hero":   (206, 24),        # front, left and above — the perspective one
+    "hero":   (206, 36),        # front, left and above — the perspective one
 }
 HERO = "hero"
 PERSPECTIVE = 2.6              # camera distance as a multiple of the scene's size

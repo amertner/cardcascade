@@ -66,9 +66,14 @@ SUBSURFACE_RADIUS = (0.0012, 0.0009, 0.0007)
 
 # The same cameras `cad/render.py` names, in the same (azimuth, elevation)
 # convention, so a photoreal frame and a diagnostic one correspond.
+#
+# The hero is at 36 degrees and not the 24 it started at, because the TOPPER
+# LABELS lie on the holders' slant and 24 foreshortens them to nothing. 48
+# reads them better still and loses the lid and the whole product-on-a-shelf
+# read, so 36 is where both survive. `--aim AZ,EL` overrides it.
 VIEWS = {
     "front": (180, 0), "back": (0, 0), "left": (90, 0), "right": (270, 0),
-    "top": (0, 90), "bottom": (0, -90), "hero": (206, 24),
+    "top": (0, 90), "bottom": (0, -90), "hero": (206, 36),
 }
 HERO = "hero"
 HERO_LENS = 85.0            # mm — a portrait lens, so the perspective is gentle
@@ -231,7 +236,7 @@ def studio(lo, hi, floor=True):
         obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
 
-def camera(view, lo, hi, margin=1.06):
+def camera(view, lo, hi, margin=1.06, aim=None):
     """The named view, framed on the scene.
 
     The six axis views are ORTHOGRAPHIC, as `cad/render.py`'s are, because a
@@ -245,7 +250,7 @@ def camera(view, lo, hi, margin=1.06):
     bpy.context.scene.collection.objects.link(obj)
     bpy.context.scene.camera = obj
 
-    fwd = forward(*VIEWS[view])
+    fwd = forward(*(aim or VIEWS[view]))
     up = Vector((0, 0, 1))
     if abs(fwd.dot(up)) > 0.85:
         up = Vector((0, 1, 0))
@@ -316,6 +321,10 @@ def main(argv):
     ap.add_argument("--width", type=int, default=1800)
     ap.add_argument("--device", default="metal",
                     choices=("metal", "cuda", "hip", "oneapi", "cpu"))
+    ap.add_argument("--aim", metavar="AZ,EL",
+                    help="override the view's camera, e.g. 206,38. The topper "
+                         "labels lie on the holders' slant, so the elevation "
+                         "that reads them is not the one that frames the box")
     ap.add_argument("--exposure", type=float, default=0.0,
                     help="stops, on top of the calibrated lighting")
     ap.add_argument("--transparent", action="store_true",
@@ -337,8 +346,9 @@ def main(argv):
     print(f"  {len(objects)} objects, "
           f"{sum(len(o.data.polygons) for o in objects):,} faces, "
           f"Cycles on {used}, {args.samples} samples")
+    aim = (tuple(float(n) for n in args.aim.split(",")) if args.aim else None)
     for view in (tuple(VIEWS) if args.view == "all" else (args.view,)):
-        camera(view, lo, hi)
+        camera(view, lo, hi, aim=aim)
         print(f"  {render(args.out, view, args.samples, args.width, args.transparent)}")
 
 
