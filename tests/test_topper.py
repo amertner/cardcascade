@@ -43,6 +43,26 @@ def check(label, got, want, tol=1e-6):
         fails.append(label)
 
 
+def refuses(fn):
+    try:
+        fn()
+    except ValueError:
+        return True
+    return False
+
+
+def tri_volume(shape):
+    """The TESSELLATED volume. `Solid.volume` drifts by ~1 mm3 on a body
+    carrying the lettering's BSpline faces — on the hand-exported STEPs as much
+    as on the source — so a comparison of two named toppers has to use this."""
+    import numpy as np
+    from cad.mesh3mf import triangulate
+    v, t = triangulate(shape)
+    v, t = np.asarray(v), np.asarray(t)
+    a, b, c = v[t[:, 0]], v[t[:, 1]], v[t[:, 2]]
+    return float(abs(np.einsum("ij,ij->i", a, np.cross(b, c)).sum()) / 6.0)
+
+
 def runs(solid, y, z, x_centre=100.5, span=400.0):
     """X runs of material along a thin bar at (y, z) — the probe that separates
     a rib from the front band, which a plan section cannot."""
@@ -308,9 +328,21 @@ for tag, fn, pp, word, n_letter_solids in NAMED:
     mark = boxes[:len(boxes) - n_letter_solids]
     text = boxes[len(boxes) - n_letter_solids:]
 
-    check(f"{tag}: the engraving is ENGRAVE deep",
-          round(max(b.max.Z for b in boxes) - T.Z_BASE, 3),
+    # Two different things, and they differ by 0.010: the POCKET runs from the
+    # underside up by ENGRAVE, and the STEP's separate inlay solids are the
+    # same height but sit 0.010 lower, so they stand proud of the face and
+    # leave 0.010 clear at the pocket's top — as the Lid's logo inlays do.
+    pocket = T.build(pp, dd) - max(sols, key=lambda q: q.volume)
+    pz = pocket.bounding_box()
+    check(f"{tag}: the pocket starts at the underside",
+          round(pz.min.Z, 3), round(T.Z_BASE, 3), 1e-3)
+    check(f"{tag}: ... and is ENGRAVE deep",
+          round(pz.size.Z, 3), round(T.ENGRAVE, 3), 1e-3)
+    check(f"{tag}: the inlays are ENGRAVE tall too",
+          round(max(b.max.Z for b in boxes) - min(b.min.Z for b in boxes), 3),
           round(T.ENGRAVE, 3), 1e-3)
+    check(f"{tag}: ... and stand 0.010 proud of the face",
+          round(T.Z_BASE - min(b.min.Z for b in boxes), 3), 0.010, 1e-3)
     # the mark's box: its width and its TOP edge, which every expansion fills
     mx0, my0, mx1, my1 = T.mark_box(pp, dd)
     check(f"{tag}: the mark box is calLogoSidelength wide",
@@ -377,12 +409,63 @@ for tag, fn, pp, word, n_letter_solids in NAMED:
           round(100 * abs(pb.size.X - (tb[1] - tb[0])) / (tb[1] - tb[0]), 3) < 0.3,
           True)
 
+print("\n=== the marks: derived from calLogoSidelength, not traced ===")
+for tag, fn, pp, word, n_letter_solids in NAMED:
+    dd = D.derive(pp)
+    sols = import_step(str(STEP_DIR / fn)).solids()
+    ins = sorted((s for s in sols if s is not max(sols, key=lambda q: q.volume)),
+                 key=lambda s: s.bounding_box().min.X)
+    ref = ins[:len(ins) - n_letter_solids]
+    # The STEP's inlays are 0.810 TALL and sit 0.010 proud, so area is volume
+    # over their own height and not over ENGRAVE.
+    h = max(s.bounding_box().max.Z for s in ref) - min(s.bounding_box().min.Z
+                                                       for s in ref)
+    area = sum(s.volume for s in ref) / h
+    mine = T.MARKS[word](dd.calLogoSidelength)
+    check(f"{tag}: the mark's AREA, to four decimals",
+          round(mine.area, 4), round(area, 4), 1e-4)
+    check(f"{tag}: ... and its width", round(mine.bounding_box().size.X, 4),
+          round(max(s.bounding_box().max.X for s in ref)
+                - min(s.bounding_box().min.X for s in ref), 4), 1e-4)
+    check(f"{tag}: ... centred on the box", round(mine.bounding_box().center().X, 6),
+          0.0, 1e-6)
+check("the Unseen shield's upper arc follows from L/2 and L/7, not a radius",
+      round((( 4.2250 / 2) ** 2 + (4.2250 / 7) ** 2) / (2 * 4.2250 / 7), 4),
+      3.9987, 1e-3)
+check("Cities is 8 triangles, and they fuse to ONE face",
+      len(T.MARKS["Cities"](10.0).faces()), 1)
+check("Unseen is a shield and five rays", len(T.MARKS["Unseen"](10.0).faces()), 6)
+
+print("\n=== build(<expansion>): the whole named topper ===")
+for tag, fn, pp, word, _n in NAMED:
+    dd = D.derive(pp)
+    blank_b = T.build(pp, dd)
+    named = T.build(pp, dd, word)
+    ref = max(import_step(str(STEP_DIR / fn)).solids(), key=lambda s: s.volume)
+    # `Solid.volume` is not the metric here: OCCT's GProp over-reports a body
+    # with this many small BSpline faces, on the reference as much as on the
+    # source. What the engraving actually removes is exact.
+    mine_cut = blank_b - named
+    ref_cut = blank_b - ref
+    check(f"{tag}: the engraving is 12 pieces on Unseen, 9 on Cities",
+          len(mine_cut.solids()), len(ref_cut.solids()))
+    check(f"{tag}: what it removes, within 0.2%",
+          round(100 * abs(mine_cut.volume - ref_cut.volume) / ref_cut.volume, 3) < 0.2,
+          True)
+    check(f"{tag}: tessellated volume within 0.005% of the reference",
+          round(100 * abs(tri_volume(named) - tri_volume(ref))
+                / tri_volume(ref), 4) < 0.005, True)
+    check(f"{tag}: still one solid", len(named.solids()), 1)
+
+check("build() refuses an expansion whose mark is not written",
+      refuses(lambda: T.build(P, d, "Echoes")), True)
+check("build() refuses a name that is not an expansion",
+      refuses(lambda: T.build(P, d, "Nonesuch")), True)
+
 print("\n=== it is Innovation-only ===")
-try:
-    T.build(params.Primary(4, 5, 15, 10, 0, 10, 0, 0, "Dominion"))
-    check("build() refuses a non-Innovation game", False, True)
-except ValueError:
-    check("build() refuses a non-Innovation game", True, True)
+check("build() refuses a non-Innovation game",
+      refuses(lambda: T.build(params.Primary(4, 5, 15, 10, 0, 10, 0, 0,
+                                             "Dominion"))), True)
 
 print("\nPASS" if not fails else f"\nFAIL ({len(fails)}): " + ", ".join(fails[:6]))
 sys.exit(1 if fails else 0)

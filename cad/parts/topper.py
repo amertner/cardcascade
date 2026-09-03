@@ -471,10 +471,21 @@ def top_and_front_edges(p, d, part):
     """
     x0, x1 = x_span(p, d)
     front, rear = y_span(p, d)
+
+    def on_side(pt):
+        return (min(abs(pt.X - x0), abs(pt.X - x1)) < 1e-6
+                or min(abs(pt.Y - front), abs(pt.Y - rear)) < 1e-6)
+
     es = []
     for e in part.edges():
         a, b = e.start_point(), e.end_point()
-        if abs(a.Z - Z_BASE) < 1e-6 and abs(b.Z - Z_BASE) < 1e-6:
+        # The bottom PERIMETER, and stated as such rather than as "everything
+        # in the bottom plane". Those are the same set today, because
+        # `Expansion Name` is cut after this — but the glyph outlines lie in
+        # this plane too, so the loose form is one reordering away from
+        # rounding the lettering.
+        if (abs(a.Z - Z_BASE) < 1e-6 and abs(b.Z - Z_BASE) < 1e-6
+                and on_side(a) and on_side(b)):
             es.append(e)
         elif (abs(a.X - b.X) < 1e-6 and abs(a.Y - b.Y) < 1e-6
               and min(abs(a.X - x0), abs(a.X - x1)) < 1e-6
@@ -483,15 +494,138 @@ def top_and_front_edges(p, d, part):
     return fillet(es, EDGE_ROUND)
 
 
-def build(p, d=None):
-    """The blank Topper, in the Onshape tree's own order.
+# --- the marks ------------------------------------------------------------
+# Each is drawn in the READING frame — x right, y up, origin at the centre of
+# `mark_box` — and sized entirely by `calLogoSidelength`. Nothing here is a
+# traced outline: every number below is a fraction of L that reproduces the
+# reference to better than 0.0002 mm.
 
-    INCOMPLETE: `Expansion Name` — the mark and the expansion's name — is not
-    written, so this is the `Blank` of the six. `spec/TOPPER.md` records every
-    rule the other five will need.
+
+def _unseen_mark(L):
+    """A shield, and five rays on an arc below it.
+
+    Differenced exactly out of the M10-Un blank, the shield is TWO arcs:
+
+        lower   a semicircle of radius L/2 about C = (0, 5L/14)
+        upper   an arc from (-L/2, 5L/14) to (L/2, 5L/14) peaking at (0, L/2)
+
+    `5L/14` is `L/2 - L/7`, which is the `L/7` inset Allan's sketch carries;
+    it puts the shield's bottom tip at `-L/7` and its apex on the box's top
+    edge. The upper arc's radius follows and is not a number of its own —
+    `(a**2 + s**2) / 2s` for `a = L/2`, `s = L/7`, which is 3.99866 against
+    3.9987 measured.
+
+    The five rays are `L/5` by `L/10` rectangles at 0 and +-25 and +-50
+    degrees, and the pivot is **C itself**, not the box centre: about C they
+    sit at one radius to 3e-5, and about the box centre they do not (2.2387,
+    1.6479, 1.3782). Their inner edge is `L/12` clear of the semicircle's own
+    rim, which is the `L/12` the sketch carries.
+    """
+    c = 5 * L / 14
+    r = L / 2
+    with BuildSketch() as sk:
+        with BuildLine():
+            _arc(None, (-r, c), (0.0, c), (0.0, c - r))
+            _arc(None, (0.0, c - r), (0.0, c), (r, c))
+            # the upper arc, by its three points: the two shoulders and the apex
+            ThreePointArc((r, c), (0.0, r), (-r, c))
+        make_face()
+    out = sk.sketch
+    # from C: the semicircle's own rim, L/12 of clearance, then half the ray
+    r_mid = r + L / 12 + L / 10
+    for phi in (-50.0, -25.0, 0.0, 25.0, 50.0):
+        a = math.radians(phi)
+        # `long` points outward along the ray, `wide` across it
+        lx, ly = math.sin(a), -math.cos(a)
+        wx, wy = math.cos(a), math.sin(a)
+        mx, my = lx * r_mid, c + ly * r_mid
+        hl, hw = L / 5 / 2, L / 10 / 2
+        pts = [(mx + sx * hl * lx + sy * hw * wx, my + sx * hl * ly + sy * hw * wy)
+               for sx, sy in ((-1, -1), (-1, +1), (+1, +1), (+1, -1))]
+        with BuildSketch() as ray:
+            with BuildLine():
+                Polyline(*pts, close=True)
+            make_face()
+        out = out + ray.sketch
+    return out
+
+
+def _cities_mark(L):
+    """An eight-pointed star: EIGHT triangles through the centre, not a traced
+    outline.
+
+    `Cities Draft` carries `L/8` and `L/5`, and those are the two BASES:
+
+        4 on the axes       apex L/2 out,  base L/5 across the centre
+        4 on the diagonals  apex (L/4, L/4), base L/8 across the centre
+
+    The 16 vertices of the finished star are then where adjacent triangles'
+    edges cross, and nothing places them directly. Predicted `(1.086307,
+    0.636398)` against `(1.08649, 0.63645)` measured, and the outer tips fall
+    out at `L/2` and `L/(2*sqrt(2))` exactly.
+    """
+    out = None
+    for k in range(8):
+        a = math.radians(45.0 * k)
+        dx, dy = math.cos(a), math.sin(a)
+        if k % 2 == 0:
+            apex, half = L / 2, L / 10
+        else:
+            apex, half = L / (2 * math.sqrt(2.0)), L / 16
+        with BuildSketch() as tri:
+            with BuildLine():
+                Polyline((apex * dx, apex * dy),
+                         (-half * dy, half * dx),
+                         (half * dy, -half * dx), close=True)
+            make_face()
+        out = tri.sketch if out is None else out + tri.sketch
+    return out
+
+
+MARKS = {"Unseen": _unseen_mark, "Cities": _cities_mark}
+# `Echoes`, `Artifacts` and `Figures` are transcribed in spec/TOPPER.md from
+# Allan's sketches but not built: the two here could be derived because their
+# STEPs difference out exactly, and those three have only the cached meshes.
+
+
+def expansion_name(p, d, expansion):
+    """`Expansion Name` — the mark and the word, as the solid to subtract."""
+    def place(sketch, x, y):
+        """Reading frame at the origin -> the underside, at (x, y)."""
+        return Pos(x, y, 0) * sketch.mirror(Plane.XZ)
+
+    mx0, my0, mx1, my1 = mark_box(p, d)
+    sk = place(name_sketch(p, d, expansion),
+               text_origin_x(p, d), baseline_y(p, d))
+    mark = MARKS.get(expansion)
+    if mark is not None:
+        sk = sk + place(mark(d.calLogoSidelength),
+                        (mx0 + mx1) / 2, (my0 + my1) / 2)
+    # Dropped OVERSHOOT below the underside so no face of the tool is
+    # coincident with the face it cuts. Without it OCCT quietly leaves 0.713
+    # of the 19.294 behind and warns only "Boolean operation unable to clean".
+    return Pos(0, 0, Z_BASE - ENGRAVE_OVERSHOOT) * extrude(
+        sk, amount=ENGRAVE + ENGRAVE_OVERSHOOT)
+
+
+EXPANSIONS = ("Blank", "Artifacts", "Cities", "Echoes", "Figures", "Unseen")
+
+
+def build(p, d=None, expansion="Blank"):
+    """One Topper, in the Onshape tree's own order.
+
+    `Blank` carries no name and no logo. The other five are the same body with
+    `Expansion Name` engraved, and only `Cities` and `Unseen` have their marks
+    written — see `MARKS`. Asking for one of the other three raises rather than
+    quietly writing a topper with a name and no mark.
     """
     if p.GameName != "Innovation":
         raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
+    if expansion not in EXPANSIONS:
+        raise ValueError(f"no such Innovation expansion: {expansion!r}")
+    if expansion != "Blank" and expansion not in MARKS:
+        raise ValueError(f"{expansion}'s mark is not written yet — "
+                         f"see spec/TOPPER.md, 'Still open'")
     if d is None:
         d = D.derive(p)
     part = wedge(p, d) - inner_hole(p, d)                 # Main topper
@@ -499,7 +633,19 @@ def build(p, d=None):
     part = part + dividers(p, d)                          # Divider, More
     part = part + holder_tabs(p, d)                       # Tab-to-attach
     part = part - lip_rooms(p, d)                         # Room for Lips ..
-    return top_and_front_edges(p, d, part)                # Top and front edges
+    part = top_and_front_edges(p, d, part)                # Top and front edges
+    if expansion == "Blank":
+        return part
+    return part - expansion_name(p, d, expansion)         # Expansion Name
+
+
+# NB `Solid.volume` is NOT the metric to check a NAMED topper with. OCCT's
+# GProp over-reports a body carrying this many small BSpline faces: the M10-Un
+# Unseen body reads 4101.406 where `blank - named` says it must be 4100.663,
+# and the hand-exported STEP of the same part reads 4100.698 with the same kind
+# of error in it. The tessellated volume agrees to 0.0014% and the engraving
+# differenced back out agrees to 0.03%, so `tests/test_topper.py` uses those.
+# An hour went into "fixing" a boolean that was correct all along.
 
 # ---------------------------------------------------------------------------
 # `Expansion Name` — the mark and the expansion's name, engraved in the
@@ -515,7 +661,13 @@ FONT = str(TX.FONT_DIR / "NotoSerif-Bold.ttf")   # Noto Serif Bold (Allan)
 # measurement. See spec/TOPPER.md, "The typeface".
 BAND_EM = 0.7202
 
-ENGRAVE = 0.800            # how deep the mark and the name are cut
+# How deep the mark and the name are cut. 0.810, not the 0.800 the wall and
+# the fillet make it tempting to assume: the pocket runs Z 48.450..49.260 on
+# all three references. The STEP's separate inlay solids are 0.810 TALL too but
+# sit at 48.440..49.250, so they stand 0.010 proud of the underside and leave
+# 0.010 clear at the pocket's top — the same trick the Lid's logo inlays use.
+ENGRAVE = 0.810
+ENGRAVE_OVERSHOOT = 0.500   # below the face, so the cut has no coincident face
 MARK_GAP = 1.000           # the mark box's left edge, past calLogoSidelength/2
 TEXT_GAP = 3.000           # the sketch's `+3mm`, past calLogoSidelength*3/2
 

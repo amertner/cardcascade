@@ -206,13 +206,28 @@ def build_holder(p, first, out_dir, folder, filename):
 def topper_file(p, d, expansion="Blank"):
     """`Topper Blank M10-Un.3mf` — the cached corpus' own name.
 
-    The key is NOT `calModelName`. A topper depends on exactly three things —
-    `HorizontalSlots` through the size letter, `CardsPerSlidingSlot` and
-    `isSleeved` — and Onshape's own catalogue is keyed that way: 8 distinct
-    bodies, 6 expansions each, which is the 48 files in `individual/`.
+    The key is NOT `calModelName`. Onshape's catalogue is keyed on three
+    things — `HorizontalSlots` through the size letter, `CardsPerSlidingSlot`
+    and `isSleeved` — and that is the 48 files in `individual/`: 8 bodies, 6
+    expansions each.
+
+    Those three do NOT fully determine the geometry, though. The topper's slant
+    is the Holder's, which comes from `calHeightIncrement`, which comes from
+    `RisingSliders`. Every Innovation row that gets toppers has 5 risers, so
+    the name is sound in practice — but `Single Set` at 3 risers has the same
+    three-part key as `3 Later Ages` and a slope of 2.727 against 2.130, which
+    is a 5% difference in volume under one filename. `topper_catalogue`
+    refuses that rather than letting whichever row came first win.
     """
     slv = "-Sl" if p.isSleeved else "-Un"
     return f"Topper {expansion} {d.calSizeLetter}{p.CardsPerSlidingSlot}{slv}.3mf"
+
+
+def topper_shape_key(p, d):
+    """Everything the topper's geometry actually depends on — which is one more
+    thing than its FILENAME carries. See `topper_file`."""
+    return (p.HorizontalSlots, p.CardsPerSlidingSlot, p.isSleeved,
+            p.RisingSliders)
 
 
 # A topper labels which expansion is in a slot, so a cascade that holds only
@@ -224,16 +239,19 @@ def topper_file(p, d, expansion="Blank"):
 # the cache, which is where that would show up.
 SINGLE_SET = "one expansion"
 
+# Only what `topper.MARKS` can actually draw, plus the Blank.
+TOPPER_EXPANSIONS = ("Blank",) + tuple(sorted(topper_part.MARKS))
+
 
 def topper_catalogue(csv=CSV, game=None, model=None):
     """[(folder, filename, Primary)] — every distinct topper.
 
-    Innovation only, single-set cascades excluded, and only the `Blank`:
-    `Expansion Name` is not written, so the other five expansions would come
-    out as five more copies of the blank rather than as themselves. See
-    spec/TOPPER.md.
+    Innovation only, single-set cascades excluded, and only the expansions
+    whose MARK is written — `Blank`, `Cities` and `Unseen`. The other three
+    would come out as the blank with a name and no logo, which is worse than
+    not writing them. See spec/TOPPER.md.
     """
-    out = {}
+    out, shapes = {}, {}
     for row in params.load_rows(csv):
         if SINGLE_SET in (row.get("Set/Extension") or "").lower():
             continue
@@ -244,16 +262,27 @@ def topper_catalogue(csv=CSV, game=None, model=None):
             if game and p.GameName.lower() != game.lower():
                 continue
             d = D.derive(p)
-            fn = topper_file(p, d)
-            if model and model.lower() not in fn.lower():
-                continue
-            out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+            key = topper_shape_key(p, d)
+            for expansion in TOPPER_EXPANSIONS:
+                fn = topper_file(p, d, expansion)
+                if model and model.lower() not in fn.lower():
+                    continue
+                seen = shapes.get(fn)
+                if seen is not None and seen != key:
+                    raise ValueError(
+                        f"two parameter sets want to be {fn!r} and are not the "
+                        f"same shape: {seen} vs {key}. The filename is "
+                        f"Onshape's and carries no riser count; see "
+                        f"build.topper_file.")
+                shapes[fn] = key
+                out.setdefault((p.GameName, fn),
+                               (p.GameName, fn, p, expansion))
     return [out[k] for k in sorted(out)]
 
 
-def build_topper(p, out_dir, folder, filename):
+def build_topper(p, expansion, out_dir, folder, filename):
     """Build one topper and write the 3MF. One body, named as the corpus does."""
-    part = topper_part.build(p)
+    part = topper_part.build(p, None, expansion)
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
     meshed = mesh3mf.write(path, [("Topper", part)])
@@ -415,16 +444,16 @@ def main(argv=None):
     if args.part in ("topper", "all"):
         toppers = topper_catalogue(args.csv, args.game, args.model)
         if args.list:
-            for folder, fn, p in toppers:
+            for folder, fn, p, _e in toppers:
                 print(f"  {folder + '/' + fn}")
             print(f"\n  {len(toppers)} toppers")
         else:
-            print("  NB only the Blank — `Expansion Name` is not written, see "
-                  "spec/TOPPER.md")
+            print(f"  NB {', '.join(TOPPER_EXPANSIONS)} only — the other three "
+                  f"expansions' marks are not written, see spec/TOPPER.md")
             print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
             total = 0
-            for folder, fn, p in toppers:
-                r = build_topper(p, args.out, folder, fn)
+            for folder, fn, p, expansion in toppers:
+                r = build_topper(p, expansion, args.out, folder, fn)
                 mark = "new" if r["new"] else ("changed" if r["changed"] else "")
                 print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
                       f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")

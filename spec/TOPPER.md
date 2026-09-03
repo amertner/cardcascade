@@ -411,6 +411,40 @@ Innovation's 10-card UNSLEEVED value (4.2250 exactly). Useful for checking a
 transcription: any construction below, evaluated at 4.2250, has to reproduce
 the numbers shown.
 
+### `Unseen` and `Cities` are SOLVED, from their own STEPs
+
+Both difference exactly out of the blank, so both could be derived rather than
+traced. Every number below is a fraction of `calLogoSidelength`, and each
+reproduces its reference's AREA to four decimal places — `10.5225`, `19.3204`
+and `14.7096` — on three parameter sets.
+
+**`Unseen`** is a shield and five rays.
+
+    C            the shield's arc centre, at (0, 5L/14) — which is L/2 - L/7
+    lower        a semicircle of radius L/2 about C, so the tip sits at -L/7
+    upper        an arc from (-L/2, 5L/14) to (L/2, 5L/14) peaking at (0, L/2),
+                 i.e. on the box's top edge
+    rays         L/5 by L/10 rectangles at 0, +-25 and +-50 degrees
+
+The upper arc's radius is NOT a number of its own: `(a^2 + s^2)/2s` for
+`a = L/2` and `s = L/7` gives `3.99866` against `3.9987` measured. And the
+rays' pivot is **C**, not the box centre — about C they sit at one radius to
+`3e-5`, about the box centre they read `2.2387`, `1.6479`, `1.3782`. Their
+inner edge is `L/12` clear of the semicircle's own rim, which is the `L/12` in
+Allan's sketch.
+
+**`Cities`** is eight triangles through the centre, not a traced outline, and
+`Cities Draft`'s two numbers are their BASES:
+
+    4 on the axes       apex L/2 out,       base L/5 across the centre
+    4 on the diagonals  apex at (L/4, L/4), base L/8 across the centre
+
+Their union is the star; the 16 vertices are where adjacent triangles' edges
+cross and nothing places them directly. Predicted inner vertex
+`(1.086307, 0.636398)` against `(1.08649, 0.63645)` measured, and the outer
+tips fall out at `L/2` and `L/(2*sqrt 2)` exactly. The eight fuse to ONE face,
+which is what the reference carries.
+
 ### The constructions, as read from the sketches
 
 | expansion | construction |
@@ -459,8 +493,11 @@ and the five rays are drawn OUTSIDE it — symmetrically, so the group is
 `1.2644 * L` wide and shares the box's centre. That is where the `1.2644`
 comes from, and it is why the box is the shield's box and not the group's.
 
-The engraving is `0.800` deep, cut into the underside; the STEP carries the
-inlays `0.010` proud of the face, as the Lid's logo does.
+The engraving is **`0.810`** deep, not the `0.800` the wall and the fillet make
+it tempting to assume: the pocket runs `Z 48.450..49.260` on all three
+references. The STEP's separate inlay solids are `0.810` tall too, but sit at
+`48.440..49.250` — so they stand `0.010` proud of the underside and leave
+`0.010` clear at the pocket's top, the same trick the Lid's logo inlays use.
 
 with
 
@@ -672,6 +709,36 @@ It would be worth closing if it is cheap: **the exact TTF Onshape is using, or
 its version, would make this exact.** Until then the vendored file stands and
 the deviation is written down rather than tuned away.
 
+## `Solid.volume` is the wrong metric for a NAMED topper
+
+Worth writing down because it cost an hour of "fixing" a boolean that was
+correct all along. OCCT's `GProp` over-reports a body carrying this many small
+BSpline faces:
+
+    M10-Un Unseen   reported 4101.406   but `blank - named` says 4100.663
+    the same part,
+    hand-exported   reported 4100.698   — the same kind of error, in the STEP
+
+The tessellated volumes agree to `0.0014%` (`4100.2642` against `4100.2082`),
+and the engraving differenced back out agrees to `0.03%` — `19.29311` against
+`19.29953`, in 12 solids either way, with both `e`s and both `n`s identical.
+So the source is right and the metric was not. `tests/test_topper.py` uses the
+tessellated volume and the differenced engraving; `Solid.volume` appears
+nowhere in the named-topper checks.
+
+## The filename does not carry everything the shape depends on
+
+Onshape names a topper `{size}{cards}-{Sl|Un}`, and that is the cache's own
+key — but the topper's slant is the Holder's, which comes from
+`calHeightIncrement`, which comes from **`RisingSliders`**. Every Innovation
+row that gets toppers has 5 risers, so the name is sound in practice.
+
+`Single Set` is the proof that it is not sound in principle: 3 risers, the same
+three-part key as `3 Later Ages`, and a slope of `2.727` against `2.130` — a
+5% difference in volume under one filename. It is excluded as a single-set
+cascade, so nothing collides today, and `build.topper_catalogue` raises rather
+than letting whichever row came first win.
+
 ## Still open
 
 Everything below is `Expansion Name` or the corpus. **The blank itself is
@@ -679,12 +746,14 @@ finished**: `cad/parts/topper.py`'s `build()` reproduces all three rollbacks
 and the unfilleted export with zero symmetric difference in both directions,
 and the filleted `Unseen` body holds nothing it lacks.
 
-- **The five marks' own outlines are not written.** `Expansion Name`'s
-  PLACEMENT is done — `logo_edge_dist`, `face_datum`, `cap_band`, `font_size`,
-  `baseline_y`, `text_origin_x`, `mark_box`, `name_sketch` and `engrave` are
-  in `cad/parts/topper.py` and asserted against all three sound references —
-  and what is left is the geometry that goes IN the box, one construction per
-  expansion. Those are transcribed above from Allan's sketches but not built.
+- **Three of the five marks are not written**: `Echoes`, `Artifacts` and
+  `Figures`. `Unseen` and `Cities` are done and exact, and they could be done
+  because their STEPs difference out of the blank; those three have only the
+  cached meshes and Allan's sketches. **One hand-exported topper STEP each —
+  any parameter set — would give all three the same way**, and would settle
+  `Figures` without guessing. `cad.build --part topper` writes the three
+  expansions it can and `build()` refuses the other three rather than emitting
+  a topper with a name and no logo.
 - **A third cached Unseen file is stale**, and it is a REFERENCE:
   `spec/reference/Topper Unseen M5.15.15.62-Sl.step` carries the M10 shield
   (`4.2250`) at `calLogoSidelength 8.5375`. `tests/test_topper.py` uses the
