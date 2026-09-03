@@ -87,7 +87,7 @@ Ten — the most of any part, because the Holder has the most axes to split and
 because its width constant had to be told from a near miss: `individual/` holds
 holders `0.200` wider that are otherwise identical to the micron, and every one
 of these ten says `+9.800`. What has been measured off them is in
-`spec/HOLDER.md`; `tests/test_holder.py` asserts against eight.
+`spec/HOLDER.md`; `tests/test_holder.py` asserts against nine.
 
 | file | cascade |
 |---|---|
@@ -99,12 +99,14 @@ of these ten says `+9.800`. What has been measured off them is in
 | `Holder XS5.15.10.45-Sl.step` | Innovation `Single Mini` Sl — TWO compartments, the narrowest holder, and one of the two whose Onshape text collides with itself |
 | `Holder S4.7.7.32-Sl.step` | Compile `105 Card` Sl — `calSlotwidth 70.000`, and the export that killed a `COMPILE_DEPTH_CARDS` override by satisfying the plain rule exactly |
 | `Holder S4.18.12.32-Un.step` | FCM `198 Card` Un — `63.000`, the narrowest slot, and the game's only reference |
-| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` Sl — **held out**. Five compartments, and 12 cards deep where the row says 7 |
-| `Holder L5.7.7.20-Un.step` | the same row unsleeved — **held out**, and 12 cards deep under the other card thickness too, which is what makes it a card COUNT rather than an offset |
+| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` Sl — five compartments, the widest holder in the catalogue. **Re-exported 2026-09-03**: the first export of this row was 12 cards deep where the row says 7, and was the one thing in the catalogue that did not satisfy the depth rule. Allan confirmed the row holds 7, and the re-export measures `7.600` — the plain rule, exactly. The old file is in git history |
+| `Holder L5.7.7.20-Un.step` | the same row unsleeved — **held out**. The other half of the same mis-configuration: 12 cards again, under `calCardThickness 0.400` this time, which is what made it a card COUNT rather than an offset. Not yet re-exported, and the only reference that would cover `calSlotwidth 68.000` |
 
-The last two are not deleted: `tests/test_holder.py` prints their measured depth
-against the rule on every run, and nothing is special-cased for them. One row
-disagreeing with a rule its own sibling satisfies is a question about that row.
+A reference that fails a rule every other reference satisfies is a question
+about that reference first. Holding these two out — rather than fitting the rule
+to them — is what made the re-export worth asking for, and it is what the
+remaining one is still waiting on. `tests/test_holder.py` prints its measured
+depth against the rule on every run.
 
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather

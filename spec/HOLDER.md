@@ -7,9 +7,9 @@ for WHY it is keyed the way it is; this file is the geometry.
 
 ## The ten references
 
-Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`. Eight
-are asserted against; the last two are held out — see "`210 Card` disagrees with
-its own sibling" below.
+Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`. Nine
+are asserted against; the last is held out — see "`210 Card` disagreed with its
+own sibling" below.
 
 | file | row | n | risers | sleeved | `calSlotwidth` | `calSliderDistance` | `calHeightIncrement` |
 |---|---|---|---|---|---|---|---|
@@ -21,7 +21,7 @@ its own sibling" below.
 | `Holder XS5.15.10.45-Sl.step` | Innovation `Single Mini` | **2** | 5 | yes | 69.000 | 8.900 | 17.400 |
 | `Holder S4.7.7.32-Sl.step` | Compile `105 Card` | 3 | 4 | yes | 70.000 | 8.000 | 18.000 |
 | `Holder S4.18.12.32-Un.step` | FCM `198 Card` | 3 | 4 | no | 63.000 | 6.960 | 20.000 |
-| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` — HELD OUT | **5** | 5 | yes | 70.000 | 8.000 | 17.400 |
+| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` — the RE-EXPORT | **5** | 5 | yes | 70.000 | 8.000 | 17.400 |
 | `Holder L5.7.7.20-Un.step` | the same row, unsleeved — HELD OUT | **5** | 5 | no | 68.000 | 5.200 | 17.400 |
 
 The 246 pair is the useful one for `first`: it is ONE configuration exported
@@ -41,15 +41,20 @@ is not any of these.
 
 The **last four close the parameter space**. Between them they add every
 remaining slot width (`63`, `68`, `70`), both remaining compartment counts (`2`
-and `5`), and the two games that had no reference at all — and the only thing
-they broke is one row's depth, not a rule.
+and `5`), and the two games that had no reference at all — and the one thing
+that looked like a broken rule turned out to be a mis-configured export.
 
 ## The frame
 
     X   0 at the centre of the FIRST compartment, +k * calSlotwidth for the rest
-    Y   0 at the front face, NEGATIVE going back
+    Y   0 at the REAR face, NEGATIVE going forward
     Z   0 is a datum inside the card pocket; the base sits at -45.250 on every
         reference, whatever the parameters
+
+The sense of `Y` is fixed by `Rear lip`, below: Onshape calls that group the
+REAR lip and its tabs stand at `Y > 0`, so `Y = 0` is the rear face and the
+slant descends toward the front. (An earlier revision of this file had it the
+other way round in this block and the right way round everywhere else.)
 
 ## What is settled
 
@@ -61,7 +66,9 @@ they broke is one row's depth, not a rule.
 
 `9.800` is `2 * 4.900`: each end stands `4.900` beyond the outer slot edge, of
 which `4.000` is the end block that carries the side slot and `0.900` closes the
-gap to the first compartment wall. Measured on all three, exact.
+gap to the first compartment wall. Exact on all ten references, and on the 20
+cached components exported since the studio trimmed it — see "`individual/` is a
+mixed catalogue" for the 30 that still say `5.000`.
 
 **`sliderDistance` here means the holder's OWN**: `calSliderDistance` for the
 standard holder and `calFirstSliderDistance` for the first-riser one. The 246
@@ -283,7 +290,31 @@ the other way leaves the base `12.052` and is invisible to the bounding box, the
 reach AND the tip width — all three stay right — and shows up only in the lip
 volume. So the test compares per-solid volumes, not envelopes.
 
-## `210 Card` disagrees with its own sibling, and the rule stands
+## `210 Card` disagreed with its own sibling — RESOLVED, it was the export
+
+**The row holds 7 cards per rising slot (Allan), and a re-export of the sleeved
+holder measures `7.600` — the plain rule, exactly.** So both original `210`
+exports were configured with a `Cards/Riser slot` of 12, and the depth formula
+never had an exception in it. That is the outcome the `105 Card` export had
+already argued for by satisfying the rule when its sibling did not, and it is
+why no override was written for the row while the question was open.
+
+`spec/reference/Holder L5.7.7.45-Sl.step` is now the re-export and is asserted
+against like any other; the old 12-card export is in git history, not on disk.
+The UNSLEEVED half has not been re-exported and stays held out: it measures
+`6.800` where the rule says `4.800`, which is the same 12 cards under
+`calCardThickness 0.400`. It is also the only reference that would cover
+`calSlotwidth 68.000`, so it is worth having eventually.
+
+The reasoning that got here is kept below, because what it rules out is the
+useful part: the readings that FIT `210` all predicted the wrong answer for
+`105`, and that is what said the fault was in one file rather than in the rule.
+
+### How it was read while it was open
+
+The table below is the FIRST exports. The sleeved row has since been replaced on
+disk by the re-export at `7.600`; the unsleeved one is still the file described
+here.
 
 Adding Innovation XS (2 compartments), FCM (`calSlotwidth 63.000`, rise
 `20.000`) and Compile (`68.000` and `70.000`, 3 and 5 compartments) closed every
@@ -296,8 +327,9 @@ exactly `CardsPerSlidingSlot = 7` cards.
 | holder | `n` | `calCardThickness` | depth | implied cards | row says |
 |---|---|---|---|---|---|
 | `105 Card` Sl | 3 | 0.800 | **7.600** | **7.00** | 7 |
-| `210 Card` Sl | 5 | 0.800 | 11.600 | **12.00** | 7 |
-| `210 Card` Un | 5 | 0.400 | 6.800 | **12.00** | 7 |
+| `210 Card` Sl — superseded | 5 | 0.800 | 11.600 | **12.00** | 7 |
+| `210 Card` Un — still held out | 5 | 0.400 | 6.800 | **12.00** | 7 |
+| `210 Card` Sl — the RE-EXPORT | 5 | 0.800 | **7.600** | **7.00** | 7 |
 
 Both `210` holders are `12.00` cards deep in a game whose other row is exactly
 `7.00`, and `12` is a whole number under both thicknesses, so it is a CARD COUNT
@@ -312,16 +344,18 @@ Three readings were tried and all three are dead. A flat `12`, and
 `210` — `7 + 5` twice over — and all three predict `12`, `10` and `11` for
 `105`, which measures `7`.
 
-**So this is a question about one row, not about the formula**, and nothing is
+**So this is a question about one row, not about the formula**, and nothing was
 special-cased for it. An earlier revision of this file recorded a
 `COMPILE_DEPTH_CARDS = 12` override; the `105 Card` export killed it, which is
-exactly what it was requested for. The likeliest explanation is that the `210`
-export was configured with a `Cards/Riser slot` other than the `7` in parts.csv
-— the corpus agrees the geometry changed, since the old `Holder 5x7-r5-Sl.3mf`
-measures `8.404`, which is the 7-card rule plus its lip.
+exactly what it was requested for. The likeliest explanation was that the `210`
+export had been configured with a `Cards/Riser slot` other than the `7` in
+parts.csv — the corpus agreed, since the old `Holder 5x7-r5-Sl.3mf` measures
+`8.404`, which is the 7-card rule plus its lip.
 
-The two `210` references are held out in `tests/test_holder.py`, not deleted,
-and the suite prints their measured depth against the rule on every run.
+That is what it turned out to be. The lesson to keep: a reference that fails a
+rule every other reference satisfies is a question about that reference first,
+and holding it out — rather than fitting the rule to it — is what made the
+re-export worth asking for.
 
 ## `Bottom Text`, and where it is a DELIBERATE DIVERGENCE
 
@@ -427,20 +461,20 @@ lattice or its lip would pass a width check and fail this one.
 ## Where it stands
 
 `python -m cad.build --part holder` writes all 56, about three seconds each,
-and every one of them is a closed, manifold mesh. Against the eight references
-the geometry is **+248.4 mm³ on 198,747**, `+0.125%`, and all but a few cubic
-millimetres of that is the DELIBERATE text divergence on the two holders whose
-Onshape text collides with itself:
+and every one of them is a closed, manifold mesh. Against the nine asserted
+references the geometry is **+250.8 mm³ on 233,928**, `+0.107%`, and all but a
+few cubic millimetres of that is the DELIBERATE text divergence on the two
+holders whose Onshape text collides with itself:
 
 | | mm3 |
 |---|---|
-| text, on the two holders Onshape engraves too big | **+251.40** |
-| `Chamfer lip rest`, shape error | +6.20 |
-| everything else, over all eight | +0.06 |
-| boolean loss in the measurement itself | -9.27 |
-| net | **+248.38** |
+| text, on the two holders Onshape engraves too big | **+252.89** |
+| `Chamfer lip rest`, shape error | +9.54 |
+| everything else, over all nine | +0.03 |
+| boolean loss in the measurement itself | -11.71 |
+| net | **+250.76** |
 
-Set the text aside and the whole of the rest is `+6.3 mm³` — `+0.003%`, and of
+Set the text aside and the whole of the rest is `+9.6 mm³` — `+0.004%`, and of
 the same order as the arithmetic's own noise. `tests/holder_diff.py` is the dev
 loop that prints this band by band, the last column included.
 
@@ -537,8 +571,9 @@ more material there:
 | Inno XS | +0.093% | **+15.99** | -0.00 | -0.00 | +0.80 | -0.00 | -0.20 |
 | Compile 105 | +0.005% | +0.72 | -0.00 | -0.02 | +2.23 | +0.00 | -1.69 |
 | FCM 198 Un | +0.052% | +0.28 | -0.00 | +0.00 | +3.79 | -0.00 | +5.48 |
+| Compile 210 | +0.007% | +1.49 | -0.00 | -0.02 | +3.34 | -0.00 | -2.43 |
 
-The base, the body and the lips are exact on all eight — the `body` column is
+The base, the body and the lips are exact on all nine — the `body` column is
 hundredths of a cubic millimetre across a part of twenty thousand. The `text`
 column is exact on the six holders whose text fits, and carries the deliberate
 divergence on the two that do not.
@@ -594,23 +629,43 @@ solid's and not the design's. The lid one is the more serious — an open
 boundary is a hole a slicer has to guess at, where a line contact usually
 prints.
 
+## The feature names that carry no geometry
+
+Allan on each, and what the rebuild does about it — nothing, in every case, and
+that is now a statement rather than an absence of evidence:
+
+- **`Leftmost Pusher Pos`** is roughly where the pusher touches the holder when
+  it is in use, and has no other use. A reference position, not a feature: it
+  removes and adds nothing, so `cad/parts/holder.py` has no counterpart and
+  should not grow one.
+- **`Remove Slant Angle`** is what makes the top of the holder diagonal rather
+  than flat. `shell` builds that slant into the section it sweeps, rather than
+  cutting a flat top and then removing a wedge — same solid, one operation
+  instead of two, and it is why `slant_z` appears as two corner heights.
+- **`Remove little front lip`** is Allan's hack for making the WHOLE top
+  diagonal: the top used to carry a `1.000` flat lip at the front, and this
+  removes it. So the current part has no flat there at all, which is what
+  `shell` builds — the slant runs to the front face. Worth knowing if an older
+  export ever turns up with a `1 mm` flat at the front: that is a pre-hack
+  holder, not a defect.
+**`Middle`** was not asked about and is not explained. It sits next to `Mid
+plane` and `Mirror Side` in the tree, which makes a construction plane for the
+mirrors the obvious guess — but that is a guess, and it is written here as one.
+The rebuild mirrors about `Plane.YZ` directly.
+
+The band-by-band table is the check on all of them: within what it resolves, a
+feature of more than a few cubic millimetres has nowhere left to hide.
+
 ## Still open
 
-- **`210 Card`'s depth**: 12 cards where the row says 7 and its sibling
-  measures 7. See above. Needs the row's real `Cards/Riser slot`, or a
-  re-export. **For Allan.**
+- **Nothing about the geometry.** What is left is one export and one decision.
+- The UNSLEEVED `210 Card` reference, `Holder L5.7.7.20-Un.step`, is the other
+  half of the 12-card mis-configuration and has not been re-exported. It is the
+  only reference that would cover `calSlotwidth 68.000`. Held out until then.
 - Whether the 30 pre-2026-08-24 cached holders should be swept onto `4.900`.
   Not a rebuild question — the rebuild already builds `4.900` — but the two
   lengths do coexist in shipped cascades, and PIPELINE.md says that is
   deliberate. `--changed Holder` is what sweeps them if the answer is yes.
-  **For Allan.**
-- `Leftmost Pusher Pos` — what it positions. Nothing in the solid needs it, and
-  eight references reproduce without it, so it is a name without a consequence
-  rather than a gap; recorded in case it acquires one.
-- `Remove little front lip`, `Remove Slant Angle`, `Middle` — the same. The
-  band-by-band table is what says so, within what it resolves: a feature of
-  more than a few cubic millimetres has nowhere left to hide in it. Something
-  smaller than that would not be caught here.
 - Whether the row rail stays `2.000` at another `CardHeight`. Not answerable and
   not a risk: `derive` gives `CardHeight = 92.0` for EVERY game, and the only
   other value the studio ever had was CraftGutermann's `58.0`, which is

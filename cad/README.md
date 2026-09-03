@@ -47,7 +47,7 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python tests/test_lid_corpus.py        # the rules vs 44 cached lids
 .venv/bin/python tests/test_token_holder.py      # source vs both STEPs
 .venv/bin/python tests/test_token_holder_corpus.py  # the rules vs all 18
-.venv/bin/python tests/test_holder.py            # source vs the eight STEPs
+.venv/bin/python tests/test_holder.py            # source vs nine of ten STEPs
 .venv/bin/python tests/test_holder_corpus.py     # build/ vs the 50 in individual/
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
 .venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
@@ -99,7 +99,7 @@ tests/
   test_lid_corpus.py        the Lid's placement rules vs 44 cached meshes
   test_token_holder.py      the part vs both TokenHolder STEPs
   test_token_holder_corpus.py  its rules vs all 18 cached token holders
-  test_holder.py            the part vs eight of the ten Holder STEPs
+  test_holder.py            the part vs nine of the ten Holder STEPs
   test_holder_corpus.py     the 56 written 3MFs vs the 50 in individual/
   holder_diff.py            dev loop: the Holder band by band, not a test
   box_diff.py               dev loop: the Box lump by lump, not a test

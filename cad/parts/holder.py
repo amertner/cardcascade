@@ -26,9 +26,9 @@ Local frame (the part studio's):
     Z   0 midway between the base and the card pocket's TOP, both at
         (CardHeight - 1.5)/2 on every reference whatever the parameters
 
-Every feature in that tree is built. Against the eight references the solid is
-`+0.125%`, all but `+0.003%` of it the DELIBERATE text divergence on the two
-holders Onshape engraves too big to fit (`text_size`). `tests/test_holder.py` is
+Every feature in that tree is built. Against the nine asserted references the
+solid is `+0.107%`, all but `+0.004%` of it the DELIBERATE text divergence on
+the two holders Onshape engraves too big to fit (`text_size`). `tests/test_holder.py` is
 what is proven against the STEPs, `tests/test_holder_corpus.py` what is proven
 against the 50 cached components, and `tests/holder_diff.py` the dev loop.
 
@@ -509,7 +509,7 @@ def lip_rests(p, d, first, part):
     # `Chamfer lip rest` — LIP_REST_CHAMFER at 45 degrees on the rest's two long
     # side edges, so the section is a HEXAGON and not a rectangle: `width` at
     # the top and `width - 2 * LIP_REST_CHAMFER` at the bottom. Which PAIR of
-    # edges is measured, not assumed. Against the eight references the residual
+    # edges is measured, not assumed. Against the nine references the residual
     # in this band is 4.88 for the lower pair, 25.59 for the upper, and 66.32
     # for a plain rectangle.
     c = LIP_REST_CHAMFER

@@ -2,7 +2,7 @@
 """Band-by-band comparison of cad/parts/holder.py against the reference STEPs —
 a DEV LOOP, not a test. `tests/test_holder.py` is what asserts.
 
-    .venv/bin/python tests/holder_diff.py            # all eight references
+    .venv/bin/python tests/holder_diff.py            # all nine references
     .venv/bin/python tests/holder_diff.py 246Sl 333Sl
 
 Prints, per reference, the total volume either side and the signed difference
@@ -13,7 +13,7 @@ the STEP.
 
 `tests/box_diff.py` subtracts slab by slab, because for the Box that works. It
 does not work here: once `Bottom Text` was built, `ref - mine` returns the whole
-solid on five of the eight references — OCCT cannot clean a difference whose
+solid on five of the nine references — OCCT cannot clean a difference whose
 two operands agree face-for-face over a few hundred engraved glyph edges. A
 fuzzy tolerance does not help and neither does slicing.
 
@@ -59,7 +59,7 @@ def row_params(short_name, sleeved):
     raise KeyError(short_name)
 
 
-# The same eight `tests/test_holder.py` asserts against, by the same keys.
+# The same nine `tests/test_holder.py` asserts against, by the same keys.
 def refs():
     P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
     P333 = params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
@@ -75,6 +75,8 @@ def refs():
                    False),
         "Cmp105": ("Holder S4.7.7.32-Sl.step", row_params("105 Card", 1), False),
         "FCM198": ("Holder S4.18.12.32-Un.step", row_params("198 Card", 0),
+                   False),
+        "Cmp210": ("Holder L5.7.7.45-Sl.step", row_params("210 Card", 1),
                    False),
     }
 
