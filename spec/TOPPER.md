@@ -20,7 +20,8 @@ lettering**, not six designs.
 | `Topper Unseen M5.15.15.62-Sl.step` | `spec/reference/` — Innovation `4 Ages 5 Expansions` Sl, 0 API calls. 13 solids, `Top and front edges` APPLIED |
 | `Topper Blank M5.10.10.32-Un without top and front edges.step` | `Top and front edges` SUPPRESSED. A different parameter set from the sample — 10 cards, unsleeved. One solid, 133 faces against the other's 445 |
 | `Topper Unseen M5.15.15.45-Un.step` | 15 cards, unsleeved |
-| `Topper Unseen M5.10.10.32-Un.step` | 10 cards, unsleeved — the PAIR with the one above: same expansion, same size, same sleeving, and only the card count differs, which is what isolates the lettering's scale |
+| `Topper Unseen M5.10.10.32-Un.step` | 10 cards, unsleeved — the PAIR with the one above: same expansion, same size, same sleeving, and only the card count differs |
+| `Topper Cities M5.15.15.62-Sl.step` | 15 cards, SLEEVED. The third axis: sleeving moves the depth without moving the card count, which is what the pair alone could not separate |
 | 48 cached components | `individual/Innovation/Topper *.3mf` — 6 expansions x S/M x 10/15 cards x Sl/Un |
 
 The STEP holds **13 solids**: the body, the six letters of `Unseen`, and six
@@ -330,32 +331,61 @@ back into the worklist.
 So: `Topper Unseen M10-Sl.3mf` and `Topper Unseen M15-Sl.3mf` want re-exporting.
 Nothing needs changing in Onshape.
 
-## The lettering scales 0.65 between 10 and 15 cards, and NOT with the logo
+## The lettering: its CAP BAND fills the space between the margins
 
-The 10/15 pair settles this, both configurations being M and unsleeved so that
-only the card count moves:
+The logo tracks `calLogoSidelength`. The lettering does **not** — they are two
+different rules on the same face, and building the text off `calLogoSidelength`
+would be wrong by 13%.
 
-| | 10-card | 15-card | ratio |
-|---|---|---|---|
-| `calLogoSidelength` | 4.2250 | 5.7250 | 1.3550 |
-| logo width | 5.342 | 7.239 | **1.3550** |
-| text width | 13.247 | 20.380 | **1.5385** |
-| text height | 2.614 | 4.021 | **1.5385** |
+The rule is:
 
-So the logo tracks `calLogoSidelength` and the lettering does **not** — they
-are two different rules on the same face, and building the text off
-`calLogoSidelength` would be wrong by 13%.
+    cap height = depth - 1.600 - 3 * #LogoEdgeDist
 
-`1/1.5385` is `0.6500` exactly, in both width and height independently. That
-confirms, from geometry, the 65% that `automation/PIPELINE.md` records from the
-other direction — and `topper_split.py` relies on, since its glyph fingerprints
-are normalised widths and it states they survive the 10-vs-15 size change.
+with the margins being `#LogoEdgeDist` at the top and `#LogoEdgeDist*2` at the
+bottom, so `3 *` is simply both of them, and `1.600` the two `0.800` walls.
+`depth` is the topper's own, `2.000 + calSlotDepth`.
 
-**What SETS the size is not yet known.** It is not `calLogoSidelength` (1.3550),
-not the depth (8.000/6.000 is 1.3333) and not `calSlotDepth` (6.000/4.000 is
-1.5000, which is close but not 1.5385). Two configurations cannot separate a
-two-term rule, so this needs a third — a 15-card SLEEVED export would do it,
-since sleeving moves the depth without moving the card count.
+### What confirms it
+
+Not one fit, but the SHAPE of the residual. Measured across **all 20** cached M
+files — five expansions by four configurations — the ink's height divided by
+that band is **constant per expansion to four decimal places** and varies only
+between expansions:
+
+| expansion | ink / band | why |
+|---|---|---|
+| `Unseen` | 1.0052 | `U n s e e n` — no ascenders, so the ink IS the cap band |
+| `Echoes` | 1.0690 | the `h` |
+| `Cities` | 1.0831 | the `t` and the `i` dots |
+| `Artifacts` | 1.0831 | the `t` and `f` |
+| `Figures` | **1.4032** | the `g` DESCENDER |
+
+That is exactly the signature of a correct rule: a font's ink-to-cap ratio is a
+property of the WORD, so a rule that sizes the cap band leaves a per-expansion
+constant behind and nothing else. A wrong rule would leave a residual that
+moved with the configuration, and none of these do.
+
+`Unseen` at `1.0052` is the strongest single check — it has no ascender and no
+descender, so its ink is the cap band itself, and it reproduces the band to
+half a percent on all four configurations.
+
+### `Figures` is why the bottom margin is doubled
+
+`1.4032` is the outlier and it is the one Allan flagged: the `g` descender puts
+40% more ink below the cap line than any other expansion has, and the doubled
+bottom margin is what catches it. On the deepest configuration its ink is
+`9.191` in a `depth - 1.600` of `10.150` — it fits, with `0.959` to spare, and
+it would not fit under symmetric margins.
+
+So `#LogoEdgeDist*2` is load-bearing on exactly one of the six toppers. Anyone
+tidying it to `#LogoEdgeDist` would see five of six still look right.
+
+### The 65% follows
+
+`PIPELINE.md` records the 10-card lettering as "exactly 65%" of the 15-card,
+and `topper_split.py`'s glyph fingerprints depend on that being a pure scale.
+It is now a CONSEQUENCE rather than an observation: the bands are `2.600` and
+`4.000` unsleeved, and `2.6 / 4.0` is `0.6500`.
 
 ## Cities, and `#TopperTotalWidth`
 
@@ -384,10 +414,10 @@ reference. Nothing consumes it, and nothing here should.
   true by construction. `tests/test_topper.py` must assert the topper's tabs
   land in the holder's tab slots, computed independently from both modules, or
   a divergence in either part will print as a part that does not clip on.
-- **What sets the LETTERING's size.** It scales 0.6500 exactly between 10 and
-  15 cards and does not follow `calLogoSidelength`; two configurations cannot
-  separate a two-term rule. A 15-card SLEEVED export would settle it, since
-  sleeving moves the depth without moving the card count.
+- **The FONT.** The cap-band rule is settled, but which typeface sets the
+  lettering is not — the ink/cap ratios above pin it down and have not been
+  matched against a font file yet. Orbitron and Open Sans are what the rest of
+  the model uses (`cad/text.py`).
 - **`Figures`' construction** is two concentric circles with a radial gap of
   `calLogoSidelength/5`, but which region is the mark — the annulus alone, or
   the disc with a ring — is not settled. It is one solid in the corpus, which
