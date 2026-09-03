@@ -83,6 +83,13 @@ def derive(p):
                              else v["game10SleevedCardThickness"]) / 10
     v["calCardwidth"] = v["gameUnsleevedCardWidth"] + {0: 0.0, 1: 2.0}[p.isSleeved]
     v["calSlotwidth"] = 3.0 + v["calCardwidth"]
+    # `#BoxWidth` is a SKETCH variable, not a studio one, and it is the single
+    # exception in this file. It is here because `calTokenHolderSlotWidth`
+    # below is a studio variable written in terms of it, and the alternative —
+    # a second copy of the expression — is the one thing this module exists to
+    # prevent. `cad/parts/box.box_width` reads it back, so Box, Lid and
+    # TokenHolder still share exactly one transcription. See spec/DERIVED.md.
+    v["BoxWidth"] = 2 * WallThickness + 11.1 + v["calSlotwidth"] * p.HorizontalSlots
     v["calSlotDepth"] = v["calCardThickness"] * p.CardsPerSlidingSlot
     v["calFirstSlotDepth"] = (v["calSlotDepth"] if p.isFirstSlidingSlotOverride == 0
                               else v["calCardThickness"] * p.FirstSlidingSlotCards)
@@ -141,6 +148,20 @@ def derive(p):
                                   else p.HorizontalSlots - 2)
     v["calFrontSlotsExceptTokenHolderSlot"] = (p.HorizontalSlots - 1 if p.MatPocket == 0
                                                else v["calFrontSlotsForCards"])
+    # What is left of the front pocket once the card compartments have taken
+    # their slots: the width the token holder has to fit into. Transcribed as
+    # Allan wrote it (see spec/TOKENHOLDER.md); it reduces to
+    # `calSlotwidth - 0.600` on a plain box and `2 * calSlotwidth - 0.600` on a
+    # Mat one, because `calFrontSlotsExceptTokenHolderSlot` drops by one more
+    # when the mat merges two slots — which is the whole of what "merged" means
+    # to this part. HorizontalSlots cancels out, so a token holder's size
+    # depends on the card width and the Mat flag and on nothing else.
+    v["calTokenHolderSlotWidth"] = (v["BoxWidth"]
+                                    - v["calFrontSlotsExceptTokenHolderSlot"]
+                                    * v["calSlotwidth"]
+                                    - 2 * WallThickness
+                                    - v["calFrontDividerLeftSpacing"]
+                                    - FrontPocketSidePaddingWidth)
     v["calFrontTotalCapacity"] = v["calFrontSlotsForCards"] * p.FrontPocketCardCapacity
     v["calTotalCards"] = (v["calRisingTypeCapacity"] * p.CardsPerSlidingSlot
                           + v["calFirstSlotRisingCardCapacity"]

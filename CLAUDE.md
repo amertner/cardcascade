@@ -21,14 +21,15 @@ rebuild.
 ### The rebuild is partial — don't assume it covers a part
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
-generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done,
-the Lid including the logo pattern in its underside, for all four games
-(`logos/<Game>/*.dxf`; `spec/LID.md`). The **Holder** is most of the way there
-and writes 3MFs, but is about 2% heavy and NOT printable yet
-(`spec/HOLDER.md`). The **Topper** is done too — all six expansions, the five
-marks derived from `calLogoSidelength` rather than traced (`spec/TOPPER.md`).
-TokenHolder still comes from Onshape, and the whole `automation/` pipeline is
-still live and authoritative for the Holder and the TokenHolder.
+generated with **zero API calls**. **Pusher**, **Box**, **Lid**,
+**TokenHolder** and **Topper** are done — the Lid including the logo pattern in
+its underside for all four games (`logos/<Game>/*.dxf`; `spec/LID.md`), the
+TokenHolder in both its FULL and HALF configurations (`spec/TOKENHOLDER.md`),
+and the Topper in all six expansions with the five marks derived from
+`calLogoSidelength` rather than traced (`spec/TOPPER.md`). Only the **Holder**
+is still short: it is most of the way there and writes 3MFs, but is about 2%
+heavy and NOT printable yet (`spec/HOLDER.md`), so the `automation/` pipeline
+is still live and authoritative for that one part.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -38,8 +39,15 @@ still live and authoritative for the Holder and the TokenHolder.
   strokes do not scale). `cad/marks.py` is the one interface over both; only
   Innovation's plain mark is generated so far. A generated name starts `@`.
 
+- The **TokenHolder** is Dominion-only and, alone so far, its 18 cached
+  components ARE a regression target rather than a shape reference: the part
+  did not change in 7.0, so only the engraved version string differs. FULL and
+  HALF are one part at two depths, and "merged" means the mat merges two front
+  slots so the tray gets both — `HorizontalSlots` cancels out of its width.
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
-  **only** place a formula lives. Component modules read a frozen `Derived` and
+  **only** place a formula lives. `#BoxWidth` is the one SKETCH variable in it,
+  because `calTokenHolderSlotWidth` is written in terms of it;
+  `parts/box.box_width` reads it back. Component modules read a frozen `Derived` and
   never recompute. `spec/DERIVED.md` is the record.
 - `individual/<Game>/` is now also the **regression corpus** — 242 components
   and 68 raw assemblies that cannot be re-fetched at any sane budget. The
@@ -49,12 +57,15 @@ still live and authoritative for the Holder and the TokenHolder.
   its 44 lids are still 6.6 — and those stay Onshape's until their cascades
   migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
-  every pusher is the bare `python -m cad.build`, and `--part all` does all
-  five, holders included — and those come out INCOMPLETE. A box takes about
-  ten seconds and a pusher under one; the 48 toppers take 95 s between them; a
-  LID costs whatever its logo artwork costs, because every region of the mark
-  is its own boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885.
-  Run all 50 in the background.
+  every pusher is the bare `python -m cad.build`, and `--part all` does the
+  lot, holders included — and those come out INCOMPLETE. `--part tokenholder`
+  is 22 files in seconds (22, not `individual/`'s 18: the old dedup key drops
+  the size letter the tray has engraved on it, so two cascades ship a tray
+  labelled for the other — `spec/TOKENHOLDER.md`). `--part topper` is 48 in
+  95 s. A box takes about ten seconds and a pusher under one; a LID costs
+  whatever its logo artwork costs, because every region of the mark is its own
+  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
+  in the background.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
@@ -62,11 +73,13 @@ still live and authoritative for the Holder and the TokenHolder.
   STEPs — it skips a reference that is absent),
   `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs
   `individual/`; run `python -m cad.build` first),
-  `.venv/bin/python tests/test_box.py` and `.venv/bin/python tests/test_lid.py`
-  (source vs their STEPs), `.venv/bin/python tests/test_lid_corpus.py`
-  (the Lid's placement rules against all 44 cached lids), and
-  `.venv/bin/python tests/test_topper.py` / `tests/test_topper_corpus.py`
-  (source vs eight STEPs, then all 48 cached toppers).
+  `.venv/bin/python tests/test_box.py`, `.venv/bin/python tests/test_lid.py`,
+  `.venv/bin/python tests/test_token_holder.py` and
+  `.venv/bin/python tests/test_topper.py` (source vs their STEPs), and
+  `.venv/bin/python tests/test_lid_corpus.py`,
+  `.venv/bin/python tests/test_token_holder_corpus.py` and
+  `.venv/bin/python tests/test_topper_corpus.py` (placement rules against all
+  44 cached lids, all 18 cached token holders and all 48 cached toppers).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 

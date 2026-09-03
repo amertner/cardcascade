@@ -64,25 +64,50 @@ the inlays are where `logos/<Game>/*.dxf` came from, lifted by
 Innovation's big one is still lifted from a cached mesh, for want of an export
 whose flourishes are intact.
 
+### TokenHolder
+
+Two, and they are the SAME cascade — Dominion `324 Card` Sl,
+`M6.21.10.62-Sl` — exported in both configurations. What has been measured off
+them is in `spec/TOKENHOLDER.md`.
+
+| file | configuration |
+|---|---|
+| `TokenHolder M6.21.10.62-Sl.step` | FULL — the tray takes the whole front pocket, `calFrontPocketDepth` deep |
+| `HalfTokenHolder M6.21.10.62-Sl.step` | HALF — `2.600 + calFrontPocketDepth/2`. The PAIR is the point: one configuration exported twice, so the diff isolates what `half` changes, which turns out to be one number. Same 231 faces and 644 edges on both |
+
+Neither is unsleeved and neither is merged, so the unsleeved widths, the doubled
+merged width and the single centred divider at 128 mm all rest on the 18 cached
+meshes in `individual/Dominion/` instead — which, unusually, ARE a regression
+target here: the token holder did not change in 7.0 (Allan), so only the
+engraved version string differs. `tests/test_token_holder_corpus.py`.
+
 ### Topper
 
-One so far. Innovation only — no other game's studio has a topper.
+Eleven, and between them they made the Topper solvable without a single API
+call. Innovation only — no other game's studio has one.
 
-| file | cascade |
+| file | what it isolates |
 |---|---|
-| `Topper Unseen M5.15.15.62-Sl.step` | Innovation `4 Ages 5 Expansions` Sl — 4 horizontal slots, 15 cards a slot |
+| `Topper Blank M5.10.10.32-Un without top and front edges.step` | the last feature SUPPRESSED, so every dimension can be read without a blend in the way. One solid, 133 faces |
+| `Topper M5.15.15.62-Sl to Remove Inner Hole.step` | the feature tree ROLLED BACK to that feature |
+| `Topper M5.15.15.62-Sl after More Dividers.step` | " |
+| `Topper M5.15.15.62-Sl after Linear pattern 1.step` | " — the last before `Upside Down`. The three bracket every group of the blank, so each is a subtraction rather than an inference |
+| `Topper Unseen M5.10.10.32-Un.step` | 10 cards unsleeved |
+| `Topper Unseen M5.15.15.45-Un.step` | 15 cards unsleeved — the PAIR with the one above, so only the card count differs |
+| `Topper Artifacts / Cities / Echoes / Figures / Unseen M5.15.15.62-Sl.step` | all five expansions at one parameter set, which is what solved the five marks |
 
-It carries **13 solids**: the topper body, the six letters of `Unseen`, and six
-more that make up the logo. The body is the biggest by volume and **is the
-BLANK topper** — the blank is not a different part, it is this one without the
-name and logo — so no separate blank export is needed.
+A named export carries the topper body **plus** every engraved piece as its own
+solid — 13 for `Unseen`. The body is the biggest by volume and **is the BLANK
+topper**: the blank is not a different part, it is this one without its name
+and logo, so no separate blank export is needed. Differencing the source's
+blank against a named body gives the engraving exactly, which is how the marks
+were derived rather than traced.
 
-What has been measured off it, and what is still open, is in
-`spec/TOPPER.md`. The one thing it cannot settle is the last feature, `Top and
-front edges`: like the Box before its unfilleted twin arrived, every edge
-measured here already has that fillet mixed in. A second export with that
-feature suppressed would make it measurable rather than a query to be guessed
-at, and is the cheapest thing that would move this on.
+`spec/TOPPER.md` has the measurements. Two things worth knowing here: the
+sleeved `Unseen` files in `individual/` are STALE and these STEPs are not, and
+`Solid.volume` is not a safe metric on a named body — OCCT over-reports it by
+about 1 mm3, on these exports as much as on the source.
+
 
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather
