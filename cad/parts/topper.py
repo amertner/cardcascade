@@ -39,26 +39,30 @@ Binding to the rule rather than to a body is the better dependency, and it is
 the whole point of the rebuild. What it costs is the mate Onshape got for free,
 so `tests/test_topper.py` asserts the tabs against `holder` independently.
 
-INCOMPLETE — the blank is being built first (Allan), and the `Expansion Name`
-group is not written. `spec/TOPPER.md` records every rule it will need.
+The BLANK is complete: `build()` reproduces all three rolled-back exports and
+the unfilleted one with zero symmetric difference in both directions, on two
+parameter sets, and the filleted `Unseen` body holds nothing it lacks.
+
+INCOMPLETE only in that the `Expansion Name` group — the mark and the
+expansion's name, 19 features — is not written, so the other five of the six
+are not buildable yet. `spec/TOPPER.md` records every rule they will need.
 """
 import math
 
 from build123d import (
-    Align, Box, BuildLine, BuildPart, BuildSketch, GeomType, Location, Mode,
-    Plane, Polyline, Pos, Rot, extrude, fillet, make_face,
+    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, GeomType, Line,
+    Location, Mode, Plane, Polyline, Pos, Rot, ThreePointArc, chamfer, extrude,
+    fillet, make_face,
 )
 
 from .. import derive as D
 from . import holder as H
 
 # Where the base sits in assembly. Constant on all 48 cached components and on
-# every reference, whatever the capacity, size or sleeving — and NOT yet
-# derived. See spec/TOPPER.md, "Still open".
+# every reference, whatever the capacity, size or sleeving. It is PLACEMENT —
+# where the assembly mate lands the part — not a formula, and Allan has said it
+# does not matter. Nothing derives it and nothing should.
 Z_BASE = 48.450
-
-# The tabs' tops, above Z_BASE. Also constant on all 48.
-TOTAL_HEIGHT = 45.200
 
 FRONT_WALL = 0.800         # the front wall, and the flat left along the top
 FLOOR = 1.200              # floor thickness
@@ -89,6 +93,30 @@ INNER_END_INSET = 1.400    # from each end of the part, in X
 
 TAB_W = D.WallThickness    # 1.600
 TAB_INSET = 1.300          # from each end of the part
+TAB_RISE = 44.000          # "extruded to 44 mm blind" (Allan), off the FLOOR
+# How far the tab stops short of the pocket's rear wall. NOT a constant offset
+# from the rear FACE: measured 1.442 in on M10-Un and 1.644 on M15-Sl, and the
+# difference is exactly INNER_INSET * (cos 0.55529 - cos 0.30224). Taken off the
+# pocket's own rear face it is 1.200 on both, to six decimals.
+TAB_REAR_GAP = 1.200
+TAB_CHAMFER = 0.500        # the top all round, and the two REAR vertical edges
+
+# The tabs' tops, above Z_BASE. Constant on all 48 — and now derived: the tab
+# starts on the floor and is 44 mm blind.
+TOTAL_HEIGHT = FLOOR + TAB_RISE                                       # 45.200
+
+# `Room for Lips` — the notch each Holder rear lip needs in the topper's rear
+# wall. Its X extent is not a number of the topper's own: it is the HOLDER's
+# lip base, `holder.lip_plan`, with NO clearance at all — |x| 14.200..26.600
+# from the slot centre on both parameter sets, against a lip base that measures
+# 14.200..26.600. That is the same relationship `spec/HOLDER.md` records for
+# `Lip Rest`, and it is why this binds to holder.lip_plan rather than to
+# 20.400 +- 6.200.
+#
+# LIP_ROOM_RISE is 2.000 on both sets, which is `#LipHeight`. Two constants
+# cannot tell a constant from a variable, so it is written here as its own
+# number and NOT bound to holder.SLANT_STEP.
+LIP_ROOM_RISE = 2.000      # the notch floor, above the topper's floor top
 
 LIP_FILLET = 1.400         # `Fillet Lip Room`
 FRONT_FILLET = 2.000       # `Fillet front holes`
@@ -260,27 +288,144 @@ def slot_x(p, d):
     return [d.calSlotwidth * k for k in range(p.HorizontalSlots)]
 
 
+def _arc(bl, a, c, b):
+    """A quarter arc from `a` to `b` about centre `c`, as a ThreePointArc.
+
+    Given explicitly rather than with a signed RadiusArc: which side a radius
+    arc takes is exactly the thing that would silently invert a fillet.
+    """
+    import math as _m
+    ux, uz = (a[0] - c[0]) + (b[0] - c[0]), (a[1] - c[1]) + (b[1] - c[1])
+    n = _m.hypot(ux, uz)
+    r = _m.hypot(a[0] - c[0], a[1] - c[1])
+    mid = (c[0] + r * ux / n, c[1] + r * uz / n)
+    return ThreePointArc(a, mid, b)
+
+
 def front_removal(p, d):
-    """`Remove most of front` and its two companions, as the solid to subtract.
+    """`Remove most of front` .. `Fillet front holes`, as the solid to subtract.
 
     The front wall is taken away above the floor's `FRONT_WALL_RISE`, over
     `calSlotwidth - 2*BAND_HALF` centred on each SLOT CENTRE — which is what
-    leaves the 14.800 band at each boundary.
+    leaves the 14.800 band at each boundary — and then `Fillet front holes`
+    rounds all four corners of every opening at `FRONT_FILLET`.
 
-    Differencing the two rollbacks gives four identical solids whose bounding
-    boxes are `calSlotwidth - 2*BAND_HALF + 2*FRONT_FILLET` wide. The extra is
-    the `Fillet front holes` flare, not the cut: `54.200` of removal reads as
-    `58.200` because a `2.000` round on each vertical corner overflows that
-    far. The band measures 14.800 on all four references, which is what says
-    the cut is the narrower number.
+    That fillet is built INTO THE TOOL rather than run on the body, because
+    OCCT will not put a 2.000 round on an 0.800 wall and Onshape's "allow edge
+    overflow" is precisely the permission to do it anyway. The reference says
+    what the answer is: 16 quarter-cylinders of `r 2.000`, each spanning the
+    wall's own 0.800, four per opening.
+
+    The two kinds go opposite ways, which is the whole subtlety:
+
+        BOTTOM corners  the opening's side meets its own floor, a notch in the
+                        material, so the round ADDS material inside the opening
+                        and the tool's corner is cut away
+        TOP corners     the opening's side meets the WALL'S TOP FACE, so the
+                        round REMOVES material and the tool grows FRONT_FILLET
+                        into the band on each side
+
+    They are equal and opposite: `(4 - pi) * FRONT_FILLET**2 * FRONT_WALL` is
+    `0.6867` mm3 a corner, 8 of each, so the volume balances exactly and volume
+    alone would pass a tool with neither. The symmetric difference is what
+    catches it — `tests/test_topper.py` asserts both directions separately.
     """
     front, rear = y_span(p, d)
     z0 = Z_BASE + FLOOR + FRONT_WALL_RISE
     z1 = slant_z(p, d, front - FRONT_WALL)
-    w = d.calSlotwidth - 2 * BAND_HALF
+    r = FRONT_FILLET
+    hw = (d.calSlotwidth - 2 * BAND_HALF) / 2
     out = None
     for c in slot_x(p, d):
-        b = Pos(c, front - FRONT_WALL / 2, (z0 + z1) / 2) * Box(w, FRONT_WALL, z1 - z0)
+        xl, xr = c - hw, c + hw
+        with BuildPart() as part:
+            with BuildSketch(Plane.XZ) as sk:
+                with BuildLine():
+                    _arc(None, (xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
+                    Line((xl, z0 + r), (xl, z1 - r))
+                    _arc(None, (xl, z1 - r), (xl - r, z1 - r), (xl - r, z1))
+                    # up and over the wall's top, so the tool's top face is not
+                    # coincident with it; there is nothing above z1 at this Y.
+                    Polyline((xl - r, z1), (xl - r, z1 + 1.0),
+                             (xr + r, z1 + 1.0), (xr + r, z1))
+                    _arc(None, (xr + r, z1), (xr + r, z1 - r), (xr, z1 - r))
+                    Line((xr, z1 - r), (xr, z0 + r))
+                    _arc(None, (xr, z0 + r), (xr - r, z0 + r), (xr - r, z0))
+                    Line((xr - r, z0), (xl + r, z0))
+                make_face()
+            extrude(amount=FRONT_WALL)
+        b = part.part.moved(Location((0, front, 0)))
+        out = b if out is None else out + b
+    return out
+
+
+def holder_tabs(p, d):
+    """`Tab-to-attach` — two plates that clip the topper onto the Holder.
+
+    One at each end, `TAB_W` thick and `TAB_INSET` in, standing off the FLOOR
+    and `TAB_RISE` tall. In Y they fill the pocket's own footprint less
+    `TAB_REAR_GAP` at the rear. `TAB_CHAMFER` runs all round the top and down
+    the two REAR vertical edges — the front edges are square, because the tab
+    merges into the front wall there.
+    """
+    x0, x1 = x_span(p, d)
+    front, rear = y_span(p, d)
+    y_front = front - FRONT_WALL
+    y_rear = rear + INNER_INSET * slant_cos(p, d) + TAB_REAR_GAP
+    z0 = Z_BASE + FLOOR
+    z1 = z0 + TAB_RISE
+    out = None
+    for xc in (x0 + TAB_INSET + TAB_W / 2, x1 - TAB_INSET - TAB_W / 2):
+        b = (Pos(xc, (y_front + y_rear) / 2, (z0 + z1) / 2)
+             * Box(TAB_W, y_front - y_rear, z1 - z0))
+        es = [e for e in b.edges()
+              if abs(e.center().Z - z1) < 1e-6
+              or (abs(e.center().Y - y_rear) < 1e-6
+                  and abs(e.length - (z1 - z0)) < 1e-6)]
+        b = chamfer(es, TAB_CHAMFER)
+        out = b if out is None else out + b
+    return out
+
+
+def lip_room_x(p, d):
+    """(x0, x1) of every lip notch — the HOLDER's lip base, not a number here.
+
+    Two per slot, mirrored about the slot centre, `HorizontalSlots` times over:
+    that is `Remove Lip Room` + `Other side` + `Linear pattern 1`, and it gives
+    the 8 notches and 16 `r 1.400` cylinders the M15-Sl rollback carries.
+    """
+    xs = [x for x, _y in H.lip_plan(p, d, first=False)]
+    lo, hi = min(xs), max(xs)
+    return sorted((c - hi, c - lo) if s < 0 else (c + lo, c + hi)
+                  for c in slot_x(p, d) for s in (+1, -1))
+
+
+def lip_rooms(p, d):
+    """`Room for Lips` .. `Linear pattern 1`, as the solid to subtract.
+
+    A notch through the rear wall, floor at `LIP_ROOM_RISE` above the topper's
+    own floor and open upward through the slant, with `LIP_FILLET` on its two
+    bottom corners. The tool runs a little past the wall both ways: behind it
+    is outside the part and in front of it is the pocket, so the extra is air
+    either way and no face of the cut is coincident with a face of the body.
+    """
+    front, rear = y_span(p, d)
+    z0 = Z_BASE + FLOOR + LIP_ROOM_RISE
+    z1 = Z_BASE + TOTAL_HEIGHT + 1.0
+    r = LIP_FILLET
+    depth_y = INNER_INSET * slant_cos(p, d) + 2.0
+    out = None
+    for xl, xr in lip_room_x(p, d):
+        with BuildPart() as part:
+            with BuildSketch(Plane.XZ):
+                with BuildLine():
+                    _arc(None, (xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
+                    Polyline((xl, z0 + r), (xl, z1), (xr, z1), (xr, z0 + r))
+                    _arc(None, (xr, z0 + r), (xr - r, z0 + r), (xr - r, z0))
+                    Line((xr - r, z0), (xl + r, z0))
+                make_face()
+            extrude(amount=depth_y)
+        b = part.part.moved(Location((0, rear - 1.0 + depth_y, 0)))
         out = b if out is None else out + b
     return out
 
@@ -299,3 +444,58 @@ def dividers(p, d):
         r = inner_hole(p, d) & strip
         out = r if out is None else out + r
     return out
+
+def top_and_front_edges(p, d, part):
+    """`Top and front edges` — the last feature of the blank, `r EDGE_ROUND`.
+
+    Named for the SKETCH's orientation; `Upside Down` sits between, so the
+    sketch's top and front are the assembly's BOTTOM and ends. The filleted
+    `M10-Un` reference says exactly which edges, and there are only eight
+    cylinders and no tori:
+
+        the bottom face's whole perimeter   4, of `width - 2r` and `depth - 2r`
+        the ends' FRONT vertical edges      2, `Z_BASE + r` up to the wall top
+        the ends' REAR vertical edges       2, trimmed by the SLANT, which is
+                                            why they reach `55.173` on M10-Un
+                                            and not the rear's own `52.650`
+
+    That last one is the tell that this is one fillet on a connected chain and
+    not four separate ones: the rear edge stops where the slant begins, and the
+    fillet surface runs past it until the slant face cuts it off — `slant_z` at
+    `rear + r`, to three decimals on both parameter sets.
+
+    It has to be built BEFORE the lettering (Allan): the logo and the name are
+    offset from the edge of these fillets, so `Expansion Name` does not work
+    without it.
+    """
+    x0, x1 = x_span(p, d)
+    front, rear = y_span(p, d)
+    es = []
+    for e in part.edges():
+        a, b = e.start_point(), e.end_point()
+        if abs(a.Z - Z_BASE) < 1e-6 and abs(b.Z - Z_BASE) < 1e-6:
+            es.append(e)
+        elif (abs(a.X - b.X) < 1e-6 and abs(a.Y - b.Y) < 1e-6
+              and min(abs(a.X - x0), abs(a.X - x1)) < 1e-6
+              and min(abs(a.Y - front), abs(a.Y - rear)) < 1e-6):
+            es.append(e)
+    return fillet(es, EDGE_ROUND)
+
+
+def build(p, d=None):
+    """The blank Topper, in the Onshape tree's own order.
+
+    INCOMPLETE: `Expansion Name` — the mark and the expansion's name — is not
+    written, so this is the `Blank` of the six. `spec/TOPPER.md` records every
+    rule the other five will need.
+    """
+    if p.GameName != "Innovation":
+        raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
+    if d is None:
+        d = D.derive(p)
+    part = wedge(p, d) - inner_hole(p, d)                 # Main topper
+    part = part - front_removal(p, d)                     # Remove .. front
+    part = part + dividers(p, d)                          # Divider, More
+    part = part + holder_tabs(p, d)                       # Tab-to-attach
+    part = part - lip_rooms(p, d)                         # Room for Lips ..
+    return top_and_front_edges(p, d, part)                # Top and front edges

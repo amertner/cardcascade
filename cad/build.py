@@ -9,6 +9,7 @@
     .venv/bin/python -m cad.build --part box      # every box — MINUTES
     .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
     .venv/bin/python -m cad.build --part holder   # every holder — INCOMPLETE
+    .venv/bin/python -m cad.build --part topper   # every topper — BLANK only
     .venv/bin/python -m cad.build --part all      # all four
 
 Pushers are the default because they are seconds each. A box is about ten, so
@@ -57,6 +58,7 @@ from .parts import box as box_part
 from .parts import holder as holder_part
 from .parts import lid as lid_part
 from .parts import pusher
+from .parts import topper as topper_part
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
@@ -201,6 +203,54 @@ def build_holder(p, first, out_dir, folder, filename):
             "new": before is None}
 
 
+def topper_file(p, d, expansion="Blank"):
+    """`Topper Blank M10-Un.3mf` — the cached corpus' own name.
+
+    The key is NOT `calModelName`. A topper depends on exactly three things —
+    `HorizontalSlots` through the size letter, `CardsPerSlidingSlot` and
+    `isSleeved` — and Onshape's own catalogue is keyed that way: 8 distinct
+    bodies, 6 expansions each, which is the 48 files in `individual/`.
+    """
+    slv = "-Sl" if p.isSleeved else "-Un"
+    return f"Topper {expansion} {d.calSizeLetter}{p.CardsPerSlidingSlot}{slv}.3mf"
+
+
+def topper_catalogue(csv=CSV, game=None, model=None):
+    """[(folder, filename, Primary)] — every distinct topper.
+
+    Innovation only, and only the `Blank`: `Expansion Name` is not written, so
+    the other five expansions would come out as five more copies of the blank
+    rather than as themselves. See spec/TOPPER.md.
+    """
+    out = {}
+    for row in params.load_rows(csv):
+        for sleeved in (0, 1):
+            p = params.from_row(row, sleeved)
+            if p.GameName != "Innovation":
+                continue
+            if game and p.GameName.lower() != game.lower():
+                continue
+            d = D.derive(p)
+            fn = topper_file(p, d)
+            if model and model.lower() not in fn.lower():
+                continue
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+    return [out[k] for k in sorted(out)]
+
+
+def build_topper(p, out_dir, folder, filename):
+    """Build one topper and write the 3MF. One body, named as the corpus does."""
+    part = topper_part.build(p)
+    path = out_dir / folder / filename
+    before = path.read_bytes() if path.exists() else None
+    meshed = mesh3mf.write(path, [("Topper", part)])
+    _, verts, tris = meshed[0]
+    return {"path": path, "verts": len(verts), "tris": len(tris),
+            "volume": part.volume, "bytes": path.stat().st_size,
+            "changed": before is not None and before != path.read_bytes(),
+            "new": before is None}
+
+
 def box_catalogue(csv=CSV, game=None, model=None):
     """[(folder, filename, Primary)] — every distinct box, deduplicated.
 
@@ -290,7 +340,8 @@ def main(argv=None):
                     help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
     ap.add_argument("--part",
-                    choices=("pusher", "box", "lid", "holder", "all"),
+                    choices=("pusher", "box", "lid", "holder", "topper",
+                             "all"),
                     default="pusher",
                     help="what to build. Pushers are the default because they "
                          "are seconds; a box is about ten, so all 48 is minutes")
@@ -346,6 +397,27 @@ def main(argv=None):
                 total += r["bytes"]
             print(f"\n  {len(holders)} holders, {total / 1e6:.1f} MB, in {args.out}")
         if args.part == "holder":
+            return 0
+
+    if args.part in ("topper", "all"):
+        toppers = topper_catalogue(args.csv, args.game, args.model)
+        if args.list:
+            for folder, fn, p in toppers:
+                print(f"  {folder + '/' + fn}")
+            print(f"\n  {len(toppers)} toppers")
+        else:
+            print("  NB only the Blank — `Expansion Name` is not written, see "
+                  "spec/TOPPER.md")
+            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
+            total = 0
+            for folder, fn, p in toppers:
+                r = build_topper(p, args.out, folder, fn)
+                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
+                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
+                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
+                total += r["bytes"]
+            print(f"\n  {len(toppers)} toppers, {total / 1e6:.1f} MB, in {args.out}")
+        if args.part == "topper":
             return 0
 
     if args.part in ("box", "all"):

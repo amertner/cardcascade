@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+import math                                             # noqa: E402
+
 from build123d import import_step, Plane, Box, Pos       # noqa: E402
 from cad import params, derive as D                      # noqa: E402
 from cad.parts import holder as H, topper as T           # noqa: E402
@@ -140,9 +142,9 @@ for got, want in zip(T.band_x(P, d),
     check(f"band at {want}", (round(got[0], 3), round(got[1], 3)), want)
 
 print("\n=== against the rolled-back exports (M15-Sl, a SECOND parameter set) ===")
-# Both rollbacks predate `Upside Down`, so they arrive in the pre-flip frame.
-# That transform is itself a measurement: a 180-degree turn about X through
-# (y = -depth, z = Z_BASE) puts all three bodies on the same envelope exactly.
+# All three rollbacks predate `Upside Down`, so they arrive in the pre-flip
+# frame. That transform is itself a measurement: a 180-degree turn about X
+# through (y = -depth, z = Z_BASE) puts every body on the same envelope exactly.
 from build123d import Pos, Rot                            # noqa: E402
 Q = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dq = D.derive(Q)
@@ -153,8 +155,13 @@ def unflip(solid):
     return Pos(0, -2 * dpq, 2 * T.Z_BASE) * Rot(180, 0, 0) * solid
 
 
-roll1 = unflip(import_step(str(STEP_DIR / "Topper M5.15.15.62-Sl to Remove Inner Hole.step")).solids()[0])
-roll2 = unflip(import_step(str(STEP_DIR / "Topper M5.15.15.62-Sl after More Dividers.step")).solids()[0])
+def load(name):
+    return unflip(import_step(str(STEP_DIR / name)).solids()[0])
+
+
+roll1 = load("Topper M5.15.15.62-Sl to Remove Inner Hole.step")
+roll2 = load("Topper M5.15.15.62-Sl after More Dividers.step")
+roll3 = load("Topper M5.15.15.62-Sl after Linear pattern 1.step")
 
 rb1 = roll1.bounding_box()
 wq = T.wedge(Q, dq)
@@ -163,15 +170,21 @@ check("the flip puts the rollback on the wedge's envelope (X)",
 check("... (Y)", round(rb1.min.Y, 6), round(wq.bounding_box().min.Y, 6), 1e-6)
 check("... (Z)", round(rb1.min.Z, 6), round(wq.bounding_box().min.Z, 6), 1e-6)
 
-pocketed = wq - T.inner_hole(Q, dq)
-check("Remove Inner Hole: volume", round(pocketed.volume, 4),
-      round(roll1.volume, 4), 1e-4)
-check("Remove Inner Hole: face count", len(pocketed.faces()), len(roll1.faces()))
-check("Remove Inner Hole: nothing left over",
-      round((pocketed - roll1).volume if (pocketed - roll1) else 0.0, 6), 0.0, 1e-6)
-check("Remove Inner Hole: nothing missing",
-      round((roll1 - pocketed).volume if (roll1 - pocketed) else 0.0, 6), 0.0, 1e-6)
 
+def exact(label, mine, ref):
+    """Volume AND both one-sided differences. Volume alone is not enough: the
+    front-hole fillet moves 5.494 mm3 in each direction and nets to zero."""
+    check(f"{label}: volume", round(mine.volume, 4), round(ref.volume, 4), 1e-4)
+    check(f"{label}: face count", len(mine.faces()), len(ref.faces()))
+    a, b = mine - ref, ref - mine
+    check(f"{label}: nothing left over",
+          round(a.volume if a else 0.0, 6), 0.0, 1e-6)
+    check(f"{label}: nothing missing",
+          round(b.volume if b else 0.0, 6), 0.0, 1e-6)
+
+
+pocketed = wq - T.inner_hole(Q, dq)
+exact("Remove Inner Hole", pocketed, roll1)
 check("the pocket is inset INNER_END_INSET from each end",
       round(T.inner_hole(Q, dq).bounding_box().min.X - wq.bounding_box().min.X, 4),
       round(T.INNER_END_INSET, 4), 1e-4)
@@ -180,22 +193,105 @@ check("... and INNER_INSET * cos(theta) in Y at the rear",
       round(T.INNER_INSET * T.slant_cos(Q, dq), 4), 1e-4)
 
 grouped = pocketed - T.front_removal(Q, dq) + T.dividers(Q, dq)
-check("front removal + dividers: volume", round(grouped.volume, 3),
-      round(roll2.volume, 3), 1e-3)
-# The r2.0 `Fillet front holes` is NOT built — OCCT will not put a 2.000 round
-# on an 0.800 wall, which is what Onshape's "allow edge overflow" is doing. It
-# moves 5.494 mm3 without changing the total, so volume alone would pass it.
-sym = (grouped - roll2)
-check("what is left is ONLY the unbuilt r2.0 fillet",
-      round(sym.volume if sym else 0.0, 3), 5.494, 0.01)
-check("... which is under 0.1% of the group",
-      round(100 * (sym.volume if sym else 0.0) / roll2.volume, 3) < 0.1, True)
+exact("front removal + dividers", grouped, roll2)
+
+print("\n=== `Fillet front holes`, built into the TOOL ===")
+# OCCT will not put a 2.000 round on an 0.800 wall; Onshape's "allow edge
+# overflow" is the permission to do it anyway, so the tool carries the round.
+# The two kinds are equal and opposite, which is why `exact` above has to check
+# both one-sided differences and not merely the volume.
 check("the reference carries it as 16 cylinders at r2.0",
       sum(1 for f in roll2.faces()
-          if "CYLINDER" in str(f.geom_type) and abs(f.radius - T.FRONT_FILLET) < 1e-6), 16)
+          if "CYLINDER" in str(f.geom_type)
+          and abs(f.radius - T.FRONT_FILLET) < 1e-6), 16)
+check("... and so does the source", sum(
+    1 for f in grouped.faces()
+    if "CYLINDER" in str(f.geom_type)
+    and abs(f.radius - T.FRONT_FILLET) < 1e-6), 16)
+check("each is a quarter cylinder through the front wall",
+      round(4 * (1 - math.pi / 4) * T.FRONT_FILLET ** 2 * T.FRONT_WALL / 4, 4),
+      0.6867, 1e-4)
+
+print("\n=== the holder tabs and the lip rooms ===")
+tabbed = grouped + T.holder_tabs(Q, dq) - T.lip_rooms(Q, dq)
+exact("Tab-to-attach .. Linear pattern 1", tabbed, roll3)
+check("two tabs, not one per slot", len(T.holder_tabs(Q, dq).solids()), 2)
+check("the tabs top out at TOTAL_HEIGHT",
+      round(T.holder_tabs(Q, dq).bounding_box().max.Z - T.Z_BASE, 3),
+      round(T.TOTAL_HEIGHT, 3), 1e-3)
+check("... which is FLOOR + a 44 mm blind extrude",
+      round(T.FLOOR + T.TAB_RISE, 3), 45.200, 1e-9)
+check("2 lip rooms a slot, HorizontalSlots over",
+      len(T.lip_room_x(Q, dq)), 2 * Q.HorizontalSlots)
+check("the reference carries 16 cylinders at r1.4",
+      sum(1 for f in roll3.faces()
+          if "CYLINDER" in str(f.geom_type)
+          and abs(f.radius - T.LIP_FILLET) < 1e-6), 16)
+
+print("\n=== the lip room IS the holder's lip base, with no clearance ===")
+# the notch on the +x side of the FIRST slot; lip_room_x is sorted, so
+# index 0 is that slot's other one, at negative x.
+lo, hi = T.lip_room_x(Q, dq)[1]
+xs = [x for x, _y in H.lip_plan(Q, dq, first=False)]
+check("the notch runs |x| min(lip_plan) .. max(lip_plan)",
+      (round(lo, 4), round(hi, 4)), (round(min(xs), 4), round(max(xs), 4)))
+check("... which is LIP_LEN + 2 * LIP_CHAMFER wide",
+      round(hi - lo, 4), round(H.LIP_LEN + 2 * H.LIP_CHAMFER, 4), 1e-9)
+check("... starting LIP_GAP - LIP_CHAMFER past the scallop's filleted edge",
+      round(lo, 4),
+      round(H.FINGER_R + H.FINGER_FILLET + H.LIP_GAP - H.LIP_CHAMFER, 4), 1e-9)
+check("the notch floor is LIP_ROOM_RISE above the topper's floor",
+      round(T.LIP_ROOM_RISE, 3), 2.000, 1e-9)
+
+print("\n=== `Top and front edges`, the last feature of the blank ===")
+for tag, pp in (("M10-Un", P), ("M15-Sl", Q)):
+    dd = D.derive(pp)
+    body = T.build(pp, dd)
+    cyl = [f for f in body.faces()
+           if "CYLINDER" in str(f.geom_type) and abs(f.radius - T.EDGE_ROUND) < 1e-6]
+    check(f"{tag}: eight r0.800 cylinders and no more", len(cyl), 8)
+    check(f"{tag}: no tori — one chain, not four fillets",
+          sum(1 for f in body.faces() if "TORUS" in str(f.geom_type)), 0)
+    x0, x1 = T.x_span(pp, dd)
+    fr, re_ = T.y_span(pp, dd)
+    r = T.EDGE_ROUND
+    longest = max(cyl, key=lambda f: f.area)
+    check(f"{tag}: the bottom perimeter runs width - 2r",
+          round(longest.bounding_box().size.X, 3),
+          round(T.width(pp, dd) - 2 * r, 3), 1e-3)
+    # the tell: the REAR vertical fillet is trimmed by the SLANT, not by the
+    # rear's own top, so its cylinder reaches slant_z at rear + r.
+    rear_v = [f for f in cyl if abs(f.bounding_box().min.Y - re_) < 1e-6
+              and f.bounding_box().size.Z > 1.0]
+    check(f"{tag}: two rear vertical fillets", len(rear_v), 2)
+    check(f"{tag}: ... trimmed by the slant at rear + r",
+          round(rear_v[0].bounding_box().max.Z, 3),
+          round(T.slant_z(pp, dd, re_ + r), 3), 1e-3)
+
+print("\n=== build(): the whole blank ===")
+mine = T.build(P, d)
+exact("unfilleted M10-Un, before the last fillet",
+      T.wedge(P, d) - T.inner_hole(P, d) - T.front_removal(P, d)
+      + T.dividers(P, d) + T.holder_tabs(P, d) - T.lip_rooms(P, d), ref)
+# The strongest check available: the FILLETED Unseen export at this exact
+# parameter set. Its lettering is a removal, so it may hold LESS than the blank
+# — but it must hold nothing the blank does not.
+unseen = max(import_step(str(STEP_DIR / "Topper Unseen M5.10.10.32-Un.step")).solids(),
+             key=lambda s: s.volume)
+left = unseen - mine
+check("the filleted Unseen body has nothing the blank lacks",
+      round(left.volume if left else 0.0, 6), 0.0, 1e-6)
+over = mine - unseen
+check("... and what the blank has spare is only the engraving",
+      round(over.volume if over else 0.0, 3), 19.300, 0.01)
+check("the blank is a single solid", len(mine.solids()), 1)
 
 print("\n=== it is Innovation-only ===")
-check("(not yet enforced — build() is not written)", True, True)
+try:
+    T.build(params.Primary(4, 5, 15, 10, 0, 10, 0, 0, "Dominion"))
+    check("build() refuses a non-Innovation game", False, True)
+except ValueError:
+    check("build() refuses a non-Innovation game", True, True)
 
 print("\nPASS" if not fails else f"\nFAIL ({len(fails)}): " + ", ".join(fails[:6]))
 sys.exit(1 if fails else 0)

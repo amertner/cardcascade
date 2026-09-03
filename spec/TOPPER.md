@@ -23,7 +23,8 @@ lettering**, not six designs.
 | `Topper Unseen M5.10.10.32-Un.step` | 10 cards, unsleeved — the PAIR with the one above: same expansion, same size, same sleeving, and only the card count differs |
 | `Topper Cities M5.15.15.62-Sl.step` | 15 cards, SLEEVED. The third axis: sleeving moves the depth without moving the card count, which is what the pair alone could not separate |
 | `Topper M5.15.15.62-Sl to Remove Inner Hole.step` | the feature tree ROLLED BACK to that feature |
-| `Topper M5.15.15.62-Sl after More Dividers.step` | rolled back to there. The two bracket `Main topper`, so each group is a subtraction rather than an inference |
+| `Topper M5.15.15.62-Sl after More Dividers.step` | rolled back to there |
+| `Topper M5.15.15.62-Sl after Linear pattern 1.step` | rolled back to there — the last feature before `Upside Down`. The three bracket every group of the blank, so each one is a subtraction rather than an inference |
 | 48 cached components | `individual/Innovation/Topper *.3mf` — 6 expansions x S/M x 10/15 cards x Sl/Un |
 
 The STEP holds **13 solids**: the body, the six letters of `Unseen`, and six
@@ -50,8 +51,10 @@ The first two are the HOLDER's own dimensions, and that is the point:
 So the topper is the holder minus its two end blocks, at the same depth. It
 spans the slots and not the end blocks that carry the side slots.
 
-`45.200` is a constant — no derived variable produces it, and it does not move
-across capacity, size or sleeving.
+`45.200` is a constant across capacity, size and sleeving — but it is not an
+arbitrary one. The tabs stand off the FLOOR and are extruded `44 mm` blind
+(Allan), so the height is `FLOOR 1.200 + 44.000`. `topper.TOTAL_HEIGHT` is
+written as that sum.
 
 ## Assembly position
 
@@ -60,8 +63,12 @@ across capacity, size or sleeving.
     Z    48.450 .. 93.650
 
 Constant on all 48. The Y rule is exact: the topper sits one full depth back
-from the origin, which is the slot it caps. **What sets `Z = 48.450` is not yet
-derived** — see "Still open".
+from the origin, which is the slot it caps.
+
+`Z = 48.450` is where the assembly mate lands the part, and nothing derives it.
+Asked whether it comes from a variable, Allan's answer was that it does not
+matter, so `topper.Z_BASE` is a placement constant and stays one. It is not in
+"Still open" any more.
 
 ## `#TopperHeight`
 
@@ -140,12 +147,32 @@ at** — `calLogoSidelength 4.2250`, `LogoEdgeDist 0.600` — so the whole
 
 Its 133 faces against the Unseen sample's 445 make it the one to build against.
 
-### What `Top and front edges` actually does
+### `Top and front edges` — solved exactly
 
-The filleted `M15-Sl` section carries `r 0.800` rounds on both BOTTOM corners
-that this one does not have. The feature is named for the sketch's orientation;
-`Upside Down` sits between them in the tree, so the sketch's top and front are
-the assembly's bottom and front.
+The feature is named for the SKETCH's orientation; `Upside Down` sits between
+them in the tree, so the sketch's top and front are the assembly's **bottom and
+ends**.
+
+The filleted `Topper Unseen M5.10.10.32-Un.step` says which edges without any
+inference: its body carries exactly **eight cylinders at `r 0.800` and no
+tori**, which is a complete answer.
+
+| the edge | the cylinder |
+|---|---|
+| the bottom face's whole perimeter | 4, spanning `width - 2r` and `depth - 2r` |
+| the ends' FRONT vertical edges | 2, `Z_BASE + r` up to the wall top |
+| the ends' REAR vertical edges | 2, `Z_BASE + r` up to **`slant_z(rear + r)`** |
+
+That last row is the tell that this is ONE fillet on a connected chain and not
+four separate ones. The rear vertical edge itself stops at `Z_BASE +
+#TopperHeight` — `52.650` — where the slant begins; the fillet surface runs
+past it and the slant face trims it. `55.173` on M10-Un at slope `3.1538`, and
+`53.848` on M15-Sl at `1.4977`: `slant_z` at `rear + r` on both, to three
+decimals. A fillet built as four independent rounds would stop at `52.650` and
+be wrong by `2.523` on one row and `1.198` on the other.
+
+No tori means the four bottom corners are BSPLINE blends, not toroidal ones,
+which is what one fillet on a closed loop gives.
 
 **It has to be built BEFORE the lettering** (Allan): the logo and text offsets
 are measured from the edge of those fillets, so `Expansion Name` does not work
@@ -215,7 +242,7 @@ whose YZ section is **identical to the pocket's** — the same area to four
 decimals, the same four edges. So a rib is not a shape of its own: it is
 `Remove Inner Hole`'s own profile put back over `RIB_W`, at each slot boundary.
 
-## The front-wall removal, and the fillet that is not built
+## The front-wall removal, and its fillet
 
 `Remove most of front` and its companions take the front wall away above
 `FRONT_WALL_RISE`, over `calSlotwidth - 2*BAND_HALF`, centred on each SLOT
@@ -227,12 +254,29 @@ The rollback's removed solids measure `58.200` wide against that rule's
 `2.000` past each end. The band measures `14.800` on all four references, which
 is what says the cut is the narrower number.
 
-**That fillet is not built.** OCCT will not put a `2.000` round on an `0.800`
-wall, which is precisely what Onshape's overflow option is for. It moves
-`5.494 mm3` — `0.086%` of the group — WITHOUT changing the total, so a volume
-check alone would pass a body that does not have it; the test asserts the
-symmetric difference instead, and that the reference carries it as 16 cylinders
-at `r 2.000`.
+### The fillet is built into the TOOL
+
+OCCT will not put a `2.000` round on an `0.800` wall — which is precisely what
+Onshape's "allow edge overflow" is for — so `front_removal` carries the round
+in its own profile instead of running `fillet()` on the body. The reference
+says what the answer has to be: **16 quarter-cylinders of `r 2.000`**, each
+spanning the wall's own `0.800`, four per opening. Their positions say which
+edges, and the two kinds go opposite ways:
+
+| corner | the second face | which way |
+|---|---|---|
+| BOTTOM | the opening's own floor | the round ADDS material inside the opening, so the tool's corner is cut away |
+| TOP | the WALL'S TOP FACE | the round REMOVES material, so the tool grows `2.000` into the band each side |
+
+Each is `(4 - pi) * r^2 * t = 0.6867 mm3`, eight of each, so they cancel:
+`5.494 mm3` moves in each direction and **the total does not change at all**.
+A volume check alone passes a body with neither, which is exactly the trap this
+sat in while it was unbuilt. `tests/test_topper.py` checks both one-sided
+differences separately, and both are now `0.000000`.
+
+The `58.200` the rollback's removed solids measure against the rule's `54.200`
+is the top pair's overflow, not the cut. The band measures `14.800` on all four
+references, which is what says the cut is the narrower number.
 
 ## Ribs and front bands — a T in plan, not a post
 
@@ -263,36 +307,66 @@ reproduce exactly:
 pusher's path. The `Divider` sketch gives the profile but not where the width
 comes from, so that stays a hypothesis and is not encoded as one.
 
-### The lip clearance is a band exactly `#LipHeight` tall
+### The lip notches are the HOLDER's lip base, with no clearance
 
-Between the floor's top and `2.000` above it, everything between the ribs is
-open — `49.650` to `51.650`, and `#LipHeight` is `2.000`. That is the room the
-Holder's rear lips need, and it is what `Room for Lips`, `Remove Lip Room`,
-`Other side` and `Linear pattern 1` cut. The pattern's own numbers agree: pitch
-`calSlotwidth`, `HorizontalSlots` instances, centred, mirrored — and the
-reference carries `16` cylinders at `r 1.400`, which is two fillet edges on
-each of `4 x 2` cuts.
+An earlier revision of this file read the band from the floor's top to `2.000`
+above it as open and called that the lip clearance. That was a section taken
+inside the POCKET, where everything above the floor is open anyway; it said
+nothing about the rear wall and it was wrong about which side of `51.650` the
+material is on. The rollback settles it.
 
-At each end the block left standing measures `2.900`, which is
-`TAB_INSET 1.300 + TAB_W 1.600` — the tab's own footprint, so the tab has a
-root to stand on.
+`Room for Lips` / `Remove Lip Room` / `Fillet Lip Room` / `Other side` /
+`Linear pattern 1` cut **eight notches through the rear wall**, two per slot:
 
-## The holder tabs## The holder tabs
+    floor       LIP_ROOM_RISE 2.000 above the topper's own floor top
+    open        upward, running out through the slant
+    through     the rear wall's full Y thickness
+    fillet      LIP_FILLET 1.400 on the two BOTTOM corners, which is why the
+                notch measures 12.400 at the top and 9.600 across its floor
+    in X        14.200 .. 26.600 either side of the slot centre
 
-Two, one at each end of the part, standing above the body:
+That last row is not a number of the topper's own. It is the **Holder's lip
+base**, `holder.lip_plan`, which measures `14.200 .. 26.600` — `LIP_LEN + 2 *
+LIP_CHAMFER` wide, starting `LIP_GAP - LIP_CHAMFER` past the scallop's filleted
+edge at `FINGER_R + FINGER_FILLET`. Not `LIP_LEN` and not the lip's flat: its
+CHAMFERED BASE, with **no clearance at all**.
 
-    thickness   1.600 (= #WallThickness)
-    inset       1.300 from each end of the part
-    Y           from the front inner face to the slant at that height
-    Z           ~69.050 .. 93.650
-    extrude     44 mm blind (Allan)
+That is the same relationship `spec/HOLDER.md` records for `Lip Rest`, and it
+is why `topper.lip_room_x` calls `holder.lip_plan` rather than writing
+`20.400 +- 6.200`. It is also the one place where dropping `Import Holder` has
+been paid back: half the topper/holder mate is now asserted from BOTH ends, out
+of two modules that computed it independently.
 
-On the unfilleted `M10-Un` body: `X -32.200..-30.600` and
-`231.600..233.200` — `1.600` wide, `1.300` in from each end — and
-`Y -10.558..-6.800`, whose `-6.800` is the front wall's inner face.
+`LIP_ROOM_RISE 2.000` is `#LipHeight`, and stays written as its own number:
+`2.000` on both parameter sets cannot tell a constant from a variable, and
+binding it to `holder.SLANT_STEP` on a hunch would be a false economy.
 
-The sketch carries `1.6`, `1.2` and `0.1`. These are what mate the topper to
-the holder.
+## The holder tabs
+
+**Two**, one at each end — not one per slot, and not the three the feature
+name's `x3` suggests (that is sketch, extrude and chamfer, one body each side).
+
+    thickness   TAB_W 1.600 (= #WallThickness)
+    inset       TAB_INSET 1.300 from each end of the part
+    Z           the FLOOR's top, TAB_RISE 44.000 blind (Allan) — which is what
+                makes TOTAL_HEIGHT 45.200
+    Y front     the front wall's inner face, front - FRONT_WALL
+    Y rear      TAB_REAR_GAP 1.200 in front of the POCKET's rear wall
+    chamfer     TAB_CHAMFER 0.500, all round the top and down the two REAR
+                vertical edges; the front edges stay square, because the tab
+                merges into the front wall there
+
+`TAB_REAR_GAP` is the one worth stating carefully. Measured off the rear FACE
+it is `1.442` on M10-Un and `1.644` on M15-Sl — not a constant, and a rule
+written that way would be wrong on every other row. The difference is exactly
+`INNER_INSET * (cos 0.55529 - cos 0.30224)`: taken off the pocket's own rear
+wall, which is `INNER_INSET` along the SLANT and therefore moves with the
+slope, it is `1.200` on both to six decimals.
+
+At each end the pocket's end wall (`INNER_END_INSET 1.400`) and the tab
+(`1.300 .. 2.900`) overlap into one `2.900` block, which is what a ray one step
+behind the front wall reads. An earlier revision recorded that block as
+`TAB_INSET + TAB_W` without noticing the end wall is under it.
 
 ## The expansion logos
 
@@ -505,20 +579,32 @@ reference. Nothing consumes it, and nothing here should.
 
 ## Still open
 
-- **`Top and front edges`, the last feature.** Every edge measured above
-  already has it mixed in. An export with it SUPPRESSED would make it
-  measurable on its own — the same trick as `Box Dominion 246S without final
-  fillet` — and is the cheapest thing that would move this on.
-- **The `Divider` sketch**, so `14.800` is derived rather than assumed.
-- **`Fillet front holes` and `Fillet Lip Room`** radii.
-- **`Other side` and `Linear pattern 1`** — what each mirrors or patterns, and
-  the count. 46 features is too many to infer from an outline.
-- **What sets `Z = 48.450`.** Constant on all 48; if it is only the assembly
-  mate then it is placement, not a formula, and should be recorded as such.
-- **The tab/holder mate has no guarantee any more.** Onshape's import made it
-  true by construction. `tests/test_topper.py` must assert the topper's tabs
-  land in the holder's tab slots, computed independently from both modules, or
-  a divergence in either part will print as a part that does not clip on.
+Everything below is `Expansion Name` or the corpus. **The blank itself is
+finished**: `cad/parts/topper.py`'s `build()` reproduces all three rollbacks
+and the unfilleted export with zero symmetric difference in both directions,
+and the filleted `Unseen` body holds nothing it lacks.
+
+- **`Expansion Name` is not written.** The mark and the name, 19 features. Every
+  rule it needs is measured above; what is left is writing it. The blank is
+  `19.300 mm3` heavier than the Unseen body at M10-Un, and that difference is
+  the whole of it.
+- **The tab/holder mate is still only half asserted.** The LIP side is now
+  proved from both ends — `topper.lip_room_x` is `holder.lip_plan`, and
+  `tests/test_topper.py` holds them together. The TABS are not: `holder.py`
+  stops after the rear lips and does not yet build the feature the tab lands
+  in, so there is nothing on that side to assert against. It goes in as soon as
+  the holder does.
+- **The `Divider` sketch**, so `BAND_HALF 14.800/2` is derived rather than
+  measured. `7.400` is `#FootDistanceFromWall`, which would read as the band
+  straddling the pusher's path; that stays a hypothesis and is not encoded.
+- **`LIP_ROOM_RISE 2.000`** is `#LipHeight` on the evidence of two parameter
+  sets, both of which have it constant. Not bound to `holder.SLANT_STEP` on
+  that alone.
+- **No cached topper for `XS10-Sl` / `XS10-Un`.** `parts.csv` carries
+  Innovation `Single Mini` (`XS5.15.10`, 2 horizontal slots) and
+  `individual/` has no topper for it. `cad.build --part topper` writes them;
+  whether that cascade is meant to have toppers at all is Allan's to say.
+  `tests/test_topper_corpus.py` reports it and does not fail on it.
 - **`Figures` sits 0.45% off the band constant** the other four share. See
   "The typeface" — not understood, and not blocking.
 - **`Figures`' construction** is two concentric circles with a radial gap of
