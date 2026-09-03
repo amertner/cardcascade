@@ -95,6 +95,15 @@ is still live and authoritative for that one part.
   named views plus a perspective hero. `tests/test_assembly.py` runs the margin
   tier over all 50 cascades. `cad/assembly.py` is the ONLY place a placement
   lives, as `derive.py` is for formulae; `spec/ASSEMBLY.md` is the record.
+- **Two renderers, and they are not a before and an after.** `cad/render.py` is
+  DIAGNOSTIC — flat colours, no shadows, because that is what shows a tab in a
+  cutout. `render/cascade.py` is photoreal, runs in **Blender 5.x's own python**
+  (so it cannot import `cad`; the handoff is a `.glb` from `cad/gltf.py`), and
+  is for imagery. Cycles on Metal for an M1. `spec/RENDER.md` is the record, and
+  it holds the colour rule: bodies are filament 1, inlays filament 2, and a
+  plate-level filament change is `--part NAME=#HEX` and not a slot. `bpy` is NOT
+  in requirements.txt — it was installed once to test the script; the Blender
+  app is what runs it.
 - A **render is part of the checking, not the output of it.** A closed lid goes
   on EITHER WAY ROUND — both turns measure 0.0000 mm3 and both seat the closing
   bump — so only the logo can tell, and **three of the four games' lid marks

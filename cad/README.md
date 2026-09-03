@@ -46,6 +46,10 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.render \
     "build/assemblies/Dominion/S4.16.10.32-Un play.3mf" --assembly
 
+.venv/bin/python -m cad.gltf "build/assemblies/<Game>/<model> play.3mf" \
+    --filaments '#F4F4F2,#1B1B1B' --part 'Lid=#0E6BA8' -o tmp/cascade.glb
+blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
+
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
 .venv/bin/python tests/test_box.py               # source vs the nine STEPs
@@ -83,14 +87,18 @@ cad/
   assembly.py   WHERE each part goes — placements, and nothing else
   assemble.py   the CLI: parts.csv -> build/assemblies/<Game>/*.3mf
   fit.py        interference and margins — the reason the assemblies exist
+  gltf.py       an assembly -> .glb, for a renderer that can light it
   parts/
     pusher.py   done
     box.py      done
     lid.py      done, logo pattern included — see spec/LID.md
     token_holder.py  done — FULL and HALF, Dominion only
     holder.py   INCOMPLETE — see spec/HOLDER.md; topper.py to come
+render/
+  cascade.py    Blender/Cycles. Runs in BLENDER's python, not the venv
 spec/
   ASSEMBLY.md   where each part goes in a whole cascade, and what settled it
+  RENDER.md     two renderers, and why they are two
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
   PUSHER.md     the Pusher measured, and what the rebuild reproduces
   BOX.md        the same for the Box

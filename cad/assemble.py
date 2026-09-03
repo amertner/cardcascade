@@ -61,10 +61,24 @@ def _one(path):
 
 
 def _all(path):
-    """Every object in a component 3MF. A Lid is up to 31 of them: the body and
-    one inlay per region of its logo pattern, all in the same frame, so they
-    all take the lid's placement and the pattern shows in a bottom view."""
-    return mesh3mf.read(path)
+    """Every object in a component 3MF, the inlays named after their body.
+
+    A Lid is up to 31 objects: the body and one region of its logo pattern
+    each, all in the same frame, so they all take the lid's placement and the
+    pattern shows. A labelled Topper is the same shape for its lettering.
+
+    `cad/` writes those regions as bare `Part 2`, `Part 3`, ... — which is what
+    the hand-exported STEPs carry and what `individual/` has, so it is not
+    changed there. But an ASSEMBLY holds a Lid's inlays and six Toppers'
+    together, and `Part 7` alone cannot say which body it belongs to. A render
+    needs to: on Allan's prints the lid's logo is a contrast on a BLUE lid
+    while a topper's lettering is a contrast on a WHITE topper, so the two sets
+    are different colours. Here they are qualified — `Lid Part 7`,
+    `Topper Cities Part 7` — and the body keeps its own name.
+    """
+    objects = mesh3mf.read(path)
+    body = max(objects, key=lambda o: len(o[1]))[0]
+    return [(n if n == body else f"{body} {n}", v, t) for n, v, t in objects]
 
 
 def lid_meshes(p, d, out_dir, folder):
@@ -161,11 +175,19 @@ def topper_file(p, d, expansion):
             f"{p.CardsPerSlidingSlot}-{slv}.3mf")
 
 
-def topper_mesh(p, d, folder, expansion):
+def topper_meshes(p, d, folder, expansion):
+    """Every object in a topper: the body AND its lettering.
+
+    `_all`, not `_one`. A labelled topper carries its expansion name as inlays
+    the same way a Lid carries its logo — `Topper Cities S15-Un.3mf` is a body
+    plus nine of them — and taking only the body drops the lettering. What is
+    left is the POCKETS the letters sit in, which read as text in a shaded
+    render and are not text at all: they would print as bare recesses.
+    """
     path = ROOT / "individual" / folder / topper_file(p, d, expansion)
     if not path.exists():
         raise MissingHolder(f"no cached {path.name} in individual/{folder}")
-    return _one(path)
+    return _all(path)
 
 
 def topper_risers(p, d, folder, short_name=None):
@@ -208,9 +230,9 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
     # with one instance; the expansion order is the catalogue's and is
     # arbitrary as far as the geometry is concerned.
     for j, first in topper_risers(p, d, folder, short_name):
-        mesh = topper_mesh(p, d, folder, TOPPERS[j % len(TOPPERS)])
         pl = (A.topper if closed else A.topper_play)(p, d, j, first)
-        add(mesh, [pl])
+        for mesh in topper_meshes(p, d, folder, TOPPERS[j % len(TOPPERS)]):
+            add(mesh, [pl])
 
     # The token holder is the FULL one: a merged cascade ships a HALF as well,
     # but the two are alternatives for one slot, not both at once — see
