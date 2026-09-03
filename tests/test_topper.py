@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 import math                                             # noqa: E402
 
 from build123d import import_step, Plane, Box, Pos       # noqa: E402
-from cad import params, derive as D                      # noqa: E402
+from cad import params, derive as D, text as TX          # noqa: E402
 from cad.parts import holder as H, topper as T           # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -32,6 +32,7 @@ STEP_DIR = ROOT / "spec" / "reference"
 # unfilleted export is at this parameter set, and so is every logo sketch.
 P = params.Primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation")
 
+FONT_TOL = 0.05        # see the font-version note in spec/TOPPER.md
 fails = []
 
 
@@ -285,6 +286,96 @@ over = mine - unseen
 check("... and what the blank has spare is only the engraving",
       round(over.volume if over else 0.0, 3), 19.300, 0.01)
 check("the blank is a single solid", len(mine.solids()), 1)
+
+print("\n=== `Expansion Name`: where the mark and the name go ===")
+# The three filleted STEPs whose engraving can be differenced out of the blank
+# exactly. `Topper Unseen M5.15.15.62-Sl.step` is NOT among them: it is stale,
+# and carries the M10 shield at the M15 size. See spec/TOPPER.md.
+NAMED = [
+    ("Unseen M10-Un", "Topper Unseen M5.10.10.32-Un.step",
+     params.Primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation"), "Unseen", 6),
+    ("Unseen M15-Un", "Topper Unseen M5.15.15.45-Un.step",
+     params.Primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation"), "Unseen", 6),
+    ("Cities M15-Sl", "Topper Cities M5.15.15.62-Sl.step",
+     params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation"), "Cities", 8),
+]
+for tag, fn, pp, word, n_letter_solids in NAMED:
+    dd = D.derive(pp)
+    sols = import_step(str(STEP_DIR / fn)).solids()
+    ins = sorted((s for s in sols if s is not max(sols, key=lambda q: q.volume)),
+                 key=lambda s: s.bounding_box().min.X)
+    boxes = [s.bounding_box() for s in ins]
+    mark = boxes[:len(boxes) - n_letter_solids]
+    text = boxes[len(boxes) - n_letter_solids:]
+
+    check(f"{tag}: the engraving is ENGRAVE deep",
+          round(max(b.max.Z for b in boxes) - T.Z_BASE, 3),
+          round(T.ENGRAVE, 3), 1e-3)
+    # the mark's box: its width and its TOP edge, which every expansion fills
+    mx0, my0, mx1, my1 = T.mark_box(pp, dd)
+    check(f"{tag}: the mark box is calLogoSidelength wide",
+          round(mx1 - mx0, 4), round(dd.calLogoSidelength, 4), 1e-9)
+    # The BOX is the mark's own element — Unseen's shield, Cities' star — and
+    # the largest solid is that element on both. Unseen's five rays are drawn
+    # OUTSIDE it, and symmetrically: the group is 1.2644 * L wide and shares
+    # the box's centre, which is the 1.2644 spec/TOPPER.md records.
+    big = max((s for s in ins[:len(ins) - n_letter_solids]),
+              key=lambda s: s.volume).bounding_box()
+    # unrounded: mark_box lands on exact halves of a thousandth here, and
+    # rounding the two sides separately splits them by a whole 0.001.
+    check(f"{tag}: the mark's left edge is L/2 + MARK_GAP past the flat face",
+          big.min.X, mx0, 1e-4)
+    check(f"{tag}: ... and its right edge closes the box", big.max.X, mx1, 1e-4)
+    check(f"{tag}: ... and sits on its top edge",
+          round(big.min.Y, 3), round(my0, 3), 1e-3)
+    grp = (min(b.min.X for b in mark), max(b.max.X for b in mark))
+    check(f"{tag}: the whole mark group is centred on the box",
+          round((grp[0] + grp[1]) / 2, 3), round((mx0 + mx1) / 2, 3), 1e-3)
+    check(f"{tag}: the mark box is centred in the DEPTH",
+          round((my0 + my1) / 2, 6),
+          round(sum(T.y_span(pp, dd)) / 2, 6), 1e-9)
+
+    # the lettering: baseline, band, and the pen
+    base = T.baseline_y(pp, dd)
+    # A flat-bottomed letter sits ON the baseline; a round one overshoots it.
+    # So the LEAST-descending letter's bottom IS the baseline, exactly — `n`
+    # in Unseen, `t` and `i` in Cities.
+    a, lsb, lo, _hi = TX.metrics(word, T.FONT)
+    size = T.font_size(pp, dd)
+    # By LETTER, not by solid: a dotted `i` is two solids and its tittle never
+    # comes near the baseline, so a per-solid minimum reads the dot instead.
+    glyphs = []
+    for b in text:
+        if glyphs and b.min.X < glyphs[-1][0] + 0.05:
+            glyphs[-1] = (glyphs[-1][0], max(glyphs[-1][1], b.max.Y))
+        else:
+            glyphs.append((b.max.X, b.max.Y))
+    check(f"{tag}: a flat letter sits exactly on 2*LogoEdgeDist in",
+          round(min(g[1] for g in glyphs), 3), round(base, 3), 1e-3)
+    check(f"{tag}: and the round ones overshoot it by the font's own yMin",
+          round(max(b.max.Y for b in text) - base, 4), round(-lo * size, 4),
+          FONT_TOL)
+    check(f"{tag}: the pen starts at 1.5L + 3 past the flat face",
+          round(min(b.min.X for b in text) - lsb * size, 3),
+          round(T.text_origin_x(pp, dd), 3), 0.01)
+
+    # and the whole word, rendered and placed the way build() will place it
+    sk = T.name_sketch(pp, dd, word)
+    placed = (Pos(T.text_origin_x(pp, dd), base, 0)
+              * sk.mirror(Plane.XZ))
+    pb = placed.bounding_box()
+    tb = (min(b.min.X for b in text), max(b.max.X for b in text),
+          min(b.min.Y for b in text), max(b.max.Y for b in text))
+    # FONT_TOL, not 1e-3: the vendored Noto Serif Bold is not byte-identical to
+    # Onshape's — `s` measures 3.6/1000 em wider there — so the word's ink
+    # accumulates a few hundredths. spec/TOPPER.md, "Still open".
+    check(f"{tag}: the name's ink left", round(pb.min.X, 3), round(tb[0], 3), FONT_TOL)
+    check(f"{tag}: the name's ink right", round(pb.max.X, 3), round(tb[1], 3), FONT_TOL)
+    check(f"{tag}: the name's ink top", round(pb.min.Y, 3), round(tb[2], 3), FONT_TOL)
+    check(f"{tag}: the name's ink bottom", round(pb.max.Y, 3), round(tb[3], 3), FONT_TOL)
+    check(f"{tag}: ... and it is under 0.3% of the word",
+          round(100 * abs(pb.size.X - (tb[1] - tb[0])) / (tb[1] - tb[0]), 3) < 0.3,
+          True)
 
 print("\n=== it is Innovation-only ===")
 try:

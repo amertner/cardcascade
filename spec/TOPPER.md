@@ -436,6 +436,32 @@ three numbers that place them:
     top margin       #LogoEdgeDist                   0.60
     bottom margin    #LogoEdgeDist*2                 1.20
 
+All three are measured from the FLAT underside — inside `Top and front edges` —
+and all three now check out against the engraving differenced exactly out of
+the blank. `text starts at` places the **pen**, not the ink: what is left over
+is the first glyph's own left bearing, and `U` reads `0.01609 em` and
+`0.01610 em` on two parameter sets whose sizes differ by 54%.
+
+The **mark** fills a `calLogoSidelength` square whose left edge is
+`calLogoSidelength/2 + 1.000` past that datum — so its right edge lands at
+`calLogoSidelength*3/2 + 1`, exactly `2.000` before the pen — and which is
+centred in the DEPTH. The two fillets cancel in that centring, so it is the
+face's own centre and does not move with `EDGE_ROUND`:
+
+    box top = (front + rear)/2 - calLogoSidelength/2
+
+    predicted   -11.11250   -14.86250   -21.89375
+    measured    -11.112     -14.862     -21.894
+
+for `calLogoSidelength` `4.225`, `5.725` and `8.5375`. `Cities` fills the
+square exactly. `Unseen`'s shield fills its width and sits on its top edge,
+and the five rays are drawn OUTSIDE it — symmetrically, so the group is
+`1.2644 * L` wide and shares the box's centre. That is where the `1.2644`
+comes from, and it is why the box is the shield's box and not the group's.
+
+The engraving is `0.800` deep, cut into the underside; the STEP carries the
+inlays `0.010` proud of the face, as the Lid's logo does.
+
 with
 
     #LogoEdgeDist = CardsPerSlidingSlot > 10 ? (isSleeved ? 1.2 : 0.8)
@@ -507,11 +533,27 @@ would be wrong by 13%.
 
 The rule is:
 
-    cap height = depth - 1.600 - 3 * #LogoEdgeDist
+    cap height = depth - 2 * EDGE_ROUND - 3 * #LogoEdgeDist
 
 with the margins being `#LogoEdgeDist` at the top and `#LogoEdgeDist*2` at the
-bottom, so `3 *` is simply both of them, and `1.600` the two `0.800` walls.
-`depth` is the topper's own, `2.000 + calSlotDepth`.
+bottom, so `3 *` is simply both of them. `depth` is the topper's own,
+`2.000 + calSlotDepth`.
+
+The `2 * EDGE_ROUND` is the two **`Top and front edges` fillets**, and an
+earlier revision of this file had it as "the two `0.800` walls". That was
+wrong and it was luck that it agreed: the front wall IS `0.800`, but the rear
+one is `0.242` on M10-Un. It is why Allan said the offsets do not work without
+the fillet — everything in this group is measured from the FLAT part of the
+underside, `topper.face_datum`, not from the part's own edge.
+
+The exact engraving confirms both margins on all three sound references:
+
+    baseline   (front - EDGE_ROUND) - 2*#LogoEdgeDist    -8.000  -10.400  -14.950
+    band top   (rear  + EDGE_ROUND) +   #LogoEdgeDist   -10.600  -14.400  -21.500
+
+and the baseline is exact rather than close: the letters with flat bottoms —
+`n` in `Unseen`, `t` and `i` in `Cities` — sit ON it, and only the round ones
+overshoot, by the font's own `yMin`.
 
 ### What confirms it
 
@@ -594,6 +636,42 @@ the draft's numbers are needed.
 the length of an `Edge of Top and front edges` and exists for Allan's own
 reference. Nothing consumes it, and nothing here should.
 
+## The vendored Noto Serif Bold is not Onshape's
+
+Per-glyph, the lettering reproduces: every letter's ink box lands within
+`0.005` of the reference, and the two `Unseen` references — sizes `3.6101` and
+`5.5540`, a 54% difference — give the SAME deviations in font units, so
+whatever this is, it is a property of the font and not of the fit.
+
+What does not reproduce exactly is the advance. Measured as a per-pair
+deviation in units of 1/1000 em, identically on both `Unseen` references:
+
+    Un  +0.1     ns  -2.9     se  +10.0     ee  -1.1     en  -0.9
+
+and on `Cities`:
+
+    Ci  -1.0     it  +0.0     ti  +0.0      ie  -0.0     es  -4.1
+
+The vendored file has **no kern pairs at all** for any of these, and OCCT's
+whole-word render agrees with the per-glyph sum to `0.001`, so this is not
+something the layout is doing. `s` is the common thread: its ink measures
+`3.6/1000 em` WIDER in the references than the vendored file draws it, which
+is a different outline, not a different position. `e -1.1/-0.9` against
+`e -4.1` only stops being contradictory once `s`'s own left bearing is allowed
+to differ too.
+
+So the two files differ, and `s` at least is a different glyph. The vendored
+one came from the Google Fonts CSS API (`fonts/README.md` records that), which
+serves the current release; Onshape's is whatever it shipped with.
+
+**It does not block anything.** The error accumulates to `0.031` on the widest
+word measured, `0.15%`, on an engraving `0.800` deep cut with a `0.400`
+nozzle. `tests/test_topper.py` holds the ink boxes to `0.05` and says why.
+
+It would be worth closing if it is cheap: **the exact TTF Onshape is using, or
+its version, would make this exact.** Until then the vendored file stands and
+the deviation is written down rather than tuned away.
+
 ## Still open
 
 Everything below is `Expansion Name` or the corpus. **The blank itself is
@@ -601,10 +679,17 @@ finished**: `cad/parts/topper.py`'s `build()` reproduces all three rollbacks
 and the unfilleted export with zero symmetric difference in both directions,
 and the filleted `Unseen` body holds nothing it lacks.
 
-- **`Expansion Name` is not written.** The mark and the name, 19 features. Every
-  rule it needs is measured above; what is left is writing it. The blank is
-  `19.300 mm3` heavier than the Unseen body at M10-Un, and that difference is
-  the whole of it.
+- **The five marks' own outlines are not written.** `Expansion Name`'s
+  PLACEMENT is done — `logo_edge_dist`, `face_datum`, `cap_band`, `font_size`,
+  `baseline_y`, `text_origin_x`, `mark_box`, `name_sketch` and `engrave` are
+  in `cad/parts/topper.py` and asserted against all three sound references —
+  and what is left is the geometry that goes IN the box, one construction per
+  expansion. Those are transcribed above from Allan's sketches but not built.
+- **A third cached Unseen file is stale**, and it is a REFERENCE:
+  `spec/reference/Topper Unseen M5.15.15.62-Sl.step` carries the M10 shield
+  (`4.2250`) at `calLogoSidelength 8.5375`. `tests/test_topper.py` uses the
+  other three and says why. The stale list is now `M10-Sl`, `M15-Sl` and that
+  STEP.
 - **The tab/holder mate is still only half asserted.** The LIP side is now
   proved from both ends — `topper.lip_room_x` is `holder.lip_plan`, and
   `tests/test_topper.py` holds them together. The TABS are not: `holder.py`
@@ -623,8 +708,6 @@ and the filleted `Unseen` body holds nothing it lacks.
   `calLogoSidelength/5`, but which region is the mark — the annulus alone, or
   the disc with a ring — is not settled. It is one solid in the corpus, which
   an annulus is.
-- **Two cached Unseen files are stale** (`M10-Sl`, `M15-Sl`) and want
-  re-exporting. Not a modelling problem.
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly
   65% of the 15-card, because the text sits in the topper's depth. That wants
   deriving rather than transcribing, and the pair that isolates it is one

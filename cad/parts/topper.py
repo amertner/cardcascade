@@ -51,11 +51,12 @@ import math
 
 from build123d import (
     Align, Axis, Box, BuildLine, BuildPart, BuildSketch, GeomType, Line,
-    Location, Mode, Plane, Polyline, Pos, Rot, ThreePointArc, chamfer, extrude,
-    fillet, make_face,
+    Location, Mode, Plane, Polyline, Pos, Rot, Text, ThreePointArc, chamfer,
+    extrude, fillet, make_face, mirror,
 )
 
 from .. import derive as D
+from .. import text as TX
 from . import holder as H
 
 # Where the base sits in assembly. Constant on all 48 cached components and on
@@ -499,3 +500,127 @@ def build(p, d=None):
     part = part + holder_tabs(p, d)                       # Tab-to-attach
     part = part - lip_rooms(p, d)                         # Room for Lips ..
     return top_and_front_edges(p, d, part)                # Top and front edges
+
+# ---------------------------------------------------------------------------
+# `Expansion Name` — the mark and the expansion's name, engraved in the
+# UNDERSIDE. Placement is solved; the five marks' own outlines are not written
+# yet. See spec/TOPPER.md.
+
+FONT = str(TX.FONT_DIR / "NotoSerif-Bold.ttf")   # Noto Serif Bold (Allan)
+
+# The cap band as a fraction of the em. Measured 0.72025 / 0.72030 / 0.72016 /
+# 0.72016 on four different words, agreeing to 1.5e-4, and NOT the face's own
+# sCapHeight of 0.714 — which suggests Onshape constrains a nominal 0.72 em box
+# rather than the cap height. That last part is an inference; 0.7202 is the
+# measurement. See spec/TOPPER.md, "The typeface".
+BAND_EM = 0.7202
+
+ENGRAVE = 0.800            # how deep the mark and the name are cut
+MARK_GAP = 1.000           # the mark box's left edge, past calLogoSidelength/2
+TEXT_GAP = 3.000           # the sketch's `+3mm`, past calLogoSidelength*3/2
+
+
+def logo_edge_dist(p, d):
+    """`#LogoEdgeDist` — a PART-STUDIO variable, so it lives here and not in
+    `derive.py`, which is the variable studio's transcription."""
+    if p.CardsPerSlidingSlot > 10:
+        return 1.2 if p.isSleeved else 0.8
+    return 1.0 if p.isSleeved else 0.6
+
+
+def face_datum(p, d):
+    """Where every `Expansion Name` offset is measured from: the FLAT part of
+    the underside, i.e. inside `Top and front edges`.
+
+    Returns `(x, y_rear, y_front)`. This is the whole reason the fillet has to
+    be built before the lettering (Allan) — an offset taken from the part's own
+    edge instead is wrong by EDGE_ROUND, on every one of the six.
+    """
+    x0, _x1 = x_span(p, d)
+    front, rear = y_span(p, d)
+    return x0 + EDGE_ROUND, rear + EDGE_ROUND, front - EDGE_ROUND
+
+
+def cap_band(p, d):
+    """The band the lettering's CAP HEIGHT fills.
+
+        depth - 2 * EDGE_ROUND - 3 * LogoEdgeDist
+
+    The `2 * EDGE_ROUND` is the two `Top and front edges` fillets, NOT the two
+    walls: the front wall is 0.800 but the rear one is 0.242 on M10-Un, so a
+    rule written off the walls happens to be right on one term and would be
+    wrong the moment either moved. `3 *` is the two margins, LogoEdgeDist at
+    the top and twice that at the bottom.
+    """
+    return depth(p, d) - 2 * EDGE_ROUND - 3 * logo_edge_dist(p, d)
+
+
+def font_size(p, d):
+    """The em that puts `cap_band` at BAND_EM of it."""
+    return cap_band(p, d) / BAND_EM
+
+
+def baseline_y(p, d):
+    """Y of the lettering's baseline: `LogoEdgeDist * 2` in from the flat
+    face's FRONT edge. Exact on all three filleted references — -8.000,
+    -10.400, -14.950 — against ink that overshoots it by a round letter's
+    0.036, 0.055 and 0.090."""
+    _x, _rear, y_front = face_datum(p, d)
+    return y_front - 2 * logo_edge_dist(p, d)
+
+
+def text_origin_x(p, d):
+    """The PEN's start, `calLogoSidelength*3/2 + 3` past the flat face's end.
+
+    Not the ink's start: what is left over is the first glyph's own left
+    bearing, and it reads 0.01609 em and 0.01610 em for `U` on two parameter
+    sets whose sizes differ by 54%. That agreement is what says the rule places
+    the pen and the font does the rest.
+    """
+    x, _rear, _front = face_datum(p, d)
+    return x + 1.5 * d.calLogoSidelength + TEXT_GAP
+
+
+def mark_box(p, d):
+    """(x0, y0, x1, y1) of the `calLogoSidelength` square the mark fills.
+
+    Left edge at `calLogoSidelength/2 + MARK_GAP` past the flat face's end —
+    which puts its RIGHT edge at `calLogoSidelength*3/2 + 1`, exactly 2.000
+    before the pen. Centred in the depth: the two fillets cancel, so the box's
+    centre is the face's own centre and not something that moves with
+    EDGE_ROUND.
+
+    Predicted box tops -11.1125 / -14.8625 / -21.89375 against measured
+    -11.112 / -14.862 / -21.894, for calLogoSidelength 4.225 / 5.725 / 8.5375.
+    Cities fills the square exactly; Unseen's shield fills its width and its
+    top edge, and its rays hang below.
+    """
+    x, _rear, _front = face_datum(p, d)
+    front, rear = y_span(p, d)
+    L = d.calLogoSidelength
+    x0 = x + L / 2 + MARK_GAP
+    cy = (front + rear) / 2
+    return x0, cy - L / 2, x0 + L, cy + L / 2
+
+
+def engrave(p, d, sketch):
+    """Cut a sketch that is drawn in the READING frame into the underside.
+
+    The face is read from BELOW, so the drawing's +y is the part's -Y: the
+    sketch is mirrored about the X axis before it is sunk. Getting that
+    backwards leaves a part whose name is legible only in a mirror, which is
+    the same trap the TokenHolder's underside engraving sat in.
+    """
+    tool = extrude(mirror(sketch, about=Plane.XZ), amount=ENGRAVE)
+    return Pos(0, 0, Z_BASE) * tool
+
+
+def name_sketch(p, d, word):
+    """The expansion's name, as a sketch in the reading frame with the pen's
+    origin at (0, 0) — so the caller places it by `text_origin_x` and
+    `baseline_y` and nothing here has to know where the part is."""
+    size = font_size(p, d)
+    _adv, lsb, lo, _hi = TX.metrics(word, FONT)
+    with BuildSketch() as sk:
+        Text(word, font_size=size, font_path=FONT, align=(Align.MIN, Align.MIN))
+    return sk.sketch.moved(Location((lsb * size, lo * size, 0)))
