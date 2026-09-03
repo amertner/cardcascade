@@ -17,7 +17,8 @@ lettering**, not six designs.
 
 | what | where |
 |---|---|
-| `Topper Unseen M5.15.15.62-Sl.step` | `spec/reference/` — Innovation `4 Ages 5 Expansions` Sl, 0 API calls |
+| `Topper Unseen M5.15.15.62-Sl.step` | `spec/reference/` — Innovation `4 Ages 5 Expansions` Sl, 0 API calls. 13 solids, `Top and front edges` APPLIED |
+| `Topper Blank M5.15.15.62-Sl without top and front edges.step` | the same feature suppressed — but at a DIFFERENT parameter set, `M5.10.10.32-Un` (10 cards, unsleeved). One solid, 133 faces against the other's 445 |
 | 48 cached components | `individual/Innovation/Topper *.3mf` — 6 expansions x S/M x 10/15 cards x Sl/Un |
 
 The STEP holds **13 solids**: the body, the six letters of `Unseen`, and six
@@ -116,6 +117,60 @@ cutouts that are still out.
 dropping the import gives that up. It has to be replaced by an assertion —
 see "Still open".
 
+## The unfilleted export, and what it is a twin of
+
+The second STEP has `Top and front edges` suppressed, which is the trick that
+made the Box's last feature measurable. It is **not** a twin of the Unseen
+sample, though: that one is `M15-Sl` and this one is `M10-Un`. So the two
+cannot be differenced directly.
+
+It pairs instead with the cached **`Topper Blank M10-Un.3mf`**, which is the
+same parameter set with the fillet applied. A mesh is lossy, but Onshape's
+tessellation is good to about `0.01`, which is ample for locating a fillet.
+
+It is also, by luck, **exactly the configuration every logo sketch was drawn
+at** — `calLogoSidelength 4.2250`, `LogoEdgeDist 0.600` — so the whole
+`Expansion Name` group can be checked against this body directly.
+
+Its 133 faces against the Unseen sample's 445 make it the one to build against.
+
+### What `Top and front edges` actually does
+
+The filleted `M15-Sl` section carries `r 0.800` rounds on both BOTTOM corners
+that this one does not have. The feature is named for the sketch's orientation;
+`Upside Down` sits between them in the tree, so the sketch's top and front are
+the assembly's bottom and front.
+
+**It has to be built BEFORE the lettering** (Allan): the logo and text offsets
+are measured from the edge of those fillets, so `Expansion Name` does not work
+without it. That is an ordering constraint, not a cosmetic one — the same shape
+of trap as the rim round that has to precede the TokenHolder's grip.
+
+## The cell, between posts
+
+Sectioned away from a post (`M10-Un`, `calSlotDepth 4.000`):
+
+    floor        1.200 thick      Z 48.450 -> 49.650
+    front wall   0.800 thick      Y -6.000 -> -6.800, 2.600 tall
+    rear wall    0.242 thick      Y -12.000 -> -11.758
+
+`0.242` is not a modelled number. It is `0.800 * cos(72.4 deg)` — the Y
+component of `0.800` measured ALONG the slant, whose slope here is `3.153846`.
+That is what says the `Inner Hole Outline` sketch really is IN the slant plane,
+which is what its sketch plane (`Face of TriangleMatch`) says and what its two
+dimensions, `1.4` and `0.8`, are measured in. Anything that builds this wall as
+a Y-offset instead will be wrong by the slope, and wrong differently on every
+row, because the slope moves with `calSlotDepth`.
+
+## The fillets and the mirror
+
+| feature | value |
+|---|---|
+| `Fillet front holes` | radius **2.0**, tangent propagation, allow edge overflow, on the edges of `Remove front section` |
+| `Fillet Lip Room` | radius **1.4**, on two edges of `Remove Lip Room` |
+| `Other side` | a FEATURE MIRROR of `Remove Lip Room` + `Fillet Lip Room` about the **Right plane** — so the lip clearance is cut at both ends and the fillet comes with it |
+| `Top and front edges` | `r 0.800`, see above |
+
 ## The posts
 
 Material stands at every slot boundary, **including both ends**:
@@ -130,9 +185,15 @@ sleevings. `More Dividers` patterns the `Divider` feature at `calSlotwidth`
 with an instance count of `HorizontalSlots - 1` — 3 on an M box — which is the
 full posts; the two half-posts at the ends come from the body itself.
 
+Re-measured on the UNFILLETED body, where nothing is blended: the posts are
+`14.800` exactly at `Z 55` and above, the end posts `7.400`, and the first full
+post's centre is `calSlotwidth` from the left edge.
+
 `14.800` is `2 x 7.400` and `#FootDistanceFromWall` is `7.400`, which would
-read as the post straddling the pusher's path. **That is a hypothesis, not a
-measurement** — the `Divider` sketch has not been seen. It is not encoded.
+read as the post straddling the pusher's path. The `Divider` sketch is drawn on
+`Face of Remove Inner Hole` and is a rectangle over the slant — it gives the
+profile but not where the `14.800` comes from. **Still a hypothesis, not a
+measurement.** It is not encoded.
 
 ## The holder tabs
 
@@ -140,9 +201,13 @@ Two, one at each end of the part, standing above the body:
 
     thickness   1.600 (= #WallThickness)
     inset       1.300 from each end of the part
-    Y           -21.856 .. -12.550   (9.306 of the 11.750 depth)
+    Y           from the front inner face to the slant at that height
     Z           ~69.050 .. 93.650
     extrude     44 mm blind (Allan)
+
+On the unfilleted `M10-Un` body: `X -32.200..-30.600` and
+`231.600..233.200` — `1.600` wide, `1.300` in from each end — and
+`Y -10.558..-6.800`, whose `-6.800` is the front wall's inner face.
 
 The sketch carries `1.6`, `1.2` and `0.1`. These are what mate the topper to
 the holder.
