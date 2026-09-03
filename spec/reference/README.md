@@ -64,6 +64,26 @@ the inlays are where `logos/<Game>/*.dxf` came from, lifted by
 Innovation's big one is still lifted from a cached mesh, for want of an export
 whose flourishes are intact.
 
+### Topper
+
+One so far. Innovation only — no other game's studio has a topper.
+
+| file | cascade |
+|---|---|
+| `Topper Unseen M5.15.15.62-Sl.step` | Innovation `4 Ages 5 Expansions` Sl — 4 horizontal slots, 15 cards a slot |
+
+It carries **13 solids**: the topper body, the six letters of `Unseen`, and six
+more that make up the logo. The body is the biggest by volume and **is the
+BLANK topper** — the blank is not a different part, it is this one without the
+name and logo — so no separate blank export is needed.
+
+What has been measured off it, and what is still open, is in
+`spec/TOPPER.md`. The one thing it cannot settle is the last feature, `Top and
+front edges`: like the Box before its unfilleted twin arrived, every edge
+measured here already has that fillet mixed in. A second export with that
+feature suppressed would make it measurable rather than a query to be guessed
+at, and is the cheapest thing that would move this on.
+
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather
 than any API budget.
