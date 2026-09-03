@@ -201,3 +201,26 @@ def fit_size(txt, box_len, font=LOGO_FONT):
     """The font size whose ADVANCE across `txt` fills `box_len` — which is the
     dimension an Onshape text box actually constrains."""
     return box_len / metrics(txt, font)[0]
+
+
+@lru_cache(maxsize=256)
+def right_bearing(txt, font=LOGO_FONT):
+    """The LAST glyph's right side bearing, per em — its advance less its ink.
+
+    The counterpart of `metrics`' left bearing, and needed for the same reason:
+    a rule that places the end of the ink cannot be checked without it, and
+    recovering it from rendered ink needs a glyph assumed symmetric. The
+    TokenHolder's engraving is the caller — `parts/token_holder.TRAIL`.
+    """
+    f = _ttf(font)
+    upm = f["head"].unitsPerEm
+    hmtx, cmap, glyf = f["hmtx"], f.getBestCmap(), f["glyf"]
+    for ch in reversed(txt):
+        g = cmap.get(ord(ch))
+        if g is None:
+            continue
+        shape = glyf[g]
+        if not shape.numberOfContours:
+            continue
+        return (hmtx[g][0] - shape.xMax) / upm
+    return 0.0

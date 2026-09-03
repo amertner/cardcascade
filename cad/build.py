@@ -9,7 +9,8 @@
     .venv/bin/python -m cad.build --part box      # every box — MINUTES
     .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
     .venv/bin/python -m cad.build --part holder   # every holder — INCOMPLETE
-    .venv/bin/python -m cad.build --part all      # all four
+    .venv/bin/python -m cad.build --part tokenholder  # Dominion only
+    .venv/bin/python -m cad.build --part all      # all five
 
 Pushers are the default because they are seconds each. A box is about ten, so
 all 50 is minutes; `--model` matches on the model code and is the way to build
@@ -57,6 +58,7 @@ from .parts import box as box_part
 from .parts import holder as holder_part
 from .parts import lid as lid_part
 from .parts import pusher
+from .parts import token_holder
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
@@ -263,6 +265,85 @@ def catalogue(csv=CSV, game=None, legacy=False):
     return [out[k] for k in sorted(out)]
 
 
+def token_holder_file(d, half, legacy=False):
+    """`TokenHolder <model>.3mf`, or the name `individual/` uses.
+
+    Keyed on `calTokenHolderModel`, which is what the part has engraved on it,
+    where `plan_exports` keys `(front capacity, merged, sleeved)` and names the
+    file `TokenHolder <cap>-<slv>[ merged]`. That key is right about the
+    GEOMETRY — `HorizontalSlots` cancels out of `calTokenHolderSlotWidth`, so a
+    3-slot and a 4-slot box with the same front capacity really do want the
+    same tray — and wrong about the ENGRAVING, which carries the size letter.
+    Dominion `324 Card` (M) and `333 Card` (S) collide on `TokenHolder 21-Sl`
+    today and the cached file is stamped `M21.Sl` for both.
+
+    So this builder carries the letter in the name, as it carries the Pusher's
+    first-riser axis, and `--legacy-names` writes the old name for a promotion
+    into `individual/` — refusing when two model codes would land on one file.
+    """
+    kind = "HalfTokenHolder" if half else "TokenHolder"
+    if legacy:
+        cap, mat = d.calTokenHolderModel, ""
+        # `M21-M.Sl` -> capacity `21`, merged; `M21.Sl` -> capacity `21`.
+        body = cap.split(".")[0]
+        if body.endswith("-M"):
+            body, mat = body[:-2], " merged"
+        digits = "".join(c for c in body if c.isdigit())
+        slv = "Sl" if cap.endswith(".Sl") else "Un"
+        return f"{kind} {digits}-{slv}{mat}.3mf"
+    name = d.calTokenHolderModel.replace(".Sl", "-Sl").replace(".Un", "-Un")
+    return f"{kind} {name}.3mf"
+
+
+def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False):
+    """[(folder, filename, Primary, half)] — every distinct token holder.
+
+    A row asks for one through parts.csv's `TokenHolder` column (`full` or
+    `none`); the HALF is a Mat-box feature, so a merged row yields both, which
+    is what `plan_exports.compose` emits and what `PIPELINE.md` records.
+    """
+    out, clash = {}, {}
+    for row in params.load_rows(csv):
+        if (row.get("TokenHolder") or "").strip().lower() in ("", "none"):
+            continue
+        for sleeved in (0, 1):
+            p = params.from_row(row, sleeved)
+            if game and p.GameName.lower() != game.lower():
+                continue
+            d = D.derive(p)
+            for half in ((False, True) if p.MatPocket else (False,)):
+                fn = token_holder_file(d, half, legacy)
+                if model and model.lower() not in fn.lower():
+                    continue
+                key = (p.GameName, fn)
+                ident = (d.calTokenHolderModel, half)
+                if legacy and clash.setdefault(key, ident) != ident:
+                    raise SystemExit(
+                        f"--legacy-names: {fn} would carry both "
+                        f"{clash[key][0]} and {ident[0]}")
+                out.setdefault(key, (p.GameName, fn, p, half))
+    return [out[k] for k in sorted(out)]
+
+
+def build_token_holder(p, half, out_dir, folder, filename):
+    """Build one token holder and write the 3MF.
+
+    Like the Box and the Lid it sits at the part studio's origin, which is the
+    assembly's — every cached component is already at those coordinates.
+    """
+    part = token_holder.build(p, half)
+    path = out_dir / folder / filename
+    before = path.read_bytes() if path.exists() else None
+    name = "HalfTokenHolder" if half else "TokenHolder"
+    meshed = mesh3mf.write(path, [(name, part)])
+    _, verts, tris = meshed[0]
+    return {"path": path, "volume": part.volume,
+            "verts": len(verts), "tris": len(tris),
+            "bytes": path.stat().st_size,
+            "changed": before is not None and before != path.read_bytes(),
+            "new": before is None}
+
+
 def build_pusher(p, out_dir, folder, filename):
     """Build one pusher, place it in assembly position, write the 3MF."""
     d = D.derive(p)
@@ -290,7 +371,8 @@ def main(argv=None):
                     help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
     ap.add_argument("--part",
-                    choices=("pusher", "box", "lid", "holder", "all"),
+                    choices=("pusher", "box", "lid", "holder", "tokenholder",
+                             "all"),
                     default="pusher",
                     help="what to build. Pushers are the default because they "
                          "are seconds; a box is about ten, so all 48 is minutes")
@@ -346,6 +428,29 @@ def main(argv=None):
                 total += r["bytes"]
             print(f"\n  {len(holders)} holders, {total / 1e6:.1f} MB, in {args.out}")
         if args.part == "holder":
+            return 0
+
+    if args.part in ("tokenholder", "all"):
+        ths = token_holder_catalogue(args.csv, args.game, args.model,
+                                     args.legacy_names)
+        if args.list:
+            for folder, fn, p, half in ths:
+                print(f"  {folder + '/' + fn}")
+            print(f"\n  {len(ths)} token holders")
+        else:
+            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} "
+                  f"{'KB':>6s}")
+            total = 0
+            for folder, fn, p, half in ths:
+                r = build_token_holder(p, half, args.out, folder, fn)
+                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
+                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
+                      f"{r['verts']:7d} {r['tris']:7d} "
+                      f"{r['bytes'] / 1024:6.0f}  {mark}")
+                total += r["bytes"]
+            print(f"\n  {len(ths)} token holders, {total / 1e6:.1f} MB, "
+                  f"in {args.out}")
+        if args.part == "tokenholder":
             return 0
 
     if args.part in ("box", "all"):

@@ -158,12 +158,32 @@ beside their neighbours:
 
 `spec/LID.md` records what each was checked against.
 
+## The one sketch variable in the studio's transcription
+
+`#BoxWidth` is a SKETCH variable, not a studio one, and it is the single
+exception in `derive.py`. It is there because **`#calTokenHolderSlotWidth`** IS
+a studio variable and is written in terms of it:
+
+    #BoxWidth - #calFrontSlotsExceptTokenHolderSlot * #calSlotwidth
+              - 2*#WallThickness - #calFrontDividerLeftSpacing
+              - #FrontPocketSidePaddingWidth
+
+The alternative was a second copy of the box-width expression, which is the one
+thing this module exists to prevent. `cad/parts/box.box_width` reads it back,
+so Box, Lid and TokenHolder still share exactly one transcription of it.
+
+`HorizontalSlots` cancels out of the result: it reduces to
+`calSlotwidth - 0.600` on a plain box and `2*calSlotwidth - 0.600` on a Mat
+one, because `MatPocket` drops one more from the slot count. That is what
+"merged" means to a token holder — the mat merges two front slots and the tray
+gets both. `spec/TOKENHOLDER.md` has the four widths it produces.
+
 ## Still needed
 
 The derived layer is complete. What the geometry still needs is **shape**, not
 numbers — which feature is cut from which face, in what order. Three parts are
 settled: the Pusher from `LOCK_STANDARD.md` plus two hand-exported STEPs, the
-Box from its feature tree plus six, and the Lid from four plus its sketches (0
-API calls throughout). Holder, TokenHolder and Topper each still want the same
-treatment — and a STEP each, exported by hand, before their shape can be
-written down.
+Box from its feature tree plus six, the Lid from four plus its sketches, and
+the TokenHolder from two plus all 18 of its cached components (0 API calls
+throughout). Holder and Topper still want the same treatment — and, for the
+Topper, a STEP exported by hand before its shape can be written down.
