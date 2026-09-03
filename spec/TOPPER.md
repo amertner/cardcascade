@@ -369,6 +369,34 @@ moved with the configuration, and none of these do.
 descender, so its ink is the cap band itself, and it reproduces the band to
 half a percent on all four configurations.
 
+### The typeface, and what the band actually is
+
+**Noto Serif Bold** (Allan), and the measured ratios confirm it in a way worth
+recording: `Cities` and `Artifacts` measure the SAME ratio, `1.0831`, and Noto
+Serif Bold is the only candidate that predicts them equal — it gives both
+`1.0924`, because its `t` and `f` reach the same height. Noto Serif Regular
+splits them (`1.0784` / `1.0924`), Open Sans Bold splits them
+(`1.0780` / `1.0855`), and Orbitron Bold collapses everything to `1.0694`.
+Two words agreeing exactly is a far sharper test than any single ratio.
+
+The band is then **`0.7202 em`**, and NOT the font's `sCapHeight` of `0.714`.
+Dividing each word's ink-per-em by its measured ratio gives the band directly:
+
+    Unseen     0.72025      Cities     0.72016
+    Echoes     0.72030      Artifacts  0.72016
+
+Four words, four different first letters, agreeing to `1.5e-4`. `0.7202` is
+within `0.03%` of the `0.720` that `cad/text.CAP` already carries for Orbitron,
+which suggests Onshape constrains a nominal `0.72 em` box rather than the
+face's own cap height — but that is an inference, and `0.7202` is what is
+measured.
+
+**`Figures` gives `0.71693`**, `0.45%` off the other four. Its ink is `0.041 mm`
+taller than Noto Serif Bold 2.015 predicts on the deepest configuration. Not
+understood. A plausible cause is a different release of the `g` — glyphs do
+move between font versions — but nothing here confirms that, and it is written
+down rather than smoothed over.
+
 ### `Figures` is why the bottom margin is doubled
 
 `1.4032` is the outlier and it is the one Allan flagged: the `g` descender puts
@@ -414,10 +442,8 @@ reference. Nothing consumes it, and nothing here should.
   true by construction. `tests/test_topper.py` must assert the topper's tabs
   land in the holder's tab slots, computed independently from both modules, or
   a divergence in either part will print as a part that does not clip on.
-- **The FONT.** The cap-band rule is settled, but which typeface sets the
-  lettering is not — the ink/cap ratios above pin it down and have not been
-  matched against a font file yet. Orbitron and Open Sans are what the rest of
-  the model uses (`cad/text.py`).
+- **`Figures` sits 0.45% off the band constant** the other four share. See
+  "The typeface" — not understood, and not blocking.
 - **`Figures`' construction** is two concentric circles with a radial gap of
   `calLogoSidelength/5`, but which region is the mark — the annulus alone, or
   the disc with a ring — is not settled. It is one solid in the corpus, which
