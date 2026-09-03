@@ -239,15 +239,32 @@ LID_CLOSED_Z = D.WallThickness  # + BoxHeight; see lid_closed
 def lid_closed(p, d):
     """The lid inverted over the box.
 
-        box = (-lid_x, lid_y + 2.250, (WallThickness + BoxHeight) - lid_z)
+        box = (lid_x, 2.250 - lid_y, (WallThickness + BoxHeight) - lid_z)
 
-    A half turn about **Y**, not X: the lid's sockets are placed
-    `SOCKET_BACK` in from its BACK face, so front and back are fixed and cannot
-    flip, and the X mirror is what is left. The check is the closing mechanism —
-    the box's bump tops out at `z 90.000` and the groove's bottom edge sits at
-    lid `z 16.600`, and `106.600 - 16.600` is exactly that.
+    A half turn about **X**, and the LOGO is what says so.
+
+    The closing mechanism cannot say: the box's bump sits at box `y
+    -1.750..6.250`, symmetric about the `2.250` both candidates turn around, so
+    it arrives at lid `y -4.000..4.000` under either and the groove fits either
+    way. Neither can interference — the sockets hang from box `z 105.000` down
+    to `100.000`, and nothing of the box reaches that height at the front or at
+    the back, so both placements measure `0.0000 mm3`. The two differ by a half
+    turn about Z, which is a proper rotation, so nothing about the FIT can
+    separate them at all.
+
+    What separates them is that the lid's logo pattern is in the floor's OUTER
+    face — the face that points UP once the lid is on — and under the other
+    candidate it reads upside down. The letterforms come out correct and only
+    the word is inverted, which is the signature of a half turn rather than a
+    mirror, and a half turn is exactly the difference between the two. The
+    build's inlays match the cached Onshape lid's to 0.001 in X, so the artwork
+    is not the thing that is wrong.
+
+    Its cost is that the lid's sockets, which are placed `SOCKET_BACK` in from
+    its back face, end up over the box's FRONT when the lid is on. They are
+    empty then — the pushers are in the rear storage — so nothing depends on it.
     """
-    return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, -1),
+    return Place(x_dir=(1, 0, 0), z_dir=(0, 0, -1),
                  origin=(0.0, LID_Y, D.WallThickness + d.BoxHeight))
 
 

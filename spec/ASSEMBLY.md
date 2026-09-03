@@ -53,20 +53,44 @@ row.
 
 ## The placements
 
-### Lid, closed — a 180° turn about Y
+### Lid, closed — a 180° turn about X, and the logo is what says so
 
-    box = (-lid_x,  lid_y + 2.250,  (WallThickness + BoxHeight) - lid_z)
+    box = (lid_x,  2.250 - lid_y,  (WallThickness + BoxHeight) - lid_z)
 
-Both terms are already written down in `parts/lid.py`: `lid_y = box_y - 2.250`
-in the module docstring, and "a box height `h` arrives at `WALL + BoxHeight - h`
-in the lid's frame" in `closing_grooves`. The check is the closing mechanism —
-the Box's bump tops out at box `z 90.000` and the groove's bottom edge sits at
-lid `z 16.600`, and `106.600 - 16.600 = 90.000` exactly. The Lid's rim lands at
-box `z 66.600`, so the two overlap by 38.400.
+The Z half is already written down in `parts/lid.py`: "a box height `h` arrives
+at `WALL + BoxHeight - h` in the lid's frame", in `closing_grooves`. The check
+is the closing mechanism — the Box's bump tops out at box `z 90.000` and the
+groove's bottom edge sits at lid `z 16.600`, and `106.600 - 16.600 = 90.000`
+exactly. The Lid's rim lands at box `z 66.600`, so the two overlap by 38.400.
 
-The turn is about **Y**, not X: the Lid's sockets are placed `SOCKET_BACK` in
-from its *back* face, so front and back are fixed and cannot flip. The X mirror
-is what is left, and it is what the fit test confirms.
+**Which axis the turn is about, nothing in the fit can decide.** The two
+candidates differ by a half turn about Z — a proper rotation — so:
+
+* the closing groove fits either way. The Box's bump sits at box `y
+  -1.750..6.250`, symmetric about the `2.250` both turns pivot on, so it
+  arrives at lid `y -4.000..4.000` under both;
+* interference is `0.0000 mm3` under both. The sockets hang from box `z
+  105.000` to `100.000`, and nothing of the Box reaches that height at either
+  end — the rear storage caps at `REAR_TOP` 85.000 and the front pocket at
+  87.500.
+
+**The LOGO decides.** The lid's logo pattern is in the floor's OUTER face, the
+face that points up once the lid is on, and under the turn about Y it reads
+upside down. The letterforms come out correct and only the word is inverted,
+which is the signature of a half turn and not of a mirror — and a half turn is
+exactly what separates the two candidates. The build's inlays match the cached
+Onshape lid's to 0.001 in X, so it is not the artwork that is wrong.
+
+This file first argued for Y, from the sockets being placed `SOCKET_BACK` in
+from the lid's back face. That argument was unsound: it says where the sockets
+are in the LID, not which way the lid goes on, and the sockets are empty when
+the cascade is closed — the pushers are in the rear storage. Its consequence is
+simply that the empty sockets end up over the box's front, where they foul
+nothing.
+
+A render caught this, which is the case for making renders part of the work
+rather than the output of it: an upside-down logo is invisible to every
+numerical check in `cad/fit.py` and would have been in every product shot.
 
 ### Lid, open — the Box drops into it
 
@@ -314,9 +338,6 @@ that holds on one cascade and not on 50 is the finding worth having.
 
 * ~~Which way the pusher's depth axis runs in storage.~~ Not open: two axes are
   forced by features and the third by right-handedness.
-* **The Lid's X mirror when closed.** Symmetric in the grooves and in the
-  outer shell, so nothing in the fit can see it; only the floor engraving's
-  handedness can, and it is cosmetic either way.
 * **The topper's Y** — whether the exported 8.000 offset is the mate or a
   reference layout. Sectioning settled everything else about the part; this it
   cannot settle. Allan.
