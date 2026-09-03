@@ -676,6 +676,40 @@ def main():
             # extruder - then which slot a body lands in cannot change its
             # colour, so there is nothing to guess. Positions are recomputed
             # from each body's own geometry below, so slot identity is cosmetic.
+            # 7.0 renamed the lid studio's base body `Lid Body` -> `Lid`.
+            # On its own that is one slot and one body and the pairing below
+            # settles it; but where the same revision ALSO changed the accent
+            # region count - the 84.6 mm sleeved Innovation lids, whose mark
+            # merged two regions, 31 -> 30 - a second unmatched slot appears on
+            # the OTHER extruder and the pairing stops being forced.
+            #
+            # The base body is still identifiable without guessing: it is the
+            # largest mesh in the file, and its slot is the one wearing the
+            # object's MINORITY colour - a lid is one body against thirty
+            # inlays. obj_default is the ACCENT extruder (added parts take it),
+            # so the base slot is the one that is not obj_default AND is the
+            # only slot of its colour. Requiring all three - one such slot, one
+            # leftover body, and that body being the largest - keeps this from
+            # firing on anything but a renamed base body; everything else still
+            # reaches the refusal below.
+            if unmatched_parts and leftover and len(
+                    {part_ext[oid][p] for p, _ in unmatched_parts}) > 1:
+                n_of_ext = {}
+                for e in part_ext[oid].values():
+                    n_of_ext[e] = n_of_ext.get(e, 0) + 1
+                base = [(p, n) for p, n in unmatched_parts
+                        if part_ext[oid][p] != obj_default[oid]
+                        and n_of_ext[part_ext[oid][p]] == 1]
+                biggest = max(bodies, key=lambda b: len(b[2]))
+                if len(base) == 1 and len(leftover) == 1 \
+                        and leftover[0] is biggest:
+                    mapping[base[0][0]] = leftover[0]
+                    print(f"  {name}: reconciled base body {leftover[0][0]!r} "
+                          f"-> part {base[0][1]!r} (largest mesh, sole part on "
+                          f"extruder {part_ext[oid][base[0][0]]})")
+                    unmatched_parts.remove(base[0])
+                    leftover = []
+
             if unmatched_parts:
                 exs = {part_ext[oid][pid_] for pid_, _ in unmatched_parts}
                 if len(exs) > 1:
