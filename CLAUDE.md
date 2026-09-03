@@ -25,7 +25,7 @@ generated with **zero API calls**. **Pusher**, **Box**, **Lid**,
 **TokenHolder** and **Holder** are done — the Lid including the logo pattern in
 its underside for all four games (`logos/<Game>/*.dxf`; `spec/LID.md`), the
 TokenHolder in both its FULL and HALF configurations (`spec/TOKENHOLDER.md`),
-the Holder to `+0.004%` of the nine references once its intended text
+the Holder to `+0.007%` of all ten references once its intended text
 divergence is set aside (`spec/HOLDER.md`). Only the **Topper** still comes from
 Onshape, and the whole `automation/` pipeline is still live and authoritative
 for a cascade.

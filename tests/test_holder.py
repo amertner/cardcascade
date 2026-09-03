@@ -3,10 +3,10 @@
 
     .venv/bin/python tests/test_holder.py
 
-Ten references in `spec/reference/`, listed in `spec/HOLDER.md`; nine are
-asserted against and one is held out. Between them they cover every slot width
-(63 to 70), every compartment count (2 to 5), all four games, both sleevings and
-both slider distances, so a rule that survives here is general rather than
+Ten references in `spec/reference/`, listed in `spec/HOLDER.md`, and all ten
+are asserted against. Between them they cover every slot width (63 to 70),
+every compartment count (2 to 5), all four games, both sleevings and both
+slider distances, so a rule that survives here is general rather than
 Dominion's.
 
 The 246 pair is what makes this worth doing: it is ONE configuration exported
@@ -77,27 +77,26 @@ REFS = [
      row_params("105 Card", 1), False),
     ("FCM S4.18.12 Un", "Holder S4.18.12.32-Un.step",
      row_params("198 Card", 0), False),
-    # `210 Card`, re-exported. The FIRST export of this row was 12 cards deep
-    # where the row says 7, and it was the one thing in the catalogue that did
-    # not satisfy the depth rule; the re-export measures 7.600, which is the
-    # rule exactly. So it was a mis-configured export, not a rule -- and the
-    # `105 Card` reference, which had already refused a `COMPILE_DEPTH_CARDS`
-    # override by satisfying the plain rule, was right to. FIVE compartments,
-    # the widest holder in the catalogue.
+    # `210 Card`, both sleevings, both RE-EXPORTED. The first exports of this
+    # row were 12 cards deep where the row says 7, and were the only things in
+    # the catalogue that did not satisfy the depth rule; the re-exports measure
+    # 7.600 and 4.800, which is the rule exactly under each card thickness. So
+    # they were mis-configured exports, not a rule -- and the `105 Card`
+    # reference, which had already refused a `COMPILE_DEPTH_CARDS` override by
+    # satisfying the plain rule, was right to. FIVE compartments, the widest
+    # holders in the catalogue, and the unsleeved one is the only reference at
+    # `calSlotwidth 68.000`.
     ("Compile L5.7.7 Sl", "Holder L5.7.7.45-Sl.step",
      row_params("210 Card", 1), False),
+    ("Compile L5.7.7 Un", "Holder L5.7.7.20-Un.step",
+     row_params("210 Card", 0), False),
 ]
 
-# Held out, NOT deleted: the UNSLEEVED `210 Card` export is the other half of
-# the same mistake, and has not been re-exported. It measures 6.800 where the
-# rule says 4.800 -- 12 cards under `calCardThickness 0.400`, the same 12 its
-# sleeved twin had under 0.800, which is what identified the mis-configuration
-# in the first place. Nothing is special-cased for it; the suite prints its
-# measured depth against the rule on every run. It is the only reference that
-# would cover `calSlotwidth 68.000`. See spec/HOLDER.md.
-HELD_OUT = [
-    ("Compile L5.7.7 Un", "Holder L5.7.7.20-Un.step", "210 Card", 0),
-]
+# Nothing is held out any more. The list stays because the mechanism is worth
+# keeping: a reference that fails a rule every other reference satisfies is a
+# question about that reference, and parking it here -- rather than fitting the
+# rule to it -- is what got both `210` exports re-cut. See spec/HOLDER.md.
+HELD_OUT = []
 fails = []
 
 
@@ -514,7 +513,8 @@ for name, fn, p, first in REFS:
               bool(got and got.volume > 1.0), True)
 
 
-print("\n=== held out ===")
+if HELD_OUT:
+    print("\n=== held out ===")
 for name, fn, short, sl in HELD_OUT:
     q = row_params(short, sl)
     e = D.derive(q)

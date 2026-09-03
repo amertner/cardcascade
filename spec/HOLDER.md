@@ -7,9 +7,9 @@ for WHY it is keyed the way it is; this file is the geometry.
 
 ## The ten references
 
-Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`. Nine
-are asserted against; the last is held out — see "`210 Card` disagreed with its
-own sibling" below.
+Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`, and
+all ten are asserted against. Nothing is held out any more — see "`210 Card`
+disagreed with its own sibling" below for the one that was.
 
 | file | row | n | risers | sleeved | `calSlotwidth` | `calSliderDistance` | `calHeightIncrement` |
 |---|---|---|---|---|---|---|---|
@@ -21,8 +21,8 @@ own sibling" below.
 | `Holder XS5.15.10.45-Sl.step` | Innovation `Single Mini` | **2** | 5 | yes | 69.000 | 8.900 | 17.400 |
 | `Holder S4.7.7.32-Sl.step` | Compile `105 Card` | 3 | 4 | yes | 70.000 | 8.000 | 18.000 |
 | `Holder S4.18.12.32-Un.step` | FCM `198 Card` | 3 | 4 | no | 63.000 | 6.960 | 20.000 |
-| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` — the RE-EXPORT | **5** | 5 | yes | 70.000 | 8.000 | 17.400 |
-| `Holder L5.7.7.20-Un.step` | the same row, unsleeved — HELD OUT | **5** | 5 | no | 68.000 | 5.200 | 17.400 |
+| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` — RE-EXPORTED | **5** | 5 | yes | 70.000 | 8.000 | 17.400 |
+| `Holder L5.7.7.20-Un.step` | the same row, unsleeved — RE-EXPORTED | **5** | 5 | no | 68.000 | 5.200 | 17.400 |
 
 The 246 pair is the useful one for `first`: it is ONE configuration exported
 twice, so the two differ only in what `first` changes, and its
@@ -39,10 +39,13 @@ modelled fillet, and the side slot are all confirmed across two games, four slot
 widths and both compartment counts. Whatever distinguishes a spanning game, it
 is not any of these.
 
-The **last four close the parameter space**. Between them they add every
+The **last five close the parameter space**. Between them they add every
 remaining slot width (`63`, `68`, `70`), both remaining compartment counts (`2`
 and `5`), and the two games that had no reference at all — and the one thing
-that looked like a broken rule turned out to be a mis-configured export.
+that looked like a broken rule turned out to be a pair of mis-configured
+exports. Every rule in this file is now checked at 2, 3, 4 AND 5 compartments,
+at all five slot widths, in all four games, both sleevings, and against both
+slider distances.
 
 ## The frame
 
@@ -292,29 +295,35 @@ volume. So the test compares per-solid volumes, not envelopes.
 
 ## `210 Card` disagreed with its own sibling — RESOLVED, it was the export
 
-**The row holds 7 cards per rising slot (Allan), and a re-export of the sleeved
-holder measures `7.600` — the plain rule, exactly.** So both original `210`
-exports were configured with a `Cards/Riser slot` of 12, and the depth formula
-never had an exception in it. That is the outcome the `105 Card` export had
-already argued for by satisfying the rule when its sibling did not, and it is
-why no override was written for the row while the question was open.
+**The row holds 7 cards per rising slot (Allan), and BOTH holders have been
+re-exported.** They measure `7.600` sleeved and `4.800` unsleeved — the plain
+rule under each card thickness, exactly:
 
-`spec/reference/Holder L5.7.7.45-Sl.step` is now the re-export and is asserted
-against like any other; the old 12-card export is in git history, not on disk.
-The UNSLEEVED half has not been re-exported and stays held out: it measures
-`6.800` where the rule says `4.800`, which is the same 12 cards under
-`calCardThickness 0.400`. It is also the only reference that would cover
-`calSlotwidth 68.000`, so it is worth having eventually.
+| holder | `calCardThickness` | `calSliderDistance` | rule | measured | cards |
+|---|---|---|---|---|---|
+| `210 Card` Sl | 0.800 | 8.000 | 7.600 | **7.600** | **7.00** |
+| `210 Card` Un | 0.400 | 5.200 | 4.800 | **4.800** | **7.00** |
 
-The reasoning that got here is kept below, because what it rules out is the
-useful part: the readings that FIT `210` all predicted the wrong answer for
-`105`, and that is what said the fault was in one file rather than in the rule.
+So both original exports were configured with a `Cards/Riser slot` of 12, and
+the depth formula never had an exception in it. That is the outcome the
+`105 Card` export had already argued for by satisfying the rule when its sibling
+did not, and it is why no override was written for the row while the question
+was open.
+
+The pair also earns its place beyond settling this. Five compartments is a count
+nothing else in the reference set reaches, and the unsleeved one is the only
+reference at `calSlotwidth 68.000`. Every rule in this file is now checked at 2,
+3, 4 AND 5 compartments and at all five slot widths.
+
+Both files are the re-exports; the old 12-card exports are in git history, not
+on disk. The reasoning that got here is kept below, because what it rules out is
+the useful part: the readings that FIT `210` all predicted the wrong answer for
+`105`, and that is what said the fault was in the files rather than in the rule.
 
 ### How it was read while it was open
 
-The table below is the FIRST exports. The sleeved row has since been replaced on
-disk by the re-export at `7.600`; the unsleeved one is still the file described
-here.
+The table below is the FIRST exports. Both have since been replaced on disk by
+re-exports that land on the rule.
 
 Adding Innovation XS (2 compartments), FCM (`calSlotwidth 63.000`, rise
 `20.000`) and Compile (`68.000` and `70.000`, 3 and 5 compartments) closed every
@@ -328,8 +337,9 @@ exactly `CardsPerSlidingSlot = 7` cards.
 |---|---|---|---|---|---|
 | `105 Card` Sl | 3 | 0.800 | **7.600** | **7.00** | 7 |
 | `210 Card` Sl — superseded | 5 | 0.800 | 11.600 | **12.00** | 7 |
-| `210 Card` Un — still held out | 5 | 0.400 | 6.800 | **12.00** | 7 |
-| `210 Card` Sl — the RE-EXPORT | 5 | 0.800 | **7.600** | **7.00** | 7 |
+| `210 Card` Un — superseded | 5 | 0.400 | 6.800 | **12.00** | 7 |
+| `210 Card` Sl — RE-EXPORTED | 5 | 0.800 | **7.600** | **7.00** | 7 |
+| `210 Card` Un — RE-EXPORTED | 5 | 0.400 | **4.800** | **7.00** | 7 |
 
 Both `210` holders are `12.00` cards deep in a game whose other row is exactly
 `7.00`, and `12` is a whole number under both thicknesses, so it is a CARD COUNT
@@ -352,10 +362,11 @@ export had been configured with a `Cards/Riser slot` other than the `7` in
 parts.csv — the corpus agreed, since the old `Holder 5x7-r5-Sl.3mf` measures
 `8.404`, which is the 7-card rule plus its lip.
 
-That is what it turned out to be. The lesson to keep: a reference that fails a
-rule every other reference satisfies is a question about that reference first,
-and holding it out — rather than fitting the rule to it — is what made the
-re-export worth asking for.
+That is what it turned out to be, on both files. The lesson to keep: a reference
+that fails a rule every other reference satisfies is a question about that
+reference first, and holding it out — rather than fitting the rule to it — is
+what made the re-exports worth asking for. `tests/test_holder.py` keeps the
+`HELD_OUT` list, now empty, for the next time.
 
 ## `Bottom Text`, and where it is a DELIBERATE DIVERGENCE
 
@@ -461,22 +472,23 @@ lattice or its lip would pass a width check and fail this one.
 ## Where it stands
 
 `python -m cad.build --part holder` writes all 56, about three seconds each,
-and every one of them is a closed, manifold mesh. Against the nine asserted
-references the geometry is **+250.8 mm³ on 233,928**, `+0.107%`, and all but a
-few cubic millimetres of that is the DELIBERATE text divergence on the two
-holders whose Onshape text collides with itself:
+and every one of them is a closed, manifold mesh. Against all ten references the
+geometry is **+257.5 mm³ on 261,657**, `+0.098%`, and all but a few cubic
+millimetres of that is the DELIBERATE text divergence on the two holders whose
+Onshape text collides with itself:
 
 | | mm3 |
 |---|---|
-| text, on the two holders Onshape engraves too big | **+252.89** |
-| `Chamfer lip rest`, shape error | +9.54 |
-| everything else, over all nine | +0.03 |
-| boolean loss in the measurement itself | -11.71 |
-| net | **+250.76** |
+| text, on the two holders Onshape engraves too big | **+253.40** |
+| `Chamfer lip rest`, shape error | +17.56 |
+| everything else, over all ten | +0.01 |
+| boolean loss in the measurement itself | -13.50 |
+| net | **+257.47** |
 
-Set the text aside and the whole of the rest is `+9.6 mm³` — `+0.004%`, and of
-the same order as the arithmetic's own noise. `tests/holder_diff.py` is the dev
-loop that prints this band by band, the last column included.
+Set the text aside and the whole of the rest is `+17.6 mm³` — `+0.007%`, spread
+over ten holders, and per holder it is the same order as the arithmetic's own
+noise. `tests/holder_diff.py` is the dev loop that prints this band by band, the
+last column included.
 
 ## The four features a volume diff found, in the order it found them
 
@@ -571,9 +583,10 @@ more material there:
 | Inno XS | +0.093% | **+15.99** | -0.00 | -0.00 | +0.80 | -0.00 | -0.20 |
 | Compile 105 | +0.005% | +0.72 | -0.00 | -0.02 | +2.23 | +0.00 | -1.69 |
 | FCM 198 Un | +0.052% | +0.28 | -0.00 | +0.00 | +3.79 | -0.00 | +5.48 |
-| Compile 210 | +0.007% | +1.49 | -0.00 | -0.02 | +3.34 | -0.00 | -2.43 |
+| Compile 210 Sl | +0.007% | +1.49 | -0.00 | -0.02 | +3.34 | -0.00 | -2.43 |
+| Compile 210 Un | +0.024% | +0.51 | -0.00 | -0.02 | +8.02 | -0.00 | -1.80 |
 
-The base, the body and the lips are exact on all nine — the `body` column is
+The base, the body and the lips are exact on all ten — the `body` column is
 hundredths of a cubic millimetre across a part of twenty thousand. The `text`
 column is exact on the six holders whose text fits, and carries the deliberate
 divergence on the two that do not.
@@ -658,14 +671,14 @@ feature of more than a few cubic millimetres has nowhere left to hide.
 
 ## Still open
 
-- **Nothing about the geometry.** What is left is one export and one decision.
-- The UNSLEEVED `210 Card` reference, `Holder L5.7.7.20-Un.step`, is the other
-  half of the 12-card mis-configuration and has not been re-exported. It is the
-  only reference that would cover `calSlotwidth 68.000`. Held out until then.
+- **Nothing about the geometry, and nothing about the references.** All ten are
+  asserted against, the parameter space is closed on every axis, and every
+  feature in the tree is built.
 - Whether the 30 pre-2026-08-24 cached holders should be swept onto `4.900`.
+  **Left as they are for now (Allan).**
   Not a rebuild question — the rebuild already builds `4.900` — but the two
   lengths do coexist in shipped cascades, and PIPELINE.md says that is
-  deliberate. `--changed Holder` is what sweeps them if the answer is yes.
+  deliberate. `--changed Holder` is what sweeps them if that ever changes.
 - Whether the row rail stays `2.000` at another `CardHeight`. Not answerable and
   not a risk: `derive` gives `CardHeight = 92.0` for EVERY game, and the only
   other value the studio ever had was CraftGutermann's `58.0`, which is

@@ -26,9 +26,9 @@ Local frame (the part studio's):
     Z   0 midway between the base and the card pocket's TOP, both at
         (CardHeight - 1.5)/2 on every reference whatever the parameters
 
-Every feature in that tree is built. Against the nine asserted references the
-solid is `+0.107%`, all but `+0.004%` of it the DELIBERATE text divergence on
-the two holders Onshape engraves too big to fit (`text_size`). `tests/test_holder.py` is
+Every feature in that tree is built. Against all ten references the solid is
+`+0.098%`, all but `+0.007%` of it the DELIBERATE text divergence on the two
+holders Onshape engraves too big to fit (`text_size`). `tests/test_holder.py` is
 what is proven against the STEPs, `tests/test_holder_corpus.py` what is proven
 against the 50 cached components, and `tests/holder_diff.py` the dev loop.
 
@@ -59,7 +59,8 @@ POCKET_TRIM = 3.500                       # pocket height = CardHeight - 3.5
 
 # Each end stands this far beyond the outer slot edge: 4.000 of end block (which
 # carries the side slot the box's rib runs in) plus 0.900 to the compartment
-# wall. Measured 9.800 overall on all three references.
+# wall. Measured 9.800 overall on all ten references. The studio used to say
+# 5.000; 30 of the 50 cached components still do (spec/HOLDER.md).
 END_EXTRA = 4.900
 END_BLOCK = 4.000
 
@@ -89,7 +90,7 @@ def half_height(d):
 
 
 def base_z(d):
-    """The underside. -45.250 on all three references."""
+    """The underside. -45.250 on every reference, whatever the parameters."""
     return -half_height(d)
 
 
@@ -102,7 +103,7 @@ def pocket_z(d):
 def slant_top(d):
     """Z where the upper slant plane meets the front face.
 
-    Measured 44.250 on all three references whatever the slope. That is both
+    Measured 44.250 on every reference whatever the slope. That is both
     half the pocket height and the pocket's top less 1.000 — the two are the
     same expression, so no reference is needed to tell them apart.
     """
@@ -117,10 +118,12 @@ def slider_distance(p, d, first):
     is the only evidence that could tell these apart — everywhere else the two
     are equal — and it settles both the depth and the slant.
 
-    Takes the Primary because the GAME could matter here — Compile's `210 Card`
-    reference does not satisfy this rule, though its `105 Card` one does exactly.
-    See spec/HOLDER.md; the discrepancy is one row's, not the formula's, so
-    nothing is special-cased.
+    Takes the Primary for consistency with its siblings here, not because it
+    reads it. It nearly did: Compile's `210 Card` was 12 cards deep where its
+    own row and its own sibling row both said 7, which looked like a per-game
+    or per-row term. It was a mis-configured export — re-exported, it lands on
+    this rule to the thousandth under both card thicknesses. Nothing is
+    special-cased, and there is nothing here left for the game to change.
     """
     return d.calFirstSliderDistance if first else d.calSliderDistance
 
@@ -128,15 +131,19 @@ def slider_distance(p, d, first):
 def holder_depth(p, d, first):
     """Front face to back face: `sliderDistance - 0.400`.
 
-    9.200 / 20.000 / 8.000 on the three references against 9.600 / 20.400 /
-    8.400, exact.
+    Exact on all ten references, `4.800` to `20.000`, and that includes the
+    first-riser holder at `calFirstSliderDistance`.
     """
     return slider_distance(p, d, first) - DEPTH_GAP
 
 
 def holder_width(p, d):
-    """`calSlotwidth * HorizontalSlots + 9.800`, measured exact on all 38 of
-    the corpus holders that map to a parts.csv row as well as on the STEPs."""
+    """`calSlotwidth * HorizontalSlots + 9.800`.
+
+    Exact on all ten STEPs and on the 20 cached components exported since the
+    studio trimmed the end block. The other 30 say `10.000` and are the older
+    geometry — see spec/HOLDER.md, "`individual/` is a mixed catalogue".
+    """
     return d.calSlotwidth * p.HorizontalSlots + 2 * END_EXTRA
 
 
@@ -509,7 +516,7 @@ def lip_rests(p, d, first, part):
     # `Chamfer lip rest` — LIP_REST_CHAMFER at 45 degrees on the rest's two long
     # side edges, so the section is a HEXAGON and not a rectangle: `width` at
     # the top and `width - 2 * LIP_REST_CHAMFER` at the bottom. Which PAIR of
-    # edges is measured, not assumed. Against the nine references the residual
+    # edges is measured, not assumed. Against the ten references the residual
     # in this band is 4.88 for the lower pair, 25.59 for the upper, and 66.32
     # for a plain rectangle.
     c = LIP_REST_CHAMFER
