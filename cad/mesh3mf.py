@@ -122,3 +122,115 @@ def read(path):
         if verts and tris:
             out.append((name.group(1) if name else None, verts, tris))
     return out
+
+
+# --- assemblies -----------------------------------------------------------
+#
+# An assembly is written the way Onshape's own `individual/<Game>/_raw/
+# Assembly *.3mf` are: the component meshes as plain objects, then ONE object
+# carrying a `<components>` list that instances them with a transform each, and
+# a build item pointing at that. Eight holders therefore cost one mesh.
+#
+# The transform is 3MF's twelve numbers, `m00 m01 m02 m10 m11 m12 m20 m21 m22
+# tx ty tz`, applied as a ROW vector: `v' = v * M + t`. So the matrix's rows are
+# the images of the part's own axes, and the translation is in the file's unit —
+# metres here, like every other coordinate, which is why it is the only part of
+# the transform that gets scaled.
+#
+# NB this shape is NOT a component 3MF and must never be written into
+# `individual/`: `make_cascade.load_export` refuses a build item that carries a
+# transform, which is exactly what these are made of.
+
+
+def assembly_xml(parts, instances, name="Assembly"):
+    """`parts` is [(name, verts_mm, tris)]; `instances` is
+    [(part_index, placement)], placement having `.as_3mf()`."""
+    objects = []
+    for i, (part_name, verts, tris) in enumerate(parts, start=1):
+        body = "".join(
+            f'     <vertex x="{x / 1000:.8f}" y="{y / 1000:.8f}" '
+            f'z="{z / 1000:.8f}"/>\n' for x, y, z in verts)
+        body += "    </vertices>\n    <triangles>\n"
+        body += "".join(f'     <triangle v1="{a}" v2="{b}" v3="{c}"/>\n'
+                        for a, b, c in tris)
+        objects.append(f'  <object id="{i}" name="{part_name}" type="model">\n'
+                       f'   <mesh>\n    <vertices>\n{body}'
+                       f'    </triangles>\n   </mesh>\n  </object>\n')
+    top = len(parts) + 1
+    comps = "".join(
+        f'    <component objectid="{k + 1}" transform="{pl.as_3mf()}"/>\n'
+        for k, pl in instances)
+    objects.append(f'  <object id="{top}" name="{name}" type="model">\n'
+                   f'   <components>\n{comps}   </components>\n  </object>\n')
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<model unit="meter" xml:lang="en-US" xmlns="http://schemas.'
+            'microsoft.com/3dmanufacturing/core/2015/02">\n'
+            ' <resources>\n' + "".join(objects) + ' </resources>\n'
+            f' <build><item objectid="{top}" '
+            'transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build>\n</model>\n')
+
+
+def write_assembly(path, parts, instances, name="Assembly",
+                   tolerance=TOLERANCE, angular=ANGULAR):
+    """Write an assembly 3MF. `parts` is [(name, shape_or_mesh)] — a build123d
+    shape is meshed, a `(verts, tris)` pair is taken as it is, which is how a
+    cached component from `individual/` gets in. Returns the meshed parts."""
+    meshed = []
+    for part_name, shape in parts:
+        if isinstance(shape, tuple):
+            meshed.append((part_name, *shape))
+        else:
+            meshed.append((part_name, *triangulate(shape, tolerance, angular)))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for fn, text in (("[Content_Types].xml", CONTENT_TYPES),
+                         ("_rels/.rels", RELS),
+                         ("3D/3dmodel.model",
+                          assembly_xml(meshed, instances, name))):
+            info = zipfile.ZipInfo(fn, _EPOCH)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, text)
+    return meshed
+
+
+def read_assembly(path):
+    """[(name, verts in mm, tris)] with every instance PLACED — the shape the
+    renderer wants. A file with no `<components>` reads as its own objects, so
+    this works on a component 3MF too."""
+    with zipfile.ZipFile(path) as z:
+        text = z.read("3D/3dmodel.model").decode()
+    scale = {"meter": 1000.0, "millimeter": 1.0}[
+        re.search(r'unit="(\w+)"', text).group(1)]
+    meshes = {}
+    for om in re.finditer(r'<object id="(\d+)"([^>]*)>(.*?)</object>',
+                          text, re.S):
+        oid, attrs, body = om.groups()
+        nm = re.search(r'name="([^"]*)"', attrs)
+        verts = [(float(a) * scale, float(b) * scale, float(c) * scale)
+                 for a, b, c in re.findall(
+                     r'<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"', body)]
+        tris = [(int(a), int(b), int(c)) for a, b, c in re.findall(
+            r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', body)]
+        comps = [(int(c), [float(n) for n in t.split()]) for c, t in
+                 re.findall(r'<component objectid="(\d+)" transform="([^"]+)"',
+                            body)]
+        meshes[int(oid)] = (nm.group(1) if nm else None, verts, tris, comps)
+
+    # A mesh that something instances is emitted through its instances, never
+    # also on its own: otherwise every component would render twice, once at
+    # its part-studio origin.
+    instanced = {target for _n, _v, _t, comps in meshes.values()
+                 for target, _m in comps}
+    out = []
+    for oid, (nm, verts, tris, comps) in meshes.items():
+        if verts and tris and oid not in instanced:
+            out.append((nm, verts, tris))
+    for oid, (nm, _v, _t, comps) in meshes.items():
+        for target, m in comps:
+            cn, cv, ct, _ = meshes[target]
+            tx, ty, tz = (n * scale for n in m[9:12])
+            out.append((cn, [(x * m[0] + y * m[3] + z * m[6] + tx,
+                              x * m[1] + y * m[4] + z * m[7] + ty,
+                              x * m[2] + y * m[5] + z * m[8] + tz)
+                             for x, y, z in cv], ct))
+    return out

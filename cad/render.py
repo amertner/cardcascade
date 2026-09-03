@@ -51,16 +51,76 @@ def _basis(az, el):
 
 
 def render(verts, tris, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0)):
-    """A shaded orthographic image of one mesh, as a PIL Image."""
-    v = np.asarray(verts, dtype=float)
+    """A shaded orthographic image of ONE mesh, as an 8-bit PIL Image.
+
+    Kept as it was, because the pusher and box sheets are tuned on it. An
+    assembly goes through `scene`, which is the same rasteriser in colour."""
+    return scene([(verts, tris, None)], az, el, width, margin, light
+                 ).convert("L")
+
+
+def scene(items, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0),
+          perspective=None):
+    """A shaded image of SEVERAL meshes sharing one z-buffer, as an RGB Image.
+
+    `items` is [(verts, tris, colour)], `colour` an (r, g, b) or None for the
+    plain grey the single-part views use. One buffer is the point: an assembly
+    is only worth looking at if a holder can be hidden behind a box wall.
+
+    `perspective` is the camera's distance as a multiple of the scene's own
+    size — `None` for the orthographic views, and about 2.5 for a shot with
+    some depth in it. The divide happens in camera space, so the z-buffer is
+    unaffected and near faces simply come out bigger.
+    """
     right, up, fwd = _basis(az, el)
-    x, y, z = v @ right, v @ up, v @ fwd
-    span_x, span_y = x.max() - x.min(), y.max() - y.min()
+    vs = [np.asarray(v, dtype=float) for v, _t, _c in items]
+    allv = np.concatenate(vs)
+    cx, cy, cz = allv @ right, allv @ up, allv @ fwd
+    depth0 = cz.max() + perspective * max(
+        cx.max() - cx.min(), cy.max() - cy.min(), cz.max() - cz.min()
+        ) if perspective else 0.0
+
+    def project(v):
+        x, y, z = v @ right, v @ up, v @ fwd
+        if perspective:
+            f = perspective and (depth0 - cz.mean())
+            k = f / np.clip(depth0 - z, 1e-6, None)
+            return x * k, y * k, z
+        return x, y, z
+
+    proj = [project(v) for v in vs]
+    px_all = np.concatenate([p[0] for p in proj])
+    py_all = np.concatenate([p[1] for p in proj])
+    span_x = px_all.max() - px_all.min()
+    span_y = py_all.max() - py_all.min()
     pad = margin * max(span_x, span_y)
     scale = (width - 1) / (span_x + 2 * pad)
     height = int(round((span_y + 2 * pad) * scale)) + 1
-    px = (x - x.min() + pad) * scale
-    py = (span_y - (y - y.min()) + pad) * scale
+    x0, y0 = px_all.min(), py_all.min()
+
+    img = np.full((height, width, 3), float(BG))
+    zbuf = np.full((height, width), np.inf)
+    lit = np.asarray(light, dtype=float)
+    lit /= np.linalg.norm(lit)
+    for (verts, tris, colour), v, (cxp, cyp, czp) in zip(items, vs, proj):
+        _paint(img, zbuf, v, tris, cxp, cyp, czp, x0, y0, span_y, pad, scale,
+               width, height, lit, colour)
+    return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
+
+
+def _paint(img, zbuf, v, tris, cxp, cyp, czp, x0, y0, span_y, pad, scale,
+           width, height, lit, colour):
+    """One mesh into a shared colour buffer and z-buffer.
+
+    Flat per-triangle Lambert, painted brightest first so that exact ties are
+    stable; the z-buffer does the rest, which is what lets a holder disappear
+    behind a box wall.
+    """
+    px = (cxp - x0 + pad) * scale
+    py = (span_y - (cyp - y0) + pad) * scale
+    z = czp
+    tint = (np.asarray(colour, dtype=float) / 255.0 if colour is not None
+            else np.ones(3))
 
     t = np.asarray(tris, dtype=int)
     p0, p1, p2 = v[t[:, 0]], v[t[:, 1]], v[t[:, 2]]
@@ -69,12 +129,8 @@ def render(verts, tris, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0)
     keep = ln > 1e-12
     t, n, ln = t[keep], n[keep], ln[keep]
     n = n / ln[:, None]
-    lit = np.asarray(light, dtype=float)
-    lit /= np.linalg.norm(lit)
     shade = 0.30 + 0.70 * np.clip(np.abs(n @ lit), 0, 1)
 
-    img = np.full((height, width), float(BG))
-    zbuf = np.full((height, width), np.inf)
     ax, ay, az_ = px[t[:, 0]], py[t[:, 0]], z[t[:, 0]]
     bx, by, bz = px[t[:, 1]], py[t[:, 1]], z[t[:, 1]]
     cx, cy, cz = px[t[:, 2]], py[t[:, 2]], z[t[:, 2]]
@@ -82,13 +138,14 @@ def render(verts, tris, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0)
     for i in np.argsort(-shade):           # order only affects exact ties
         if abs(area[i]) < 1e-12:
             continue
-        x0 = max(int(math.floor(min(ax[i], bx[i], cx[i]))), 0)
-        x1 = min(int(math.ceil(max(ax[i], bx[i], cx[i]))) + 1, width)
-        y0 = max(int(math.floor(min(ay[i], by[i], cy[i]))), 0)
-        y1 = min(int(math.ceil(max(ay[i], by[i], cy[i]))) + 1, height)
-        if x1 <= x0 or y1 <= y0:
+        tx0 = max(int(math.floor(min(ax[i], bx[i], cx[i]))), 0)
+        tx1 = min(int(math.ceil(max(ax[i], bx[i], cx[i]))) + 1, width)
+        ty0 = max(int(math.floor(min(ay[i], by[i], cy[i]))), 0)
+        ty1 = min(int(math.ceil(max(ay[i], by[i], cy[i]))) + 1, height)
+        if tx1 <= tx0 or ty1 <= ty0:
             continue
-        gx, gy = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5)
+        gx, gy = np.meshgrid(np.arange(tx0, tx1) + 0.5,
+                             np.arange(ty0, ty1) + 0.5)
         w0 = ((bx[i] - ax[i]) * (gy - ay[i]) - (by[i] - ay[i]) * (gx - ax[i])) / area[i]
         w1 = ((cx[i] - bx[i]) * (gy - by[i]) - (cy[i] - by[i]) * (gx - bx[i])) / area[i]
         inside = (w0 >= -1e-9) & (w1 >= -1e-9) & (w0 + w1 <= 1 + 1e-9)
@@ -98,11 +155,62 @@ def render(verts, tris, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0)
         # area, so they ARE barycentric weights whichever way the triangle
         # winds: w1 belongs to a, w0 to c, and b takes the remainder.
         depth = az_[i] * w1 + bz[i] * (1 - w0 - w1) + cz[i] * w0
-        tile_z = zbuf[y0:y1, x0:x1]
+        tile_z = zbuf[ty0:ty1, tx0:tx1]
         hit = inside & (depth < tile_z)
         tile_z[hit] = depth[hit]
-        img[y0:y1, x0:x1][hit] = 255 * shade[i]
-    return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "L")
+        img[ty0:ty1, tx0:tx1][hit] = 255 * shade[i] * tint
+
+
+# The six named cameras, in the BOX's frame: +Y is the back of the cascade, +Z
+# up. `_basis` points the camera ALONG `fwd`, so the view named for a face is
+# the azimuth that looks at it — front is 180, not 0.
+VIEWS = {
+    "front":  (180, 0),
+    "back":   (0, 0),
+    "left":   (90, 0),
+    "right":  (270, 0),
+    "top":    (0, 90),
+    "bottom": (0, -90),
+    "hero":   (206, 24),        # front, left and above — the perspective one
+}
+HERO = "hero"
+PERSPECTIVE = 2.6              # camera distance as a multiple of the scene's size
+
+# One colour per component, so a render says what it is showing. Deliberately
+# not the print's own white-and-black: two white parts against a white part is
+# the one thing a shaded render cannot separate.
+PART_COLOURS = {
+    "Box": (108, 142, 178),
+    "Lid": (128, 170, 132),
+    "Pusher": (214, 154, 92),
+    "Holder": (226, 226, 226),
+    "FirstHolder": (206, 206, 206),
+    "TokenHolder": (196, 138, 168),
+    "HalfTokenHolder": (176, 124, 152),
+    "Topper": (176, 186, 208),
+}
+DEFAULT_COLOUR = (200, 200, 200)
+
+
+def colour_for(name):
+    """A component's colour, matched on the name a part is written under."""
+    return PART_COLOURS.get(name or "", DEFAULT_COLOUR)
+
+
+def assembly_sheet(path, out, width=1600, views=None):
+    """One PNG per named view of an assembly 3MF, coloured per component."""
+    from PIL import ImageDraw
+    items = [(v, tr, colour_for(n)) for n, v, tr in mesh3mf.read_assembly(path)]
+    for view in views or list(VIEWS):
+        az, el = VIEWS[view]
+        img = scene(items, az, el, width,
+                    perspective=PERSPECTIVE if view == HERO else None)
+        img = img.convert("RGB")
+        ImageDraw.Draw(img).text((8, 7), f"{path.stem}   [{view}]", INK)
+        out.mkdir(parents=True, exist_ok=True)
+        target = out / f"{path.stem} {view}.png"
+        img.save(target)
+        yield target
 
 
 PUSHER_VIEWS = ((14, 74), (-14, -74))
@@ -179,7 +287,16 @@ def main(argv=None):
                          "Defaults suit a PUSHER; use --box for a box.")
     ap.add_argument("--box", action="store_true",
                     help=f"shorthand for the box views {BOX_VIEWS}")
+    ap.add_argument("--assembly", action="store_true",
+                    help="an assembly 3MF: the six named views plus the hero, "
+                         "one PNG each, coloured per component")
     args = ap.parse_args(argv)
+
+    if args.assembly:
+        for f in args.files:
+            for target in assembly_sheet(f, args.out, args.width):
+                print(f"  {target}")
+        return 0
     views = [tuple(float(n) for n in v.split(",")) for v in args.view or []]
     if not views:
         views = list(BOX_VIEWS if args.box else PUSHER_VIEWS)
