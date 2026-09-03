@@ -368,6 +368,23 @@ At each end the pocket's end wall (`INNER_END_INSET 1.400`) and the tab
 behind the front wall reads. An earlier revision recorded that block as
 `TAB_INSET + TAB_W` without noticing the end wall is under it.
 
+## Single-set cascades carry no toppers
+
+A topper says which expansion is in a slot, so a cascade that holds only one
+has no use for them (Allan) — and `individual/` bears that out: `Single Set`
+and `Single Mini` have no cached topper of any expansion. `parts.csv`'s
+`Set/Extension` column is what says which they are, `Base set or one
+expansion` against `Ultimate, 1/4` and `Ultimate, 1/3rd`.
+
+`cad.build.topper_catalogue` skips them on that column, which takes the
+catalogue from 10 parameter sets to the 8 the cache has — so
+`tests/test_topper_corpus.py` can hold every catalogued set to having a cached
+file, instead of reporting a gap and carrying on.
+
+That column is free text, so the match is on the phrase and not the whole
+string. A future single-set row worded differently would get toppers built,
+and the corpus test is where that would show up.
+
 ## The expansion logos
 
 Each topper carries, to the LEFT of its expansion name, a small mark. Allan's
@@ -600,11 +617,6 @@ and the filleted `Unseen` body holds nothing it lacks.
 - **`LIP_ROOM_RISE 2.000`** is `#LipHeight` on the evidence of two parameter
   sets, both of which have it constant. Not bound to `holder.SLANT_STEP` on
   that alone.
-- **No cached topper for `XS10-Sl` / `XS10-Un`.** `parts.csv` carries
-  Innovation `Single Mini` (`XS5.15.10`, 2 horizontal slots) and
-  `individual/` has no topper for it. `cad.build --part topper` writes them;
-  whether that cascade is meant to have toppers at all is Allan's to say.
-  `tests/test_topper_corpus.py` reports it and does not fail on it.
 - **`Figures` sits 0.45% off the band constant** the other four share. See
   "The typeface" — not understood, and not blocking.
 - **`Figures`' construction** is two concentric circles with a radial gap of

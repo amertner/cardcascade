@@ -215,15 +215,28 @@ def topper_file(p, d, expansion="Blank"):
     return f"Topper {expansion} {d.calSizeLetter}{p.CardsPerSlidingSlot}{slv}.3mf"
 
 
+# A topper labels which expansion is in a slot, so a cascade that holds only
+# ONE has no use for them (Allan) — and `individual/` bears that out: no cached
+# topper for `Single Set` or `Single Mini`. `Set/Extension` is the column that
+# says so, and it is free text, so this matches on the phrase rather than on an
+# exact string. If a future single-set row words it differently it will get
+# toppers built; `tests/test_topper_corpus.py` reports the catalogue against
+# the cache, which is where that would show up.
+SINGLE_SET = "one expansion"
+
+
 def topper_catalogue(csv=CSV, game=None, model=None):
     """[(folder, filename, Primary)] — every distinct topper.
 
-    Innovation only, and only the `Blank`: `Expansion Name` is not written, so
-    the other five expansions would come out as five more copies of the blank
-    rather than as themselves. See spec/TOPPER.md.
+    Innovation only, single-set cascades excluded, and only the `Blank`:
+    `Expansion Name` is not written, so the other five expansions would come
+    out as five more copies of the blank rather than as themselves. See
+    spec/TOPPER.md.
     """
     out = {}
     for row in params.load_rows(csv):
+        if SINGLE_SET in (row.get("Set/Extension") or "").lower():
+            continue
         for sleeved in (0, 1):
             p = params.from_row(row, sleeved)
             if p.GameName != "Innovation":

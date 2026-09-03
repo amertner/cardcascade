@@ -29,7 +29,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from cad import mesh3mf, params, derive as D              # noqa: E402
+from cad import build as B, mesh3mf, params, derive as D  # noqa: E402
 from cad.parts import holder as H, topper as T            # noqa: E402
 
 EPS = 0.013            # see the module docstring: never probe down a diagonal
@@ -93,6 +93,11 @@ def catalogue():
     """
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+        # Single-set cascades hold one expansion, so they carry no toppers at
+        # all (Allan). cad.build.topper_catalogue skips them for the same
+        # reason and by the same column.
+        if B.SINGLE_SET in (row.get("Set/Extension") or "").lower():
+            continue
         for sleeved in (0, 1):
             p = params.from_row(row, sleeved)
             if p.GameName != "Innovation":
@@ -213,10 +218,11 @@ for tag, cached, built in blanks:
 print(f"\n{len(files)} files, {len(seen)} of {len(cat)} parameter sets matched")
 missing = sorted(set(cat) - seen)
 if missing:
-    # Not a failure: parts.csv can carry a cascade whose toppers were never
-    # exported. Reported so it is a decision and not a silence.
-    print(f"  no cached topper for {missing} — parts.csv has the row, "
-          f"individual/ has no file")
+    # Every parameter set the catalogue emits should be in the cache. A gap
+    # means either a cascade whose toppers were never exported, or a row that
+    # should have been excluded as single-set.
+    check(f"every catalogued parameter set is cached (missing {missing})",
+          missing, [])
 if unmatched:
     print(f"  FAIL unmatched files: {unmatched}")
     fails.append("unmatched files")
