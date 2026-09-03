@@ -214,51 +214,64 @@ they are not meant to stack in depth. A merged cascade ships one of each and
 the slot takes whichever suits; the assembly places the FULL, which every
 token-holder row gets.
 
-### Topper — one per holder, capping its cards
+### Topper — its slant IS the holder's slant
 
-Allan: *"The topper fits snugly on top of the card holder, with the protrusions
-on the side ensuring it doesn't slide down the diagonal. There is no mate per
-se."*
+`spec/TOPPER.md` and `cad/parts/topper.py` are the authority, and they make
+this placement **exact rather than fitted**. Two of the part's own features say
+what it mates to:
 
-**No mate means nothing may be read off the cached component's position**, and
-an earlier draft of this file read two things off it and got both wrong. What
-the placement is derived from instead is the PART, sectioned.
+* **`TriangleMatch`** extrudes the HOLDER's own `Top slant angle` face, so the
+  topper's slant *is* the holder's — `topper.slant_slope` is
+  `holder.slant_slope`, to six decimals on every parameter set;
+* **`Room for Lips`** notches the topper's REAR wall for the holder's rear
+  lips, binding to `holder.lip_plan` with no clearance at all.
 
-**What it is.** A long bar; two thin fins ~45 mm long at its extreme ends; a
-shorter protrusion at each compartment DIVIDER. The label is an inlay in the
-bar's `z_min` face, carrying the same `-0.010 .. 0.800` signature the Lid's
-logo pattern has. That face has to be visible, so it is **up** in use and the
-fins hang **down** — which is what makes them protrusions that stop the bar
-sliding down the diagonal. The placement is therefore a half turn about X.
+So the topper sits with its slant flush on the holder's and its rear over the
+holder's lips. That is a face-to-face mate and it fixes the placement
+completely. Allan's description — *"fits snugly on top of the card holder, with
+the protrusions on the side ensuring it doesn't slide down the diagonal"* — is
+that mate exactly: the diagonal is the slant, and the protrusions are the two
+tabs.
 
-**X is not a choice**, and two independent features fix it exactly:
+**Why there is a turn at all**, in Allan's words: *"Upside down is necessary
+for it to print properly, so the flat side with the names is face-down. It is
+used face-up when in use. This is a common pattern."* So the modelled
+orientation is the PRINT one, and `Upside Down` in the feature tree is what
+puts it there. The assembly turns it back.
 
-* the bar's ends are inset `holder.END_EXTRA` 4.900 from the holder's, so it
-  spans exactly between the two end blocks;
-* its protrusions sit at **33.500 and 100.500** on an Innovation `S5.15.15`,
-  which are `(k + 0.5) * calSlotwidth` — the holder's own dividers.
+The placement is that half turn about **X**, about the plane `z =
+topper.Z_BASE`, and `-2 * depth` in Y:
 
-So the Topper is drawn in the HOLDER's frame with no X offset at all.
+* **X** unchanged. `topper.width` is `calSlotwidth * HorizontalSlots` — the
+  holder less its two end blocks — and the part's X origin is the first slot's
+  centre, "exactly as the Holder's is".
+* **Y** the drawn part runs `-2*depth .. -depth`; the turn maps that onto the
+  holder's own `-depth .. 0`, putting the rear wall over the rear lips.
+* **Z** `2 * topper.Z_BASE`, so the turn is about the base plane itself.
 
-**Y** follows from the depths being equal — 8.000 against 8.000, and 6.000
-against 6.000 on the 10-card pair — so laying it over the holder is the only
-alignment there is. The drawn part sits at `-2*depth .. -depth`, so the turn
-about X with an origin of `-2*depth` brings it onto the holder's `-depth .. 0`.
-That is what the "one holder depth" offset in the export turns out to be: room
-to draw the two parts without overlapping, not a mate.
+And the slant lands: the topper's slant meets the holder's at **0.000000** on
+all four Innovation parameter sets, at BOTH ends of it — rear and front,
+across slopes from 1.4977 to 3.1538.
 
-**Z** puts the label face on `holder.card_top` — the topper caps the cards it
-names. `card_top` is `pocket_z[0] - FLOOR_DROP + CardHeight` = 48.550 on every
-game, and the drawn label face measures 48.450, so the two agree to 0.100.
+### Three wrong answers before that one
 
-The drawn face's Z is a **parameter** of `assembly.topper`, not a constant,
-because there is no `cad/` Topper to derive it from: the part exists only as a
-cached component, so its drawn frame is a fact about a file, and
-`cad/assemble.py` reads it off the mesh it is about to place.
+Worth recording, because they are all the same mistake:
 
-Checked: 700 topper vertices sampled against the cached holder, **none inside
-it**, and the render puts five labelled toppers on five holders reading the
-right way up — which is Allan's own photograph.
+1. the topper read as sitting where it was drawn, one holder depth forward;
+2. then FITTED, by resting its label face on the card tops — 0.100 out;
+3. then fitted again, by resting the plate's underside on them — 1.300 out.
+
+The part does not rest on the cards at all. Each attempt inferred a placement
+from measurements when a CONSTRUCTION already determined it, which is the
+lesson `spec/LID.md` records under "What the fit got wrong", made three more
+times. The tell was available throughout: `topper.slant_slope` delegates to
+`holder.slant_slope` rather than transcribing it, and a part that borrows
+another's slope is a part that mates to its face.
+
+It is also the case for reading a neighbouring module before deriving anything:
+`cad/parts/topper.py` and `spec/TOPPER.md` landed on `main` while this branch
+was fitting the same placement by hand, and they state the answer in a
+sentence.
 
 ## The finding: the treads sit 0.150 forward of the ribs
 
@@ -299,7 +312,7 @@ A resolver, because two of them are not finished:
 |---|---|---|
 | Box, Lid, Pusher, TokenHolder | `cad/` source (B-rep) | done, and they are the whole lock mechanism |
 | Holder | cached `individual/<Game>/Holder *.3mf` | the source Holder is ~2 % heavy and not printable (`spec/HOLDER.md`) |
-| Topper | cached `individual/Innovation/Topper *.3mf` | not written in `cad/`; the placement is derived from the part's own features, see above |
+| Topper | cached `individual/Innovation/Topper *.3mf` | `cad/parts/topper.py` builds the BLANK, but the `Expansion Name` group is not written yet, so the five labelled ones are only available cached |
 
 `cad.assemble --holder source` swaps the build123d Holder in, and is how the
 Holder's convergence gets watched. It is also the only way to assemble the two

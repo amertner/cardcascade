@@ -209,8 +209,7 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
     # arbitrary as far as the geometry is concerned.
     for j, first in topper_risers(p, d, folder, short_name):
         mesh = topper_mesh(p, d, folder, TOPPERS[j % len(TOPPERS)])
-        face = min(z for _x, _y, z in mesh[1])
-        pl = (A.topper if closed else A.topper_play)(p, d, j, face, first)
+        pl = (A.topper if closed else A.topper_play)(p, d, j, first)
         add(mesh, [pl])
 
     # The token holder is the FULL one: a merged cascade ships a HALF as well,

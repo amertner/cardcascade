@@ -358,57 +358,65 @@ def holder_play(p, d, j):
 
 # --- the Topper ------------------------------------------------------------
 #
-# Allan: "The topper fits snugly on top of the card holder, with the
-# protrusions on the side ensuring it doesn't slide down the diagonal. There is
-# no mate per se." So the cached component's position is NOT an assembly
-# position and nothing may be read off it directly — which is what an earlier
-# draft of `spec/ASSEMBLY.md` did, and it was wrong twice over.
+# `spec/TOPPER.md` and `cad/parts/topper.py` are the authority here, and they
+# make the placement EXACT rather than fitted. Two features of the part say
+# what it mates to:
 #
-# What the part IS, from sectioning `Topper Blank S15-Un`: a long bar with two
-# thin fins at its extreme ends, ~45 mm long, and a shorter protrusion at each
-# compartment DIVIDER. The label is an inlay in the bar's `z_min` face, the same
-# `-0.010 .. 0.800` signature the Lid's logo has. That face must be visible, so
-# it is UP in use and the fins hang DOWN — which is what makes them protrusions
-# that stop the bar sliding down the diagonal.
+#   `TriangleMatch` extrudes the HOLDER's own `Top slant angle` face, so the
+#   topper's slant IS the holder's — `topper.slant_slope` is
+#   `holder.slant_slope`, to six decimals on every parameter set.
 #
-# X is not a choice: two independent features fix it, and both are exact.
-# The bar's ends inset `holder.END_EXTRA` 4.900 from the holder's, so it spans
-# exactly between the end blocks; and its protrusions sit at 33.500 and 100.500
-# on an Innovation `S5.15.15`, which are `(k + 0.5) * calSlotwidth` — the
-# holder's own dividers. So the Topper is drawn in the HOLDER's frame with no X
-# offset at all.
+#   `Room for Lips` notches the topper's REAR wall for the holder's rear lips,
+#   binding to `holder.lip_plan` with no clearance at all.
+#
+# So the topper sits with its slant flush on the holder's slant and its rear
+# over the holder's lips. That is a face-to-face mate and it fixes the
+# placement completely — no fitting, no measurement, no parameter.
+#
+# Allan's description of it: "The topper fits snugly on top of the card holder,
+# with the protrusions on the side ensuring it doesn't slide down the
+# diagonal." The diagonal is that slant, and the protrusions are the two tabs.
 
 
-def topper(p, d, j, drawn_face_z, first=False):
+def topper(p, d, j, first=False):
     """The topper on riser `j`, in the cascade frame.
 
-    A half turn about **X** — label up, fins down — and then:
+    A half turn about **X**, about the plane `z = topper.Z_BASE`, and one of
+    `-2 * depth` in Y.
 
-    * **X** unchanged, per above.
-    * **Y** the topper's depth equals the holder's exactly (8.000 against
-      8.000, and 6.000 against 6.000 on the 10-card pair), so laying it over
-      the holder is the only alignment there is. The drawn part sits at
-      `-2 * depth .. -depth`, so the turn about X and an origin of
-      `-2 * depth` bring it onto the holder's own `-depth .. 0`.
-    * **Z** the label face lands on `holder.card_top` — the topper caps the
-      cards it names.
+    The turn is not this module's invention. Allan: "Upside down is necessary
+    for it to print properly, so the flat side with the names is face-down. It
+    is used face-up when in use. This is a common pattern." The modelled
+    orientation is the PRINT one — `Upside Down` in the feature tree is what
+    puts it there — and the assembly turns it back.
 
-    `drawn_face_z` is the cached mesh's own minimum Z, the label face, and it is
-    a PARAMETER rather than a constant because there is no `cad/` Topper to
-    derive it from: the part is only available as the cached component, so its
-    drawn frame is a fact about a file. `cad/assemble.py` reads it off the mesh
-    it is about to place. It measures 48.450 against a `card_top` of 48.550.
+    * **X** is not a choice. `topper.width` is `calSlotwidth * HorizontalSlots`
+      — the holder less its two end blocks — and the part's X origin is the
+      first slot's centre, "exactly as the Holder's is".
+    * **Y**: the drawn part runs `-2*depth .. -depth` and the turn maps that
+      onto the holder's own `-depth .. 0`, putting the topper's rear wall over
+      the holder's rear lips, which is what `Room for Lips` is cut for.
+    * **Z**: `2 * topper.Z_BASE`, i.e. the turn is about the base plane itself.
+      That is what lands the slant: the topper's slant meets the holder's at
+      **0.000000** on all four Innovation parameter sets, at BOTH ends of it.
+
+    The earlier version of this fitted the height by resting the part on the
+    cards, first at the label face and then at the plate's underside, and both
+    were wrong — by 0.100 and by 1.300. The part does not rest on the cards at
+    all; it rests on the slant. Fitting a placement that a construction already
+    determines is the mistake `spec/LID.md` records twice, made a third time.
     """
+    from .parts import topper as topper_part
     depth = holder_part.holder_depth(p, d, first)
     base = holder_closed(p, d, j).origin
     return Place(x_dir=(1, 0, 0), z_dir=(0, 0, -1),
                  origin=(base[0], base[1] - 2 * depth,
-                         base[2] + holder_part.card_top(d) + drawn_face_z))
+                         base[2] + 2 * topper_part.Z_BASE))
 
 
-def topper_play(p, d, j, drawn_face_z, first=False):
+def topper_play(p, d, j, first=False):
     """The same, on a cascaded holder — only the tread's height differs."""
-    pl = topper(p, d, j, drawn_face_z, first)
+    pl = topper(p, d, j, first)
     lift = holder_play(p, d, j).origin[2] - holder_closed(p, d, j).origin[2]
     return Place(x_dir=pl.x_dir, z_dir=pl.z_dir,
                  origin=(pl.origin[0], pl.origin[1], pl.origin[2] + lift))
