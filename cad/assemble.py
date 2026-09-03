@@ -128,7 +128,8 @@ def holder_mesh(p, d, folder, first=False):
     return _one(path)
 
 
-def assemble(p, d, state, folder, out_dir, take_tokens=False):
+def assemble(p, d, state, folder, out_dir, take_tokens=False,
+             half=False):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
     parts, instances = [], []
@@ -158,7 +159,12 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False):
     # but the two are alternatives for one slot, not both at once — see
     # `assembly.token_holder`. A row with no `TokenHolder` gets neither.
     if take_tokens and p.GameName == "Dominion":
-        add(token_holder_mesh(p, d, out_dir, folder), [A.token_holder(p, d)])
+        # A merged row ships a HALF as well, and the two are alternatives for
+        # one slot rather than both at once — `assembly.token_holder`. Same
+        # placement either way; only the mesh differs.
+        add(token_holder_mesh(p, d, out_dir, folder,
+                              half=half and bool(p.MatPocket)),
+            [A.token_holder(p, d)])
 
     if state == A.CLOSED_LID:
         for mesh in lid_meshes(p, d, out_dir, folder):
@@ -200,6 +206,9 @@ def main(argv=None):
     ap.add_argument("--out", default=ROOT / "build", type=Path)
     ap.add_argument("--csv", default=CSV, type=Path)
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--half", action="store_true",
+                    help="on a merged row, place the HALF token holder instead "
+                         "of the FULL — they are alternatives for one slot")
     args = ap.parse_args(argv)
 
     rows = catalogue(args.csv, args.game, args.model)
@@ -217,7 +226,8 @@ def main(argv=None):
         for state in states:
             try:
                 parts, instances = assemble(p, d, state, folder, args.out,
-                                            take_tokens=tokens)
+                                            take_tokens=tokens,
+                                            half=args.half)
             except MissingHolder as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break

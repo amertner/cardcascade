@@ -218,7 +218,10 @@ def token_holder(p, d):
     than both fitting: `spec/TOKENHOLDER.md` says a half holder is not half of
     a full one and that they are not meant to stack in depth, and they are the
     same width, so the slot takes one or the other. The FULL is placed because
-    every token-holder row gets one; `half=True` renders the variant.
+    every token-holder row gets one; `cad.assemble --half` swaps in the HALF on
+    a merged row. The PLACEMENT is the same either way — the origin is the
+    slot's corner, and both parts are inset `CLEARANCE` into it — so only the
+    mesh changes.
     """
     front, _panel_front, _panel_back = box_part.pocket_span(p, d)
     return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, 1),

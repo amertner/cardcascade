@@ -213,6 +213,34 @@ def assembly_sheet(path, out, width=1600, views=None):
         yield target
 
 
+def assembly_contact(paths, target, view=HERO, cell=760, cols=3):
+    """One grid image of several assemblies, one tile each — the way to look
+    over a whole build in a glance rather than opening a file at a time."""
+    from PIL import ImageDraw
+    az, el = VIEWS[view]
+    tiles = []
+    for path in paths:
+        items = [(v, tr, colour_for(n))
+                 for n, v, tr in mesh3mf.read_assembly(path)]
+        img = scene(items, az, el, cell,
+                    perspective=PERSPECTIVE if view == HERO else None)
+        img.thumbnail((cell, cell))
+        tiles.append((path.stem, img))
+    bar, gap = 18, 6
+    rows = (len(tiles) + cols - 1) // cols
+    h = max(t.height for _n, t in tiles) + bar
+    canvas = Image.new("RGB", (cols * (cell + gap), rows * (h + gap)),
+                       (BG, BG, BG))
+    draw = ImageDraw.Draw(canvas)
+    for i, (label, img) in enumerate(tiles):
+        x, y = (i % cols) * (cell + gap), (i // cols) * (h + gap)
+        draw.text((x + 2, y + 3), label, INK)
+        canvas.paste(img, (x + (cell - img.width) // 2, y + bar))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(target)
+    return target
+
+
 PUSHER_VIEWS = ((14, 74), (-14, -74))
 # A box is TALL, so the near-plan view a pusher wants reads as a squashed
 # ribbon. These two show it: a three-quarter from above the front-left, which
@@ -293,8 +321,14 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     if args.assembly:
+        named = [v for v in (args.view or []) if v in VIEWS]
+        if args.view and not named:
+            ap.error(f"--assembly takes NAMED views: {', '.join(VIEWS)}")
+        if args.contact:
+            print(f"  {assembly_contact(args.files, args.contact, *named[:1])}")
+            return 0
         for f in args.files:
-            for target in assembly_sheet(f, args.out, args.width):
+            for target in assembly_sheet(f, args.out, args.width, named or None):
                 print(f"  {target}")
         return 0
     views = [tuple(float(n) for n in v.split(",")) for v in args.view or []]
