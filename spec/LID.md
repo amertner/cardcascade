@@ -188,9 +188,25 @@ measured constant until the sketch turned up.
 **The count is the plain size rule and NOT `isOnlyTwoPusherSlots`.** An
 Innovation M lid carries three sockets where its Box has two rear storage slots
 and its cascade ships two pushers (`spec/BOX.md` records the same variable
-being the box's answer). The third socket is harmless — a spare — but it is
-Onshape's own inconsistency between the two parts, and `cad/` reproduces the
-lid as it is rather than tidying it.
+being the box's answer). It is Onshape's own inconsistency between the two
+parts, and `cad/` reproduces the lid as it is rather than tidying it.
+
+**The unused one is the MIDDLE one, and it should eventually go** (Allan,
+2026-09-03). It is not a spare that happens to be free: the two pushers use the
+outer pair, so `socket_centres`' `k = 1` is dead material in every Innovation M
+lid. Not done here, because it is a real geometry change and it is not free:
+
+* it restates **four** lids — `M5.15.15` and `M5.10.10`, each sleeved and un —
+  and no other row in the catalogue, S and XS Innovation being on two already;
+* `tests/test_lid_corpus.py` currently **asserts** the three against the cached
+  meshes, so the test has to gain the divergence on both sides, the way
+  `cad/README.md`'s sixth decision requires;
+* every shipped Innovation M cascade's lid goes stale the moment it lands, so
+  it wants a version bump to carry it rather than a quiet re-cut.
+
+The rule it becomes is `box.pusher_slot_count`'s — `isOnlyTwoPusherSlots`, the
+variable that was always the right answer for this — which makes the two parts
+agree instead of disagreeing.
 
 **`x = -0.300` was measured before it was derived**, and it is worth keeping
 the story: it is constant on every lid, and nothing in the derived set produces

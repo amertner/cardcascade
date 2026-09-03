@@ -94,6 +94,10 @@ def socket_count(p):
     Innovation M lid carries three sockets where its box has two rear storage
     slots and its cascade ships two pushers. Measured on all 46 lids —
     `spec/LID.md` records it as Onshape's own inconsistency, reproduced here.
+
+    The MIDDLE socket of those three is the unused one and is to be removed
+    eventually (Allan) — four lids, and it wants a version bump and a
+    two-sided test, so `spec/LID.md` holds the decision and its cost.
     """
     return 2 if p.HorizontalSlots <= 3 else 3
 

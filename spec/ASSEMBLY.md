@@ -106,11 +106,15 @@ socket stands at lid `z 1.600..6.600`, so the leading edge goes down into it and
 the rise runs up through the Box's `bottom_slot`. Confirmed reachable: on
 Dominion `S4.16.10`, socket centres are ±63.0 against a floor slot 137.100 wide.
 
-Innovation is the one asymmetry to decide: a lid gets 3 sockets from M up
-(`lid.socket_count` is the plain size rule) while the cascade ships **2**
-pushers (`isOnlyTwoPusherSlots`). The open state has to choose which two sockets
-are used — the outer pair, unless Allan says otherwise. `spec/LID.md` already
-records the 3-vs-2 mismatch as Onshape's own inconsistency.
+Innovation is the one asymmetry, and it is settled: a lid gets 3 sockets from
+M up (`lid.socket_count` is the plain size rule) while the cascade ships **2**
+pushers (`isOnlyTwoPusherSlots`), and **the middle socket is the unused one**
+(Allan). The open state uses the OUTER PAIR — `socket_centres`' `k = 0` and
+`k = 2`. Only the two Innovation M rows are affected, `M5.15.15` and
+`M5.10.10`; every S and XS Innovation lid has two sockets already. The socket
+itself is to be dropped from the Lid eventually, at a cost `spec/LID.md`
+records; until it is, the assembly renders will show it empty, which is the
+honest picture of what ships.
 
 ### Holder
 
@@ -258,8 +262,6 @@ that holds on one cascade and not on 50 is the finding worth having.
   the fit test picks it (step 1).
 * **The Lid's X mirror when closed.** Symmetric in the grooves; the floor
   engraving and the fit test pick it (step 2).
-* **Which two of three sockets Innovation uses.** Needs Allan, or the outer pair
-  by default.
 * **Which slot a topper occupies** — its own holder's, or the one in front.
   Settled by sectioning the two cached meshes at an end lip; Allan if ambiguous.
 * **A `--holder=source` run will report Holder margins that fail.** That is the
