@@ -135,14 +135,19 @@ def import_glb(path):
 def smooth(objects, degrees=30.0):
     """Normals from the topology, smoothed by angle: a flat face stays flat and
     a fillet goes smooth. This is why `cad/gltf.py` ships no normals."""
-    for o in objects:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = objects[0]
     try:
+        for o in objects:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = objects[0]
         bpy.ops.object.shade_smooth_by_angle(angle=math.radians(degrees))
-    except (AttributeError, RuntimeError):
-        bpy.ops.object.shade_smooth()          # older API: no angle split
-    bpy.ops.object.select_all(action="DESELECT")
+        bpy.ops.object.select_all(action="DESELECT")
+    except (AttributeError, RuntimeError, TypeError):
+        # Restricted context (a `blender -P` startup script) or an older API.
+        # Per-polygon flags need no context and no operator; what is lost is
+        # the angle SPLIT, so a fillet still smooths and a flat face may too.
+        for o in objects:
+            for poly in o.data.polygons:
+                poly.use_smooth = True
 
 
 def bounds(objects):
@@ -220,13 +225,25 @@ def studio(lo, hi, floor=True):
     bg.inputs["Strength"].default_value = AMBIENT
 
     if floor:
-        bpy.ops.mesh.primitive_plane_add(size=radius * 24,
-                                         location=(centre.x, centre.y, lo.z))
+        # Built from data, not with `bpy.ops.mesh.primitive_plane_add`. A
+        # script run by `blender -P` WITHOUT `-b` executes in a restricted
+        # context where `bpy.context.active_object` does not exist at all, so
+        # the operator succeeds and reading back the object it made raises —
+        # which is exactly what the GUI path did while headless was fine.
+        # Nothing here needs an operator, so nothing here uses one.
+        s = radius * 12
+        mesh = bpy.data.meshes.new("floor")
+        mesh.from_pydata([(-s, -s, 0), (s, -s, 0), (s, s, 0), (-s, s, 0)],
+                         [], [(0, 1, 2, 3)])
+        mesh.update()
         mat = bpy.data.materials.new("floor")
         b = mat.node_tree.nodes["Principled BSDF"]
         b.inputs["Base Color"].default_value = (0.55, 0.55, 0.56, 1.0)
         b.inputs["Roughness"].default_value = 0.65
-        bpy.context.active_object.data.materials.append(mat)
+        mesh.materials.append(mat)
+        obj = bpy.data.objects.new("floor", mesh)
+        obj.location = (centre.x, centre.y, lo.z)
+        bpy.context.scene.collection.objects.link(obj)
 
     for name, offset, size, power in (
             ("key", (-1.5, -1.9, 1.7), 2.6, KEY),
