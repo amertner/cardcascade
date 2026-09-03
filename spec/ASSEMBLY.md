@@ -367,6 +367,18 @@ that holds on one cascade and not on 50 is the finding worth having.
 
 * ~~Which way the pusher's depth axis runs in storage.~~ Not open: two axes are
   forced by features and the third by right-handedness.
+* **Which lid mark is the reference, and which three turn.** Parked (Allan,
+  2026-09-03 — away from the printed boxes). Nothing geometric in the lid
+  distinguishes the two ways it closes, so the physical product is the only
+  authority: look at a closed box, and whichever game reads upright is the
+  reference. The placement stays on the **Y** turn meanwhile, which leaves
+  Dominion upside down and Compile, FCM and Innovation upright.
+
+  When it is settled the fix is a 180° rotation of one DXF or of three, and it
+  is **geometry-neutral**: the mark is sized and placed from its bounding box
+  (`logo_scale`, `logo_offset`), and a half turn preserves that exactly — same
+  size, same position, same fit. Cost is a wash either way: Dominion is 24 of
+  the 50 lids, the other three games 26 between them.
 * **The topper's Y** — whether the exported 8.000 offset is the mate or a
   reference layout. Sectioning settled everything else about the part; this it
   cannot settle. Allan.
