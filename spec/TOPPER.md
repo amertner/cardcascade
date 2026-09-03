@@ -176,31 +176,50 @@ row, because the slope moves with `calSlotDepth`.
 | `Linear pattern 1` | patterns `Remove Lip Room` + `Fillet Lip Room` + `Other side` along the **Right plane**, `distance = calSlotwidth` (67 on the sample), `count = HorizontalSlots` (4), **Centered**. So the lip clearance is cut once per slot, centred on the part |
 | `Top and front edges` | `r 0.800`, see above |
 
-## The posts
+## Ribs and front bands — a T in plan, not a post
 
-Material stands at every slot boundary, **including both ends**:
+An earlier revision of this file called these "posts, 14.800 wide". That came
+from PLAN sections, which cannot tell a solid block from a T, and it was wrong.
+Probing the unfilleted reference band by band in Y separates them. At `Z 55`,
+around the boundary at `X 33.5`:
 
-    post width      14.800     centred on the boundary
-    end posts        7.400     half a post, at each end of the part
-    corner fillets   0.600     on each vertical edge
-    opening/slot    calSlotwidth - 14.800    (55.400 Sl, 53.400 Un)
+    Y -6.1, -6.5   (at the front face)   material runs 26.10 .. 40.90
+    Y -6.9 and back                      material runs 32.70 .. 34.30
 
-Confirmed on all eight blanks, across both sizes, both card counts and both
-sleevings. `More Dividers` patterns the `Divider` feature at `calSlotwidth`
-with an instance count of `HorizontalSlots - 1` — 3 on an M box — which is the
-full posts; the two half-posts at the ends come from the body itself.
+So each slot boundary carries
 
-Re-measured on the UNFILLETED body, where nothing is blended: the posts are
-`14.800` exactly at `Z 55` and above, the end posts `7.400`, and the first full
-post's centre is `calSlotwidth` from the left edge.
+    a RIB           1.600 wide (= #WallThickness), the full depth and height
+    a FRONT BAND   14.800 wide, but only 0.800 deep — the front wall, left
+                   standing here where `Remove most of front` takes it away
+                   everywhere else
 
-`14.800` is `2 x 7.400` and `#FootDistanceFromWall` is `7.400`, which would
-read as the post straddling the pusher's path. The `Divider` sketch is drawn on
-`Face of Remove Inner Hole` and is a rectangle over the slant — it gives the
-profile but not where the `14.800` comes from. **Still a hypothesis, not a
-measurement.** It is not encoded.
+The two ends carry HALF a band each (`7.400`), because a band is centred on a
+boundary and the part stops half a slot out from the first one. Both sets
+reproduce exactly:
 
-## The holder tabs
+    ribs    32.700..34.300   99.700..101.300   166.700..168.300
+    bands  -33.500..-26.100  26.100..40.900  93.100..107.900
+           160.100..174.900  227.100..234.500
+
+`7.400` is `#FootDistanceFromWall`, which would read as the band straddling the
+pusher's path. The `Divider` sketch gives the profile but not where the width
+comes from, so that stays a hypothesis and is not encoded as one.
+
+### The lip clearance is a band exactly `#LipHeight` tall
+
+Between the floor's top and `2.000` above it, everything between the ribs is
+open — `49.650` to `51.650`, and `#LipHeight` is `2.000`. That is the room the
+Holder's rear lips need, and it is what `Room for Lips`, `Remove Lip Room`,
+`Other side` and `Linear pattern 1` cut. The pattern's own numbers agree: pitch
+`calSlotwidth`, `HorizontalSlots` instances, centred, mirrored — and the
+reference carries `16` cylinders at `r 1.400`, which is two fillet edges on
+each of `4 x 2` cuts.
+
+At each end the block left standing measures `2.900`, which is
+`TAB_INSET 1.300 + TAB_W 1.600` — the tab's own footprint, so the tab has a
+root to stand on.
+
+## The holder tabs## The holder tabs
 
 Two, one at each end of the part, standing above the body:
 
