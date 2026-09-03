@@ -81,6 +81,7 @@ def spans(V, Tr, axis, u, v, tol=1e-6):
 
 
 def mesh_volume(V, Tr):
+    V, Tr = np.asarray(V), np.asarray(Tr)
     A, B, C = V[Tr[:, 0]], V[Tr[:, 1]], V[Tr[:, 2]]
     return float(abs(np.einsum('ij,ij->i', A, np.cross(B, C)).sum()) / 6.0)
 
@@ -113,7 +114,7 @@ cat = catalogue()
 files = sorted(INDIV.glob("Topper *.3mf"))
 print(f"{len(files)} cached toppers, {len(cat)} parameter sets in parts.csv\n")
 
-seen, unmatched, blanks = set(), [], []
+seen, unmatched, blanks, marks = set(), [], [], []
 for path in files:
     stem = path.stem[len("Topper "):]
     expansion, key = stem.split(" ", 1)
@@ -204,16 +205,60 @@ for path in files:
             check(f"{tag}: ... and ends at {round(e, 2)}", round(a, 3),
                   round(e - off, 3), ARC_TOL)
 
-    if expansion == "Blank":
-        blanks.append((tag, mesh_volume(V, Tr), T.build(p, d).volume))
+    # --- the mark, measured off the pocket's TOP rim ----------------------
+    # A prismatic pocket is tessellated with vertices only at its two ends, so
+    # anything strictly between the two reads the `Top and front edges` fillet
+    # instead and every file comes back 0.800 wide.
+    if expansion != "Blank":
+        rim = V[(np.abs(V[:, 2] - (T.Z_BASE + T.ENGRAVE)) < 1e-4)
+                & (V[:, 0] < T.text_origin_x(p, d))]
+        got = float(rim[:, 0].max() - rim[:, 0].min())
+        want = T.MARKS[expansion](d.calLogoSidelength).bounding_box().size.X
+        marks.append((tag, expansion, key, got, want))
 
-print("=== the eight Blank bodies, on volume ===")
-for tag, cached, built in blanks:
-    # A mesh under-reads a rounded body; the topper's rounds are r0.8 and
-    # smaller, so 0.05% is ample and 0 would be wrong to demand.
+    blanks.append((tag, expansion, mesh_volume(V, Tr),
+                   mesh_volume(*mesh3mf.triangulate(T.build(p, d, expansion)))))
+
+# The four SLEEVED `Unseen` files are STALE: their mark is drawn at the M10-Un
+# size — 5.3422, which is 1.2644 * 4.2250 — whatever their own
+# calLogoSidelength is. That is a fault in the CACHE, not in the source; the
+# hand-exported `Topper Unseen M5.15.15.62-Sl.step` at the same parameter set
+# has it right at 10.7949. All four UNSLEEVED ones are correct.
+#
+# Listed rather than detected, so that re-exporting them makes this test say
+# so instead of quietly passing on a smaller list.
+STALE = {("Unseen", k) for k in ("M10-Sl", "M15-Sl", "S10-Sl", "S15-Sl")}
+STALE_MARK_W = 5.3422          # 1.2644 * the M10-Un calLogoSidelength
+
+print("=== the mark, on all 40 named files ===")
+for tag, expansion, key, got, want in sorted(marks):
+    if (expansion, key) in STALE:
+        check(f"{tag}: STALE, and stale in the recorded way",
+              round(got, 3), STALE_MARK_W, 1e-3)
+        continue
+    check(f"{tag}: the mark is drawn at this row's calLogoSidelength",
+          round(got, 4), round(want, 4), 1e-3)
+stale_seen = {(e, k) for _t, e, k, _g, _w in marks if (e, k) in STALE}
+check("every file listed as stale is still in the corpus",
+      stale_seen, STALE)
+print(f"  {len(marks) - len(STALE)} sound, {len(STALE)} stale "
+      f"(all four sleeved Unseen — they want re-exporting)")
+
+
+print("\n=== all 48, source against the cached mesh ===")
+worst = 0.0
+for tag, expansion, cached, built in sorted(blanks):
     off = 100 * (built - cached) / cached
-    print(f"  {tag:14s} cached {cached:9.4f}  built {built:9.4f}  {off:+.3f}%")
-    check(f"{tag}: volume within 0.05% of the cached mesh", abs(off) < 0.05, True)
+    key = (expansion, tag.split(" ", 1)[1])
+    if key in STALE:
+        print(f"  {tag:18s} cached {cached:10.4f}  built {built:10.4f}  "
+              f"{off:+.3f}%   STALE CACHE, not checked")
+        continue
+    worst = max(worst, abs(off))
+    # Both sides are tessellations of the same tolerance, so this is a real
+    # comparison and not a mesh-versus-solid one. The residual is the font.
+    check(f"{tag}: within 0.02% of the cached mesh", abs(off) < 0.02, True)
+print(f"\n  worst of the {len(blanks) - len(STALE)} sound files: {worst:.4f}%")
 
 print(f"\n{len(files)} files, {len(seen)} of {len(cat)} parameter sets matched")
 missing = sorted(set(cat) - seen)

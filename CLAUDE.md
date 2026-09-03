@@ -25,8 +25,10 @@ generated with **zero API calls**. **Pusher**, **Box** and **Lid** are done,
 the Lid including the logo pattern in its underside, for all four games
 (`logos/<Game>/*.dxf`; `spec/LID.md`). The **Holder** is most of the way there
 and writes 3MFs, but is about 2% heavy and NOT printable yet
-(`spec/HOLDER.md`). TokenHolder and Topper still come from Onshape, and the
-whole `automation/` pipeline is still live and authoritative for all three.
+(`spec/HOLDER.md`). The **Topper** is done too — all six expansions, the five
+marks derived from `calLogoSidelength` rather than traced (`spec/TOPPER.md`).
+TokenHolder still comes from Onshape, and the whole `automation/` pipeline is
+still live and authoritative for the Holder and the TokenHolder.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -48,10 +50,11 @@ whole `automation/` pipeline is still live and authoritative for all three.
   migrate; `build/` is the migration target, not a mirror.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does all
-  four, holders included — and those come out INCOMPLETE. A box takes about
-  ten seconds and a pusher under one; a LID costs whatever its logo artwork
-  costs, because every region of the mark is its own boolean — 17 s for
-  Dominion's 459 edges, 57 s for Compile's 1885. Run all 50 in the background.
+  five, holders included — and those come out INCOMPLETE. A box takes about
+  ten seconds and a pusher under one; the 48 toppers take 95 s between them; a
+  LID costs whatever its logo artwork costs, because every region of the mark
+  is its own boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885.
+  Run all 50 in the background.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
@@ -60,8 +63,10 @@ whole `automation/` pipeline is still live and authoritative for all three.
   `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs
   `individual/`; run `python -m cad.build` first),
   `.venv/bin/python tests/test_box.py` and `.venv/bin/python tests/test_lid.py`
-  (source vs their STEPs), and `.venv/bin/python tests/test_lid_corpus.py`
-  (the Lid's placement rules against all 44 cached lids).
+  (source vs their STEPs), `.venv/bin/python tests/test_lid_corpus.py`
+  (the Lid's placement rules against all 44 cached lids), and
+  `.venv/bin/python tests/test_topper.py` / `tests/test_topper_corpus.py`
+  (source vs eight STEPs, then all 48 cached toppers).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 

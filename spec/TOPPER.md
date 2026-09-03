@@ -22,6 +22,10 @@ lettering**, not six designs.
 | `Topper Unseen M5.15.15.45-Un.step` | 15 cards, unsleeved |
 | `Topper Unseen M5.10.10.32-Un.step` | 10 cards, unsleeved — the PAIR with the one above: same expansion, same size, same sleeving, and only the card count differs |
 | `Topper Cities M5.15.15.62-Sl.step` | 15 cards, SLEEVED. The third axis: sleeving moves the depth without moving the card count, which is what the pair alone could not separate |
+| `Topper Artifacts M5.15.15.62-Sl.step` | one per remaining expansion, all at M15-Sl, which is what solved the last three marks |
+| `Topper Echoes M5.15.15.62-Sl.step` | " |
+| `Topper Figures M5.15.15.62-Sl.step` | " — and the one that settled whether `Figures` is an annulus |
+| `Topper Unseen M5.15.15.62-Sl.step` | " — REPLACES a stale export of the same name, and confirms the shield's rule at a second `calLogoSidelength` |
 | `Topper M5.15.15.62-Sl to Remove Inner Hole.step` | the feature tree ROLLED BACK to that feature |
 | `Topper M5.15.15.62-Sl after More Dividers.step` | rolled back to there |
 | `Topper M5.15.15.62-Sl after Linear pattern 1.step` | rolled back to there — the last feature before `Upside Down`. The three bracket every group of the blank, so each one is a subtraction rather than an inference |
@@ -411,12 +415,41 @@ Innovation's 10-card UNSLEEVED value (4.2250 exactly). Useful for checking a
 transcription: any construction below, evaluated at 4.2250, has to reproduce
 the numbers shown.
 
-### `Unseen` and `Cities` are SOLVED, from their own STEPs
+### All five marks are SOLVED, from their own STEPs
 
-Both difference exactly out of the blank, so both could be derived rather than
-traced. Every number below is a fraction of `calLogoSidelength`, and each
-reproduces its reference's AREA to four decimal places — `10.5225`, `19.3204`
-and `14.7096` — on three parameter sets.
+A filleted STEP differences exactly out of the blank, so every mark could be
+DERIVED rather than traced. Each is a fraction of `calLogoSidelength` and
+nothing else, and each reproduces its reference's AREA to **0.00002%** — the
+residual is the inlay height's own rounding:
+
+| mark | area, source vs reference |
+|---|---|
+| `Artifacts` | 42.51853 / 42.51853 |
+| `Cities` | 14.70963 / 14.70962 |
+| `Echoes` | 36.44445 / 36.44444 |
+| `Figures` | 36.63796 / 36.63795 |
+| `Unseen` | 42.96615 / 42.96614 at M15-Sl; 10.52249 and 19.32039 at two more |
+
+**`Echoes`** is a diamond — a square turned 45 degrees with its vertices on the
+box's edge midpoints, `(0, +-L/2)` and `(+-L/2, 0)`. Its area is `L**2 / 2`
+exactly.
+
+**`Figures`** is an **ANNULUS**, and that was the open question. The reference
+answers it directly: the mark is ONE solid with TWO wires, where a disc with a
+separate ring round it would be two solids. Outer radius `L/2`, inner
+`L/2 - L/5`, so the radial gap is Allan's `L/5` — `2.56125` against `2.5613`.
+
+**`Artifacts`** is two tall triangles that OVERLAP, and the overlap is the
+point:
+
+    left    (-L/2, -L/2)  ( L/8, -L/2)  (-L/4, L/2)
+    right   ( L/2, -L/2)  (-L/8, -L/2)  ( L/4, L/2)
+
+Each has its base on the box's bottom edge and its apex `L/4` in from a top
+corner, and the bases cross the centre line by `L/8`. The union has FIVE edges,
+not six — below the crossing the two bases are one line — and the notch where
+the inner edges meet falls out at `(0, -1.42292)`, which the reference reads as
+`(0.0000, -1.4229)`. Nothing places that vertex; it is where two lines cross.
 
 **`Unseen`** is a shield and five rays.
 
@@ -545,7 +578,22 @@ expansions, and `1.2644` is just how far Unseen's rectangles reach.
 > the mark should have been. The commit stands in history; this is the
 > correction.
 
-### Two of the cached Unseen files ARE stale
+### ALL FOUR SLEEVED cached Unseen files are stale
+
+Measured off the pocket's top rim in all eight, the mark's width is
+`1.2644 * calLogoSidelength` on the four UNSLEEVED files and a flat `5.3422` on
+the four SLEEVED ones — and `5.3422` is `1.2644 * 4.2250`, the M10-Un size. The
+mark was frozen at one configuration in every sleeved export.
+
+An earlier revision of this file said "two", which is what comparing only the
+`M` files shows. The hand-exported `Topper Unseen M5.15.15.62-Sl.step` has it
+right at `10.7949`, so this is a fault in the CACHE and not in the source, and
+the four want re-exporting. `tests/test_topper_corpus.py` lists them, asserts
+they are stale in exactly this way, and excludes only those four from the
+volume comparison — so re-exporting them makes the test say so rather than
+quietly passing on a shorter list.
+
+### The original note, which found two of the four
 
 What survives from that is smaller and real. Across the four cached Unseen
 configurations the group measures
@@ -638,11 +686,16 @@ which suggests Onshape constrains a nominal `0.72 em` box rather than the
 face's own cap height — but that is an inference, and `0.7202` is what is
 measured.
 
-**`Figures` gives `0.71693`**, `0.45%` off the other four. Its ink is `0.041 mm`
-taller than Noto Serif Bold 2.015 predicts on the deepest configuration. Not
-understood. A plausible cause is a different release of the `g` — glyphs do
-move between font versions — but nothing here confirms that, and it is written
-down rather than smoothed over.
+**`Figures` reads `0.45%` off the other four, and it is the FONT.** Measured
+again on the exact STEPs rather than on meshes, the four agree with the
+vendored Noto Serif Bold to `0.013%` and `Figures` is `0.455%` taller —
+`9.1910` against `9.1493` at M15-Sl. The `g` is the only glyph the five do not
+share, so Onshape's descends `0.00459 em` deeper than the vendored one.
+
+That is the same difference `s` shows, and it puts the earlier note — "a
+plausible cause is a different release of the `g`" — on evidence rather than on
+a hunch. Nothing is tuned to it; what is checked instead is that the `g` still
+CLEARS, with Onshape's deeper one, on every row.
 
 ### `Figures` is why the bottom margin is doubled
 
@@ -654,6 +707,11 @@ it would not fit under symmetric margins.
 
 So `#LogoEdgeDist*2` is load-bearing on exactly one of the six toppers. Anyone
 tidying it to `#LogoEdgeDist` would see five of six still look right.
+
+`tests/test_topper.py` checks it on all eight rows and with **Onshape's**
+deeper `g`, not the vendored one — clearance runs `0.697` down to `0.212`, and
+the tightest is the DEEPEST configuration, which is not where one would look
+first.
 
 ### The 65% follows
 
@@ -701,13 +759,16 @@ So the two files differ, and `s` at least is a different glyph. The vendored
 one came from the Google Fonts CSS API (`fonts/README.md` records that), which
 serves the current release; Onshape's is whatever it shipped with.
 
-**It does not block anything.** The error accumulates to `0.031` on the widest
-word measured, `0.15%`, on an engraving `0.800` deep cut with a `0.400`
-nozzle. `tests/test_topper.py` holds the ink boxes to `0.05` and says why.
+**It does not block anything, and it is closed.** Allan does not know which
+version Onshape uses and is content with the vendored one.
 
-It would be worth closing if it is cheap: **the exact TTF Onshape is using, or
-its version, would make this exact.** Until then the vendored file stands and
-the deviation is written down rather than tuned away.
+What makes that safe to accept is the SHAPE of the error, not its size: the
+ink's drift is a constant fraction of the em — `0.0055` on all three sizes
+measured, which differ by 2.5x — so it is a difference in the font's METRICS
+and not a fault in the placement, which would move with the configuration.
+`tests/test_topper.py` bounds it at `0.008 em` and asserts the constancy
+itself. In absolute terms it is `0.020` to `0.050` mm, on an engraving `0.810`
+deep cut with a `0.400` nozzle.
 
 ## `Solid.volume` is the wrong metric for a NAMED topper
 
@@ -741,24 +802,16 @@ than letting whichever row came first win.
 
 ## Still open
 
-Everything below is `Expansion Name` or the corpus. **The blank itself is
-finished**: `cad/parts/topper.py`'s `build()` reproduces all three rollbacks
-and the unfilleted export with zero symmetric difference in both directions,
-and the filleted `Unseen` body holds nothing it lacks.
+**The Topper is finished.** The blank reproduces all three rollbacks and the
+unfilleted export with zero symmetric difference in both directions; all five
+marks reproduce their references' area to `0.00002%`; and all 44 sound cached
+files reproduce within `0.0061%`. `cad.build --part topper` writes the whole
+48-file catalogue in 95 seconds.
 
-- **Three of the five marks are not written**: `Echoes`, `Artifacts` and
-  `Figures`. `Unseen` and `Cities` are done and exact, and they could be done
-  because their STEPs difference out of the blank; those three have only the
-  cached meshes and Allan's sketches. **One hand-exported topper STEP each —
-  any parameter set — would give all three the same way**, and would settle
-  `Figures` without guessing. `cad.build --part topper` writes the three
-  expansions it can and `build()` refuses the other three rather than emitting
-  a topper with a name and no logo.
-- **A third cached Unseen file is stale**, and it is a REFERENCE:
-  `spec/reference/Topper Unseen M5.15.15.62-Sl.step` carries the M10 shield
-  (`4.2250`) at `calLogoSidelength 8.5375`. `tests/test_topper.py` uses the
-  other three and says why. The stale list is now `M10-Sl`, `M15-Sl` and that
-  STEP.
+What is left is small, and mostly not about the geometry.
+
+- **The four sleeved cached `Unseen` files want re-exporting.** Not a
+  modelling problem — see above. Everything else in the corpus reproduces.
 - **The tab/holder mate is still only half asserted.** The LIP side is now
   proved from both ends — `topper.lip_room_x` is `holder.lip_plan`, and
   `tests/test_topper.py` holds them together. The TABS are not: `holder.py`
@@ -771,12 +824,6 @@ and the filleted `Unseen` body holds nothing it lacks.
 - **`LIP_ROOM_RISE 2.000`** is `#LipHeight` on the evidence of two parameter
   sets, both of which have it constant. Not bound to `holder.SLANT_STEP` on
   that alone.
-- **`Figures` sits 0.45% off the band constant** the other four share. See
-  "The typeface" — not understood, and not blocking.
-- **`Figures`' construction** is two concentric circles with a radial gap of
-  `calLogoSidelength/5`, but which region is the mark — the annulus alone, or
-  the disc with a ring — is not settled. It is one solid in the corpus, which
-  an annulus is.
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly
   65% of the 15-card, because the text sits in the topper's depth. That wants
   deriving rather than transcribing, and the pair that isolates it is one

@@ -50,9 +50,9 @@ are not buildable yet. `spec/TOPPER.md` records every rule they will need.
 import math
 
 from build123d import (
-    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, GeomType, Line,
-    Location, Mode, Plane, Polyline, Pos, Rot, Text, ThreePointArc, chamfer,
-    extrude, fillet, make_face, mirror,
+    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Circle, GeomType,
+    Line, Location, Mode, Plane, Polyline, Pos, Rot, Text, ThreePointArc,
+    chamfer, extrude, fillet, make_face, mirror,
 )
 
 from .. import derive as D
@@ -582,10 +582,61 @@ def _cities_mark(L):
     return out
 
 
-MARKS = {"Unseen": _unseen_mark, "Cities": _cities_mark}
-# `Echoes`, `Artifacts` and `Figures` are transcribed in spec/TOPPER.md from
-# Allan's sketches but not built: the two here could be derived because their
-# STEPs difference out exactly, and those three have only the cached meshes.
+def _echoes_mark(L):
+    """A diamond: a square turned 45 degrees, its four vertices on the box's
+    edge midpoints. Area `L**2 / 2` — 36.44439 against 36.4444 measured."""
+    r = L / 2
+    with BuildSketch() as sk:
+        with BuildLine():
+            Polyline((0.0, r), (-r, 0.0), (0.0, -r), (r, 0.0), close=True)
+        make_face()
+    return sk.sketch
+
+
+def _artifacts_mark(L):
+    """Two tall triangles that OVERLAP, and the overlap is the whole point.
+
+    Each has its base on the box's bottom edge and its apex `L/4` in from a
+    top corner, and the bases cross the centre line by `L/8`:
+
+        left    (-L/2, -L/2)  (L/8, -L/2)  (-L/4, L/2)
+        right   ( L/2, -L/2) (-L/8, -L/2)  ( L/4, L/2)
+
+    Their union has five edges, not six: below the crossing the two bases are
+    one line. The notch where the inner edges meet falls out at
+    `(0, -1.42292)`, which is `-L/2 + L/3`, and the reference reads
+    `(0.0000, -1.4229)`.
+    """
+    r = L / 2
+    out = None
+    for sgn in (-1.0, +1.0):
+        with BuildSketch() as tri:
+            with BuildLine():
+                Polyline((sgn * r, -r), (-sgn * L / 8, -r),
+                         (sgn * L / 4, r), close=True)
+            make_face()
+        out = tri.sketch if out is None else out + tri.sketch
+    return out
+
+
+def _figures_mark(L):
+    """An ANNULUS — the ring alone, not a disc with a ring round it.
+
+    That was the open question, and the reference answers it directly: the
+    mark is ONE solid with TWO wires, and a disc with a separate ring would be
+    two solids. Outer radius `L/2`, inner `L/2 - L/5`, so the radial gap is the
+    `L/5` Allan's sketch carries: `2.56125` against `2.5613` measured, and the
+    area `36.63797` against `36.6380`.
+    """
+    with BuildSketch() as sk:
+        Circle(L / 2)
+        Circle(L / 2 - L / 5, mode=Mode.SUBTRACT)
+    return sk.sketch
+
+
+MARKS = {"Artifacts": _artifacts_mark, "Cities": _cities_mark,
+         "Echoes": _echoes_mark, "Figures": _figures_mark,
+         "Unseen": _unseen_mark}
 
 
 def expansion_name(p, d, expansion):
@@ -623,9 +674,6 @@ def build(p, d=None, expansion="Blank"):
         raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
     if expansion not in EXPANSIONS:
         raise ValueError(f"no such Innovation expansion: {expansion!r}")
-    if expansion != "Blank" and expansion not in MARKS:
-        raise ValueError(f"{expansion}'s mark is not written yet — "
-                         f"see spec/TOPPER.md, 'Still open'")
     if d is None:
         d = D.derive(p)
     part = wedge(p, d) - inner_hole(p, d)                 # Main topper
