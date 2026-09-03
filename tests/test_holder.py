@@ -3,9 +3,11 @@
 
     .venv/bin/python tests/test_holder.py
 
-Three references in `spec/reference/`, listed in `spec/HOLDER.md`. The Holder is
-being built group by group; this asserts only what has actually been written,
-and grows with it.
+Ten references in `spec/reference/`, listed in `spec/HOLDER.md`, and all ten
+are asserted against. Between them they cover every slot width (63 to 70),
+every compartment count (2 to 5), all four games, both sleevings and both
+slider distances, so a rule that survives here is general rather than
+Dominion's.
 
 The 246 pair is what makes this worth doing: it is ONE configuration exported
 twice, as `Holder` and as `FirstHolder`, so the two differ only in what `first`
@@ -13,11 +15,13 @@ changes, and its `calSliderDistance` and `calFirstSliderDistance` differ by more
 than a factor of two. Every reading below that involves a slider distance is
 therefore asserted against a case that would fail if the wrong one were used.
 
-Proven so far: the envelope (width, depth, the base), the `Top slant angle`
-plane pair and its slope, the vertical datum, `Hole for cards`, the lattice, the finger scallops
-and their modelled fillet, the side slots, the rear lips,
-the dropped floor, the lip rests
-and the engraved bottom text.
+Every feature in the tree is asserted here: the envelope (width, depth, the
+base), the `Top slant angle` plane pair and its slope, the vertical datum,
+`Hole for cards`, the lattice, the finger scallops and their modelled fillet,
+the side slots, the rear lips, the dropped floor, the lip rests and the engraved
+bottom text — the last both where it reproduces Onshape and where it
+deliberately does not. `tests/test_holder_corpus.py` is the other half: the
+written 3MFs against the 50 cached components.
 """
 import math
 import sys
@@ -73,17 +77,26 @@ REFS = [
      row_params("105 Card", 1), False),
     ("FCM S4.18.12 Un", "Holder S4.18.12.32-Un.step",
      row_params("198 Card", 0), False),
+    # `210 Card`, both sleevings, both RE-EXPORTED. The first exports of this
+    # row were 12 cards deep where the row says 7, and were the only things in
+    # the catalogue that did not satisfy the depth rule; the re-exports measure
+    # 7.600 and 4.800, which is the rule exactly under each card thickness. So
+    # they were mis-configured exports, not a rule -- and the `105 Card`
+    # reference, which had already refused a `COMPILE_DEPTH_CARDS` override by
+    # satisfying the plain rule, was right to. FIVE compartments, the widest
+    # holders in the catalogue, and the unsleeved one is the only reference at
+    # `calSlotwidth 68.000`.
+    ("Compile L5.7.7 Sl", "Holder L5.7.7.45-Sl.step",
+     row_params("210 Card", 1), False),
+    ("Compile L5.7.7 Un", "Holder L5.7.7.20-Un.step",
+     row_params("210 Card", 0), False),
 ]
 
-# Held out, NOT deleted: `210 Card`'s two holders are 12 cards deep where the
-# row says 7, while `105 Card` -- the other Compile row, same CardsPerSlidingSlot
-# -- is exactly 7. One row disagreeing with the rule its sibling satisfies is a
-# question about that row, not about the formula, so nothing is special-cased
-# and these are parked until it is answered. See spec/HOLDER.md.
-HELD_OUT = [
-    ("Compile L5.7.7 Sl", "Holder L5.7.7.45-Sl.step", "210 Card", 1),
-    ("Compile L5.7.7 Un", "Holder L5.7.7.20-Un.step", "210 Card", 0),
-]
+# Nothing is held out any more. The list stays because the mechanism is worth
+# keeping: a reference that fails a rule every other reference satisfies is a
+# question about that reference, and parking it here -- rather than fitting the
+# rule to it -- is what got both `210` exports re-cut. See spec/HOLDER.md.
+HELD_OUT = []
 fails = []
 
 
@@ -500,7 +513,8 @@ for name, fn, p, first in REFS:
               bool(got and got.volume > 1.0), True)
 
 
-print("\n=== held out ===")
+if HELD_OUT:
+    print("\n=== held out ===")
 for name, fn, short, sl in HELD_OUT:
     q = row_params(short, sl)
     e = D.derive(q)

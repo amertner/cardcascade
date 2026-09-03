@@ -81,6 +81,33 @@ meshes in `individual/Dominion/` instead — which, unusually, ARE a regression
 target here: the token holder did not change in 7.0 (Allan), so only the
 engraved version string differs. `tests/test_token_holder_corpus.py`.
 
+### Holder
+
+Ten — the most of any part, because the Holder has the most axes to split and
+because its width constant had to be told from a near miss: `individual/` holds
+holders `0.200` wider that are otherwise identical to the micron, and every one
+of these ten says `+9.800`. What has been measured off them is in
+`spec/HOLDER.md`; `tests/test_holder.py` asserts against all ten.
+
+| file | cascade |
+|---|---|
+| `Holder S2.40.12-30.45-Sl.step` | Dominion `246 Card` Sl — the row with a first-riser override, and the cascade whose Box, Lid and Pusher are all referenced above |
+| `FirstHolder S2.40.12-30.45-Sl.step` | the same configuration exported as its FIRST riser. The PAIR is the point, and this one is load-bearing: `calSliderDistance 9.600` against `calFirstSliderDistance 20.400`, so everything keyed to a slider distance — the depth, the slant, the lip's reach — is asserted against a case that fails outright if the wrong one is used. Everywhere else in the catalogue the two are equal |
+| `Holder S9.21.10.62-Sl.step` | Dominion `333 Card` Sl — nine risers, the catalogue's shallowest rise, and the only reference whose back wall still reaches up behind the finger scallop. That is what caught a scallop cut through it, and what places `Lip Rest`'s oblique sweep |
+| `Holder M5.10.10.45-Sl.step` | Innovation `4 Later Ages` Sl — a SPANNING game, four compartments, `calSlotwidth 69.000`. Everything measured on the Dominion three was `65.000` and three compartments until this arrived |
+| `Holder M5.10.10.32-Un.step` | the same row unsleeved, `67.000` |
+| `Holder XS5.15.10.45-Sl.step` | Innovation `Single Mini` Sl — TWO compartments, the narrowest holder, and one of the two whose Onshape text collides with itself |
+| `Holder S4.7.7.32-Sl.step` | Compile `105 Card` Sl — `calSlotwidth 70.000`, and the export that killed a `COMPILE_DEPTH_CARDS` override by satisfying the plain rule exactly |
+| `Holder S4.18.12.32-Un.step` | FCM `198 Card` Un — `63.000`, the narrowest slot, and the game's only reference |
+| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` Sl — five compartments, the widest holder in the catalogue. **Re-exported 2026-09-03**: the first export of this row was 12 cards deep where the row says 7, and was the one thing in the catalogue that did not satisfy the depth rule. Allan confirmed the row holds 7, and the re-export measures `7.600` — the plain rule, exactly. The old file is in git history |
+| `Holder L5.7.7.20-Un.step` | the same row unsleeved — **re-exported 2026-09-03** alongside its twin, and the other half of the same mis-configuration: 12 cards again, under `calCardThickness 0.400` this time, which is what made it a card COUNT rather than an offset. The re-export measures `4.800`, the rule under that thickness. The only reference at `calSlotwidth 68.000` |
+
+A reference that fails a rule every other reference satisfies is a question
+about that reference first. Holding these two out — rather than fitting the rule
+to them — is what made the re-exports worth asking for; both landed on the rule
+to the thousandth. `tests/test_holder.py` keeps its `HELD_OUT` list, now empty,
+for the next time.
+
 ### Topper
 
 Eleven, and between them they made the Topper solvable without a single API
@@ -107,7 +134,6 @@ were derived rather than traced.
 sleeved `Unseen` files in `individual/` are STALE and these STEPs are not, and
 `Solid.volume` is not a safe metric on a named body — OCCT over-reports it by
 about 1 mm3, on these exports as much as on the source.
-
 
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather
