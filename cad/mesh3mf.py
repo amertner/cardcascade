@@ -18,7 +18,9 @@ the same density they were tuned on.
 
 Vertices are welded on a 1e-6 mm key, which OCCT's per-face tessellation does
 not do for itself; it halves the file for free and leaves no degenerate
-triangles (checked on every pusher).
+triangles (checked on every pusher). Where two faces meet TANGENTIALLY the weld
+can also fuse their two triangulations into a back-to-back pair, which is what
+`_drop_flaps` is for — see it.
 
 The archive is written with a fixed timestamp so that rebuilding unchanged
 source gives a byte-identical file, and `build.py` can tell a real change from a
@@ -46,6 +48,49 @@ RELS = (
     '</Relationships>')
 
 
+def _drop_flaps(tris):
+    """Remove back-to-back coincident triangle PAIRS left by the weld.
+
+    Where two faces are tangent, the weld can fuse their triangulations: OCCT
+    meshes each face separately, and near the tangency the two land within the
+    1e-6 key, so the same three vertices come out twice — once from each face,
+    and necessarily wound OPPOSITE ways, since the two faces look at that patch
+    from opposite sides. The pair is a zero-thickness flap. It encloses nothing,
+    so dropping BOTH members leaves the solid and its volume untouched (checked:
+    identical to 1e-11), and leaves the surface closed.
+
+    It is worth doing because a flap is exactly what a slicer calls
+    non-manifold: two triangles sharing an edge in the same direction. The
+    Holder is where it showed up — the finger scallop's modelled fillet is
+    tangent to the rear face, and on the two shallowest FCM holders the slant
+    passes through that tangent point as well, which is enough to trip it: 32
+    and 40 flaps there, and none on the other 54.
+
+    Same-winding duplicates are NOT dropped: those would be a real doubled
+    surface and a bug worth seeing rather than hiding. None has ever appeared.
+
+    This is NOT a general mesh repair, and the written catalogue is not yet
+    clean. Scanning all 800 written bodies finds two other faults, neither of
+    them a flap and neither of them addressed here: three Innovation boxes have
+    six edges apiece with four triangles on them (a line contact, not a hole),
+    and twelve logo inlays across four Innovation lids each carry 24 UNPAIRED
+    edges — an open boundary, i.e. a missing face. Onshape's own meshes have
+    none of the three. Recorded in spec/HOLDER.md, "The mesh".
+    """
+    where = {}
+    for i, t in enumerate(tris):
+        where.setdefault(tuple(sorted(t)), []).append(i)
+    drop = set()
+    for same_verts in where.values():
+        if len(same_verts) != 2:
+            continue
+        a, b = (tris[i] for i in same_verts)
+        # Opposite winding: b traverses one of a's edges backwards.
+        if (a[1], a[0]) in ((b[0], b[1]), (b[1], b[2]), (b[2], b[0])):
+            drop.update(same_verts)
+    return [t for i, t in enumerate(tris) if i not in drop]
+
+
 def triangulate(shape, tolerance=TOLERANCE, angular=ANGULAR):
     """(vertices in mm, triangles) for a build123d shape, vertices welded."""
     verts, tris = shape.tessellate(tolerance, angular)
@@ -61,7 +106,7 @@ def triangulate(shape, tolerance=TOLERANCE, angular=ANGULAR):
         t = (remap[a], remap[b], remap[c])
         if len(set(t)) == 3:            # welding can collapse a sliver
             out_t.append(t)
-    return out_v, out_t
+    return out_v, _drop_flaps(out_t)
 
 
 def model_xml(parts):

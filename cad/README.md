@@ -7,11 +7,10 @@ is generated from `parts.csv` with **zero API calls** and the design is in git.
 downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
-**Done so far: the Pusher, the Box, the Lid and the TokenHolder**, the Lid
-including its logo pattern for all four games and the TokenHolder in both its
-configurations. The Holder is most of the way there and writes 3MFs, but is
-about 2% heavy and not printable yet (`spec/HOLDER.md`); the Topper is not
-written at all. The Onshape path is still the one that builds a cascade.
+**Done so far: the Pusher, the Box, the Lid, the TokenHolder and the
+Holder**, the Lid including its logo pattern for all four games and the
+TokenHolder in both its configurations. Only the **Topper** is not written at
+all. The Onshape path is still the one that builds a cascade.
 
 The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
 is FITTED to the lid — the biggest mark that fits, sized to a proportion of
@@ -38,6 +37,7 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
 .venv/bin/python -m cad.build --part box         # all 50 — MINUTES
 .venv/bin/python -m cad.build --part tokenholder # 22, Dominion only, seconds
+.venv/bin/python -m cad.build --part holder      # all 56 — 3 s each
 .venv/bin/python -m cad.build --part all         # all of them
 
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
@@ -47,6 +47,8 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python tests/test_lid_corpus.py        # the rules vs 44 cached lids
 .venv/bin/python tests/test_token_holder.py      # source vs both STEPs
 .venv/bin/python tests/test_token_holder_corpus.py  # the rules vs all 18
+.venv/bin/python tests/test_holder.py            # source vs the eight STEPs
+.venv/bin/python tests/test_holder_corpus.py     # build/ vs the 50 in individual/
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
 .venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
 ```
@@ -79,13 +81,14 @@ cad/
     box.py      done
     lid.py      done, logo pattern included — see spec/LID.md
     token_holder.py  done — FULL and HALF, Dominion only
-    holder.py   INCOMPLETE — see spec/HOLDER.md; topper.py to come
+    holder.py   done — see spec/HOLDER.md; topper.py to come
 spec/
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
   PUSHER.md     the Pusher measured, and what the rebuild reproduces
   BOX.md        the same for the Box
   LID.md        the same for the Lid
   TOKENHOLDER.md the same for the TokenHolder, both configurations
+  HOLDER.md     the same for the Holder, and where it diverges on purpose
   reference/    hand-exported STEPs — the ground truth, 0 API calls
 tests/
   test_derive.py            formulae vs every measured anchor on record
@@ -96,6 +99,10 @@ tests/
   test_lid_corpus.py        the Lid's placement rules vs 44 cached meshes
   test_token_holder.py      the part vs both TokenHolder STEPs
   test_token_holder_corpus.py  its rules vs all 18 cached token holders
+  test_holder.py            the part vs eight of the ten Holder STEPs
+  test_holder_corpus.py     the 56 written 3MFs vs the 50 in individual/
+  holder_diff.py            dev loop: the Holder band by band, not a test
+  box_diff.py               dev loop: the Box lump by lump, not a test
 ```
 
 ## What this replaces, and what it does not
@@ -230,4 +237,9 @@ catalogue after the Pusher, it has a STEP for each of its two configurations,
 and — alone so far — its 18 cached components are a REGRESSION target rather
 than a shape reference, because it did not change in 7.0.
 
-Then the Holder, and then the Topper.
+Then the **Holder**, which is done, including the two features no kernel will
+compute for itself — `Fillet 1`, whose two rounds meet exactly, and the chamfer
+on `Lip Rest` — both modelled into their cuts and both measured. It is also the
+part that found the one meshing bug in the writer (`spec/HOLDER.md`, "The mesh").
+
+Then the Topper, which is what is left.

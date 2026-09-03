@@ -2,7 +2,7 @@
 
 The card tray that rides the box's slider ribs. One per riser; a cascade's
 holders form a staircase, and their sloped tops make one continuous diagonal
-when the cascade is open. Measured in `spec/HOLDER.md` against three
+when the cascade is open. Measured in `spec/HOLDER.md` against ten
 hand-exported STEPs; the Onshape feature tree it mirrors is, in order:
 
     Core holder     Pocket outline / Extrude 1 / Hole for cards / Hole outline /
@@ -26,9 +26,15 @@ Local frame (the part studio's):
     Z   0 midway between the base and the card pocket's TOP, both at
         (CardHeight - 1.5)/2 on every reference whatever the parameters
 
-INCOMPLETE. `build()` stops after the rear lips. See `spec/HOLDER.md`
-"Still open" for what is left and `tests/test_holder.py` for what is proven.
-Nothing writes a Holder to build/ yet.
+Every feature in that tree is built. Against the eight references the solid is
+`+0.125%`, all but `+0.003%` of it the DELIBERATE text divergence on the two
+holders Onshape engraves too big to fit (`text_size`). `tests/test_holder.py` is
+what is proven against the STEPs, `tests/test_holder_corpus.py` what is proven
+against the 50 cached components, and `tests/holder_diff.py` the dev loop.
+
+Two features here are MODELLED rather than asked for, because no kernel will
+compute them: `Fillet 1` (`finger_tool`) and the chamfer on `Lip Rest`
+(`lip_rests`). Both are measured, and `spec/HOLDER.md` says how.
 """
 import math
 
@@ -617,10 +623,7 @@ def bottom_text(p, d, first, part):
 
 
 def build(p, first=False):
-    """`p` is a params.Primary. Returns the Holder as a build123d Part.
-
-    INCOMPLETE — see the module docstring.
-    """
+    """`p` is a params.Primary. Returns the Holder as a build123d Part."""
     d = D.derive(p)
     part = shell(p, d, first)
     part = card_pockets(p, d, first, part)

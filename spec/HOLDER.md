@@ -5,18 +5,24 @@ holders form a staircase, and their sloped tops make one continuous diagonal
 when the cascade is open. `automation/plan_exports.holder` is the design record
 for WHY it is keyed the way it is; this file is the geometry.
 
-## The three references
+## The ten references
 
-Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`:
+Hand-exported from the Onshape UI, so 0 API calls, in `spec/reference/`. Eight
+are asserted against; the last two are held out — see "`210 Card` disagrees with
+its own sibling" below.
 
-| file | row | n | risers | sleeved | `calSliderDistance` | `calHeightIncrement` |
-|---|---|---|---|---|---|---|
-| `Holder S2.40.12-30.45-Sl.step` | Dominion `246 Card` | 3 | 2 | yes | 9.600 | 16.000 |
-| `FirstHolder S2.40.12-30.45-Sl.step` | the same row's first riser | 3 | 2 | yes | **20.400** | 16.000 |
-| `Holder S9.21.10.62-Sl.step` | Dominion `333 Card` | 3 | 9 | yes | 8.400 | 9.667 |
-
-| `Holder M5.10.10.45-Sl.step` | Innovation `4 Later Ages` | 4 | 5 | yes | 8.900 | 17.400 |
-| `Holder M5.10.10.32-Un.step` | the same row, unsleeved | 4 | 5 | no | 6.400 | 17.400 |
+| file | row | n | risers | sleeved | `calSlotwidth` | `calSliderDistance` | `calHeightIncrement` |
+|---|---|---|---|---|---|---|---|
+| `Holder S2.40.12-30.45-Sl.step` | Dominion `246 Card` | 3 | 2 | yes | 65.000 | 9.600 | 16.000 |
+| `FirstHolder S2.40.12-30.45-Sl.step` | the same row's first riser | 3 | 2 | yes | 65.000 | **20.400** | 16.000 |
+| `Holder S9.21.10.62-Sl.step` | Dominion `333 Card` | 3 | 9 | yes | 65.000 | 8.400 | 9.667 |
+| `Holder M5.10.10.45-Sl.step` | Innovation `4 Later Ages` | 4 | 5 | yes | 69.000 | 8.900 | 17.400 |
+| `Holder M5.10.10.32-Un.step` | the same row, unsleeved | 4 | 5 | no | 67.000 | 6.400 | 17.400 |
+| `Holder XS5.15.10.45-Sl.step` | Innovation `Single Mini` | **2** | 5 | yes | 69.000 | 8.900 | 17.400 |
+| `Holder S4.7.7.32-Sl.step` | Compile `105 Card` | 3 | 4 | yes | 70.000 | 8.000 | 18.000 |
+| `Holder S4.18.12.32-Un.step` | FCM `198 Card` | 3 | 4 | no | 63.000 | 6.960 | 20.000 |
+| `Holder L5.7.7.45-Sl.step` | Compile `210 Card` — HELD OUT | **5** | 5 | yes | 70.000 | 8.000 | 17.400 |
+| `Holder L5.7.7.20-Un.step` | the same row, unsleeved — HELD OUT | **5** | 5 | no | 68.000 | 5.200 | 17.400 |
 
 The 246 pair is the useful one for `first`: it is ONE configuration exported
 twice, so the two differ only in what `first` changes, and its
@@ -32,6 +38,11 @@ the slant, the pocket, the lattice at two more slot widths, the scallop with its
 modelled fillet, and the side slot are all confirmed across two games, four slot
 widths and both compartment counts. Whatever distinguishes a spanning game, it
 is not any of these.
+
+The **last four close the parameter space**. Between them they add every
+remaining slot width (`63`, `68`, `70`), both remaining compartment counts (`2`
+and `5`), and the two games that had no reference at all — and the only thing
+they broke is one row's depth, not a rule.
 
 ## The frame
 
@@ -220,7 +231,11 @@ Set against `cad/parts/box.py`, measured independently on the other part:
 Neither was fitted to the other, so this is a real cross-part check and the test
 asserts it as one.
 
-## `Card holder bottom` needs no code
+## `Card holder bottom`: what a 1.000-spaced probe could not see
+
+**Superseded — see "`Card holder bottom` drops the floor `0.200`" below.** Kept
+because the reasoning is the instructive part: the reading was not careless, it
+was made with a probe too coarse to see the feature, and it looked like proof.
 
 The base is already right. Probing a compartment's centre finds material at
 `-44.750` and `-43.750` and none at `-42.750` or `-41.750` on all three
@@ -361,31 +376,79 @@ string's own ink extents — `0.598` to `1.353` above the back face across the
 five — and lands within `0.4` of centre; with the size already a divergence,
 centring is the rule that stays sensible when it binds.
 
-## `individual/` is a mixed catalogue, again
+## `individual/` is a mixed catalogue, and its own provenance cannot say so
 
-Overall width is `calSlotwidth * n` plus a constant, and the 38 corpus holders
+Overall width is `calSlotwidth * n` plus a constant, and the 50 corpus holders
 that map to a parts.csv row split cleanly:
 
      +9.800  x20
-    +10.000  x18
+    +10.000  x30
 
-All three STEPs are `+9.800`, including `Holder S9.21.10.62-Sl` whose corpus
-twin `Holder S-21-r9-Sl.3mf` is `+10.000` and otherwise identical to the micron.
-So `+9.800` is current and the 18 are stale — the same shape of problem as the
-pushers' 18/14, and the regression should reproduce the 20 and MOVE the 18.
+All ten STEPs are `+9.800`, including `Holder S9.21.10.62-Sl` whose corpus twin
+`Holder S-21-r9-Sl.3mf` is `+10.000` and otherwise identical to the micron. So
+`+9.800` is current and the 30 are stale — the same shape of problem as the
+pushers' 18/14, and `tests/test_holder_corpus.py` reproduces the 20 and MOVES
+the 30.
 
-## What is left, measured
+**The split is exactly the export DATE**, from `automation/state/<Game>.csv`:
 
-`python -m cad.build --part holder` writes all 56, about three seconds each. The
-geometry is **+0.33% heavy** against the eight references, down from `+2.01%`,
-and every cubic millimetre of the remainder is now accounted for:
+    ..2026-08-20 18:47   +10.000  x30
+      2026-08-24 12:55.. +9.800   x20
+
+and every one of the 50 is recorded at studio version **6.6**. This is the
+unversioned change `automation/PIPELINE.md` already records under "An
+unversioned CAD change is invisible to provenance": Allan's fix for holders that
+users reported sticking, rolled out deliberately without a `VERSIONS["Holder"]`
+bump so that it folds into whatever gets re-exported next. Holders of both
+lengths coexisting is intended, and `PROV.is_current` cannot tell them apart —
+`--changed Holder` is the lever, when someone wants them swept.
+
+PIPELINE.md dated it off the SPANNING holders' `X-min` alone (`-38.5000` ->
+`-38.4000`, five files). It is the same `0.100` a side on all 50, per-slot games
+included, and the width constant is the whole of it.
+
+For `cad/` this decides only which number to build: `4.900` is what all ten
+STEPs measure and what the studio has now.
+
+The engraved version says the same thing from the other side. Every cached
+holder engraves `CC 6.6` — measured as ink width against `cad/text.py`, exact to
+a thousandth on all five sampled, including the ones exported on 2026-08-31 —
+while every hand-exported STEP engraves `CC 7.0`. So the studio's version
+variable moved after the last of these exports, and the corpus regression builds
+at `Version="6.6"` to compare like for like.
+
+**The difference is the end block and nothing else.** Set the 30 against the
+build and every other coordinate agrees to the micron — depth, height, the lip's
+reach, where the part sits — with X in by `0.100` at each end and the volume
+down by `0.25%` to `1.10%`, which is what those two slivers of end block weigh.
+The test asserts that, rather than a width: a stale file that had also moved its
+lattice or its lip would pass a width check and fail this one.
+
+## Where it stands
+
+`python -m cad.build --part holder` writes all 56, about three seconds each,
+and every one of them is a closed, manifold mesh. Against the eight references
+the geometry is **+248.4 mm³ on 198,747**, `+0.125%`, and all but a few cubic
+millimetres of that is the DELIBERATE text divergence on the two holders whose
+Onshape text collides with itself:
 
 | | mm3 |
 |---|---|
-| engraved bottom text, not built | **+733.43** |
-| `Chamfer lip rest`, not built (over-cut) | **-66.32** |
-| unexplained | -11.27 |
-| net | **+655.84** |
+| text, on the two holders Onshape engraves too big | **+251.40** |
+| `Chamfer lip rest`, shape error | +6.20 |
+| everything else, over all eight | +0.06 |
+| boolean loss in the measurement itself | -9.27 |
+| net | **+248.38** |
+
+Set the text aside and the whole of the rest is `+6.3 mm³` — `+0.003%`, and of
+the same order as the arithmetic's own noise. `tests/holder_diff.py` is the dev
+loop that prints this band by band, the last column included.
+
+## The four features a volume diff found, in the order it found them
+
+Each of these was invisible to the check that had been made of it, and each was
+found by taking the difference against a reference rather than by probing where
+the feature was expected to be. That is the transferable part.
 
 ### `Card holder bottom` drops the floor `0.200`
 
@@ -460,42 +523,96 @@ claimed to be.
 
 Volume alone can hide errors that cancel, and once the text is built the
 boolean diff is unreliable — OCCT fails to clean it on five of the eight and
-returns the whole solid. Comparing INTERSECTIONS band by band does work, and
-gives this:
+returns the whole solid. Comparing INTERSECTIONS band by band does work
+(`tests/holder_diff.py`), and gives this, in mm³, positive meaning the build has
+more material there:
 
-| holder | text | base | body | rests | lips |
-|---|---|---|---|---|---|
-| 246 Sl | +0.48 | -0.00 | -0.48 | +0.46 | -0.00 |
-| 246 1st | **+230.73** | -0.00 | -5.80 | +0.07 | -0.01 |
-| 333 Sl | +0.90 | -0.00 | -0.00 | -1.21 | -0.00 |
-| Inno M Sl | +1.55 | -0.00 | +1.60 | -0.00 | -0.00 |
-| Inno M Un | +0.75 | -0.00 | +4.74 | -0.03 | -0.01 |
-| Inno XS | **+15.99** | -0.00 | +0.80 | -0.00 | -0.00 |
-| Compile 105 | +0.72 | -0.00 | +2.23 | -0.00 | -0.00 |
-| FCM 198 Un | +0.28 | -0.00 | +3.79 | +0.00 | -0.00 |
+| holder | total | text | base | body | rests | lips | residual |
+|---|---|---|---|---|---|---|---|
+| 246 Sl | -0.006% | +0.48 | -0.00 | -0.00 | -0.02 | +0.00 | -1.91 |
+| 246 1st | +0.559% | **+230.73** | +0.00 | +0.07 | -5.73 | -0.00 | -2.10 |
+| 333 Sl | -0.005% | +0.90 | -0.00 | +0.01 | -1.21 | +0.00 | -0.82 |
+| Inno M Sl | -0.007% | +1.55 | +0.00 | -0.01 | +1.60 | -0.00 | -5.28 |
+| Inno M Un | +0.011% | +0.75 | -0.00 | +0.00 | +4.74 | -0.00 | -2.76 |
+| Inno XS | +0.093% | **+15.99** | -0.00 | -0.00 | +0.80 | -0.00 | -0.20 |
+| Compile 105 | +0.005% | +0.72 | -0.00 | -0.02 | +2.23 | +0.00 | -1.69 |
+| FCM 198 Un | +0.052% | +0.28 | -0.00 | +0.00 | +3.79 | -0.00 | +5.48 |
 
-The base and the lips are exact on all eight. The `body`/`rests` columns are the
-lip rest's chamfer residual and nothing else. The `text` column is exact on the
-six holders whose text fits, and carries the deliberate divergence on the two
-that do not.
+The base, the body and the lips are exact on all eight — the `body` column is
+hundredths of a cubic millimetre across a part of twenty thousand. The `text`
+column is exact on the six holders whose text fits, and carries the deliberate
+divergence on the two that do not.
 
-**Every feature in the tree is now built.** What is left is a few cubic
-millimetres of shape error in the lip rest, and the text divergence, which is
-intended.
+**`residual` is the method's own error, and it is why `rests` is not quoted as
+a measurement.** The five bands tile the part, so they have to add up to the
+whole difference; what is left over is volume the intersections lost. It is not
+symmetric — cut a single shape into the same bands and the BUILD loses `0.27`
+every time while the imported STEP loses between `1.1` and `5.5`, which is where
+almost all of it comes from. So this table resolves the `+230` and the `+16` in
+the `text` column, and it does not resolve `rests`. The honest statement about
+`Chamfer lip rest` is that its shape error is of the order of a few cubic
+millimetres a holder, mixed in sign — the same conclusion the chamfer's own
+section reaches by a different route, which is the only reason to believe it.
+
+**Every feature in the tree is built, and the part is printable.** What is left
+is a few cubic millimetres of shape error in the lip rest, and the text
+divergence, which is intended.
+
+## The mesh, and one thing OCCT gets wrong at a tangency
+
+A valid solid is not yet a printable file. Two of the 56 written holders — FCM's
+`M5.6.6.20-Un` and `L3.18.6.20-Un`, the two shallowest in the catalogue — came
+out with 64 and 80 NON-MANIFOLD edges, while Onshape's own 850 cached bodies
+have none anywhere.
+
+The solids were valid (`BRepCheck_Analyzer`, one solid, one shell). The fault
+was in the meshing, and specifically in the weld: OCCT triangulates each face
+separately, `Fillet 1`'s torus is TANGENT to the rear face, and where the slant
+passes through that tangent point as well the two faces' triangulations land
+within the `1e-6` weld key. The same three vertices then come out twice, wound
+opposite ways — a zero-thickness flap, which is exactly the thing a slicer calls
+non-manifold.
+
+`cad/mesh3mf._drop_flaps` removes both members of such a pair. They enclose
+nothing, so the volume is unchanged to `1e-11`, and the surface closes. All 56
+written holders are now closed and manifold, which
+`tests/test_holder_corpus.py` asserts on every run.
+
+### Two faults it does NOT fix, found by the same scan
+
+Sweeping all 800 written bodies for the same thing turns up two more, both
+outside the Holder and neither of them a flap. **They are recorded here because
+this is where the scan was written, not because they belong to this part.**
+
+| what | where | reading |
+|---|---|---|
+| six edges with FOUR triangles on them | `Box M5.10.10.45-Sl`, `S5.10.10.45-Sl`, `XS5.15.10.45-Sl` — Innovation, sleeved, and only these three | a line contact: two surfaces meeting along `x -95.050, y 28.200` rather than crossing. Not a hole |
+| 24 UNPAIRED edges, i.e. an open boundary | `Part 2`, `Part 3` and `Part 4` of `Lid S3.15.10.20-Un`, `S3.15.10.32-Sl`, `XS5.15.10.32-Un`, `XS5.15.10.45-Sl` — 12 inlay bodies | a missing face: a closed loop of boundary edges on the flat at `z 0.800`. A real hole in a printed body |
+
+Onshape's own 850 cached bodies have neither, so both are the writer's or the
+solid's and not the design's. The lid one is the more serious — an open
+boundary is a hole a slicer has to guess at, where a line contact usually
+prints.
 
 ## Still open
 
-- Where the slant plane sits, not just its slope.
-- `Chamfer lip rest` — see above, `66.32 mm3` over eight references.
-- `Lip Rest` and `Chamfer lip rest`: a REMOVE, extruding the lip's own faces
-  through all along `LipPlane` from a starting offset of `#calSlotDepth * 2`.
-  Measured on the references but not yet built.
-- `Leftmost Pusher Pos` — what it positions.
-- Whether the row rail stays `2.000` at other card heights; only `CardHeight
-  92.0` has a reference.
-- `Remove little front lip`, `Remove Slant Angle`, `Middle`.
 - **`210 Card`'s depth**: 12 cards where the row says 7 and its sibling
   measures 7. See above. Needs the row's real `Cards/Riser slot`, or a
-  re-export.
-- The row rail's `2.000` at another `CardHeight`. Every reference is `92.0`,
-  and only `Colours` is not.
+  re-export. **For Allan.**
+- Whether the 30 pre-2026-08-24 cached holders should be swept onto `4.900`.
+  Not a rebuild question — the rebuild already builds `4.900` — but the two
+  lengths do coexist in shipped cascades, and PIPELINE.md says that is
+  deliberate. `--changed Holder` is what sweeps them if the answer is yes.
+  **For Allan.**
+- `Leftmost Pusher Pos` — what it positions. Nothing in the solid needs it, and
+  eight references reproduce without it, so it is a name without a consequence
+  rather than a gap; recorded in case it acquires one.
+- `Remove little front lip`, `Remove Slant Angle`, `Middle` — the same. The
+  band-by-band table is what says so, within what it resolves: a feature of
+  more than a few cubic millimetres has nowhere left to hide in it. Something
+  smaller than that would not be caught here.
+- Whether the row rail stays `2.000` at another `CardHeight`. Not answerable and
+  not a risk: `derive` gives `CardHeight = 92.0` for EVERY game, and the only
+  other value the studio ever had was CraftGutermann's `58.0`, which is
+  deprecated and gone. (An earlier revision of this file said `Colours` was the
+  exception. `Colours` differs in `BoxHeight` and `LidHeight`, not in the card.)
