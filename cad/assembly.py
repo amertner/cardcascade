@@ -185,3 +185,146 @@ def holders(p, d):
 def pushers(p, d):
     """How many pushers a cascade stores, and which slot each takes."""
     return list(range(box_part.pusher_slot_count(p)))
+
+
+# --- the TokenHolder -------------------------------------------------------
+#
+# Its own frame's origin is already the SLOT's corner, not the part's — the
+# part is the slot inset CLEARANCE on all four sides — so this placement is
+# just where that slot is in the box. Its Y runs the opposite way to the box's
+# (0 at the slot's FRONT edge, negative going BACK), so the placement is a 180
+# degree turn about Z: with X alone flipped it would be a MIRROR, which no
+# physical part is. That also settles what its "left edge of the slot" means —
+# left as seen from behind, which is the box's +X end.
+
+def token_slot_x(p, d):
+    """The slot's +X end, which the turn makes its origin.
+
+    Two expressions land on it and they agree exactly, which is what says it is
+    the right datum: the last front divider's right edge plus
+    `calTokenHolderSlotWidth`, and the right inner wall less
+    `FrontPocketSidePaddingWidth`. Both give 94.250 on Dominion `S4.16.10`.
+    Anchored on the DIVIDER, because that is the sketch's own datum — the
+    lesson `spec/LID.md` records twice about a rule that fits and is still hung
+    off the wrong thing.
+    """
+    return box_part.front_dividers(p, d)[-1] + d.calTokenHolderSlotWidth
+
+
+def token_holder(p, d):
+    """The FULL holder, dropped into the front pocket's last compartment.
+
+    A merged cascade also ships a HALF one, and the two are ALTERNATIVES rather
+    than both fitting: `spec/TOKENHOLDER.md` says a half holder is not half of
+    a full one and that they are not meant to stack in depth, and they are the
+    same width, so the slot takes one or the other. The FULL is placed because
+    every token-holder row gets one; `half=True` renders the variant.
+    """
+    front, _panel_front, _panel_back = box_part.pocket_span(p, d)
+    return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, 1),
+                 origin=(token_slot_x(p, d), front, D.WallThickness))
+
+
+# --- the Lid ---------------------------------------------------------------
+#
+# The lid's frame relates to the box's by a plain Y shift and, when it is on,
+# a half turn. `parts/lid.py` states both halves already: `lid_y = box_y -
+# 2.250` in its docstring, and "a box height h arrives at WALL + BoxHeight - h
+# in the lid's frame" in `closing_grooves`.
+
+LID_Y = 2.250              # the box sits this far back of the lid
+LID_CLOSED_Z = D.WallThickness  # + BoxHeight; see lid_closed
+
+
+def lid_closed(p, d):
+    """The lid inverted over the box.
+
+        box = (-lid_x, lid_y + 2.250, (WallThickness + BoxHeight) - lid_z)
+
+    A half turn about **Y**, not X: the lid's sockets are placed
+    `SOCKET_BACK` in from its BACK face, so front and back are fixed and cannot
+    flip, and the X mirror is what is left. The check is the closing mechanism —
+    the box's bump tops out at `z 90.000` and the groove's bottom edge sits at
+    lid `z 16.600`, and `106.600 - 16.600` is exactly that.
+    """
+    return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, -1),
+                 origin=(0.0, LID_Y, D.WallThickness + d.BoxHeight))
+
+
+def lid_under(p, d):
+    """The lid the right way up with the box standing in it — the play state.
+
+    No turn at all, and the box's floor rests on the lid's floor, so the LID
+    drops by its own wall thickness in the box's frame. It clears by
+    `(lid inner - BoxWidth)/2 = 0.700` a side and `0.400` in depth over the
+    box's whole footprint, rear storage included.
+    """
+    return Place(origin=(0.0, LID_Y, -D.WallThickness))
+
+
+# --- the play state: pushers in the lid, holders on their treads ------------
+
+def play_sockets(p, d):
+    """Which of the lid's sockets the cascade's pushers stand in.
+
+    A lid gets `lid.socket_count` sockets — the plain size rule — while the
+    cascade ships `box.pusher_slot_count`. They agree everywhere except an
+    Innovation M, whose lid has three and whose cascade has two, and there the
+    unused one is the MIDDLE (Allan): `spec/LID.md` records that it is to be
+    dropped from the Lid eventually. So the pushers take the OUTER pair.
+    """
+    from .parts import lid as lid_part
+    n_sock = lid_part.socket_count(p)
+    n_push = box_part.pusher_slot_count(p)
+    if n_push >= n_sock:
+        return list(range(n_sock))
+    return [0, n_sock - 1] if n_push == 2 else list(range(n_push))
+
+
+def pusher_socketed(p, d, socket):
+    """A pusher standing in lid socket `socket`, the box's frame.
+
+    The axes are forced the same way the stored pusher's are, off a different
+    feature: the rise runs UP (+X -> +Z, leading edge down into the socket) and
+    the tabs must point **-X**, because the lid cuts its two recesses into the
+    channel's -X wall only. Right-handedness gives +Y -> +Y.
+
+    * **X** — the `3.000` plate centred in the `3.300` channel, `0.150` a side.
+      The standard's `0.200` of play on the recess step is the other extreme of
+      the same fit, with the plate hard against the recess wall.
+    * **Y** — the pusher centred on its socket, which is `LID_SOCKET_CLEARANCE`
+      shorter than the pusher is deep, so `0.200` overhangs at each end.
+    * **Z** — the leading edge on the lid's floor, which `lid_under` puts at
+      the box's own `z = 0`: box and pushers stand on the same surface.
+    """
+    from .parts import lid as lid_part
+    x = lid_part.socket_centres(p, d)[socket]
+    y0, y1 = lid_part.socket_span(p, d)
+    under = lid_under(p, d)
+    cx, cy, _cz = under((x, (y0 + y1) / 2, 0.0))
+    return Place(x_dir=(0, 0, 1), z_dir=(-1, 0, 0),
+                 origin=(cx + L.PLATE / 2, cy + d.calPusherTotalDepth / 2, 0.0))
+
+
+def tread_z(p, d, j):
+    """The height of the tread riser `j` rests on, `j` counted from the BACK.
+
+    A pusher's treads are its constant-X segments — part X is the rise, and it
+    maps to the box's Z — so tread `k` is at `k * calHeightIncrement` and there
+    are `RisingSliders` of them. The FRONTMOST holder takes the lowest, tread 1,
+    because the pusher's first drop is `calFirstSliderDistance` and
+    `slider_drops` puts the override on the leading edge, which is the front.
+    """
+    return (p.RisingSliders - j) * d.calHeightIncrement
+
+
+def holder_play(p, d, j):
+    """Riser `j` on its tread, still riding rib `j`.
+
+    X and Y are the closed state's exactly — the holders ride the same slider
+    ribs whether the cascade is open or shut, which is the whole idea — and
+    only Z changes, from the floor to the tread.
+    """
+    closed = holder_closed(p, d, j)
+    return Place(origin=(closed.origin[0], closed.origin[1],
+                         tread_z(p, d, j) + holder_z_base(d)))

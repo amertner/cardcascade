@@ -60,6 +60,27 @@ def _one(path):
     return max(objs, key=lambda o: len(o[1]))
 
 
+def _all(path):
+    """Every object in a component 3MF. A Lid is up to 31 of them: the body and
+    one inlay per region of its logo pattern, all in the same frame, so they
+    all take the lid's placement and the pattern shows in a bottom view."""
+    return mesh3mf.read(path)
+
+
+def lid_meshes(p, d, out_dir, folder):
+    path = out_dir / folder / B.lid_file(d)
+    if not path.exists():
+        B.build_lid(p, out_dir, folder, path.name)
+    return _all(path)
+
+
+def token_holder_mesh(p, d, out_dir, folder, half=False):
+    path = out_dir / folder / B.token_holder_file(d, half)
+    if not path.exists():
+        B.build_token_holder(p, half, out_dir, folder, path.name)
+    return _one(path)
+
+
 def box_mesh(p, d, out_dir, folder):
     path = out_dir / folder / B.box_file(d)
     if not path.exists():
@@ -96,7 +117,7 @@ def holder_mesh(p, d, folder, first=False):
     return _one(path)
 
 
-def assemble(p, d, state, folder, out_dir):
+def assemble(p, d, state, folder, out_dir, take_tokens=False):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
     parts, instances = [], []
@@ -107,24 +128,42 @@ def assemble(p, d, state, folder, out_dir):
 
     add(box_mesh(p, d, out_dir, folder), [A.box(p, d)])
 
-    if state in (A.CLOSED, A.CLOSED_LID):
+    closed = state in (A.CLOSED, A.CLOSED_LID)
+    if closed:
         add(pusher_mesh(p, d, out_dir, folder),
             [A.pusher_stored(p, d, k) for k in A.pushers(p, d)])
-        plain = [j for j, first in A.holders(p, d) if not first]
-        firsts = [j for j, first in A.holders(p, d) if first]
-        if plain:
-            add(holder_mesh(p, d, folder),
-                [A.holder_closed(p, d, j) for j in plain])
-        if firsts:
-            add(holder_mesh(p, d, folder, first=True),
-                [A.holder_closed(p, d, j) for j in firsts])
     else:
-        raise NotImplementedError(f"state {state!r} is not written yet")
+        add(pusher_mesh(p, d, out_dir, folder),
+            [A.pusher_socketed(p, d, s) for s in A.play_sockets(p, d)])
+
+    place = A.holder_closed if closed else A.holder_play
+    for first in (False, True):
+        js = [j for j, f in A.holders(p, d) if f == first]
+        if js:
+            add(holder_mesh(p, d, folder, first),
+                [place(p, d, j) for j in js])
+
+    # The token holder is the FULL one: a merged cascade ships a HALF as well,
+    # but the two are alternatives for one slot, not both at once — see
+    # `assembly.token_holder`. A row with no `TokenHolder` gets neither.
+    if take_tokens and p.GameName == "Dominion":
+        add(token_holder_mesh(p, d, out_dir, folder), [A.token_holder(p, d)])
+
+    if state == A.CLOSED_LID:
+        for mesh in lid_meshes(p, d, out_dir, folder):
+            add(mesh, [A.lid_closed(p, d)])
+    elif state == A.PLAY:
+        for mesh in lid_meshes(p, d, out_dir, folder):
+            add(mesh, [A.lid_under(p, d)])
     return parts, instances
 
 
 def catalogue(csv=CSV, game=None, model=None):
-    """[(folder, Primary)] — every cascade, both sleevings."""
+    """[(folder, Primary, tokens)] — every cascade, both sleevings.
+
+    `tokens` is parts.csv's own `TokenHolder` column, which is per ROW and not
+    derivable from the geometry: only the sets whose expansions need one carry
+    it (`plan_exports.compose`)."""
     out = []
     for row in params.load_rows(csv):
         for sleeved in (0, 1):
@@ -134,8 +173,10 @@ def catalogue(csv=CSV, game=None, model=None):
                 continue
             if model and model not in B.box_file(d):
                 continue
+            tokens = (row.get("TokenHolder") or "").strip().lower()
             out.append((params.GAME_NAME.get((row.get("Game") or "").strip(),
-                                             p.GameName), p))
+                                             p.GameName), p,
+                        tokens not in ("", "none")))
     return out
 
 
@@ -153,16 +194,17 @@ def main(argv=None):
     rows = catalogue(args.csv, args.game, args.model)
     states = A.STATES if args.state == "all" else (args.state,)
     if args.list:
-        for folder, p in rows:
+        for folder, p, _tk in rows:
             print(f"  {folder}/{D.derive(p).calModelName}")
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
 
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
-    for folder, p in rows:
+    for folder, p, tokens in rows:
         d = D.derive(p)
         for state in states:
-            parts, instances = assemble(p, d, state, folder, args.out)
+            parts, instances = assemble(p, d, state, folder, args.out,
+                                        take_tokens=tokens)
             stem = B.box_file(d)[len("Box "):-len(".3mf")]
             path = args.out / "assemblies" / folder / f"{stem} {state}.3mf"
             meshed = mesh3mf.write_assembly(path, parts, instances,
