@@ -4,6 +4,16 @@
     blender -b -P render/cascade.py -- tmp/cascade.glb --view hero
     blender -b -P render/cascade.py -- tmp/cascade.glb --view all --samples 512
 
+To TWEAK it by hand, drop the `-b` and skip the render — Blender opens with the
+scene built and the camera set, and F12 renders whatever you have changed:
+
+    blender -P render/cascade.py -- tmp/cascade.glb --no-render
+
+Or keep it: `--blend tmp/cascade.blend` saves the scene, headless or not, and
+the file opens like any other. Note that a later run REBUILDS the lights and
+materials from scratch, so tweaks live in the saved file and not in the script
+— move anything you want to keep into the constants at the top.
+
 `cad/gltf.py` writes the `.glb` this reads; `cad/render.py` stays the
 DIAGNOSTIC renderer and is not replaced. The two have opposite jobs: flat
 colours and no shadows are what let you see a pusher's tab in the box's rim
@@ -297,7 +307,13 @@ def device(prefer="metal"):
     return "CPU"
 
 
-def render(out, view, samples, width, transparent):
+def settings(samples, width, transparent):
+    """Sampling, resolution and film, applied during SETUP and not at render.
+
+    It has to be here rather than in `render()`, because `--no-render` skips
+    that: a `.blend` saved for the GUI would otherwise carry Blender's default
+    4096 samples, and the first F12 would take all afternoon.
+    """
     scene = bpy.context.scene
     scene.cycles.samples = samples
     scene.cycles.use_denoising = True
@@ -306,9 +322,12 @@ def render(out, view, samples, width, transparent):
     scene.render.resolution_percentage = 100
     scene.render.film_transparent = transparent
     scene.render.image_settings.file_format = "PNG"
-    scene.render.filepath = str(out / f"{view}.png")
+
+
+def render(out, view):
+    bpy.context.scene.render.filepath = str(out / f"{view}.png")
     bpy.ops.render.render(write_still=True)
-    return Path(scene.render.filepath)
+    return Path(bpy.context.scene.render.filepath)
 
 
 def main(argv):
@@ -329,6 +348,11 @@ def main(argv):
                     help="stops, on top of the calibrated lighting")
     ap.add_argument("--transparent", action="store_true",
                     help="no floor and an alpha background, for a listing")
+    ap.add_argument("--blend", type=Path,
+                    help="save the scene here as well, to open in the GUI")
+    ap.add_argument("--no-render", dest="render", action="store_false",
+                    help="build the scene and stop. With `blender -P` (no -b) "
+                         "that leaves the GUI open on it")
     args = ap.parse_args(argv)
 
     reset()
@@ -341,15 +365,26 @@ def main(argv):
     lo, hi = bounds(objects)
     studio(lo, hi, floor=not args.transparent)
     bpy.context.scene.view_settings.exposure = args.exposure
+    settings(args.samples, args.width, args.transparent)
     used = device(args.device)
     args.out.mkdir(parents=True, exist_ok=True)
     print(f"  {len(objects)} objects, "
           f"{sum(len(o.data.polygons) for o in objects):,} faces, "
           f"Cycles on {used}, {args.samples} samples")
     aim = (tuple(float(n) for n in args.aim.split(",")) if args.aim else None)
-    for view in (tuple(VIEWS) if args.view == "all" else (args.view,)):
+    views = tuple(VIEWS) if args.view == "all" else (args.view,)
+    for view in views:
         camera(view, lo, hi, aim=aim)
-        print(f"  {render(args.out, view, args.samples, args.width, args.transparent)}")
+        if args.render:
+            print(f"  {render(args.out, view)}")
+    # Saved last, so the file carries the render settings and the LAST camera
+    # — which is the one you were looking at.
+    if args.blend:
+        args.blend.parent.mkdir(parents=True, exist_ok=True)
+        bpy.ops.wm.save_as_mainfile(filepath=str(args.blend.resolve()))
+        print(f"  {args.blend}")
+    if not args.render:
+        print(f"  scene built, {len(views)} camera(s), nothing rendered")
 
 
 if __name__ == "__main__":

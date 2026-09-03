@@ -24,6 +24,22 @@ a render earns its keep on the ~45 catalogued cascades that have not been built.
         -o tmp/cascade.glb
     blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
 
+To tweak by hand, drop the `-b` and skip the render — Blender opens on the
+built scene with the camera set, and F12 renders what you changed:
+
+    blender -P render/cascade.py -- tmp/cascade.glb --no-render
+
+`--blend tmp/cascade.blend` saves the scene instead (or as well), headless or
+not. The sampling, resolution and film settings are applied during SETUP rather
+than at render time precisely so that a saved `.blend` carries them: without
+that it inherits Blender's default 4096 samples and the first F12 takes all
+afternoon.
+
+A later run REBUILDS the lights and materials from scratch, so a tweak lives in
+the saved file, not in the script. Anything worth keeping belongs in the
+constants at the top of `render/cascade.py` — `KEY`, `ROUGHNESS`, `SUBSURFACE`,
+`LAYER_HEIGHT`, `HERO_LENS`.
+
 Three steps and two interpreters, which is not an accident: **Blender ships its
 own Python with no build123d in it**, so `render/cascade.py` cannot import
 `cad`. The handoff has to be a file, and that turns out to be a feature —
