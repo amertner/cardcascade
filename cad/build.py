@@ -8,7 +8,7 @@
     .venv/bin/python -m cad.build --part lid      # every lid — seconds each
     .venv/bin/python -m cad.build --part box      # every box — MINUTES
     .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
-    .venv/bin/python -m cad.build --part holder   # every holder — INCOMPLETE
+    .venv/bin/python -m cad.build --part holder   # every holder — 3s each
     .venv/bin/python -m cad.build --part tokenholder  # Dominion only
     .venv/bin/python -m cad.build --part topper   # Innovation only
     .venv/bin/python -m cad.build --part all      # all six
@@ -190,9 +190,12 @@ def holder_catalogue(csv=CSV, game=None, model=None):
 def build_holder(p, first, out_dir, folder, filename):
     """Build one holder and write the 3MF.
 
-    INCOMPLETE — `cad/parts/holder.py` stops after the rear lips, so a written
-    holder is about 2% heavy. See spec/HOLDER.md; the object name is the one
-    `plan_exports` uses so the files drop straight in once it is finished.
+    The object name is the one `plan_exports` uses, so the file drops straight
+    in. NB `individual/`'s own first-riser files name their body `Holder` — the
+    assembly named both that, and `assembly_split.py` told them apart by height.
+    Generated locally, the part simply gets named; nothing downstream reads the
+    body name (`make_cascade.load_export` sorts by object id), and the `object`
+    role `plan_exports` emits is `FirstHolder` either way.
     """
     part = holder_part.build(p, first)
     path = out_dir / folder / filename
@@ -508,8 +511,6 @@ def main(argv=None):
                 print(f"  {folder + '/' + fn}")
             print(f"\n  {len(holders)} holders")
         else:
-            print("  NB holders are INCOMPLETE — about 2% heavy, see "
-                  "spec/HOLDER.md")
             print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
             total = 0
             for folder, fn, p, first in holders:

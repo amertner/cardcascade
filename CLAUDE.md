@@ -22,14 +22,19 @@ rebuild.
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
 generated with **zero API calls**. **Pusher**, **Box**, **Lid**,
-**TokenHolder** and **Topper** are done — the Lid including the logo pattern in
-its underside for all four games (`logos/<Game>/*.dxf`; `spec/LID.md`), the
-TokenHolder in both its FULL and HALF configurations (`spec/TOKENHOLDER.md`),
-and the Topper in all six expansions with the five marks derived from
-`calLogoSidelength` rather than traced (`spec/TOPPER.md`). Only the **Holder**
-is still short: it is most of the way there and writes 3MFs, but is about 2%
-heavy and NOT printable yet (`spec/HOLDER.md`), so the `automation/` pipeline
-is still live and authoritative for that one part.
+**TokenHolder**, **Topper** and **Holder** — **every part is now done**, the
+Holder and the Topper having landed on separate branches at the same time. The
+Lid includes the logo pattern in its underside for all four games
+(`logos/<Game>/*.dxf`; `spec/LID.md`); the TokenHolder covers both its FULL and
+HALF configurations (`spec/TOKENHOLDER.md`); the Topper covers all six
+expansions, its five marks derived from `calLogoSidelength` rather than traced
+(`spec/TOPPER.md`); the Holder reproduces all ten references to `+0.007%` once
+its intended text divergence is set aside (`spec/HOLDER.md`).
+
+So no component's GEOMETRY needs Onshape any more. That is not the same as
+saying a cascade does not: `automation/` still assembles, verifies and packages
+one, is what has actually shipped every cascade on disk, and stays
+authoritative. Nothing has yet built a whole cascade end to end from `build/`.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -57,12 +62,23 @@ is still live and authoritative for that one part.
   unless you pass `--holder source`. Substituting the STANDARD holder would put
   a part of the wrong depth under the fit test, which is why it is not done.
 - **`cad/` builds 7.0 geometry only** and `pusher.build` refuses any other
-  version. `individual/` is a mixed catalogue — 14 of its 32 pushers and 19 of
-  its 44 lids are still 6.6 — and those stay Onshape's until their cascades
-  migrate; `build/` is the migration target, not a mirror.
+  version. `individual/` is a mixed catalogue — 14 of its 32 pushers, 19 of its
+  44 lids and **30 of its 50 holders** are still older — and those stay
+  Onshape's until their cascades migrate; `build/` is the migration target, not
+  a mirror. The holders are the awkward case: all 50 are RECORDED at 6.6 and
+  the studio changed under them without a version bump, so provenance cannot
+  see it — the two lengths coexist deliberately (`automation/PIPELINE.md`,
+  "An unversioned CAD change"; `spec/HOLDER.md`).
+- **A written 3MF must be a closed, manifold mesh** — a slicer takes a hole or a
+  doubled edge as far as a failed print, and OCCT will produce one where two
+  faces meet tangentially. `mesh3mf._drop_flaps` is the guard and
+  `tests/test_holder_corpus.py` checks it, but only over the holders, which are
+  clean. **Three Innovation boxes and twelve Innovation lid inlays are NOT** —
+  see `spec/HOLDER.md`, "Two faults it does NOT fix". Onshape's own 850 bodies
+  have none of it, so it is the writer's to fix.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does the
-  lot, holders included — and those come out INCOMPLETE. `--part tokenholder`
+  lot. `--part holder` is 56 files at about three seconds each. `--part tokenholder`
   is 22 files in seconds (22, not `individual/`'s 18: the old dedup key drops
   the size letter the tray has engraved on it, so two cascades ship a tray
   labelled for the other — `spec/TOKENHOLDER.md`). `--part topper` is 48 in
@@ -79,11 +95,15 @@ is still live and authoritative for that one part.
   `individual/`; run `python -m cad.build` first),
   `.venv/bin/python tests/test_box.py`, `.venv/bin/python tests/test_lid.py`,
   `.venv/bin/python tests/test_token_holder.py` and
-  `.venv/bin/python tests/test_topper.py` (source vs their STEPs), and
+  `.venv/bin/python tests/test_topper.py` and
+  `.venv/bin/python tests/test_holder.py` (source vs their STEPs), and
   `.venv/bin/python tests/test_lid_corpus.py`,
-  `.venv/bin/python tests/test_token_holder_corpus.py` and
-  `.venv/bin/python tests/test_topper_corpus.py` (placement rules against all
-  44 cached lids, all 18 cached token holders and all 48 cached toppers).
+  `.venv/bin/python tests/test_token_holder_corpus.py`,
+  `.venv/bin/python tests/test_topper_corpus.py` and
+  `.venv/bin/python tests/test_holder_corpus.py` (against all 44 cached lids,
+  all 18 cached token holders, all 48 cached toppers and all 50 cached holders;
+  the last one needs `--part holder` built first and takes 12-15 MINUTES,
+  because it rebuilds all 50 at `Version="6.6"` to compare like for like).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 - **Assemblies** put the parts into a whole cascade — `closed`, `closed-lid`,

@@ -124,10 +124,13 @@ function:
 | `GuideToTabs` | `holder.side_slots` and the lip geometry |
 
 A named function is the better dependency: it binds the topper to the RULE
-rather than to the holder being finished and correct. `holder.py` is still
-about 2% heavy and not printable, but the parts the topper needs — envelope,
-slant, lip geometry — are in its proven half, not the lattice and finger
-cutouts that are still out.
+rather than to the holder being finished and correct. That mattered when this
+was written — `holder.py` was then about 2% heavy and not printable, and the
+parts the topper needs (envelope, slant, lip geometry) were in its proven half.
+The Holder has since landed: all ten references asserted, `+0.007%` once its
+intended text divergence is set aside, and every written mesh closed and
+manifold (`spec/HOLDER.md`). The argument for binding to the rule stands
+anyway, which is why it is kept.
 
 **What it costs**: Onshape got the tab/holder mate right by construction, and
 dropping the import gives that up. It has to be replaced by an assertion —

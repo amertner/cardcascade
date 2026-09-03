@@ -310,6 +310,17 @@ exactly on the export date:
 | -38.5000 / -39.5000 | `Holder 3x15`, `Holder 4x15` | 2026-08-20 |
 | -38.4000 / -39.4000 | `Holder 2x10`, `Holder 3x10`, `Holder 4x10` | 2026-08-24 onward |
 
+**It is all 50 holders, not just the spanning ones**, confirmed since against
+the whole cached set (`tests/test_holder_corpus.py`): overall width is
+`calSlotwidth * HorizontalSlots` plus a constant, and that constant is `+10.000`
+on the 30 exported up to Aug 20 and `+9.800` on the 20 exported from Aug 24 —
+per-slot games included, and `0.100` in at each end exactly as here. Everything
+else about those 30 — depth, height, the rear lip's reach, where the part sits —
+matches the current geometry to the micron, so the end block is the whole of the
+change. The 20 include one half of a first-riser PAIR (`Holder S-40-r2-Sl` was
+re-exported, `Holder S-40-r2-Sl (first)` was not), which is the split the
+section above predicts.
+
 **A confound sits on top of that split.** The Aug-20 group is also exactly the
 15-card group, so the shift reads equally well as a `Cards/Riser slot` axis. The
 old `Holder 3x10-Un` refutes that: it is a **10-card** holder exported Aug 20 and
