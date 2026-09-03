@@ -244,7 +244,7 @@ def lid_closed(p, d):
 
         box = (lid_x, 2.250 - lid_y, (WallThickness + BoxHeight) - lid_z)
 
-    A half turn about **X**, and the LOGO is what says so.
+    A half turn about **Y**, and it is a choice rather than a derivation.
 
     The closing mechanism cannot say: the box's bump sits at box `y
     -1.750..6.250`, symmetric about the `2.250` both candidates turn around, so
@@ -255,19 +255,25 @@ def lid_closed(p, d):
     turn about Z, which is a proper rotation, so nothing about the FIT can
     separate them at all.
 
-    What separates them is that the lid's logo pattern is in the floor's OUTER
-    face — the face that points UP once the lid is on — and under the other
-    candidate it reads upside down. The letterforms come out correct and only
-    the word is inverted, which is the signature of a half turn rather than a
-    mirror, and a half turn is exactly the difference between the two. The
-    build's inlays match the cached Onshape lid's to 0.001 in X, so the artwork
-    is not the thing that is wrong.
+    Nothing geometric separates them, so the LID GOES ON EITHER WAY ROUND. The
+    only thing that can tell is the logo pattern, which is in the floor's outer
+    face — the face that points up once the lid is on — and **the four games'
+    marks do not agree with each other**: Dominion's reads upright under a turn
+    about X and Compile's, FCM's and Innovation's under a turn about Y, so one
+    game is upside down whichever is chosen. Nothing in `cad/` rotates the
+    artwork; the four `logos/<Game>/lid_logo.dxf` disagree, and the cached
+    Onshape lids carry the same inlays to 0.001, so this is on the shipped
+    product too. `spec/ASSEMBLY.md` records it; Allan decides which DXF turns.
 
-    Its cost is that the lid's sockets, which are placed `SOCKET_BACK` in from
-    its back face, end up over the box's FRONT when the lid is on. They are
-    empty then — the pushers are in the rear storage — so nothing depends on it.
+    **Y is chosen because three of the four read correctly under it.** That is a
+    majority, not a proof, and it is the honest description of the state of the
+    evidence.
+
+    Its cost is nil geometrically: the lid's sockets, placed `SOCKET_BACK` in
+    from its back face, are empty when the cascade is closed — the pushers are
+    in the rear storage — so nothing depends on where they land.
     """
-    return Place(x_dir=(1, 0, 0), z_dir=(0, 0, -1),
+    return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, -1),
                  origin=(0.0, LID_Y, D.WallThickness + d.BoxHeight))
 
 

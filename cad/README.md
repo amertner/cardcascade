@@ -159,11 +159,23 @@ each placement is derived from `derive.py` and the part modules, and
 
 On Dominion `S4.16.10.32-Un` every pair of source-built parts intersects in
 **0.0000 mm3** in all three states, and every named margin lands on its nominal
-to 0.001. The one finding is that **a pusher's treads sit 0.150 forward of the
-box's slider ribs, on every cascade** — a constant, with every parameter
-cancelling — which leaves a holder on its tread with 0.350 at the front and
-0.050 at the back. Nothing is broken by it, and nothing before now could see it.
-`spec/ASSEMBLY.md` has the arithmetic.
+to 0.001. Two findings came out of it:
+
+* **A pusher's treads sit 0.150 forward of the box's slider ribs, on every
+  cascade** — a constant, with every parameter cancelling — which leaves a
+  holder on its tread with 0.350 at the front and 0.050 at the back. Nothing is
+  broken by it, and nothing before now could see it.
+* **Three of the four games' lid marks are 180 degrees from the fourth.** A
+  closed lid can go on either way round — nothing geometric distinguishes the
+  two, and both measure 0.0000 mm3 — so the only thing that can tell is the
+  logo, and Dominion's disagrees with Compile's, FCM's and Innovation's. One
+  game is upside down whichever way is chosen, on the shipped product as much
+  as here: `cad/` rotates no artwork, and its inlays match the cached Onshape
+  lids to 0.001.
+
+`spec/ASSEMBLY.md` has both. The second is the case for treating renders as
+part of the checking rather than its output: it is invisible to every number
+`cad/fit.py` computes.
 
 ## Six decisions
 

@@ -102,9 +102,9 @@ class MissingHolder(Exception):
     Not a bug and not rare: `Holder M-21-r6-Un (first)` has never been exported
     from Onshape, so the two `M6.21.10-12` cascades have no first-riser holder
     on disk at all. Substituting the standard holder would put a part of the
-    wrong DEPTH under the fit test, which is worse than saying so, and the
-    source Holder is ~2 % heavy and not printable. So the cascade is skipped
-    and named.
+    wrong DEPTH under the fit test, which is worse than saying so. So the
+    cascade is skipped and named — and `--holder source` is the way through it,
+    at the cost of a Holder that is ~2 % heavy.
     """
 
 
@@ -120,7 +120,21 @@ def holder_file(p, d, first=False):
             f"-r{p.RisingSliders}-{slv}" + (" (first)" if first else "") + ".3mf")
 
 
-def holder_mesh(p, d, folder, first=False):
+def holder_mesh(p, d, folder, first=False, source=False):
+    """The holder an assembly places, in its part frame.
+
+    Cached by default: the source Holder is ~2 % heavy and not printable
+    (`spec/HOLDER.md`), so an assembly built on it would report the Holder's own
+    defect as the assembly's. `source=True` builds it from `cad/parts/holder`
+    anyway, which is how that convergence gets watched — and is the only way to
+    assemble the two `M6.21.10-12` cascades at all, their first-riser holder
+    never having been exported.
+    """
+    if source:
+        from .parts import holder as holder_part
+        part = holder_part.build(p, first)
+        name = "FirstHolder" if first else "Holder"
+        return (name, *mesh3mf.triangulate(part))
     path = ROOT / "individual" / folder / holder_file(p, d, first)
     if not path.exists():
         raise MissingHolder(
@@ -129,7 +143,7 @@ def holder_mesh(p, d, folder, first=False):
 
 
 def assemble(p, d, state, folder, out_dir, take_tokens=False,
-             half=False):
+             half=False, holder_source=False):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
     parts, instances = [], []
@@ -152,7 +166,7 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
     for first in (False, True):
         js = [j for j, f in A.holders(p, d) if f == first]
         if js:
-            add(holder_mesh(p, d, folder, first),
+            add(holder_mesh(p, d, folder, first, holder_source),
                 [place(p, d, j) for j in js])
 
     # The token holder is the FULL one: a merged cascade ships a HALF as well,
@@ -206,6 +220,10 @@ def main(argv=None):
     ap.add_argument("--out", default=ROOT / "build", type=Path)
     ap.add_argument("--csv", default=CSV, type=Path)
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--holder", choices=("cached", "source"), default="cached",
+                    help="where the Holder comes from. Cached by default: the "
+                         "source one is ~2%% heavy and not printable, so it "
+                         "would report its own defect as the assembly's")
     ap.add_argument("--half", action="store_true",
                     help="on a merged row, place the HALF token holder instead "
                          "of the FULL — they are alternatives for one slot")
@@ -219,6 +237,9 @@ def main(argv=None):
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
 
+    print(f"  holders: {args.holder}"
+          + ("   (the source Holder is ~2% heavy — spec/HOLDER.md)"
+             if args.holder == "source" else ""))
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
     skipped = []
     for folder, p, tokens in rows:
@@ -227,7 +248,8 @@ def main(argv=None):
             try:
                 parts, instances = assemble(p, d, state, folder, args.out,
                                             take_tokens=tokens,
-                                            half=args.half)
+                                            half=args.half,
+                                            holder_source=args.holder == "source")
             except MissingHolder as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break

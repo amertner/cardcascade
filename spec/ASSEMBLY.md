@@ -8,8 +8,13 @@ and they pull in the same direction:
    at a time, against a reference that only ever shows that part. An assembly
    is the first thing that can measure the mechanism: does the tab sit in the
    cutout, does the plate sit in the channel, does the holder clear the rib.
-2. **Renders.** Front, back, side, top, bottom and one perspective, per state,
-   for listings and for looking at a build without Studio.
+2. **Renders.** Front, back, left, right, top, bottom and one perspective, per
+   state, for listings and for looking at a build without Studio.
+
+They pull in the same direction more literally than expected: the closed lid's
+logo came out upside down under a placement that measured `0.0000 mm3` against
+every part, because the two candidates differed by a proper rotation and no
+number could see it. A render is part of the checking, not its output.
 
 Nothing here is a new geometry input. Every placement below is derived from
 `derive.py` and the part modules, and where a placement had to be *chosen*
@@ -43,54 +48,75 @@ work.
 |---|---|
 | `closed` | Box, holders on the floor over the sliders, pushers stored in the rear, TokenHolder(s) in the front pocket, a topper on each holder (Innovation) |
 | `closed-lid` | the same, plus the Lid inverted over the Box |
-| `open` | Lid opening-up underneath, Box sitting in it, pushers standing in the Lid's sockets and rising through the Box's floor slot, holders on the pushers' steps and riding the sliders |
+| `play` | Lid opening-up underneath, Box sitting in it, pushers standing in the Lid's sockets and rising through the Box's floor slot, holders on the pushers' treads and riding the sliders |
 
 Counts come from `plan_exports.compose`: one Box, one Lid, `pushers` (2, or 3
 on M/L for every game but Innovation), `RisingSliders` holders — one of them
 the `FirstHolder` where `Cards/First Riser` is set — and, where parts.csv's
 `TokenHolder` column says so, a TokenHolder plus a HalfTokenHolder on a merged
-row.
+row. `--half` swaps the HALF in on a merged row; the two are alternatives for
+one slot, so only one is ever placed.
 
 ## The placements
 
-### Lid, closed — a 180° turn about X, and the logo is what says so
+### Lid, closed — a 180° turn about Y, and it is a choice
 
-    box = (lid_x,  2.250 - lid_y,  (WallThickness + BoxHeight) - lid_z)
+    box = (-lid_x,  lid_y + 2.250,  (WallThickness + BoxHeight) - lid_z)
 
-The Z half is already written down in `parts/lid.py`: "a box height `h` arrives
-at `WALL + BoxHeight - h` in the lid's frame", in `closing_grooves`. The check
-is the closing mechanism — the Box's bump tops out at box `z 90.000` and the
+The Z half is written down in `parts/lid.py`: "a box height `h` arrives at
+`WALL + BoxHeight - h` in the lid's frame", in `closing_grooves`. The check is
+the closing mechanism — the Box's bump tops out at box `z 90.000` and the
 groove's bottom edge sits at lid `z 16.600`, and `106.600 - 16.600 = 90.000`
 exactly. The Lid's rim lands at box `z 66.600`, so the two overlap by 38.400.
 
-**Which axis the turn is about, nothing in the fit can decide.** The two
-candidates differ by a half turn about Z — a proper rotation — so:
+**Which axis the turn is about, nothing geometric can decide — the lid goes on
+either way round.** The two candidates differ by a half turn about Z, a proper
+rotation, so:
 
 * the closing groove fits either way. The Box's bump sits at box `y
   -1.750..6.250`, symmetric about the `2.250` both turns pivot on, so it
   arrives at lid `y -4.000..4.000` under both;
 * interference is `0.0000 mm3` under both. The sockets hang from box `z
-  105.000` to `100.000`, and nothing of the Box reaches that height at either
-  end — the rear storage caps at `REAR_TOP` 85.000 and the front pocket at
-  87.500.
+  105.000` to `100.000`; the rear storage caps at `REAR_TOP` 85.000, the front
+  pocket at 87.500, and a holder tops out at ~93.05 on every cascade
+  (`CardHeight` is 92.000 for every game), so nothing of the box or its
+  contents reaches them at either end;
+* the sockets are EMPTY when a cascade is closed — the pushers are in the rear
+  storage — so nothing functional depends on where they land.
 
-**The LOGO decides.** The lid's logo pattern is in the floor's OUTER face, the
-face that points up once the lid is on, and under the turn about Y it reads
-upside down. The letterforms come out correct and only the word is inverted,
-which is the signature of a half turn and not of a mirror — and a half turn is
-exactly what separates the two candidates. The build's inlays match the cached
-Onshape lid's to 0.001 in X, so it is not the artwork that is wrong.
+The only thing that can tell is the logo, and it does not agree with itself.
 
-This file first argued for Y, from the sockets being placed `SOCKET_BACK` in
-from the lid's back face. That argument was unsound: it says where the sockets
-are in the LID, not which way the lid goes on, and the sockets are empty when
-the cascade is closed — the pushers are in the rear storage. Its consequence is
-simply that the empty sockets end up over the box's front, where they foul
-nothing.
+## The logo finding: three games disagree with the fourth
 
-A render caught this, which is the case for making renders part of the work
-rather than the output of it: an upside-down logo is invisible to every
-numerical check in `cad/fit.py` and would have been in every product shot.
+The lid's logo pattern is in the floor's OUTER face, which points up once the
+lid is on, so it is the one mark a closed cascade shows. Rendered in plan:
+
+| game | reads upright under |
+|---|---|
+| Dominion | a turn about **X** |
+| Compile | a turn about **Y** |
+| FCM | a turn about **Y** |
+| Innovation | a turn about **Y** |
+
+**One game's mark is upside down on a closed lid whichever turn is chosen.**
+Nothing in `cad/` rotates the artwork — there is no per-game transform in
+`parts/lid.py` or `art.py` — so the four `logos/<Game>/lid_logo.dxf` disagree
+with each other. And the build's inlays match the cached Onshape lid's to 0.001
+in every X span, so Onshape imported the same files and **this is on the
+shipped product**, not on the rebuild.
+
+`Y` is used, because three of the four read correctly under it. That is a
+majority and not a proof. The fix is a rotation of one DXF or of three, and
+which is Allan's call.
+
+The route to this is worth recording, because it is a lesson about method
+twice over. The placement was first written as `Y`, then changed to `X` on the
+strength of a single Dominion render that came out upside down, then changed
+back when four games were rendered instead of one. Inferring a placement from
+one instance of imported artwork is exactly the mistake `spec/LID.md` records
+under "What the fit got wrong". And it took a PICTURE to see any of it: an
+upside-down logo is invisible to every number `cad/fit.py` computes, because
+the two candidates differ by a proper rotation.
 
 ### Lid, open — the Box drops into it
 
@@ -270,9 +296,12 @@ A resolver, because two of them are not finished:
 | Holder | cached `individual/<Game>/Holder *.3mf` | the source Holder is ~2 % heavy and not printable (`spec/HOLDER.md`) |
 | Topper | cached `individual/Innovation/Topper *.3mf` | not written in `cad/`; the mate is measured off the cached mesh, see above |
 
-`--holder=source` swaps the build123d Holder in, and is how the Holder's
-convergence gets watched. The report names the source of every part, so no
-render is ever ambiguous about what it is showing.
+`cad.assemble --holder source` swaps the build123d Holder in, and is how the
+Holder's convergence gets watched. It is also the only way to assemble the two
+`M6.21.10-12` cascades at all: `Holder M-21-r6-{Un,Sl} (first)` has never been
+exported from Onshape, so they have no first-riser holder on disk. With cached
+holders they are skipped and named, rather than quietly given a standard holder
+of the wrong DEPTH. The run prints which source it used.
 
 ## What the fit test measures
 

@@ -51,9 +51,9 @@ whole `automation/` pipeline is still live and authoritative for both.
   and 68 raw assemblies that cannot be re-fetched at any sane budget. The
   rebuild writes to `build/`, never over it.
 - Two holders have **no cached mesh at all** — `Holder M-21-r6-{Un,Sl} (first)`
-  was never exported — so the two `M6.21.10-12` cascades cannot be assembled
-  and are skipped by name. Substituting the standard holder would put a part of
-  the wrong DEPTH under the fit test.
+  was never exported — so the two `M6.21.10-12` cascades are skipped by name
+  unless you pass `--holder source`. Substituting the STANDARD holder would put
+  a part of the wrong depth under the fit test, which is why it is not done.
 - **`cad/` builds 7.0 geometry only** and `pusher.build` refuses any other
   version. `individual/` is a mixed catalogue — 14 of its 32 pushers and 19 of
   its 44 lids are still 6.6 — and those stay Onshape's until their cascades
@@ -90,10 +90,12 @@ whole `automation/` pipeline is still live and authoritative for both.
   named views plus a perspective hero. `tests/test_assembly.py` runs the margin
   tier over all 50 cascades. `cad/assembly.py` is the ONLY place a placement
   lives, as `derive.py` is for formulae; `spec/ASSEMBLY.md` is the record.
-- A **render is part of the checking, not the output of it.** The closed lid's
-  logo came out upside down under a placement that measured 0.0000 mm3 against
-  every part — the two candidates differed by a proper rotation, so no number
-  could see it. Look at the pictures.
+- A **render is part of the checking, not the output of it.** A closed lid goes
+  on EITHER WAY ROUND — both turns measure 0.0000 mm3 and both seat the closing
+  bump — so only the logo can tell, and **three of the four games' lid marks
+  are 180 degrees from the fourth**. One game reads upside down whichever way
+  the lid goes on, on the shipped product as much as in `cad/`. Look at the
+  pictures; no number sees this.
 
 ## Ground rules
 
