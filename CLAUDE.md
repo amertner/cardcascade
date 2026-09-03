@@ -21,13 +21,15 @@ rebuild.
 ### The rebuild is partial — don't assume it covers a part
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
-generated with **zero API calls**. **Pusher**, **Box**, **Lid** and
-**TokenHolder** are done — the Lid including the logo pattern in its underside
-for all four games (`logos/<Game>/*.dxf`; `spec/LID.md`), the TokenHolder in
-both its FULL and HALF configurations (`spec/TOKENHOLDER.md`). The **Holder**
-is most of the way there and writes 3MFs, but is about 2% heavy and NOT
-printable yet (`spec/HOLDER.md`). Topper still comes from Onshape, and the
-whole `automation/` pipeline is still live and authoritative for both.
+generated with **zero API calls**. **Pusher**, **Box**, **Lid**,
+**TokenHolder** and **Topper** are done — the Lid including the logo pattern in
+its underside for all four games (`logos/<Game>/*.dxf`; `spec/LID.md`), the
+TokenHolder in both its FULL and HALF configurations (`spec/TOKENHOLDER.md`),
+and the Topper in all six expansions with the five marks derived from
+`calLogoSidelength` rather than traced (`spec/TOPPER.md`). Only the **Holder**
+is still short: it is most of the way there and writes 3MFs, but is about 2%
+heavy and NOT printable yet (`spec/HOLDER.md`), so the `automation/` pipeline
+is still live and authoritative for that one part.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -63,10 +65,11 @@ whole `automation/` pipeline is still live and authoritative for both.
   lot, holders included — and those come out INCOMPLETE. `--part tokenholder`
   is 22 files in seconds (22, not `individual/`'s 18: the old dedup key drops
   the size letter the tray has engraved on it, so two cascades ship a tray
-  labelled for the other — `spec/TOKENHOLDER.md`). A box takes about
-  ten seconds and a pusher under one; a LID costs whatever its logo artwork
-  costs, because every region of the mark is its own boolean — 17 s for
-  Dominion's 459 edges, 57 s for Compile's 1885. Run all 50 in the background.
+  labelled for the other — `spec/TOKENHOLDER.md`). `--part topper` is 48 in
+  95 s. A box takes about ten seconds and a pusher under one; a LID costs
+  whatever its logo artwork costs, because every region of the mark is its own
+  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
+  in the background.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
@@ -74,11 +77,13 @@ whole `automation/` pipeline is still live and authoritative for both.
   STEPs — it skips a reference that is absent),
   `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs
   `individual/`; run `python -m cad.build` first),
-  `.venv/bin/python tests/test_box.py`, `.venv/bin/python tests/test_lid.py`
-  and `.venv/bin/python tests/test_token_holder.py` (source vs their STEPs),
-  and `.venv/bin/python tests/test_lid_corpus.py` /
-  `.venv/bin/python tests/test_token_holder_corpus.py` (placement rules against
-  all 44 cached lids and all 18 cached token holders).
+  `.venv/bin/python tests/test_box.py`, `.venv/bin/python tests/test_lid.py`,
+  `.venv/bin/python tests/test_token_holder.py` and
+  `.venv/bin/python tests/test_topper.py` (source vs their STEPs), and
+  `.venv/bin/python tests/test_lid_corpus.py`,
+  `.venv/bin/python tests/test_token_holder_corpus.py` and
+  `.venv/bin/python tests/test_topper_corpus.py` (placement rules against all
+  44 cached lids, all 18 cached token holders and all 48 cached toppers).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 - **Assemblies** put the parts into a whole cascade — `closed`, `closed-lid`,
