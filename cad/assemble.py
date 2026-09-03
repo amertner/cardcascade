@@ -96,6 +96,18 @@ def pusher_mesh(p, d, out_dir, folder):
     return shifted(_one(path), (-ox, -oy, -oz))
 
 
+class MissingHolder(Exception):
+    """No cached holder for this row, and no source one to fall back on.
+
+    Not a bug and not rare: `Holder M-21-r6-Un (first)` has never been exported
+    from Onshape, so the two `M6.21.10-12` cascades have no first-riser holder
+    on disk at all. Substituting the standard holder would put a part of the
+    wrong DEPTH under the fit test, which is worse than saying so, and the
+    source Holder is ~2 % heavy and not printable. So the cascade is skipped
+    and named.
+    """
+
+
 def holder_file(p, d, first=False):
     """`plan_exports.holder`'s name. Compile and Innovation holders SPAN the
     box, so they are keyed on the horizontal count; the rest are per-slot and
@@ -111,9 +123,8 @@ def holder_file(p, d, first=False):
 def holder_mesh(p, d, folder, first=False):
     path = ROOT / "individual" / folder / holder_file(p, d, first)
     if not path.exists():
-        raise FileNotFoundError(
-            f"no cached holder {path.name} in individual/{folder} — the source "
-            f"Holder is not printable yet, so there is nothing to fall back on")
+        raise MissingHolder(
+            f"no cached {path.name} in individual/{folder}")
     return _one(path)
 
 
@@ -200,11 +211,16 @@ def main(argv=None):
         return 0
 
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
+    skipped = []
     for folder, p, tokens in rows:
         d = D.derive(p)
         for state in states:
-            parts, instances = assemble(p, d, state, folder, args.out,
-                                        take_tokens=tokens)
+            try:
+                parts, instances = assemble(p, d, state, folder, args.out,
+                                            take_tokens=tokens)
+            except MissingHolder as e:
+                skipped.append(f"{folder}/{d.calModelName}: {e}")
+                break
             stem = B.box_file(d)[len("Box "):-len(".3mf")]
             path = args.out / "assemblies" / folder / f"{stem} {state}.3mf"
             meshed = mesh3mf.write_assembly(path, parts, instances,
@@ -212,6 +228,8 @@ def main(argv=None):
             tris = sum(len(t) for _n, _v, t in meshed)
             print(f"  {folder + '/' + path.name:52s} {len(parts):6d} "
                   f"{len(instances):5d} {tris:8d} {path.stat().st_size / 1024:6.0f}")
+    for s in skipped:
+        print(f"  skip  {s}")
     return 0
 
 

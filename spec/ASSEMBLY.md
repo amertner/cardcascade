@@ -1,4 +1,4 @@
-# Assemblies — the plan
+# Assemblies
 
 Placing the `cad/` parts into a whole cascade, in the two states a cascade has:
 **closed** (on the shelf) and **cascaded** (open, ready to play). Two purposes,
@@ -13,7 +13,11 @@ and they pull in the same direction:
 
 Nothing here is a new geometry input. Every placement below is derived from
 `derive.py` and the part modules, and where a placement had to be *chosen*
-rather than derived, this file says so and says what settles it.
+rather than derived, this file says so and says what settled it.
+
+`cad/assembly.py` is this file in code — placements and nothing else, importing
+no build123d, the same split `derive.py` has. `cad/assemble.py` writes the
+3MFs, `cad/fit.py` measures them.
 
 ---
 
@@ -134,53 +138,103 @@ honest picture of what ships.
 The `FirstHolder` is the deeper one and takes the first (frontmost) rib, which
 is the one `slider_ribs` places at `calFirstSliderDistance`.
 
-### TokenHolder
+### TokenHolder — a half turn about Z, and the FULL only
 
 Its frame's origin is already **the slot's corner** — X at the slot's left edge,
 Y at its front edge, Z at the base — so the placement is just where that slot is
 in the box: `box.front_dividers` in X, `box.pocket_span` in Y,
-`z = WallThickness`. The HALF sits behind the FULL in the merged slot.
+`z = WallThickness`.
 
-### Topper — one per holder, capping its cards
+**Its Y runs the opposite way to the box's**, so with X alone flipped the
+placement would be a MIRROR, which no physical part is. A half turn about Z is
+the only proper rotation that fits, and it also says what "left edge of the
+slot" means: left as seen from behind, which is the box's **+X** end.
 
-Allan: **the toppers slide into the top of the holders, covering the cards**,
-and his photos show them — a long strip, a label on its face, a lip at each end
-and small tabs along its length.
+Two independent expressions give that end and agree exactly — the last front
+divider's right edge plus `calTokenHolderSlotWidth`, and the right inner wall
+less `FrontPocketSidePaddingWidth`, both 94.250 on `S4.16.10`. The **divider**
+is used as the datum, though they give the same number, because it is the
+sketch's own. The rival placement at the inner wall itself collides with the
+Box by 1457.2448 mm3, so this is a test that distinguishes rather than one that
+merely permits.
 
-The cached meshes make this measurable rather than inferred, because the
-**Topper is exported in the Holder's own frame**. On Innovation `S5.15.15`:
+**FULL and HALF are alternatives, not both at once.** They are the same width,
+and `spec/TOKENHOLDER.md` says a half holder is not half of a full one and that
+they are not meant to stack in depth. A merged cascade ships one of each and
+the slot takes whichever suits; the assembly places the FULL, which every
+token-holder row gets.
+
+### Topper — sectioned, and one question left
+
+Allan: **the toppers slide into the top of the holders, covering the cards**.
+The cached Topper is exported in the **Holder's own frame**, so the mate is
+measured off two meshes rather than guessed. On Innovation `S5.15.15`, and
+confirmed on the 10-card pair:
 
 | | X | Y | Z |
 |---|---|---|---|
-| `Holder 3x15-r5-Un` | −38.400 … 172.400 | −8.000 … 0.844 | −45.250 … 46.173 |
-| `Topper Cities S15-Un` | −33.500 … 167.500 | −16.000 … −8.000 | 48.450 … 93.650 |
+| `Holder 3x15-r5-Un` | -38.400 … 172.400 | -8.000 … 0.844 | -45.250 … 46.173 |
+| `Topper Blank S15-Un` | -33.500 … 167.500 | -16.000 … -8.000 | 48.450 … 93.650 |
 
-Three facts fall straight out, and each is confirmed on the 10-card pair
-(`Holder 3x10-r5-Un` / `Topper Cities S10-Un`) as well:
+**What the topper is.** Sectioning it: the material at `x -33` and `x 167` — its
+two ends — spans the full 45.200 of Z and the full 8.000 of Y, and between them
+there is almost nothing except a rail at `z ~51.6` and another at `z ~93`. So it
+is a FRAME: two tall end plates joined by two rails, which is exactly the shape
+of the loose toppers in Allan's third photo, a long bar with an arm at each end.
 
-* **X** — the topper is inset **4.900 = `holder.END_EXTRA`** at each end, so it
-  spans exactly the holder's width between its two end blocks. That is what the
-  end lips in the photo hook over, and it means the topper's width is
-  `calSlotwidth * HorizontalSlots` with no constant of its own.
-* **Y** — the topper is exactly one **holder depth** forward of the imported
-  holder's body: −2d … −d against the holder's −d … 0, at d = 8.000 and again
-  at d = 6.000. A rule, not a coincidence.
-* **Z** — bottom at a constant **48.450**, top at **93.650**, identical at both
-  card counts. That bottom sits just above the card tops (a 92.000 card in a
-  pocket whose floor is at −43.050 reaches 48.950), which is the "covering the
-  cards" of Allan's description: the strip receives the top of the stack.
+**X is settled and is a real mate.** The end plates run `-33.500 … -32.700`,
+0.800 thick, and the holder's end block's inner face is at `-34.400` with the
+first compartment wall's outer face at `-33.500`. The plate therefore sits
+inside the outermost card compartment, hard against its outer wall — and a card
+is `calSlotwidth - 3.000` wide in a compartment `calSlotwidth - 1.600` wide, so
+there is 1.500 of slack at each end of the compartment for a 0.800 plate to
+slide down in. That is the "slides into the top of the holder".
 
-What is **not** settled by bounding boxes is which slot the topper occupies —
-its own holder's, or the one in front. The Onshape topper studio imports a
-Holder for reference and the two readings differ by exactly one `d`. Sectioning
-the two cached meshes at an end lip settles it: only one of the two puts the
-lip's hook around the holder's end block. That is a mesh measurement in a frame
-the two parts already share, 0 API calls, and it is the first thing the Topper
-work does. If the section is ambiguous, it goes to Allan rather than being
-picked.
+**Z says which holder it belongs to.** The topper's underside is `48.450`. Its
+own holder's cards top out at `48.550` — a 92.000 card in a pocket whose floor
+is at `-43.450`. The topper caps its own holder's cards with 0.100 of overlap.
+Under the alternative reading (the topper belonging to the holder one slot
+forward, which in a cascade is one `calHeightIncrement` lower) its underside
+would float 17.300 above that holder's cards, which is not a mate at all.
 
-Count: one topper per holder in use, from the six shipped (five expansions and
-a blank); rows in `components.no_toppers` carry none.
+**The one question left.** The export has the topper exactly one holder DEPTH
+(8.000, not the 8.400 of a slider distance) forward of the holder drawn with
+it. Either the studio drew the holder alongside for reference and the mate is
+`topper Y = holder Y`, or the offset is deliberate. Z says the first; the
+suspiciously exact 8.000 says the offset means something. Both positions are
+collision-free against the cached holder, so the meshes cannot separate them.
+**Allan.** Until then Innovation assembles without toppers, as it does now.
+
+## The finding: the treads sit 0.150 forward of the ribs
+
+Three things have to agree in Y, and two of them are a sliding fit:
+
+* the Box's slider **ribs**, `SLIDER_W` 1.500;
+* the Holder's **side slot**, `SLOT_W` 1.900, so the rib has 0.400 of play in
+  it and the holder 0.200 either way from centred;
+* the Pusher's **tread**, `calSliderDistance` long against a holder
+  `calSliderDistance - 0.400` deep, so another 0.400 of play.
+
+They do not agree. With the pusher centred in its lid socket, a tread's centre
+lands **0.150 forward** of its rib's, and
+
+    rib centre   = BD/2 - WallThickness - SLIDER_W/2 - sd/2
+    tread centre = BD/2 - 2.500 - sd/2
+
+so the difference is `2.500 - (1.600 + 0.750)` — a **constant**, with every
+parameter cancelling. It is the same 0.150 on every cascade in the catalogue.
+
+Nothing is broken by it: the holder is still fully supported. But it eats
+0.150 of the 0.400 the tread has, so a holder centred on its rib sits with
+**0.350 at the front of its tread and 0.050 at the back**, and 0.050 is the
+tightest number anywhere in a cascade.
+
+The holder is left centred on its **rib** in both states rather than split
+between the two datums, because the rib is the datum that exists in both, and
+the design's own claim is that the holders ride the same ribs whether the
+cascade is open or shut. Re-datuming the pusher to close the 0.150 is a change
+to the Lid's socket placement — `SOCKET_BACK` — and that is a geometry change
+with its own cost, not a placement decision.
 
 ## Where the parts come from
 
@@ -258,12 +312,14 @@ that holds on one cascade and not on 50 is the finding worth having.
 
 ## Open, and what settles each
 
-* **Which way the pusher's depth axis runs in storage.** Symmetric in the lock;
-  the fit test picks it (step 1).
-* **The Lid's X mirror when closed.** Symmetric in the grooves; the floor
-  engraving and the fit test pick it (step 2).
-* **Which slot a topper occupies** — its own holder's, or the one in front.
-  Settled by sectioning the two cached meshes at an end lip; Allan if ambiguous.
+* ~~Which way the pusher's depth axis runs in storage.~~ Not open: two axes are
+  forced by features and the third by right-handedness.
+* **The Lid's X mirror when closed.** Symmetric in the grooves and in the
+  outer shell, so nothing in the fit can see it; only the floor engraving's
+  handedness can, and it is cosmetic either way.
+* **The topper's Y** — whether the exported 8.000 offset is the mate or a
+  reference layout. Sectioning settled everything else about the part; this it
+  cannot settle. Allan.
 * **A `--holder=source` run will report Holder margins that fail.** That is the
   Holder's known 2 %, not the assembly's, and the report says which part came
   from where so the two never get confused.

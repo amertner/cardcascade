@@ -40,6 +40,12 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.build --part tokenholder # 22, Dominion only, seconds
 .venv/bin/python -m cad.build --part all         # all of them
 
+.venv/bin/python -m cad.assemble --model S4.16.10.32-Un --state all
+.venv/bin/python -m cad.fit --model S4.16.10.32-Un --state play
+.venv/bin/python -m cad.fit --model S4.16.10.32-Un --no-solids   # seconds
+.venv/bin/python -m cad.render \
+    "build/assemblies/Dominion/S4.16.10.32-Un play.3mf" --assembly
+
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
 .venv/bin/python tests/test_box.py               # source vs the nine STEPs
@@ -74,6 +80,9 @@ cad/
   mesh3mf.py    read/write a component 3MF in the shape Onshape's have
   build.py      the CLI: parts.csv -> build/<Game>/*.3mf
   render.py     shaded PNGs, for looking at a build without Studio
+  assembly.py   WHERE each part goes — placements, and nothing else
+  assemble.py   the CLI: parts.csv -> build/assemblies/<Game>/*.3mf
+  fit.py        interference and margins — the reason the assemblies exist
   parts/
     pusher.py   done
     box.py      done
@@ -81,6 +90,7 @@ cad/
     token_holder.py  done — FULL and HALF, Dominion only
     holder.py   INCOMPLETE — see spec/HOLDER.md; topper.py to come
 spec/
+  ASSEMBLY.md   where each part goes in a whole cascade, and what settled it
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
   PUSHER.md     the Pusher measured, and what the rebuild reproduces
   BOX.md        the same for the Box
@@ -132,6 +142,28 @@ one parameter set does not suit another — the same string comes out `3.85x`
 bigger on one reference than the other. `cad/text.py` fits **both** dimensions
 instead, and `tests/test_pusher.py` holds the result to its own bounds on all
 34 pushers, not just the two references. `spec/PUSHER.md` has the numbers.
+
+## Assemblies, and the one thing they found
+
+`cad/assembly.py` places the parts into a whole cascade — **closed**, **closed
+with the lid on**, and **cascaded** for play — and `cad/fit.py` measures the
+result. This is the first thing in the repo that can check the MECHANISM rather
+than a part: every clearance in the design is asserted one part at a time today,
+against a reference that only ever shows that part.
+
+It is a separate module for the reason `derive.py` is one: every formula once,
+every placement once. `assembly.py` imports no build123d, so the mates are pure
+arithmetic and testable on their own, and it introduces no constant of its own —
+each placement is derived from `derive.py` and the part modules, and
+`spec/ASSEMBLY.md` records what settled it.
+
+On Dominion `S4.16.10.32-Un` every pair of source-built parts intersects in
+**0.0000 mm3** in all three states, and every named margin lands on its nominal
+to 0.001. The one finding is that **a pusher's treads sit 0.150 forward of the
+box's slider ribs, on every cascade** — a constant, with every parameter
+cancelling — which leaves a holder on its tread with 0.350 at the front and
+0.050 at the back. Nothing is broken by it, and nothing before now could see it.
+`spec/ASSEMBLY.md` has the arithmetic.
 
 ## Six decisions
 

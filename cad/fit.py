@@ -120,46 +120,43 @@ def socketed_pusher_margins(p, d):
 
 
 def holder_margins(p, d, cached=None):
-    """The holder on its rib, and — in play — on its tread.
+    """The holder on its rib.
 
-    `cached` is the (verts, tris) of the mesh an assembly actually places; the
-    side slot is measured off it, because that is the part in the box.
+    `cached` maps `first` to the slot and width measured off the mesh an
+    assembly actually places, because that is the part in the box. It is keyed
+    on `first` and not shared: **a FirstHolder is DEEPER** — its depth is
+    `calFirstSliderDistance - 0.400` — so its side slot, which is centred on
+    its own depth, sits somewhere else entirely. Measuring every riser against
+    the standard holder's slot is what the first version of this did, and the
+    catalogue pass caught it on all six first-riser rows and nowhere else.
+
+    A row whose FirstHolder has never been exported (`Holder M-21-r6-Un
+    (first)` does not exist) gets its standard risers checked and that one
+    reported, rather than the whole cascade skipped.
     """
     out = []
-    slot_lo, slot_hi = holder_slot(p, d, cached)
-    for j, _first in A.holders(p, d):
+    for j, first in A.holders(p, d):
+        info = (cached or {}).get(first)
+        if info is None:
+            out.append(Margin(f"holder {j}: rib in the side slot",
+                              float("nan"), None,
+                              note="no cached mesh — not checked"))
+            continue
+        slot_lo, slot_hi = info["slot"]
+        want = (slot_hi - slot_lo - box_part.SLIDER_W) / 2
         rib0, rib1 = box_part.slider_ribs(p, d)[j]
         pl = A.holder_closed(p, d, j)
         lo, hi = pl((0, slot_lo, 0))[1], pl((0, slot_hi, 0))[1]
         out.append(Margin(f"holder {j}: rib in the side slot, back",
-                          hi - rib1, (holder_slot_w(p, d, cached)
-                                      - box_part.SLIDER_W) / 2))
+                          hi - rib1, want))
         out.append(Margin(f"holder {j}: rib in the side slot, front",
-                          rib0 - lo, (holder_slot_w(p, d, cached)
-                                      - box_part.SLIDER_W) / 2))
-    inner = box_part.box_width(p, d) / 2 - D.WallThickness
-    half = holder_width(p, d, cached) / 2
-    out.append(Margin("holder: clearance in the box, each side",
-                      inner - half, None))
+                          rib0 - lo, want))
+    plain = (cached or {}).get(False)
+    if plain:
+        inner = box_part.box_width(p, d) / 2 - D.WallThickness
+        out.append(Margin("holder: clearance in the box, each side",
+                          inner - plain["width"] / 2, None))
     return out
-
-
-def holder_slot(p, d, cached):
-    """(front, back) of the side slot in the holder's own frame."""
-    if cached is None:
-        depth = holder_part.holder_depth(p, d, False)
-        return -depth / 2 - holder_part.SLOT_W / 2, -depth / 2 + holder_part.SLOT_W / 2
-    return cached["slot"]
-
-
-def holder_slot_w(p, d, cached):
-    lo, hi = holder_slot(p, d, cached)
-    return hi - lo
-
-
-def holder_width(p, d, cached):
-    return (cached["width"] if cached
-            else holder_part.holder_width(p, d))
 
 
 def tread_margins(p, d):
@@ -210,14 +207,25 @@ def lid_margins(p, d):
     return out
 
 
-def cached_holder(p, d, folder):
-    """The slot and width of the holder an assembly actually places, measured
-    off its mesh. `None` when there is no cached holder for the row."""
+def cached_holders(p, d, folder):
+    """`{first: {slot, width}}` for the holders an assembly places, measured
+    off their meshes. A key is absent when that mesh is not on disk."""
+    out = {}
+    for first in {f for _j, f in A.holders(p, d)}:
+        info = cached_holder(p, d, folder, first)
+        if info is not None:
+            out[first] = info
+    return out
+
+
+def cached_holder(p, d, folder, first=False):
+    """The slot and width of one cached holder, measured off its mesh.
+    `None` when it is not on disk."""
     import numpy as np
     from . import assemble
     try:
-        _n, verts, _t = assemble.holder_mesh(p, d, folder)
-    except FileNotFoundError:
+        _n, verts, _t = assemble.holder_mesh(p, d, folder, first)
+    except Exception:
         return None
     v = np.asarray(verts)
     x_lo, x_hi = v[:, 0].min(), v[:, 0].max()
@@ -227,7 +235,7 @@ def cached_holder(p, d, folder):
     # holder's mid-depth. Both conditions are needed: on `Holder S-16-r4-Un`
     # the pair (-5.800, -3.908) is 1.892 apart and matches the width alone to
     # 0.008, and it is the outer face and a lip chamfer, not the slot.
-    mid = -holder_part.holder_depth(p, d, False) / 2
+    mid = -holder_part.holder_depth(p, d, first) / 2
     walls = sorted(((abs((a + b) / 2 - mid), (float(a), float(b)))
                     for i, a in enumerate(ys) for b in ys[i + 1:]
                     if abs((b - a) - holder_part.SLOT_W) < 0.05))
@@ -269,7 +277,7 @@ def interference(p, d, state):
 def report(p, d, folder, state, solids=True):
     """Print one cascade's fit in one state. True if everything passed."""
     print(f"\n{folder}/{d.calModelName}  [{state}]")
-    cached = cached_holder(p, d, folder)
+    cached = cached_holders(p, d, folder)
     margins = list(lid_margins(p, d))
     if state == A.PLAY:
         margins += socketed_pusher_margins(p, d) + tread_margins(p, d)
