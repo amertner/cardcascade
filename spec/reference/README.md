@@ -108,6 +108,33 @@ to them — is what made the re-exports worth asking for; both landed on the rul
 to the thousandth. `tests/test_holder.py` keeps its `HELD_OUT` list, now empty,
 for the next time.
 
+### Topper
+
+Eleven, and between them they made the Topper solvable without a single API
+call. Innovation only — no other game's studio has one.
+
+| file | what it isolates |
+|---|---|
+| `Topper Blank M5.10.10.32-Un without top and front edges.step` | the last feature SUPPRESSED, so every dimension can be read without a blend in the way. One solid, 133 faces |
+| `Topper M5.15.15.62-Sl to Remove Inner Hole.step` | the feature tree ROLLED BACK to that feature |
+| `Topper M5.15.15.62-Sl after More Dividers.step` | " |
+| `Topper M5.15.15.62-Sl after Linear pattern 1.step` | " — the last before `Upside Down`. The three bracket every group of the blank, so each is a subtraction rather than an inference |
+| `Topper Unseen M5.10.10.32-Un.step` | 10 cards unsleeved |
+| `Topper Unseen M5.15.15.45-Un.step` | 15 cards unsleeved — the PAIR with the one above, so only the card count differs |
+| `Topper Artifacts / Cities / Echoes / Figures / Unseen M5.15.15.62-Sl.step` | all five expansions at one parameter set, which is what solved the five marks |
+
+A named export carries the topper body **plus** every engraved piece as its own
+solid — 13 for `Unseen`. The body is the biggest by volume and **is the BLANK
+topper**: the blank is not a different part, it is this one without its name
+and logo, so no separate blank export is needed. Differencing the source's
+blank against a named body gives the engraving exactly, which is how the marks
+were derived rather than traced.
+
+`spec/TOPPER.md` has the measurements. Two things worth knowing here: the
+sleeved `Unseen` files in `individual/` are STALE and these STEPs are not, and
+`Solid.volume` is not a safe metric on a named body — OCCT over-reports it by
+about 1 mm3, on these exports as much as on the source.
+
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather
 than any API budget.

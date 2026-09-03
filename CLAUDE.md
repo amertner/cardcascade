@@ -22,13 +22,19 @@ rebuild.
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
 generated with **zero API calls**. **Pusher**, **Box**, **Lid**,
-**TokenHolder** and **Holder** are done — the Lid including the logo pattern in
-its underside for all four games (`logos/<Game>/*.dxf`; `spec/LID.md`), the
-TokenHolder in both its FULL and HALF configurations (`spec/TOKENHOLDER.md`),
-the Holder to `+0.007%` of all ten references once its intended text
-divergence is set aside (`spec/HOLDER.md`). Only the **Topper** still comes from
-Onshape, and the whole `automation/` pipeline is still live and authoritative
-for a cascade.
+**TokenHolder**, **Topper** and **Holder** — **every part is now done**, the
+Holder and the Topper having landed on separate branches at the same time. The
+Lid includes the logo pattern in its underside for all four games
+(`logos/<Game>/*.dxf`; `spec/LID.md`); the TokenHolder covers both its FULL and
+HALF configurations (`spec/TOKENHOLDER.md`); the Topper covers all six
+expansions, its five marks derived from `calLogoSidelength` rather than traced
+(`spec/TOPPER.md`); the Holder reproduces all ten references to `+0.007%` once
+its intended text divergence is set aside (`spec/HOLDER.md`).
+
+So no component's GEOMETRY needs Onshape any more. That is not the same as
+saying a cascade does not: `automation/` still assembles, verifies and packages
+one, is what has actually shipped every cascade on disk, and stays
+authoritative. Nothing has yet built a whole cascade end to end from `build/`.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -71,10 +77,11 @@ for a cascade.
   lot. `--part holder` is 56 files at about three seconds each. `--part tokenholder`
   is 22 files in seconds (22, not `individual/`'s 18: the old dedup key drops
   the size letter the tray has engraved on it, so two cascades ship a tray
-  labelled for the other — `spec/TOKENHOLDER.md`). A box takes about
-  ten seconds and a pusher under one; a LID costs whatever its logo artwork
-  costs, because every region of the mark is its own boolean — 17 s for
-  Dominion's 459 edges, 57 s for Compile's 1885. Run all 50 in the background.
+  labelled for the other — `spec/TOKENHOLDER.md`). `--part topper` is 48 in
+  95 s. A box takes about ten seconds and a pusher under one; a LID costs
+  whatever its logo artwork costs, because every region of the mark is its own
+  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
+  in the background.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
 - Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
@@ -84,12 +91,15 @@ for a cascade.
   `individual/`; run `python -m cad.build` first),
   `.venv/bin/python tests/test_box.py`, `.venv/bin/python tests/test_lid.py`,
   `.venv/bin/python tests/test_token_holder.py` and
-  `.venv/bin/python tests/test_holder.py` (source vs their STEPs),
-  and `.venv/bin/python tests/test_lid_corpus.py` /
-  `.venv/bin/python tests/test_token_holder_corpus.py` /
+  `.venv/bin/python tests/test_topper.py` and
+  `.venv/bin/python tests/test_holder.py` (source vs their STEPs), and
+  `.venv/bin/python tests/test_lid_corpus.py`,
+  `.venv/bin/python tests/test_token_holder_corpus.py`,
+  `.venv/bin/python tests/test_topper_corpus.py` and
   `.venv/bin/python tests/test_holder_corpus.py` (against all 44 cached lids,
-  all 18 cached token holders and all 50 cached holders; the last one needs
-  `--part holder` built first and takes about four minutes).
+  all 18 cached token holders, all 48 cached toppers and all 50 cached holders;
+  the last one needs `--part holder` built first and takes 12-15 MINUTES,
+  because it rebuilds all 50 at `Version="6.6"` to compare like for like).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 

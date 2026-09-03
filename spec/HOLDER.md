@@ -455,12 +455,34 @@ included, and the width constant is the whole of it.
 For `cad/` this decides only which number to build: `4.900` is what all ten
 STEPs measure and what the studio has now.
 
-The engraved version says the same thing from the other side. Every cached
-holder engraves `CC 6.6` — measured as ink width against `cad/text.py`, exact to
-a thousandth on all five sampled, including the ones exported on 2026-08-31 —
-while every hand-exported STEP engraves `CC 7.0`. So the studio's version
-variable moved after the last of these exports, and the corpus regression builds
-at `Version="6.6"` to compare like for like.
+The engraved version is a SEPARATE axis, and the two must not be conflated.
+Every cached holder engraves `CC 6.6` — measured as ink width against
+`cad/text.py`, exact to a thousandth on all five sampled, including the ones
+exported on 2026-08-31 — while every hand-exported STEP engraves `CC 7.0`. So
+the studio's version variable moved after the last of these exports.
+
+**Everything is 7.0 now, and on the Holder the bump changed NOTHING but the
+embossed number (Allan).** That is what licenses the corpus regression to build
+at `Version="6.6"` and compare like for like: the only thing 7.0 moves on this
+part is the string, exactly as it is for the TokenHolder
+(`spec/TOKENHOLDER.md`).
+
+It also means the end-block trim is not the version bump wearing a disguise.
+Two changes happened in sequence and only one of them was versioned:
+
+    unversioned, ~2026-08-22   END_EXTRA 5.000 -> 4.900   GEOMETRY
+    the 6.6 -> 7.0 bump        `CC 6.6` -> `CC 7.0`       the embossed string
+
+A cached holder can therefore be old in one sense and current in the other, and
+30 of the 50 are: they carry the 6.6 string like all the rest, and the 5.000 end
+block that only the pre-trim ones have.
+
+**One consequence is still open, and it is `automation/`'s, not this part's.**
+`onshape_config.GENERATIONS["7.0"]` still reads `"Holder": "6.6"`. Moving it to
+`"7.0"` would be correct about the studio AND would make `PROV.is_current` call
+all 50 cached holders stale at once — which is the sweep deferred above, arriving
+by a side door. The same applies to `TokenHolder` and `Topper`, both also pinned
+at `6.6` in that table. Whoever bumps them should mean to.
 
 **The difference is the end block and nothing else.** Set the 30 against the
 build and every other coordinate agrees to the micron — depth, height, the lip's

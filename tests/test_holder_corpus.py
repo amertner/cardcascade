@@ -2,7 +2,7 @@
 """Every built holder against the Onshape one it replaces.
 
     .venv/bin/python -m cad.build --part holder
-    .venv/bin/python tests/test_holder_corpus.py
+    .venv/bin/python tests/test_holder_corpus.py     # 12-15 minutes
 
 `tests/test_holder.py` checks the SOURCE against ten hand-exported STEPs, which
 settle the geometry exactly and say nothing about the written file. This checks
@@ -30,10 +30,15 @@ the bucket is read off the mesh, not from a list here.
 
 The engraved VERSION is the other difference, and it is not a divergence: all
 50 cached files engrave `CC 6.6`, exact to a thousandth, while the STEPs Allan
-exported by hand engrave `CC 7.0`. So the studio's version variable moved after
-the last of these exports. The build is therefore run at `Version="6.6"` for
-the volume comparison, as `tests/test_token_holder_corpus.py` does, and the two
-are compared like for like.
+exported by hand engrave `CC 7.0`. Everything is 7.0 now, and on the Holder that
+bump changed NOTHING but the embossed number (Allan) — which is what licenses
+comparing across it. The build is therefore run at `Version="6.6"` for the
+volume comparison, as `tests/test_token_holder_corpus.py` does for the same
+stated reason, and the two are compared like for like.
+
+Note the two changes are independent: the end-block trim happened while the
+studio was still at 6.6, so a cached holder can carry the 6.6 string (all of
+them do) and either end block.
 
 The engraved SIZE is a divergence, and a deliberate one: where Onshape's rule
 makes the two blocks collide, `holder.text_size` shrinks them so they do not
