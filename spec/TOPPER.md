@@ -18,7 +18,9 @@ lettering**, not six designs.
 | what | where |
 |---|---|
 | `Topper Unseen M5.15.15.62-Sl.step` | `spec/reference/` — Innovation `4 Ages 5 Expansions` Sl, 0 API calls. 13 solids, `Top and front edges` APPLIED |
-| `Topper Blank M5.15.15.62-Sl without top and front edges.step` | the same feature suppressed — but at a DIFFERENT parameter set, `M5.10.10.32-Un` (10 cards, unsleeved). One solid, 133 faces against the other's 445 |
+| `Topper Blank M5.10.10.32-Un without top and front edges.step` | `Top and front edges` SUPPRESSED. A different parameter set from the sample — 10 cards, unsleeved. One solid, 133 faces against the other's 445 |
+| `Topper Unseen M5.15.15.45-Un.step` | 15 cards, unsleeved |
+| `Topper Unseen M5.10.10.32-Un.step` | 10 cards, unsleeved — the PAIR with the one above: same expansion, same size, same sleeving, and only the card count differs, which is what isolates the lettering's scale |
 | 48 cached components | `individual/Innovation/Topper *.3mf` — 6 expansions x S/M x 10/15 cards x Sl/Un |
 
 The STEP holds **13 solids**: the body, the six letters of `Unseen`, and six
@@ -124,8 +126,9 @@ made the Box's last feature measurable. It is **not** a twin of the Unseen
 sample, though: that one is `M15-Sl` and this one is `M10-Un`. So the two
 cannot be differenced directly.
 
-It pairs instead with the cached **`Topper Blank M10-Un.3mf`**, which is the
-same parameter set with the fillet applied. A mesh is lossy, but Onshape's
+It pairs instead with the cached **`Topper Blank M10-Un.3mf`**, and with
+`Topper Unseen M5.10.10.32-Un.step`, both of which are the same parameter set
+with the fillet applied. A mesh is lossy, but Onshape's
 tessellation is good to about `0.01`, which is ample for locating a fillet.
 
 It is also, by luck, **exactly the configuration every logo sketch was drawn
@@ -169,6 +172,7 @@ row, because the slope moves with `calSlotDepth`.
 | `Fillet front holes` | radius **2.0**, tangent propagation, allow edge overflow, on the edges of `Remove front section` |
 | `Fillet Lip Room` | radius **1.4**, on two edges of `Remove Lip Room` |
 | `Other side` | a FEATURE MIRROR of `Remove Lip Room` + `Fillet Lip Room` about the **Right plane** — so the lip clearance is cut at both ends and the fillet comes with it |
+| `Linear pattern 1` | patterns `Remove Lip Room` + `Fillet Lip Room` + `Other side` along the **Right plane**, `distance = calSlotwidth` (67 on the sample), `count = HorizontalSlots` (4), **Centered**. So the lip clearance is cut once per slot, centred on the part |
 | `Top and front edges` | `r 0.800`, see above |
 
 ## The posts
@@ -286,46 +290,83 @@ in `cad/parts/topper.py`, as `holder.py` holds its own `LIP_*` constants.
 `#calLogoSidelength` is different: it IS a studio variable and is already in
 `derive.py`.
 
-### The rule holds on three of the four, and NOT on Unseen
+### The logo IS `calLogoSidelength`, on all four expansions
 
 Measured against all four M configurations of each expansion in
-`individual/Innovation/`:
+`individual/Innovation/`, the mark's width is `calLogoSidelength` exactly —
+`4.225`, `6.100`, `5.725`, `8.538` — for `Echoes`, `Cities` and `Artifacts`.
+Twelve for twelve.
 
-| expansion | M10-Un | M10-Sl | M15-Un | M15-Sl |
-|---|---|---|---|---|
-| `calLogoSidelength` | 4.2250 | 6.1000 | 5.7250 | 8.5375 |
-| `Echoes` | **4.225** | **6.100** | **5.725** | **8.538** |
-| `Cities` | **4.225** | **6.100** | **5.725** | **8.538** |
-| `Artifacts` | **4.225** | **6.100** | **5.725** | **8.538** |
-| `Unseen` | 5.342 | 5.342 | 7.239 | 5.342 |
+`Unseen` looks like an exception and is not. Its LOGO GROUP measures
+`1.2644 x calLogoSidelength`, but the group is the shield plus the five small
+rectangles arranged below it, and those extend past the mark. The **shield
+alone** measures
 
-So **the logo's width IS `calLogoSidelength`, exactly, twelve times out of
-twelve** — for Echoes, Cities and Artifacts.
+    15-card unsleeved   5.7250   against calLogoSidelength 5.7250
+    10-card unsleeved   4.2250   against calLogoSidelength 4.2250
 
-**Unseen does not follow it.** Its mark takes only two widths across the four
-configurations, and neither is its own row's `calLogoSidelength`: three
-configurations share 5.342 and one has 7.239. The two are in the same ratio to
-each other as `calLogoSidelength` at 10 and 15 cards unsleeved (1.2645 either
-way), so the mark is scaling with SOMETHING — just never with the value its own
-row has.
+exact to four decimals on both. So the rule is the same on all four
+expansions, and `1.2644` is just how far Unseen's rectangles reach.
 
-**The logos are all meant to scale to the topper** (Allan), so this is a
-DEFECT rather than a design, and it is Unseen's alone. Two candidates:
+> An earlier revision of this file recorded Unseen as a defective sketch. That
+> was wrong, and wrong for an avoidable reason: the group was measured where
+> the mark should have been. The commit stands in history; this is the
+> correction.
 
-- **Its sketch is under-constrained.** Unseen has by far the most
-  sub-dimensions and is the only one with elements placed by ANGLE (five
-  rectangles at 0, +-25, +-50 degrees), so it is the most likely to have a
-  dimension that did not get tied to `calLogoSidelength`.
-- **Those exports are stale.** `automation/PIPELINE.md` records the 15-card
-  toppers as the ones a version bump pulled back into the worklist, and
-  `M15-Sl` carrying the same 5.342 as the 10-card files is what a stale export
-  would look like.
+### Two of the cached Unseen files ARE stale
 
-The two have opposite fixes — a sketch to correct in Onshape, or four files to
-re-export — so it wants settling before the logos are built. `cad/` will build
-Unseen to the same rule as the other three, which means it will DIFFER from
-the cached Unseen files; that divergence is intended and the test should assert
-both ends, as the TokenHolder's clipped engravings do.
+What survives from that is smaller and real. Across the four cached Unseen
+configurations the group measures
+
+    M10-Un  5.342     M10-Sl  5.342     M15-Un  7.239     M15-Sl  5.342
+
+The two UNSLEEVED ones scale correctly (`1.2644 x` their own
+`calLogoSidelength`). Both **SLEEVED** ones are stuck at the 10-card unsleeved
+value. That is not a sketch that fails to scale — a broken sketch would fail
+everywhere — it is two exports carrying older geometry, which is exactly what
+`automation/PIPELINE.md` already records for the toppers a version bump pulled
+back into the worklist.
+
+So: `Topper Unseen M10-Sl.3mf` and `Topper Unseen M15-Sl.3mf` want re-exporting.
+Nothing needs changing in Onshape.
+
+## The lettering scales 0.65 between 10 and 15 cards, and NOT with the logo
+
+The 10/15 pair settles this, both configurations being M and unsleeved so that
+only the card count moves:
+
+| | 10-card | 15-card | ratio |
+|---|---|---|---|
+| `calLogoSidelength` | 4.2250 | 5.7250 | 1.3550 |
+| logo width | 5.342 | 7.239 | **1.3550** |
+| text width | 13.247 | 20.380 | **1.5385** |
+| text height | 2.614 | 4.021 | **1.5385** |
+
+So the logo tracks `calLogoSidelength` and the lettering does **not** — they
+are two different rules on the same face, and building the text off
+`calLogoSidelength` would be wrong by 13%.
+
+`1/1.5385` is `0.6500` exactly, in both width and height independently. That
+confirms, from geometry, the 65% that `automation/PIPELINE.md` records from the
+other direction — and `topper_split.py` relies on, since its glyph fingerprints
+are normalised widths and it states they survive the 10-vs-15 size change.
+
+**What SETS the size is not yet known.** It is not `calLogoSidelength` (1.3550),
+not the depth (8.000/6.000 is 1.3333) and not `calSlotDepth` (6.000/4.000 is
+1.5000, which is close but not 1.5385). Two configurations cannot separate a
+two-term rule, so this needs a third — a 15-card SLEEVED export would do it,
+since sleeving moves the depth without moving the card count.
+
+## Cities, and `#TopperTotalWidth`
+
+`Cities` is drawn in two sketches, and the second uses the first: `Cities Draft`
+carries the construction geometry — `calLogoSidelength/8` and
+`calLogoSidelength/5` — and `Cities` traces the eight-pointed star over it. Only
+the draft's numbers are needed.
+
+`#TopperTotalWidth` is a **measured** variable, not an assigned one: it reads
+the length of an `Edge of Top and front edges` and exists for Allan's own
+reference. Nothing consumes it, and nothing here should.
 
 ## Still open
 
@@ -343,13 +384,16 @@ both ends, as the TokenHolder's clipped engravings do.
   true by construction. `tests/test_topper.py` must assert the topper's tabs
   land in the holder's tab slots, computed independently from both modules, or
   a divergence in either part will print as a part that does not clip on.
-- **The `Expansion Name` group.** The logo constructions, `#LogoEdgeDist` and
-  the placement are now recorded above; `#TopperTotalWidth = 4.4` is not, and
-  the `Cities` FINAL sketch's own dimensions are not (only its draft's).
-  Deliberately not started: the blank comes first (Allan), and there is no
-  point fitting lettering to a body that cannot yet be reproduced.
-- **Unseen's logo does not scale** where the other three do — see above. A
-  defect, not a design, and it needs a decision on which fix.
+- **What sets the LETTERING's size.** It scales 0.6500 exactly between 10 and
+  15 cards and does not follow `calLogoSidelength`; two configurations cannot
+  separate a two-term rule. A 15-card SLEEVED export would settle it, since
+  sleeving moves the depth without moving the card count.
+- **`Figures`' construction** is two concentric circles with a radial gap of
+  `calLogoSidelength/5`, but which region is the mark — the annulus alone, or
+  the disc with a ring — is not settled. It is one solid in the corpus, which
+  an annulus is.
+- **Two cached Unseen files are stale** (`M10-Sl`, `M15-Sl`) and want
+  re-exporting. Not a modelling problem.
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly
   65% of the 15-card, because the text sits in the topper's depth. That wants
   deriving rather than transcribing, and the pair that isolates it is one
