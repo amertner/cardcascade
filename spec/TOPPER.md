@@ -147,6 +147,121 @@ Two, one at each end of the part, standing above the body:
 The sketch carries `1.6`, `1.2` and `0.1`. These are what mate the topper to
 the holder.
 
+## The expansion logos
+
+Each topper carries, to the LEFT of its expansion name, a small mark. Allan's
+sketches for these arrived before the blank was built and are transcribed here
+so they are not lost; **nothing below is implemented yet**.
+
+### They are GENERATED marks, not drawings
+
+Every one is sketched on the `Top plane` inside a bounding box of side
+**`#calLogoSidelength`**, and **every dimension in every sketch is a FRACTION
+of it** — `/2`, `/4`, `/5`, `/7`, `/8`, `/10`, `/12`. Nothing is absolute.
+
+That variable already exists, and is already transcribed:
+
+    calLogoSidelength = 3 * calHolderDepth / 4 - 0.2        (cad/derive.py)
+
+In `cad/marks.py`'s terms this makes them **GENERATED** rather than DRAWING
+marks — built from a rule, so they stay exact at any size, and no DXF is
+needed. That is the opposite of most of the Lid's marks, which are artwork
+scaled from `logos/<Game>/*.dxf` and whose strokes scale with them.
+
+The screenshots were all taken at **`calLogoSidelength = 4.23`**, which is
+Innovation's 10-card UNSLEEVED value (4.2250 exactly). Useful for checking a
+transcription: any construction below, evaluated at 4.2250, has to reproduce
+the numbers shown.
+
+### The constructions, as read from the sketches
+
+| expansion | construction |
+|---|---|
+| `Echoes` | a square rotated 45 degrees — a diamond — with its four vertices at the midpoints of the bounding box's edges |
+| `Artifacts` | two tall triangles, bases on the box's bottom edge, apexes inset `calLogoSidelength/4` (1.06) from the left and right; they overlap |
+| `Cities` | an eight-pointed star. Drawn in TWO sketches, `Cities Draft` and `Cities` — the draft carries the construction (`/8` = 0.53, `/5` = 0.85) and the final is the single filled outline |
+| `Unseen` | a shield: a curved triangle whose main arc is `R = calLogoSidelength/2` (2.11), its top corners inset `calLogoSidelength/7` (0.6) both ways; below it five small rectangles on an arc at 0, +-25 and +-50 degrees, each `calLogoSidelength/5` (0.85) long by `calLogoSidelength/10` (0.42) wide, offset `calLogoSidelength/12` from the centre |
+| `Figures` | two CONCENTRIC CIRCLES — an annulus — the radial gap between them `calLogoSidelength/5` (0.85). One solid in the corpus, which an annulus is |
+| `Blank` | none — the blank carries no name and no logo |
+
+These are read off screenshots, so the RATIOS are exact (they are expressions)
+but exact vertex placement is not yet confirmed for `Artifacts` and `Cities`.
+The Unseen sample STEP carries its own logo as six solids, so that one can be
+checked against geometry directly.
+
+### Placing the mark and the name
+
+Both sit on the `Face of CardHeight`, and the `Expansion Name` sketch gives the
+three numbers that place them:
+
+    text starts at   #calLogoSidelength*3/2 + 3mm    9.34
+    top margin       #LogoEdgeDist                   0.60
+    bottom margin    #LogoEdgeDist*2                 1.20
+
+with
+
+    #LogoEdgeDist = CardsPerSlidingSlot > 10 ? (isSleeved ? 1.2 : 0.8)
+                                             : (isSleeved ? 1.0 : 0.6)
+
+All three reproduce exactly at 10-card unsleeved — `4.2250`, `0.60`, `9.338` —
+which is the configuration every sketch screenshot was taken at, so the whole
+group is consistent.
+
+**The margins are deliberately asymmetric**, and the reason is worth keeping:
+the bottom is doubled so the font's lower-case `g` descender does not run off
+the face (Allan). `Figures` is the only expansion with one. Without that note
+the `*2` looks like a mistake to be tidied up, and tidying it would push the
+`g` off the part — the same class of error as the three token holders whose
+engraving the outline clips.
+
+`#LogoEdgeDist` and `#TopperHeight` are **part-studio** variables, not variable
+studio ones, so unlike `#calTokenHolderSlotWidth` they do NOT belong in
+`derive.py` — that module is the variable studio's transcription. They belong
+in `cad/parts/topper.py`, as `holder.py` holds its own `LIP_*` constants.
+`#calLogoSidelength` is different: it IS a studio variable and is already in
+`derive.py`.
+
+### The rule holds on three of the four, and NOT on Unseen
+
+Measured against all four M configurations of each expansion in
+`individual/Innovation/`:
+
+| expansion | M10-Un | M10-Sl | M15-Un | M15-Sl |
+|---|---|---|---|---|
+| `calLogoSidelength` | 4.2250 | 6.1000 | 5.7250 | 8.5375 |
+| `Echoes` | **4.225** | **6.100** | **5.725** | **8.538** |
+| `Cities` | **4.225** | **6.100** | **5.725** | **8.538** |
+| `Artifacts` | **4.225** | **6.100** | **5.725** | **8.538** |
+| `Unseen` | 5.342 | 5.342 | 7.239 | 5.342 |
+
+So **the logo's width IS `calLogoSidelength`, exactly, twelve times out of
+twelve** — for Echoes, Cities and Artifacts.
+
+**Unseen does not follow it.** Its mark takes only two widths across the four
+configurations, and neither is its own row's `calLogoSidelength`: three
+configurations share 5.342 and one has 7.239. The two are in the same ratio to
+each other as `calLogoSidelength` at 10 and 15 cards unsleeved (1.2645 either
+way), so the mark is scaling with SOMETHING — just never with the value its own
+row has.
+
+**The logos are all meant to scale to the topper** (Allan), so this is a
+DEFECT rather than a design, and it is Unseen's alone. Two candidates:
+
+- **Its sketch is under-constrained.** Unseen has by far the most
+  sub-dimensions and is the only one with elements placed by ANGLE (five
+  rectangles at 0, +-25, +-50 degrees), so it is the most likely to have a
+  dimension that did not get tied to `calLogoSidelength`.
+- **Those exports are stale.** `automation/PIPELINE.md` records the 15-card
+  toppers as the ones a version bump pulled back into the worklist, and
+  `M15-Sl` carrying the same 5.342 as the 10-card files is what a stale export
+  would look like.
+
+The two have opposite fixes — a sketch to correct in Onshape, or four files to
+re-export — so it wants settling before the logos are built. `cad/` will build
+Unseen to the same rule as the other three, which means it will DIFFER from
+the cached Unseen files; that divergence is intended and the test should assert
+both ends, as the TokenHolder's clipped engravings do.
+
 ## Still open
 
 - **`Top and front edges`, the last feature.** Every edge measured above
@@ -163,10 +278,13 @@ the holder.
   true by construction. `tests/test_topper.py` must assert the topper's tabs
   land in the holder's tab slots, computed independently from both modules, or
   a divergence in either part will print as a part that does not clip on.
-- **The `Expansion Name` group** — 19 features, `#LogoEdgeDist = 0.6`,
-  `#TopperTotalWidth = 4.4`, and the logo. Deliberately not started: the blank
-  comes first (Allan), and there is no point fitting lettering to a body that
-  cannot yet be reproduced.
+- **The `Expansion Name` group.** The logo constructions, `#LogoEdgeDist` and
+  the placement are now recorded above; `#TopperTotalWidth = 4.4` is not, and
+  the `Cities` FINAL sketch's own dimensions are not (only its draft's).
+  Deliberately not started: the blank comes first (Allan), and there is no
+  point fitting lettering to a body that cannot yet be reproduced.
+- **Unseen's logo does not scale** where the other three do — see above. A
+  defect, not a design, and it needs a decision on which fix.
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly
   65% of the 15-card, because the text sits in the topper's depth. That wants
   deriving rather than transcribing, and the pair that isolates it is one
