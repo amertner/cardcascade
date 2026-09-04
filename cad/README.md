@@ -118,6 +118,7 @@ spec/
   ASSEMBLY.md   where each part goes in a whole cascade, and what settled it
   RENDER.md     two renderers, and why they are two
   DERIVED.md    the Onshape variable studio, transcribed, and what it settled
+  UNKNOWNS.md  every constant that holds but is not derived, and what would settle it
   PUSHER.md     the Pusher measured, and what the rebuild reproduces
   BOX.md        the same for the Box
   LID.md        the same for the Lid
