@@ -242,9 +242,11 @@ def card_pockets(p, d, first, part):
     w = d.calSlotwidth - DIVIDER
     over = 10.0                            # cut through whatever is above
     tool = Box(w, depth - 2 * WALL, z1 - z0 + over)
-    for x in compartment_x(p, d):
-        part = part - tool.moved(Location((x, -depth / 2, (z0 + z1 + over) / 2)))
-    return part
+    # Every per-compartment feature here is ONE boolean with all its tools
+    # (see box.rear_storage): they are disjoint, so the shape is the same,
+    # and the body is walked once.
+    return part.cut(*[tool.moved(Location((x, -depth / 2, (z0 + z1 + over) / 2)))
+                      for x in compartment_x(p, d)])
 
 
 # `Hole outline` / `Vertical slits in holder` / `Remove card holes` — the
@@ -300,12 +302,13 @@ def window_grid(p, d):
 def lattice(p, d, first, part):
     """Cut the windows through both walls, in every compartment."""
     depth = holder_depth(p, d, first)
+    tools = []
     for x0, x1, z0, z1 in window_grid(p, d):
         tool = Box(x1 - x0, depth + 2.0, z1 - z0)
         for xc in compartment_x(p, d):
-            part = part - tool.moved(
-                Location((xc + (x0 + x1) / 2, -depth / 2, (z0 + z1) / 2)))
-    return part
+            tools.append(tool.moved(
+                Location((xc + (x0 + x1) / 2, -depth / 2, (z0 + z1) / 2))))
+    return part.cut(*tools)
 
 
 # `Finger Cutouts` — one per compartment, on its centre. A plain circle of
@@ -360,9 +363,8 @@ def finger_cutouts(p, d, first, part):
     """Cut the finger scallops through the full depth."""
     depth = holder_depth(p, d, first)
     tool = finger_tool(depth)
-    for x in compartment_x(p, d):
-        part = part - tool.moved(Location((x, 0.0, slant_top(d))))
-    return part
+    return part.cut(*[tool.moved(Location((x, 0.0, slant_top(d))))
+                      for x in compartment_x(p, d)])
 
 
 # `Side slot solid` / `Side slot` / `Side slot hole` / `Mirror Side` — the groove
@@ -476,14 +478,13 @@ def rear_lips(p, d, first, part):
             make_face()
         extrude(amount=tall, both=True)
     one = blank.part
+    lips = []
     for xc in compartment_x(p, d):
+        band = slant_band(p, d, first, xc - 30.0, xc + 30.0)
         for sign in (+1, -1):
             lip = one if sign > 0 else one.mirror(Plane.YZ)
-            lip = lip.moved(Location((xc, 0, 0)))
-            band = slant_band(p, d, first,
-                              xc - 30.0, xc + 30.0)
-            part = part + (lip & band)
-    return part
+            lips.append(lip.moved(Location((xc, 0, 0))) & band)
+    return part.fuse(*lips)
 
 
 # `Lip Rest` / `Chamfer lip rest` — the recess the NEXT holder's lip drops into.
@@ -539,13 +540,14 @@ def lip_rests(p, d, first, part):
                      close=True)
         make_face()
     x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
+    tools = []
     for xc in compartment_x(p, d):
         for sign in (+1, -1):
             at = Vector(xc + sign * x_mid, 0.0,
                         slant_top(d) - SLANT_STEP / 2) + dirv * t0
             face = sk.sketch.moved(Location(at))
-            part = part - extrude(face, amount=LIP_REST_THROUGH, dir=dirv)
-    return part
+            tools.append(extrude(face, amount=LIP_REST_THROUGH, dir=dirv))
+    return part.cut(*tools)
 
 
 # `Bottom Text` — two blocks engraved ENGRAVE into the underside, in TWO faces

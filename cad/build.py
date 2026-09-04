@@ -124,8 +124,7 @@ def build_lid(p, out_dir, folder, filename):
     order does not — but the order is fixed anyway (down the artwork, largest
     first) to keep a rebuild byte-identical.
     """
-    part = lid_part.build(p)
-    inlays = lid_part.inlays(p)
+    part, inlays = lid_part.build_all(p)
     bodies = [("Lid", part)]
     bodies += [(f"Part {i}", s) for i, s in enumerate(
         sorted(inlays, key=lambda s: (-round(s.volume, 6),

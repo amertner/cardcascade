@@ -179,10 +179,8 @@ def socket(p, d, x):
 
 
 def sockets(p, d, part):
-    """Every socket, fused to the floor."""
-    for x in socket_centres(p, d):
-        part = part + socket(p, d, x)
-    return part
+    """Every socket, fused to the floor in one boolean."""
+    return part.fuse(*[socket(p, d, x) for x in socket_centres(p, d)])
 
 
 # --- the closing grooves ---------------------------------------------------
@@ -405,10 +403,8 @@ def staircase(p, d, left, top):
 
 
 def floor_text(p, d, part):
-    """Both blocks, fused to the floor."""
-    for solid in text_block(p, d) + logo_block(p, d):
-        part = part + solid
-    return part
+    """Both blocks, fused to the floor in one boolean."""
+    return part.fuse(*(text_block(p, d) + logo_block(p, d)))
 
 
 # --- the logo pattern ------------------------------------------------------
@@ -551,17 +547,19 @@ def logo_pattern(p, d, part):
     faces = logo_art(p, d)
     if not faces:
         return part, []
-    inlays = []
-    for f in faces:
-        # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
-        # whichever way they were drawn, and six of the Innovation logo's 31
-        # regions come back facing -Z. Extruded along their normals those six
-        # went DOWN — cutting nothing and leaving their inlays floating below
-        # the lid, which cost exactly their 134.484 mm2 x 0.810.
-        prism = extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
-        part = part - prism
-        inlays.append(prism.moved(Location((0, 0, -PATTERN_PROUD))))
-    return part, inlays
+    # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
+    # whichever way they were drawn, and six of the Innovation logo's 31
+    # regions come back facing -Z. Extruded along their normals those six
+    # went DOWN — cutting nothing and leaving their inlays floating below
+    # the lid, which cost exactly their 134.484 mm2 x 0.810.
+    prisms = [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1)) for f in faces]
+    # ONE cut with every region, into the BARE SHELL (`build` calls this
+    # first): the regions are disjoint, the pocket is in the underside and
+    # nothing later touches it, and a body of ten faces is cut in a fraction
+    # of the time the finished lid's hundreds took — Compile's 1885-edge
+    # mark went from 22 s to under 4.
+    part = part.cut(*prisms)
+    return part, [q.moved(Location((0, 0, -PATTERN_PROUD))) for q in prisms]
 
 
 def inlays(p):
@@ -596,17 +594,31 @@ def outer_edges(p, d, part):
     return out
 
 
-def build(p):
-    """`p` is a params.Primary. Returns the Lid BODY as a build123d Part.
+def build_all(p):
+    """(the Lid BODY, its logo inlays) — both from ONE extrusion of the mark.
 
-    The logo pattern's inlays are separate solids — `inlays(p)` — because they
-    print in the second filament and Onshape exports them as their own bodies.
-    The pocket for them is cut here, so the two always agree.
+    The inlays are separate solids because they print in the second filament
+    and Onshape exports them as their own bodies. The pocket for them is cut
+    here, from the same prisms, so the two always agree — and `build_lid`
+    takes both from here rather than extruding the mark a second time.
+
+    The pocket goes into the bare shell first: it is in the underside, the
+    sockets, grooves and text are inside and on the walls, and none of them
+    reaches it, so the order is free and the cheap one is taken.
     """
     d = D.derive(p)
     part = shell(p, d)
+    part, inlays = logo_pattern(p, d, part)
     part = sockets(p, d, part)
     part = closing_grooves(p, d, part)
     part = floor_text(p, d, part)
-    part, _inlays = logo_pattern(p, d, part)
-    return fillet(outer_edges(p, d, part), OUTER_ROUND)
+    # The outer rounds stay LAST, as the tree has them. Rounding the bare
+    # shell first was tried: it saved nothing on Compile's lid and changed
+    # its smallest one by 0.389 mm3, the mark there sitting at the hard limit
+    # against the rounds, so the order is not free after all.
+    return fillet(outer_edges(p, d, part), OUTER_ROUND), inlays
+
+
+def build(p):
+    """`p` is a params.Primary. Returns the Lid BODY as a build123d Part."""
+    return build_all(p)[0]

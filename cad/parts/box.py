@@ -384,8 +384,12 @@ def rear_storage(p, d, part):
             x = centre + sign * sv
             cuts.append(slab(x - L.BOX_CUTOUT_W / 2, x + L.BOX_CUTOUT_W / 2,
                              BD / 2 - WALL, y0, RIM_CUTOUT_Z, top))
-    for c in cuts:
-        part = part - c
+    # ONE boolean with every tool, not one per tool: the tools are disjoint
+    # rectangles, so the result is the same, and OCCT walks the body once
+    # instead of up to 171 times (this loop was most of a box's build time).
+    # This is not the "compose the negative first" the docstring warns of —
+    # nothing is fused before the cut.
+    part = part.cut(*cuts)
     # `Thumb Cutout in back` — a THUMB_R hole through the OUTER back wall only,
     # centred on REAR_TOP so the storage's cap takes its top half off. It falls
     # in the empty run to the right of the last divider on every reference, so
@@ -499,12 +503,10 @@ def sliders(p, d, part):
     # rib's front face stays square to the rim.
     rib = fillet(rib.faces().sort_by(Axis.Z)[-1].edges().filter_by(Axis.X),
                  SLIDER_TOP_R)
-    for y0, y1 in slider_ribs(p, d):
-        for sign in (-1, +1):
-            part = part + rib.moved(Location((
-                sign * (inner - (SLIDER_PROUD - WALL / 2) / 2),
-                (y0 + y1) / 2, d.BoxHeight / 2)))
-    return part
+    ribs = [rib.moved(Location((sign * (inner - (SLIDER_PROUD - WALL / 2) / 2),
+                                (y0 + y1) / 2, d.BoxHeight / 2)))
+            for y0, y1 in slider_ribs(p, d) for sign in (-1, +1)]
+    return part.fuse(*ribs)
 
 
 # `Front pocket`. The fixed pocket across the front of the box, divided into
@@ -733,27 +735,34 @@ def front_pocket(p, d, part):
     # `Front divider` — the panel that closes the pocket, 1.000 thick and
     # carrying the same lattice as the back wall (cut below).
     add = slab(-inner - WALL / 2, inner + WALL / 2, fb, back, 0.0, H)
+    # Each group of features is ONE boolean (see `rear_storage`): the pieces
+    # within a group are disjoint, and the groups keep the tree's order —
+    # dividers and pads fused, slits cut, thumbs cut, lips fused. A slot's
+    # lips sit behind its own thumb and never reach another slot's, so the
+    # per-slot cut-then-add order the tree has is the same as all cuts then
+    # all adds.
     # `Divider for front pocket` / `Additional dividers`
-    for x in front_dividers(p, d):
-        add = add + slab(x - FRONT_DIVIDER_W, x, fw - WALL / 2, back, 0.0, H)
+    solids = [slab(x - FRONT_DIVIDER_W, x, fw - WALL / 2, back, 0.0, H)
+              for x in front_dividers(p, d)]
     # `Pad outermost slots` — FrontPocketSidePaddingWidth of solid against each
     # end wall, filling the pocket from the front wall to the panel.
     for sign in (-1, +1):
         lo, hi = sorted((sign * (inner - FRONT_PAD), sign * (inner + WALL / 2)))
-        add = add + slab(lo, hi, fw - WALL / 2, back, 0.0, H)
+        solids.append(slab(lo, hi, fw - WALL / 2, back, 0.0, H))
+    add = add.fuse(*solids)
     # `Slits in front pocket` — the SAME openings as the back's hanging holes,
     # at the same X and the same three rows. The padding starts 5.800 in and
     # the first hole 8.300 in, so no slit ever meets a pad or a divider.
-    for x_lo, x_hi in hanging_holes(p, d):
-        for z_lo, z_hi in hole_rows():
-            add = add - slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
+    add = add.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
+                    for x_lo, x_hi in hanging_holes(p, d)
+                    for z_lo, z_hi in hole_rows()])
     # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
     # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
     # lip, so both only ever meet the panel.
-    for x in thumb_centres(p, d):
-        add = add - thumb_tool(p, d, x)
-        for sign in (-1, +1):
-            add = add + lip_tool(p, d, x + sign * LIP_OFFSET)
+    centres = thumb_centres(p, d)
+    add = add.cut(*[thumb_tool(p, d, x) for x in centres])
+    add = add.fuse(*[lip_tool(p, d, x + sign * LIP_OFFSET)
+                     for x in centres for sign in (-1, +1)])
     return part + (add - angled_cutout(p, d))
 
 
@@ -1019,9 +1028,10 @@ def floor_text(p, d, part):
     _fits(d.calModelName, size, span)
     cap = T.CAP * size
     x = -edge - TEXT_INSET                # the first line's cap top
+    tools = []                            # all five lines, cut at the end
     for txt in (d.calModelName, p.GameName):
-        part = part - engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
-                                   -1, -1)
+        tools.append(engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
+                                  -1, -1))
         x = x - cap - MODEL_GAP           # next line, one gap further out
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
     start = y_front + LOGO_MARGIN
@@ -1030,11 +1040,11 @@ def floor_text(p, d, part):
     _fits(d.ProductName, logo_size, span)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight
     base = edge + TEXT_INSET + logo_cap
-    part = part - engrave_line(d.ProductName, logo_size, base, start, +1, +1)
+    tools.append(engrave_line(d.ProductName, logo_size, base, start, +1, +1))
     cap_size = T.floored(T.fit_size(d.calCapacityLabel, logo_len))
     _fits(d.calCapacityLabel, cap_size, span)
     base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
-    part = part - engrave_line(d.calCapacityLabel, cap_size, base, start, +1, +1)
+    tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1, +1))
     # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:
     # it should say CC, as the Lid does. A DELIBERATE DIVERGENCE, and
     # tests/test_box.py asserts both sides of it.
@@ -1043,7 +1053,8 @@ def floor_text(p, d, part):
     ver_size = min(logo_size, T.floored(VERSION_CAP * logo_size))
     ver_cap = T.CAP * ver_size
     base = base + VERSION_GAP * logo_cap + ver_cap
-    return part - engrave_line(d.calVersion, ver_size, base, start, +1, +1)
+    tools.append(engrave_line(d.calVersion, ver_size, base, start, +1, +1))
+    return part.cut(*tools)
 
 
 def _fits(txt, size, span):
