@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 import math                                             # noqa: E402
 
 from build123d import import_step, Plane, Box, Pos       # noqa: E402
-from cad import params, derive as D, text as TX          # noqa: E402
+from cad import build as B, params, derive as D, text as TX          # noqa: E402
 from cad.parts import holder as H, topper as T           # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -323,6 +323,20 @@ _a, _b = s_mine - s_ref, s_ref - s_mine
 check("S15-Un blank: symmetric difference under 0.5 mm3",
       round((sum(q.volume for q in _a.solids()) if _a else 0.0)
             + (sum(q.volume for q in _b.solids()) if _b else 0.0), 3) < 0.5, True)
+
+print("\n=== Z_BASE is the holder's slant top plus the rear thickness ===")
+# There is no mate: the topper rests on the holder, diagonal on diagonal
+# (Allan, 2026-09-04). So the constant every reference measures is derived,
+# and held to on every Innovation parameter set the catalogue has.
+_seen = set()
+for _f, _fn, _p, _e in B.topper_catalogue():
+    _k = _fn.split(" ", 2)[-1]
+    if _k in _seen:
+        continue
+    _seen.add(_k)
+    check(f"{_k}: z_base derives to Z_BASE", round(T.z_base(_p, D.derive(_p)), 6),
+          round(T.Z_BASE, 6), 1e-6)
+check("LIP_ROOM_RISE is the holder's SLANT_STEP", T.LIP_ROOM_RISE, H.SLANT_STEP)
 
 print("\n=== `Expansion Name`: where the mark and the name go ===")
 # Every filleted STEP: all five expansions at M15-Sl, plus two more Unseens at

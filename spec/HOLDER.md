@@ -755,10 +755,9 @@ that is now a statement rather than an absence of evidence:
   `shell` builds — the slant runs to the front face. Worth knowing if an older
   export ever turns up with a `1 mm` flat at the front: that is a pre-hack
   holder, not a defect.
-**`Middle`** was not asked about and is not explained. It sits next to `Mid
-plane` and `Mirror Side` in the tree, which makes a construction plane for the
-mirrors the obvious guess — but that is a guess, and it is written here as one.
-The rebuild mirrors about `Plane.YZ` directly.
+**`Middle`** is a mate connector at the geometric centre of the holder's
+bottom, and it is not used (Allan, 2026-09-04). It carries no geometry, which
+is why the rebuild — which mirrors about `Plane.YZ` directly — never missed it.
 
 The band-by-band table is the check on all of them: within what it resolves, a
 feature of more than a few cubic millimetres has nowhere left to hide.

@@ -70,10 +70,15 @@ written as that sum.
 Constant on all 48. The Y rule is exact: the topper sits one full depth back
 from the origin, which is the slot it caps.
 
-`Z = 48.450` is where the assembly mate lands the part, and nothing derives it.
-Asked whether it comes from a variable, Allan's answer was that it does not
-matter, so `topper.Z_BASE` is a placement constant and stays one. It is not in
-"Still open" any more.
+`Z = 48.450` was a placement constant — asked whether it comes from a variable,
+Allan's first answer was that it does not matter. On 2026-09-04 he described
+the placement itself: there is NO mate; the topper rests on the holder, logo up,
+diagonal meeting diagonal, its fins sliding into the holder's lip rooms. That
+derives it: `topper.z_base(p, d) = holder.slant_top(d) + topper_height(p, d)`,
+the holder's slant top plus the topper's own rear thickness, `44.250 + 4.200`
+on every one of the eight parameter sets — constant because every Innovation
+topper row has five risers. `Z_BASE` stays as the catalogue's value and
+`tests/test_topper.py` holds the derivation to it on every set.
 
 ## `#TopperHeight`
 
@@ -846,15 +851,15 @@ What is left is small, and mostly not about the geometry.
   stops after the rear lips and does not yet build the feature the tab lands
   in, so there is nothing on that side to assert against. It goes in as soon as
   the holder does.
-- **The `Divider` sketch**, so `BAND_HALF 14.800/2` is derived rather than
-  measured. `7.400` is `#FootDistanceFromWall`, which would read as the band
-  straddling the pusher's path; that stays a hypothesis and is not encoded.
-  It holds on a THIRD parameter set since 2026-09-04 (size S, `Topper Blank
-  S5.15.15.45-Un.step`), so it is a constant across sizes; what it IS still
-  wants the sketch.
-- **`LIP_ROOM_RISE 2.000`** is `#LipHeight` on the evidence of three parameter
-  sets now (the S blank included), all of which have it constant. Not bound to
-  `holder.SLANT_STEP` on that alone.
+- **The `Divider` sketch has no dimensions** (Allan, 2026-09-04): it maps onto
+  points IMPORTED from the holder to replicate its diagonal. So `BAND_HALF
+  7.400` is not `#FootDistanceFromWall` or any variable — it is some holder
+  point's X from the slot's centre, and which one is work here, not input:
+  the holder's lip is `LIP_LEN 10.000` with a `1.200` chamfer each side, `3.000`
+  from a `12.000` scallop, and none of those alone is `7.400` from the slot
+  edge. It holds on all three parameter sets.
+- ~~**`LIP_ROOM_RISE 2.000`**~~ IS `holder.SLANT_STEP` by construction, the
+  same imported points, and is bound to it (2026-09-04).
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly
   65% of the 15-card, because the text sits in the topper's depth. That wants
   deriving rather than transcribing, and the pair that isolates it is one

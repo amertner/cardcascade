@@ -61,10 +61,20 @@ from .. import text as TX
 from . import holder as H
 
 # Where the base sits in assembly. Constant on all 48 cached components and on
-# every reference, whatever the capacity, size or sleeving. It is PLACEMENT —
-# where the assembly mate lands the part — not a formula, and Allan has said it
-# does not matter. Nothing derives it and nothing should.
+# every reference — and DERIVED since 2026-09-04: there is no mate (Allan); the
+# topper RESTS on the holder, logo up, diagonal meeting diagonal, its fins in
+# the holder's lip rooms. So its base is the holder's slant top plus its own
+# rear thickness, `z_base` below, and that is `48.450` on every Innovation
+# parameter set because all of them have five risers (the slant top) and the
+# rear thickness does not vary. The constant is kept as the catalogue's value
+# and `tests/test_topper.py` holds the two to each other on every set.
 Z_BASE = 48.450
+
+
+def z_base(p, d):
+    """Where the topper's base sits: `H.slant_top(d) + topper_height(p, d)`,
+    the holder's slant top and the topper's own rear thickness above it."""
+    return H.slant_top(d) + topper_height(p, d)
 
 FRONT_WALL = 0.800         # the front wall, and the flat left along the top
 FLOOR = 1.200              # floor thickness
@@ -116,9 +126,11 @@ TOTAL_HEIGHT = FLOOR + TAB_RISE                                       # 45.200
 # 20.400 +- 6.200.
 #
 # LIP_ROOM_RISE is 2.000 on both sets, which is `#LipHeight`. Two constants
-# cannot tell a constant from a variable, so it is written here as its own
-# number and NOT bound to holder.SLANT_STEP.
-LIP_ROOM_RISE = 2.000      # the notch floor, above the topper's floor top
+# cannot tell a constant from a variable. It IS `holder.SLANT_STEP` (Allan,
+# 2026-09-04): the `Divider` sketch carries no dimensions of its own and maps
+# onto points imported from the holder, so the notch floor is the holder's
+# slant step by construction, and it is bound to it.
+LIP_ROOM_RISE = H.SLANT_STEP   # the notch floor, above the topper's floor top
 
 LIP_FILLET = 1.400         # `Fillet Lip Room`
 FRONT_FILLET = 2.000       # `Fillet front holes`

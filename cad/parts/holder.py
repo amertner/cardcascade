@@ -592,6 +592,10 @@ TEXT_GAP = 4.000           # the least space left between the two blocks
 # inset. It is not the last glyph's right bearing (`d` is 0.0776 in Open
 # Sans Bold), and it is not the TokenHolder's 0.0754 either — that one is
 # Orbitron — so the two are recorded separately rather than pretended one.
+# CONFIRMED 2026-09-04 by Allan's right-aligned sample (`spec/reference/Text
+# right-aligned sample.step`): `Open Sans Bold`, right-aligned in Onshape to a
+# box edge at x 110.135, ends its ink 0.0646 em short of it — this number, with
+# the same last glyph. It is what an Onshape text box does at its right edge.
 CAP_TRAIL = 0.0646
 
 

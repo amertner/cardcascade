@@ -147,3 +147,9 @@ about 1 mm3, on these exports as much as on the source.
 At 2.1 MB gzipped for the Boxes and 3.4 MB for the Lids they cost the repo
 almost nothing, and a re-export costs an hour of somebody's afternoon rather
 than any API budget.
+
+### Text
+
+| file | what it is |
+|---|---|
+| `Text right-aligned sample.step` | a `145 x 75 x 3` plate with three lines of text standing `1.000` proud (2026-09-04): `Sample Open Sans` (Open Sans Regular, not on file here), `Open Sans Bold` and `Orbitron`, each in a text box `10.000` tall, the three boxes sharing one right edge `17.220` from the plate's edge — `x 110.135`. The Open Sans Bold line ends its ink `0.0646` em short of that edge: the holder's `CAP_TRAIL`, confirmed. The Orbitron line's run is 1.4 % short of Orbitron Bold's, so it is most likely the Regular weight and is not used. `Text right-aligned sample.dxf` is the same sketch as outlines (391 splines, 148 lines; the boxes are construction geometry and not exported) |
