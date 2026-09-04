@@ -46,7 +46,8 @@ result has not been printed.
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
   sizes. Two constants in `cad/parts/lid.py` are the whole policy.
-- A mark is either a DRAWING (`logos/<Game>/*.dxf`, scaled) or GENERATED
+- A mark is either a DRAWING (`logos/<Game>/*.dxf`, or `*.brep` where it is
+  lifted from a STEP and a DXF would re-fit its splines; scaled) or GENERATED
   (`cad/marks.py`, built from the font and the geometry hung off it, so its
   strokes do not scale). `cad/marks.py` is the one interface over both; only
   Innovation's plain mark is generated so far. A generated name starts `@`.

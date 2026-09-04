@@ -711,6 +711,72 @@ check("and below eight the margin is the plain 2.500",
       round(box.logo_margin(_p, D.derive(_p)), 3), round(box.LOGO_MARGIN, 3), 1e-9)
 
 
+# --- isLabelHoldersOnBox = 0: the branch no catalogue row can reach ----------
+# `Box Innovation S5.15.15.62-Sl without label holders.step` (2026-09-04) is
+# that row's box exported with the flag off. The build takes a Derived with
+# the flag flipped and must match its envelope exactly — the label holders
+# are the whole of the 2.600 width and 6.100 depth the box otherwise adds —
+# and differ from it only where every box does: the storage dividers stay
+# whole where Onshape's holes sever them, and the floor text is floored and
+# says CC. Asserted from both ends.
+print("\n=== isLabelHoldersOnBox = 0 ===")
+nl_path = STEP_DIR / "Box Innovation S5.15.15.62-Sl without label holders.step"
+if not nl_path.exists():
+    fails.append("no-label-holders reference missing")
+    print(f"  FAIL — reference {nl_path.name} not present")
+else:
+    nl_ref = import_step(str(nl_path)).solids()[0]
+    nl_p = next(params.from_row(r, 1) for r in params.load_rows(ROOT / "automation" / "parts.csv")
+                if D.derive(params.from_row(r, 1)).calModelName.startswith("S5.15.15"))
+    nl_d = D.derive(nl_p)
+    check("the catalogue row has the flag ON", nl_d.isLabelHoldersOnBox, 1)
+    nl_d0 = D.Derived({**dict(nl_d.items()), "isLabelHoldersOnBox": 0})
+    nl_mine = box.build(nl_p, nl_d0)
+    rb, mb = nl_ref.bounding_box(), nl_mine.bounding_box()
+    for ax in "XYZ":
+        check(f"no holders: {ax} min", round(getattr(mb.min, ax), 3), round(getattr(rb.min, ax), 3), 1e-3)
+        check(f"no holders: {ax} max", round(getattr(mb.max, ax), 3), round(getattr(rb.max, ax), 3), 1e-3)
+    # Without the holders the box is #BoxWidth plus a closing bump each end
+    # by #BoxDepth plus the rear block; the side holder then stands 0.600
+    # further out than the bump it covers and the front holder adds 1.600.
+    check("no holders: the envelope is #BoxWidth + 2 bumps by #BoxDepth + rear block",
+          (round(mb.size.X, 3), round(mb.size.Y, 3)),
+          (round(box.box_width(nl_p, nl_d) + 2 * box.BUMP_DEPTH, 3),
+           round(box.box_depth(nl_p, nl_d) + box.REAR_DEPTH, 3)))
+    with_holders = box.build(nl_p, nl_d).bounding_box()
+    check("... and the holders add 0.600 and 1.600 to that",
+          (round(with_holders.size.X - mb.size.X, 3), round(with_holders.size.Y - mb.size.Y, 3)),
+          (0.6, 1.6))
+    # The two differ where every box does, and it is read by RAY rather than
+    # by a boolean between two 1700-face solids (which OCCT cannot clean here):
+    # down each storage divider's centre in the slot band the build is one span
+    # of material — the dividers stay whole — where Onshape's hanging holes
+    # sever the STEP's; and the volumes agree to within what those pieces and
+    # the floored, `CC` floor text account for.
+    sys.path.insert(0, str(ROOT / "tests"))
+    import probe
+    import numpy as _np
+    from cad import mesh3mf as _m3
+    def _mesh(shape):
+        v, t = _m3.triangulate(shape)
+        return _np.array(v), _np.array(t)
+    RV, RT = _mesh(nl_ref)
+    MV, MT = _mesh(nl_mine)
+    y0, _y1 = box.slot_band(nl_p, nl_d)
+    y_div = y0 + 1.0 + probe.EPS
+    severed = 0
+    for a, e in box.storage_dividers(nl_p, nl_d):
+        xm = (a + e) / 2 + probe.EPS
+        check(f"no holders: build divider at x={xm:.2f} is whole",
+              len(probe.spans(MV, MT, 2, xm, y_div)), 1)
+        severed += len(probe.spans(RV, RT, 2, xm, y_div)) > 1
+    # Which dividers a hole crosses depends on the layout: on this box the
+    # first is cut clean through at every row and the second only nicked at
+    # its edge, so it is at least one, not every one.
+    check("no holders: Onshape's holes sever at least one STEP divider", severed >= 1, True)
+    check("no holders: volumes agree to 0.3%",
+          round(100 * abs(nl_mine.volume / nl_ref.volume - 1), 3) < 0.3, True)
+
 # --- HOLE_CLEAR: the three boxes whose hole edge lands on a divider face -----
 # Asserted from both ends, as every divergence is: on these three, and only
 # these three, exactly ONE hole — the one whose -X edge is the first

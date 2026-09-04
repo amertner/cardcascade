@@ -1189,13 +1189,15 @@ def smooth_edges(p, d, part):
     return fillet(edges, SMOOTH_R) if edges else part
 
 
-def build(p):
+def build(p, d=None):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
     Feature groups in the studio's own order, which is what `spec/BOX.md`
-    transcribes, through to the final `Smooth box edges`.
+    transcribes, through to the final `Smooth box edges`. `d` is derived from
+    `p` unless given — a caller that wants a flag the catalogue cannot set,
+    `isLabelHoldersOnBox = 0`, passes a Derived with it flipped.
     """
-    d = D.derive(p)
+    d = D.derive(p) if d is None else d
     part = shell(p, d)
     w, depth, y = bottom_slot(p, d)
     # Cut Z from below the floor up to exactly WALL, so the boolean is clean

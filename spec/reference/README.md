@@ -40,6 +40,7 @@ one splits, and what has been measured off them, is in `spec/BOX.md`.
 | `Box FCM 72S.step` | **not a parts.csv row** — scratch parameters (FCM Sl, `H3 R3 fc6 cps6`) Allan exported as an extra. Kept: it is the smallest box and the only C2 lock |
 | `Box Dominion 246S.step` | Dominion 246 Card Sl `S2.40.12/30.45-Sl` — the only one with a first-riser override, so the only one that can tell `calFirstSliderDistance` from `calSliderDistance` |
 | `Box Dominion 246S without final fillet.step` | the same box with `Smooth box edges` suppressed. The PAIR is the point: it makes the last feature measurable (`0.600`, `129.190 mm³`) instead of a query to be guessed at, and it is the solid `cad/parts/box.py` is built against |
+| `Box Innovation S5.15.15.62-Sl without label holders.step` | Innovation `4 Later Ages` Sl `S5.15.15.62-Sl` exported with `isLabelHoldersOnBox = 0` (2026-09-04) — the branch no catalogue row reaches. `#BoxWidth + 2.000` by `#BoxDepth + 4.500`: a closing bump each end and the rear block, and nothing else |
 
 ### Lid
 
@@ -56,6 +57,7 @@ Eight. What each one splits, and what has been measured off them, is in
 | `Lid Compile 126S.step` | Compile 126 Card Sl `S5.7.7.45-Sl` — a **second game's card size**, which nothing else here reaches, and the only Lid reference whose lock is C4. It found two bugs in the test's own probes on the day it arrived |
 | `Lid FCM 105S.step` | **not a parts.csv row** — `213.900 x 44.700`, which no FCM row produces. Its staircase and sockets pin it to `RisingSliders 4` and `calSlotwidth 65.000`, which still leaves four model codes that differ only in the text engraved on the floor. Kept for its artwork, not as a structural reference |
 | `Lid Innovation 270S.step` | Innovation 270 Card Sl `S5.15.15.62-Sl` — the `#LogoScaleFactor 1` export. Its LETTERS are sound and pinned Noto Serif Bold Italic for `Ultimate`; its **flourishes are corrupted** (two pattern instances missing, the rest displaced), so its artwork is not used. `spec/LID.md` has the comparison |
+| `Lid Innovation M5.15.15.45-Un with logo.step` | Innovation `4 Later Ages` Un `M5.15.15.45-Un` — the **corrected** `#LogoScaleFactor 1` Ultimate export (2026-09-04), the U's underline boxes placed as the sketch has them. `logos/Innovation/lid_logo_big.brep` is lifted from its 31 inlays as faces — exact, where a DXF re-fits the spline holes |
 
 Each Lid file holds the lid body **plus** the logo pattern's inlays as separate
 solids. The body is the biggest by volume, which is how the tests take it — and
@@ -74,6 +76,8 @@ them is in `spec/TOKENHOLDER.md`.
 |---|---|
 | `TokenHolder M6.21.10.62-Sl.step` | FULL — the tray takes the whole front pocket, `calFrontPocketDepth` deep |
 | `HalfTokenHolder M6.21.10.62-Sl.step` | HALF — `2.600 + calFrontPocketDepth/2`. The PAIR is the point: one configuration exported twice, so the diff isolates what `half` changes, which turns out to be one number. Same 231 faces and 644 edges on both |
+| `HalfTokenHolder M6.21.10.45-Un.step` | the same row UNSLEEVED, as the HALF (2026-09-04): `5.790` deep, and its string ends in `n` where the sleeved one ends in `l` — the export that showed `TRAIL` belongs to the text box and not to the last glyph |
+| `HalfTokenHolder M4.21.10.45-M-Sl.step` | Dominion `202 Card (Mat)` Sl, the merged HALF (2026-09-04): `8.100` deep, `128.100` wide, and one of the three trays whose Onshape text is CLIPPED — the exact record of the text divergence `spec/TOKENHOLDER.md` describes |
 
 Neither is unsleeved and neither is merged, so the unsleeved widths, the doubled
 merged width and the single centred divider at 128 mm all rest on the 18 cached
@@ -94,6 +98,9 @@ of these ten says `+9.800`. What has been measured off them is in
 | `Holder S2.40.12-30.45-Sl.step` | Dominion `246 Card` Sl — the row with a first-riser override, and the cascade whose Box, Lid and Pusher are all referenced above |
 | `FirstHolder S2.40.12-30.45-Sl.step` | the same configuration exported as its FIRST riser. The PAIR is the point, and this one is load-bearing: `calSliderDistance 9.600` against `calFirstSliderDistance 20.400`, so everything keyed to a slider distance — the depth, the slant, the lip's reach — is asserted against a case that fails outright if the wrong one is used. Everywhere else in the catalogue the two are equal |
 | `Holder S9.21.10.62-Sl.step` | Dominion `333 Card` Sl — nine risers, the catalogue's shallowest rise, and the only reference whose back wall still reaches up behind the finger scallop. That is what caught a scallop cut through it, and what places `Lip Rest`'s oblique sweep |
+| `Holder S9.21.10.62-Sl after Lip Rest.step` | `333` ROLLED BACK to after `Lip Rest` (2026-09-04): one lip and one unchamfered rest, the other five lips not yet patterned. Settled the rest's section — `LIP_LEN` wide, exactly |
+| `Holder S9.21.10.62-Sl after Chamfer lip rest.step` | " to after `Chamfer lip rest`. The PAIR isolates the chamfer: `1.143 mm3` per rest, a `13.000 / 10.444` trapezoid mouth, reproduced to `0.000` |
+| `Holder S9.21.10.62-Sl before Fillet 1.step` | " to before `Fillet 1` — early enough that the slant, the floor drop, the scallops, the end blocks, the side slots and the lips are all still to come. Filed; not yet asserted against |
 | `Holder M5.10.10.45-Sl.step` | Innovation `4 Later Ages` Sl — a SPANNING game, four compartments, `calSlotwidth 69.000`. Everything measured on the Dominion three was `65.000` and three compartments until this arrived |
 | `Holder M5.10.10.32-Un.step` | the same row unsleeved, `67.000` |
 | `Holder XS5.15.10.45-Sl.step` | Innovation `Single Mini` Sl — TWO compartments, the narrowest holder, and one of the two whose Onshape text collides with itself |
@@ -122,6 +129,8 @@ call. Innovation only — no other game's studio has one.
 | `Topper Unseen M5.10.10.32-Un.step` | 10 cards unsleeved |
 | `Topper Unseen M5.15.15.45-Un.step` | 15 cards unsleeved — the PAIR with the one above, so only the card count differs |
 | `Topper Artifacts / Cities / Echoes / Figures / Unseen M5.15.15.62-Sl.step` | all five expansions at one parameter set, which is what solved the five marks |
+| `Topper Artifacts / Cities / Figures S5.15.15.62-Sl.step` | three of the five at SIZE S (2026-09-04) — three horizontal slots, a different `calLogoSidelength` — which confirmed `Artifacts`' and `Cities`' vertex placement at a second size |
+| `Topper Blank S5.15.15.45-Un.step` | the first FILLETED blank reference, and the third parameter set for `BAND_HALF` and `LIP_ROOM_RISE` (2026-09-04) |
 
 A named export carries the topper body **plus** every engraved piece as its own
 solid — 13 for `Unseen`. The body is the biggest by volume and **is the BLANK

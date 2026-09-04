@@ -488,6 +488,7 @@ def source_hash():
     h = hashlib.sha256()
     files = sorted(list((ROOT / "cad").rglob("*.py"))
                    + list((ROOT / "logos").rglob("*.dxf"))
+                   + list((ROOT / "logos").rglob("*.brep"))
                    + list((ROOT / "fonts").glob("*.ttf")))
     for f in files:
         h.update(str(f.relative_to(ROOT)).encode())

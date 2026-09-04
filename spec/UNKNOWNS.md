@@ -1,28 +1,36 @@
-# The admitted unknowns
+# What is still unknown
 
-Every number in `cad/` is either derived, measured off a reference and
+Every number in `cad/` is either derived, or measured off a reference and
 reproduced, or one of these: a constant that holds on the parameter sets it
-was read from and whose origin in Onshape's terms is not known. Each is
-recorded where it lives; this is the one list, so that none of them is
-mistaken for a derived value and so that what would settle each is written
-down. The rule that put them here (`cad/README.md`, "What the fit got
-wrong"): a term no derived variable produces is the tell that a rule may be
-reproducing the catalogue for the wrong reason.
+was read from and whose origin in Onshape's terms is not known. This is the
+one list of them, kept to what is STILL OPEN — an entry leaves when it is
+derived or explained, and the spec that settled it carries the record. The
+rule that puts a number here (`cad/README.md`, "What the fit got wrong"): a
+term no derived variable produces is the tell that a rule may reproduce the
+catalogue for the wrong reason.
+
+Each row says what would settle it, and whether that is a file from Onshape
+(INPUT) or a piece of work here (WORK).
 
 | constant | where | value | holds on | what would settle it |
 |---|---|---|---|---|
-| `TRAIL` | `cad/parts/token_holder.py` | `0.0754` em | the tray's STEP to `5.70000` em, and all 18 cached trays to ±0.001 | How Onshape right-aligns a text box. It is not the left bearing and not either right bearing (`l` 0.019, `n` 0.053), and it is the same number under both — so a property of the box, not the string. One tray exported with a different final glyph would test the last hypothesis. |
-| `CAP_TRAIL` | `cad/parts/holder.py` | `0.0646` em | five Holder references at em 3.9-10.0, to 0.001 em | The same question in Open Sans Bold, and a different answer (`d` bears 0.0776), so the two are not one rule. Settling `TRAIL` settles this. |
-| `Z_BASE` | `cad/parts/topper.py` | `48.450` | all 48 cached toppers | Where the topper's underside sits in the assembly frame. Nothing in `derive.py` produces it; the Topper part studio's mate connector or plane definition would. |
-| `BAND_HALF` | `cad/parts/topper.py` | `7.400` | two parameter sets | The front band's half width — "stays a hypothesis" (`spec/TOPPER.md`). A third topper size's STEP, or the sketch dimension. |
-| `LIP_ROOM_RISE` | `cad/parts/topper.py` | `2.000` | two parameter sets | The notch floor above the topper's floor. The same STEP would settle both. |
-| ~~the `2.600` width offset~~ | `spec/BOX.md`, "The label holders" | `1.600` on `-X`, `1.000` on `+X` | all nine Box references | Not unknown: the side label holder stands on the `-X` end only (`1.600`) and the closing bump on `+X` (`1.000`), and with both built the envelope matches every reference. Listed because BOX.md's "Still open" carried it after its own label-holder section had explained it. |
-| the lip-rest residual | `spec/HOLDER.md`, "Chamfer lip rest" | about `±5` mm³ per holder | all ten Holder references, mixed in sign | The chamfer is modelled as `1.500` at 45° on the lower pair and leaves this much; a section through one reference at the rest would say whether it is the chamfer's angle, its edge pair, or the mesh. |
-| `Middle` | `cad/parts/holder.py` | a construction plane for the side-slot mirror | — | "A guess, and written here as one" (`spec/HOLDER.md`): the feature carries no geometry of its own, so only the dialog in Onshape says what it is for. |
-| `LID_RECESS_STEP` | `cad/lock.py` | `1.700` | every 7.0 lid | Not unknown — set on a test print, and marked *do not tune*. Listed so that no one derives it. |
-| `_LSB_C`, `LOGO_MARGIN` | `cad/text.py` | `0.056` em, `0.12` | both Pusher references, all 34 pushers | The fitting rule's own knobs: `_LSB_C` is Orbitron's `C` left bearing read off the font, and the margin is the rule's, not Onshape's — the rule replaces a one-dimensional constraint (`cad/README.md`, "Text sizing is a rule"). Not unknown; a design choice. |
-| `LOGO_WIDTH_FRACTION`, `LOGO_DEPTH_FRACTION` | `cad/parts/lid.py` | `0.600`, `0.850` | — | "Taste and not measurement" (`spec/LID.md`): the lid mark's fit is deliberately not Onshape's. Allan's to change. |
-| `TWIST`, `NOMINAL_SIZE`, `ARM0` | `cad/marks.py` | `0.1039`, `20.8416`, `-46.14` | the two Innovation plain-mark drawings, to 0.019 mm | Fitted to Allan's drawings rather than read from a sketch. The Logo Flourishes sketch's own dimensions would replace them with expressions. |
+| `TRAIL` | `cad/parts/token_holder.py` | `0.0754` em | three tray STEPs, `l` and `n` endings, and all 18 cached trays | INPUT. It is a property of the right-aligned text box and not of the last glyph (settled 2026-09-04), but what Onshape does with `0.0754` em is not known. A plate with two right-aligned strings of known size and different last glyphs, exported as a STEP, would say. |
+| `CAP_TRAIL` | `cad/parts/holder.py` | `0.0646` em | five Holder references at em 3.9-10.0 | INPUT — the same question in Open Sans Bold, and a different number (`d` bears `0.0776`), so the two are not one rule. The same plate, with an Open Sans string on it, settles both. |
+| `Z_BASE` | `cad/parts/topper.py` | `48.450` | all 48 cached toppers and the four S references | INPUT. Where the topper's underside sits in the assembly frame; nothing in `derive.py` produces it. The Topper's mate connector definition in Onshape, or the Holder and its Topper exported together from the assembly, would let it be derived from the holder's features. |
+| `BAND_HALF` | `cad/parts/topper.py` | `7.400` | three parameter sets, M and S | INPUT. Constant across sizes; whether it IS `#FootDistanceFromWall` (`spec/TOPPER.md`) only the `Divider` sketch's own dimension can say. |
+| `LIP_ROOM_RISE` | `cad/parts/topper.py` | `2.000` | three parameter sets, M and S | INPUT. `#LipHeight` in the same sketch would name it. |
+| `Middle` | `cad/parts/holder.py` | a construction plane for the side-slot mirror | — | INPUT. "A guess, and written here as one" (`spec/HOLDER.md`): the feature carries no geometry, so only its dialog in Onshape says what it is for. A screenshot settles it. |
+| `TWIST`, `NOMINAL_SIZE`, `ARM0` | `cad/marks.py` | `0.1039`, `20.8416`, `-46.14` | the two Innovation plain-mark drawings, to 0.019 mm | WORK. The Logo Flourishes sketch is on file (`logos/Innovation/sketch/Logo Flourishes.dxf`, 2026-09-04) and agrees where compared — `LINE_WIDTH` `0.600`, the annulus bore within `0.003` of the font's `I`, arms `0.600 x 3.000`. Reading `TWIST` and `ARM0` off its five arm rectangles, and `NOMINAL_SIZE` off the annulus, replaces three fitted numbers with the sketch's; the same sketch is the material for generating the Ultimate mark instead of drawing it. |
 
-Three of these are one question — how Onshape places the right end of a
-right-aligned text box — and two are one STEP away.
+Two of these are one question — how Onshape places the right end of a
+right-aligned text box — and two more are one sketch's dimensions.
+
+## Settled, and where the record is
+
+Not repeated here; each spec carries its own. The `2.600` box width offset
+(`spec/BOX.md`, "The label holders"); the Holder's lip-rest residual
+(`spec/HOLDER.md`, "`Lip Rest` is the lip's own LENGTH"); `TRAIL`'s
+independence from the last glyph (`spec/TOKENHOLDER.md`); the Ultimate mark's
+scale-1 export (`spec/LID.md`). Design knobs that were never unknowns —
+`LID_RECESS_STEP`, set on a test print; the text rule's `_LSB_C` and
+`LOGO_MARGIN`; the lid fit's two fractions — are documented where they live.

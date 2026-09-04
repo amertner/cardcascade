@@ -39,7 +39,7 @@ DRAWN = {("Compile", "lid_logo.dxf"): 0.250,
          ("Dominion", "lid_logo.dxf"): 0.550,
          ("FCM", "lid_logo.dxf"): 0.492,
          ("Innovation", "lid_logo.dxf"): 0.600,
-         ("Innovation", "lid_logo_big.dxf"): 0.602}
+         ("Innovation", "lid_logo_big.brep"): 0.602}
 fails = []
 
 

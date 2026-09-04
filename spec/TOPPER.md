@@ -493,10 +493,15 @@ which is what the reference carries.
 | `Figures` | two CONCENTRIC CIRCLES — an annulus — the radial gap between them `calLogoSidelength/5` (0.85). One solid in the corpus, which an annulus is |
 | `Blank` | none — the blank carries no name and no logo |
 
-These are read off screenshots, so the RATIOS are exact (they are expressions)
-but exact vertex placement is not yet confirmed for `Artifacts` and `Cities`.
-The Unseen sample STEP carries its own logo as six solids, so that one can be
-checked against geometry directly.
+These are read off screenshots, so the RATIOS are exact (they are expressions).
+Vertex placement is confirmed for `Artifacts` and `Cities` too since
+2026-09-04: `Topper Artifacts / Cities / Figures S5.15.15.62-Sl.step` are a
+SECOND SIZE (S, three horizontal slots, `calLogoSidelength` different), and all
+three reproduce area, piece count, width, centre and every piece's centroid
+and sign; `Topper Blank S5.15.15.45-Un.step` is the first filleted blank
+reference and the third parameter set for `BAND_HALF` and `LIP_ROOM_RISE`,
+which both hold on it (envelope to `1e-4`, volume to `0.05 mm3`, symmetric
+difference under `0.5`).
 
 ### Placing the mark and the name
 
@@ -844,9 +849,12 @@ What is left is small, and mostly not about the geometry.
 - **The `Divider` sketch**, so `BAND_HALF 14.800/2` is derived rather than
   measured. `7.400` is `#FootDistanceFromWall`, which would read as the band
   straddling the pusher's path; that stays a hypothesis and is not encoded.
-- **`LIP_ROOM_RISE 2.000`** is `#LipHeight` on the evidence of two parameter
-  sets, both of which have it constant. Not bound to `holder.SLANT_STEP` on
-  that alone.
+  It holds on a THIRD parameter set since 2026-09-04 (size S, `Topper Blank
+  S5.15.15.45-Un.step`), so it is a constant across sizes; what it IS still
+  wants the sketch.
+- **`LIP_ROOM_RISE 2.000`** is `#LipHeight` on the evidence of three parameter
+  sets now (the S blank included), all of which have it constant. Not bound to
+  `holder.SLANT_STEP` on that alone.
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly
   65% of the 15-card, because the text sits in the topper's depth. That wants
   deriving rather than transcribing, and the pair that isolates it is one

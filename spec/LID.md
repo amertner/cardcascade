@@ -599,8 +599,10 @@ factor and is right:
 
 Two instances are missing outright and the rest are displaced, so it is a
 corrupted pattern and not a revision. The letters are untouched. So
-`logos/Innovation/lid_logo_big.dxf` stays the mesh lift of the cached lid, and
-`Ultimate` stays a pair of drawings whose strokes scale with the fit.
+`logos/Innovation/lid_logo_big.dxf` stayed the mesh lift of the cached lid until
+the corrected export of 2026-09-04 replaced it with `lid_logo_big.brep` (see
+"What is NOT built yet"), and `Ultimate` stays a drawing whose strokes scale
+with the fit.
 
 What the export IS good for is the letters, and between it and the two good
 drawings the whole line is now measured. When the sketch is fixed, this is
@@ -737,10 +739,28 @@ statement; the area check is corroboration at `0.5 mm2`.
   other five drawings do, and it bites hardest where a mark is enlarged a long
   way — FCM's reaches `1.950`, and Innovation `Ultimate` `1.271`. The fix is
   the same rebuild, and `Ultimate` needs its Logo Flourishes sketch to do it.
-- **A corrected scale-1 Innovation export.** The one on file has a corrupted
-  flourish pattern (above), so `Innovation/lid_logo_big.dxf` is still the mesh
-  lift of a cached lid — 2762 edges where a STEP would give ~740 — and
-  `Ultimate` cannot be rebuilt until the sketch is fixed.
+- ~~**A corrected scale-1 Innovation export.**~~ Arrived 2026-09-04 as `Lid
+  Innovation M5.15.15.45-Un with logo.step`, with the U's underline boxes
+  placed correctly. `logos/Innovation/lid_logo_big.brep` is now LIFTED FROM IT
+  — the 31 inlay faces themselves as OCCT wrote them, 846 edges against the
+  mesh-lifted DXF's 2762, every prism within 0.0001 % of the STEP's inlay,
+  and the five boxes under the U where the sketch has them (26 of 31 regions
+  were already identical to 0.1 mm). A B-rep rather than a DXF because the
+  DXF round trip re-fits a spline hole: the two `o` counters came back
+  0.65 % small, invisible in area and visible in the prism. `tests/test_lid.py`
+  holds the built inlays to that STEP region for region; the mesh-lifted
+  `lid_logo_big.dxf` is gone (git history keeps it). The six cached Ultimate lids in
+  `individual/` carry the old boxes. `logos/Innovation/sketch/Logo
+  Flourishes.dxf` is the flourishes sketch itself at scale 1: 15 rectangles
+  and 2 circles — the annulus at `r 4.849 / 5.449` (wall `0.600` = `LINE_WIDTH`,
+  bore within `0.003` of the font's `I`), five arms `0.600 x 3.000`, five
+  U-boxes `1.000 x 2.000` on an arc, five dashes `0.600 x 1.500` at a `4.500`
+  pitch — the material for generating the Ultimate mark and for deriving
+  `marks.TWIST` and `ARM0` from the sketch rather than a fit. Not done yet.
+  The old note, kept for the record: the one previously on file had a
+  corrupted flourish pattern (above), so `Innovation/lid_logo_big.dxf` was the
+  mesh lift of a cached lid — 2762 edges where the STEP gives 846 — and
+  `Ultimate` could not be rebuilt until the sketch was fixed.
 - **The Mat branch.** Nothing in the lid's geometry reads `MatPocket`, but
   `calModelName` carries `-M`, so a Mat cascade's lid differs in its engraved
   model code alone. `plan_exports` keys one `("Lid", model)` for both and

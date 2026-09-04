@@ -61,7 +61,7 @@ LID_LOGO = {
     "Compile": {None: ("lid_logo.dxf",)},
     "Dominion": {None: ("lid_logo.dxf",)},
     "FCM": {None: ("lid_logo.dxf",)},
-    "Innovation": {None: ("lid_logo_big.dxf", "lid_logo.dxf"),
+    "Innovation": {None: ("lid_logo_big.brep", "lid_logo.dxf"),
                    # GENERATED, not drawn — `cad/marks.py` builds it from Noto
                    # Serif and the flourishes, so its 0.600 strokes hold at
                    # every size the fit picks. The two `lid_logo_plain*.dxf`

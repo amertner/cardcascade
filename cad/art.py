@@ -13,7 +13,7 @@ The artwork lives in `logos/<Game>/` and is already in the part's own frame —
 from functools import lru_cache
 from pathlib import Path
 
-from build123d import Compound, Face, Wire, import_dxf
+from build123d import Compound, Face, Wire, import_brep, import_dxf
 
 LOGO_DIR = Path(__file__).resolve().parent.parent / "logos"
 
@@ -50,8 +50,17 @@ def load(path):
     and one nested in an even number is a face of its own — an island inside a
     hole, which the Innovation logo's `o` counters need.
 
+    A `.brep` is a drawing too — the faces themselves, as OCCT wrote them,
+    which is how artwork LIFTED FROM A STEP is kept exact: a DXF re-fits a
+    spline hole on the way back and the `o`'s counter came out 0.65 % small,
+    where the B-rep round-trips to the last digit (`spec/LID.md`, "the
+    corrected export"). Its faces are complete, holes included, so the loop
+    nesting below is skipped.
+
     Cached: one file serves every lid of its game.
     """
+    if path.suffix == ".brep":
+        return tuple(import_brep(str(path)).faces())
     shapes = import_dxf(str(path))
     edges = shapes.edges()
     if not edges:

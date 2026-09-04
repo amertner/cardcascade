@@ -1141,8 +1141,17 @@ future kernel that manages them fails the suite rather than passing quietly.
 - **`isLabelHoldersOnBox` is to become a real option.** Always `1` today, but
   Allan wants it usable — users have asked for a box without label holders. So
   the `Front Label Holder` / `Side Label Holder` groups are built behind the
-  flag rather than unconditionally, even though the catalogue cannot exercise
-  the `0` branch.
+  flag rather than unconditionally. The `0` branch is EXERCISED since
+  2026-09-04: `Box Innovation S5.15.15.62-Sl without label holders.step` is
+  that row with the flag off, `box.build(p, d)` takes a Derived with it
+  flipped, and `tests/test_box.py` holds the two to the same envelope —
+  `#BoxWidth + 2.000` by `#BoxDepth + 4.500`, a closing bump each end and the
+  rear block, so of the `2.600` and `6.100` the finished box adds the holders
+  are `0.600` (the side holder standing past the bump it covers) and `1.600`
+  — differing only where every box does (the dividers stay whole; the
+  text). What is still missing is the OPTION: a
+  parts.csv column or a Primary field that sets the flag, which `derive.py`
+  today computes from the game and the slot count alone.
 - ~~The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not
   yet identified.~~ Identified — see "The label holders" above: the side
   holder is on the `-X` end only and the closing bump on `+X`, and it is not

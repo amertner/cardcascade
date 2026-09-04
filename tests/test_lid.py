@@ -46,6 +46,11 @@ REFS = [
     # XS: the narrowest lid in the catalogue, two horizontal slots.
     ("Innovation 130 Un", "Lid Innovation 130U.step",
      params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
+    # The Ultimate mark at scale 1, exported 2026-09-04 with the U's underline
+    # boxes corrected — the drawing `lid_logo_big.brep` is lifted from THIS
+    # STEP's inlays, so the inlay checks hold it region for region.
+    ("Innovation M5.15.15 Un (Ultimate)", "Lid Innovation M5.15.15.45-Un with logo.step",
+     params.Primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation")),
     # A second GAME's card size, and the only reference whose lock is C4.
     ("Compile 126 Sl", "Lid Compile 126S.step",
      params.Primary(3, 5, 7, 7, 0, 7, 1, 0, "Compile")),
@@ -154,11 +159,20 @@ def socket_walls(solid, x, y0, y1):
 # the artwork itself, the odd/even nesting that makes a counter a hole, the
 # extrusion's direction, and the two Z ranges. The rule the pin replaces is
 # asserted on its own at the bottom of this file.
+# One reference was exported AFTER the rule, with a stated drawing: the
+# corrected Ultimate lid carries `lid_logo_big.brep` at `#LogoScaleFactor 1`,
+# which is also what the rule itself picks for it. The pin says so by name.
+_EXPORTED_WITH = {
+    "Lid Innovation M5.15.15.45-Un with logo.step": ("lid_logo_big.brep", 1.0),
+}
+_PIN_FN = None
 _choice = lid.logo_choice
-lid.logo_choice = lambda p, d: (TB.LID_LOGO[p.GameName][None][-1], 1.0)
+lid.logo_choice = lambda p, d: (_EXPORTED_WITH.get(_PIN_FN)
+                                or (TB.LID_LOGO[p.GameName][None][-1], 1.0))
 
 
 for name, fn, P in REFS:
+    _PIN_FN = fn
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
@@ -497,7 +511,7 @@ for model, want_file, want_scale in [
         # shallower than the mark is drawn: shrunk to clear the outer round
         ("S4.7.7.20-Un", "lid_logo.dxf", 0.908),
         # Innovation's two editions, and its two drawings of each
-        ("S5.15.15.45-Un", "lid_logo_big.dxf", 1.000),
+        ("S5.15.15.45-Un", "lid_logo_big.brep", 1.000),
         ("S5.10.10.32-Un", "lid_logo.dxf", 1.210),
         # the generated plain mark: held at its drawn size on the XS lid,
         # which is already wider than the width fraction allows, and sized to
