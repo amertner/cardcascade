@@ -628,16 +628,27 @@ anchored in X: its span is exactly `4 * 2.8125 * n + 1.500`, but its position
 decomposes to `a*n + b` with a `b` of `1.0..2.5` that nothing else explains.
 A corrected scale-1 export would settle it.
 
-### Dominion's mark is 180° out from the other three
+### Dominion's mark WAS 180° out from the other three — turned 2026-09-04
 
 Seen from `+Z` — the direction the floor's engraving reads from — Compile's,
 FCM's and Innovation's marks are mirrored left-to-right and the right way up,
 which is what a mark cut into the far side of the floor should be. Dominion's
-reads left-to-right correctly and is **upside down**. Those two differ by a
-half turn in the plane, so one of them is a half turn out relative to the
-other, and it is not something `cad/` can decide: the artwork is reproduced as
-drawn, and `logos/dominion_logo_v1_0/dl_black_640px.png` is in the repository
-for comparison. Raised with Allan 2026-09-02.
+read left-to-right correctly and was **upside down**. Those two differ by a
+half turn in the plane, and which was out was not something `cad/` could
+decide: the artwork is reproduced as drawn. Raised with Allan 2026-09-02.
+
+Settled 2026-09-04 by the shipped product: `cascades/Innovation/Photos/3
+Closed Boxes.jpeg` shows three closed boxes reading `Innovation Ultimate`
+upright from the labelled front, i.e. the mark's top toward the back, which
+is the convention the three share. Allan: turn Dominion's.
+`logos/Dominion/lid_logo.dxf` is now the drawing turned a half turn about its
+own bounding-box centre (`ezdxf`, every entity; six regions with the same
+areas, centre and extent, each region's centre the original's mapped through
+the turn). The reference STEP `Lid Dominion 246S with logo.step` still
+carries the OLD orientation, and `tests/test_lid.py` asserts from both ends:
+the build's regions are the reference's turned 180° about the mark's centre,
+region for region, and are NOT the reference's as they stand. The 24 cached
+Dominion lids in `individual/` differ from `build/` by exactly this turn.
 
 ## What is NOT built yet
 
@@ -647,7 +658,8 @@ Allan's to settle, not the model's:
 * the two fit constants, `LOGO_WIDTH_FRACTION` and `LOGO_DEPTH_FRACTION`;
 * whether the plain Innovation composition is the right reading of "without it
   saying Ultimate";
-* whether Dominion's mark is a half turn out, or the other three are;
+* ~~whether Dominion's mark is a half turn out, or the other three are~~ —
+  Dominion's was, and it is turned (above);
 * the marks that are still outlines — Dominion, Compile, FCM and Innovation
   `Ultimate` — whose strokes scale with the fit where the generated plain mark
   holds its own.
@@ -711,8 +723,8 @@ statement; the area check is corroboration at `0.5 mm2`.
   `Ultimate` — is a reading, not an export. The mark that renders it is
   measured off Allan's own drawings to `0.019`; whether it is the right
   composition is his call.
-- **Dominion's mark is a half turn out** from Compile's, FCM's and
-  Innovation's. Reproduced as drawn until Allan says which is right.
+- ~~**Dominion's mark is a half turn out** from Compile's, FCM's and
+  Innovation's.~~ Turned 2026-09-04; see "Dominion's mark WAS 180° out".
 - **Stroke weight on the marks that are still outlines.** Scaling an outline
   scales its strokes, where the Onshape sketches hold `#LineWidth` absolute.
   Innovation's plain mark no longer does this because it is generated; the

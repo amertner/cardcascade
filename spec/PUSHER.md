@@ -126,6 +126,17 @@ separates them: it measures `0.7689` where Regular predicts `0.4253`.
 
 ## Text sizing is a rule, not a reproduction
 
+**And since 2026-09-04 it has a floor** (`cad/text.py`, "floors"; Allan): no
+engraved stroke under `0.200` mm, which for Orbitron Bold's `0.118` em
+stroke is `1.695` em and for Open Sans Bold's `0.100` is `2.000`. The
+product line never reaches it. The version line — half the product's — does
+on the four 2-riser Dominion pushers (`0.885` em fitted) and is raised to
+the floor, staying inside the one-cap band below the product's baseline it
+already had. The detail line does on FCM's `3x6-Un` (`1.806` em) and its
+ink then runs `11.82` of the `14.04` depth, inside the margins' hard limit.
+`tests/test_text_floors.py` asserts the set; `tests/test_pusher.py` the
+rule on both references, one of which (`246`) is a raised one.
+
 Onshape can constrain sketch text in only one dimension, so a text box that is
 right for one parameter set is wrong for another. Measured on the two
 references, same strings and same fonts:

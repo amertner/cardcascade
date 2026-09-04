@@ -13,8 +13,8 @@
     .venv/bin/python -m cad.build --part topper   # Innovation only
     .venv/bin/python -m cad.build --part all      # all six
 
-Pushers are the default because they are seconds each. A box is about ten, so
-all 50 is minutes; `--model` matches on the model code and is the way to build
+Pushers are the default because they are a few seconds each. A box is ten to
+twenty, so all 50 is a quarter of an hour; `--model` matches on the model code and is the way to build
 one. Look at the result with
 
     .venv/bin/python -m cad.render "build/Dominion/Box S2.40.12-30.45-Sl.3mf" \
@@ -251,10 +251,9 @@ TOPPER_EXPANSIONS = ("Blank",) + tuple(sorted(topper_part.MARKS))
 def topper_catalogue(csv=CSV, game=None, model=None):
     """[(folder, filename, Primary)] — every distinct topper.
 
-    Innovation only, single-set cascades excluded, and only the expansions
-    whose MARK is written — `Blank`, `Cities` and `Unseen`. The other three
-    would come out as the blank with a name and no logo, which is worse than
-    not writing them. See spec/TOPPER.md.
+    Innovation only, single-set cascades excluded: the blank and every
+    expansion whose mark `topper.MARKS` has, which is all five. See
+    spec/TOPPER.md.
     """
     out, shapes = {}, {}
     for row in params.load_rows(csv):
@@ -470,7 +469,8 @@ def main(argv=None):
                              "topper", "all"),
                     default="pusher",
                     help="what to build. Pushers are the default because they "
-                         "are seconds; a box is about ten, so all 48 is minutes")
+                         "are seconds; a box is ten to twenty, so all 50 is "
+                         "a quarter of an hour")
     ap.add_argument("--model", help="build only boxes whose model code contains "
                                     "this, e.g. S2.40.12-30.45-Sl")
     args = ap.parse_args(argv)

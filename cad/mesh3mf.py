@@ -69,13 +69,15 @@ def _drop_flaps(tris):
     Same-winding duplicates are NOT dropped: those would be a real doubled
     surface and a bug worth seeing rather than hiding. None has ever appeared.
 
-    This is NOT a general mesh repair, and the written catalogue is not yet
-    clean. Scanning all 800 written bodies finds two other faults, neither of
-    them a flap and neither of them addressed here: three Innovation boxes have
-    six edges apiece with four triangles on them (a line contact, not a hole),
-    and twelve logo inlays across four Innovation lids each carry 24 UNPAIRED
-    edges — an open boundary, i.e. a missing face. Onshape's own meshes have
-    none of the three. Recorded in spec/HOLDER.md, "The mesh".
+    This is NOT a general mesh repair. Scanning all 800 written bodies found
+    two other faults, neither of them a flap: twelve logo inlays across four
+    Innovation lids with an open boundary each — a stale cached triangulation,
+    fixed in `triangulate` — and three sleeved Innovation boxes with six edges
+    apiece carrying four triangles, a line contact where a hanging hole's edge
+    landed on a divider face, cleared by `box.HOLE_CLEAR`. `write` still
+    reports a doubled edge and writes it, and refuses a hole. `faults` is the
+    scan and `tests/test_build_meshes.py` runs it over all of build/. Recorded
+    in spec/HOLDER.md, "The mesh".
     """
     where = {}
     for i, t in enumerate(tris):
@@ -91,8 +93,50 @@ def _drop_flaps(tris):
     return [t for i, t in enumerate(tris) if i not in drop]
 
 
+class MeshFault(Exception):
+    """A body that is not a closed surface — see `faults`."""
+
+
+def faults(tris):
+    """`(unpaired, doubled)` directed-edge counts for a triangle list.
+
+    A closed orientable surface traverses every directed edge `(a, b)` exactly
+    once and its reverse `(b, a)` exactly once, in the neighbouring triangle.
+    `unpaired` counts an edge whose reverse is missing or does not match it —
+    an OPEN BOUNDARY, a missing face, which a slicer has to guess its way
+    across and can take as far as a failed print. `doubled` counts one walked
+    more than once — two faces on the same side of it, which is what two
+    pieces of material touching along a LINE look like: not a hole, and a
+    slicer's layer polygons survive it, but non-manifold all the same.
+
+    Lifted from `tests/test_holder_corpus.py`, where it ran over holders only
+    while the two known faults were in boxes and lids.
+    """
+    seen = {}
+    for a, b, c in tris:
+        for e in ((a, b), (b, c), (c, a)):
+            seen[e] = seen.get(e, 0) + 1
+    unpaired = sum(1 for e, n in seen.items() if seen.get((e[1], e[0]), 0) != n)
+    doubled = sum(1 for n in seen.values() if n > 1)
+    return unpaired, doubled
+
+
 def triangulate(shape, tolerance=TOLERANCE, angular=ANGULAR):
-    """(vertices in mm, triangles) for a build123d shape, vertices welded."""
+    """(vertices in mm, triangles) for a build123d shape, vertices welded.
+
+    Any triangulation the shape already carries is thrown away first. OCCT
+    stores a mesh ON the faces, and `BRepMesh_IncrementalMesh` keeps one it
+    finds fine enough rather than redoing it — so a face that was meshed once
+    before (a bounding box does it, and so does a boolean) and then reused as
+    the cap of an extrusion keeps its old vertices while the new side faces
+    get fresh ones, and the two do not agree along their shared edges. That
+    was the twelve open inlays on the four generated-mark Innovation lids: 24
+    unpaired edges apiece on their three largest regions, and only when the
+    lid body had been built first. `BRepTools.Clean` makes every face mesh
+    together, once, at this tolerance.
+    """
+    from OCP.BRepTools import BRepTools
+    BRepTools.Clean_s(shape.wrapped)
     verts, tris = shape.tessellate(tolerance, angular)
     index, out_v, remap = {}, [], []
     for v in verts:
@@ -131,10 +175,27 @@ def model_xml(parts):
             ' <build>' + "".join(items) + '</build>\n</model>\n')
 
 
-def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR):
-    """Write [(name, shape)] to `path` as a component 3MF. Returns its bytes."""
+def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True):
+    """Write [(name, shape)] to `path` as a component 3MF. Returns the meshes.
+
+    Every body is checked with `faults` first. An open boundary raises
+    `MeshFault` and nothing is written — a file with a hole in it is not a
+    component, and the one place it would be found otherwise is a slicer.
+    A doubled edge (a line contact) is reported on stderr and written, since
+    it prints; `tests/test_build_meshes.py` lists both over all of `build/`.
+    `strict=False` writes regardless, for looking at a broken body.
+    """
     meshed = [(name, *triangulate(shape, tolerance, angular))
               for name, shape in parts]
+    for name, _verts, tris in meshed:
+        unpaired, doubled = faults(tris)
+        if unpaired and strict:
+            raise MeshFault(f"{path.name} {name}: {unpaired} unpaired edges "
+                            f"(an open boundary) — not written")
+        if doubled or unpaired:
+            import sys
+            print(f"  WARNING {path.name} {name}: {unpaired} unpaired, "
+                  f"{doubled} doubled edges", file=sys.stderr)
     xml = model_xml(meshed)
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:

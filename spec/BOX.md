@@ -324,6 +324,19 @@ Constant on every reference unless stated. Offsets from `#BoxDepth/2`:
 
 ### The hanging holes do NOT cut the dividers — a deliberate divergence
 
+**And a second, smaller one that follows from it (Allan, 2026-09-04): a hole
+whose edge lands EXACTLY on a divider's face stops `HOLE_CLEAR = 0.200`
+short of it.** With the holes cut through the dividers, as Onshape does, the
+coincidence is invisible; with the dividers left solid, wall material below
+the slot band and divider material above it touched along that one line,
+corner to corner — six edges with four triangles each in the written mesh,
+on the three boxes where the pitch lands there: `M5.10.10.45-Sl`,
+`S5.10.10.45-Sl`, `XS5.15.10.45-Sl`, all sleeved Innovation. They sliced
+regardless, but it was the last non-manifold thing in the catalogue.
+`box.hanging_holes` remains the sketch; `box.hole_openings` is what is cut,
+and `tests/test_box.py` asserts that the two differ on exactly those three
+boxes and on no reference.
+
 Onshape cuts each hanging hole as one prism from the card side through to the
 outer wall, so it takes the storage dividers with it. Measured, that is not a
 near miss:
@@ -823,6 +836,20 @@ build and **none** in the STEP. If Onshape ever grows the fastener, that check
 fails rather than passing quietly.
 
 ## The engraved text, measured
+
+**Floored since 2026-09-04** (`cad/text.py`, "floors"; Allan): every one of
+the five lines is fitted to its sketch box as below and then raised to a
+`0.200` mm stroke — `1.695` em in Orbitron Bold — where the box is too
+short for it. That is nine lines on five boxes: the version line on
+`S4.7.7.20-Un`, `S2.40.12-30.32-Un`, `L3.18.6.20-Sl`, `L3.18.6.20-Un` and
+`S3.15.10.20-Un`; the model and game lines on `S2.40.12-30.32-Un` and
+`L3.18.6.20-Un`; and the product and capacity lines on `L3.18.6.20-Un`,
+the shortest card area in the catalogue at `15.8`. A raised line uses the
+margin its sketch left and is held to the card area itself (`box._fits`);
+the version line is held under the logo's cap as well. Two of the nine
+references are raised boxes — `Innovation 130U` and `FCM 72S`, version line
+only — and the band and ratio checks in `tests/test_box.py` are unaffected
+because neither moves the block's start or the string.
 
 Five lines, `0.400` into the top of the `1.600` floor (glyph faces at
 `z = 1.200`), on the two **side floors** — the strips the holders rest on.

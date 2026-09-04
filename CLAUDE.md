@@ -34,7 +34,14 @@ its intended text divergence is set aside (`spec/HOLDER.md`).
 So no component's GEOMETRY needs Onshape any more. That is not the same as
 saying a cascade does not: `automation/` still assembles, verifies and packages
 one, is what has actually shipped every cascade on disk, and stays
-authoritative. Nothing has yet built a whole cascade end to end from `build/`.
+authoritative. One cascade has been built end to end from `build/`:
+`python -m cad.promote` stages built parts under the planner's names, and
+`refresh_cascades.py --components build/components --out build/cascades`
+assembles from them without touching `cascades/` or `individual/`. Dominion
+`168 Card Unsleeved` came through that, `filaments.py --check`, `towers.py`
+and a Bambu Studio slice (`return_code` 0). Four token holders cannot be
+staged that way — `spec/TOKENHOLDER.md`'s size-letter collision — and the
+result has not been printed.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
@@ -62,20 +69,30 @@ authoritative. Nothing has yet built a whole cascade end to end from `build/`.
   unless you pass `--holder source`. Substituting the STANDARD holder would put
   a part of the wrong depth under the fit test, which is why it is not done.
 - **`cad/` builds 7.0 geometry only** and `pusher.build` refuses any other
-  version. `individual/` is a mixed catalogue — 14 of its 32 pushers, 19 of its
-  44 lids and **30 of its 50 holders** are still older — and those stay
+  version. `individual/` is a mixed catalogue — every pusher and lid is now
+  7.0 after the September refreshes, but **30 of its 50 holders** and four
+  toppers are still older — and those stay
   Onshape's until their cascades migrate; `build/` is the migration target, not
   a mirror. The holders are the awkward case: all 50 are RECORDED at 6.6 and
   the studio changed under them without a version bump, so provenance cannot
   see it — the two lengths coexist deliberately (`automation/PIPELINE.md`,
   "An unversioned CAD change"; `spec/HOLDER.md`).
+- **Every text placement is floored** (`cad/text.py`, "floors"): no engraved
+  stroke under 0.200 mm, nothing proud or inlaid under 0.250. A line under
+  its floor is raised and gives up margin; `tests/test_text_floors.py` holds
+  the whole catalogue to it and names the sixteen lines it raises. A
+  second-filament inlay in a pocket printed face down is CUT text — the
+  topper's names — however proud the sketch stands it (`spec/TOPPER.md`).
 - **A written 3MF must be a closed, manifold mesh** — a slicer takes a hole or a
   doubled edge as far as a failed print, and OCCT will produce one where two
-  faces meet tangentially. `mesh3mf._drop_flaps` is the guard and
-  `tests/test_holder_corpus.py` checks it, but only over the holders, which are
-  clean. **Three Innovation boxes and twelve Innovation lid inlays are NOT** —
-  see `spec/HOLDER.md`, "Two faults it does NOT fix". Onshape's own 850 bodies
-  have none of it, so it is the writer's to fix.
+  faces meet tangentially. `mesh3mf._drop_flaps` is one guard; `mesh3mf.faults`
+  is the other, and `mesh3mf.write` REFUSES a body with an open boundary.
+  `tests/test_build_meshes.py` runs it over all of `build/`, and every body
+  passes it. The two faults it found are both fixed: the twelve open lid
+  inlays were a stale cached triangulation (`mesh3mf.triangulate`), and the
+  three sleeved Innovation boxes' line contact — a hanging hole's edge landing
+  on a divider face — is cleared by `box.HOLE_CLEAR` — `spec/HOLDER.md`, "Two
+  faults it does NOT fix"; `spec/BOX.md`.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does the
   lot. `--part holder` is 56 files at about three seconds each. `--part tokenholder`
@@ -88,9 +105,13 @@ authoritative. Nothing has yet built a whole cascade end to end from `build/`.
   in the background.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
-- Tests: `python3 tests/test_derive.py` (pure arithmetic, system python is
-  fine), `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
-  STEPs — it skips a reference that is absent),
+- Tests: `.venv/bin/python tests/run_all.py` runs every suite below in order
+  and says which failed (`--quick` skips the slow ones, `--only holder,lock`
+  picks). One at a time: `python3 tests/test_derive.py` and
+  `python3 tests/test_lock.py` (pure arithmetic, system python is fine; the
+  second holds the three copies of the C1-C5 table to each other),
+  `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
+  STEPs — a missing reference is a FAILURE, not a skip),
   `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs
   `individual/`; run `python -m cad.build` first),
   `.venv/bin/python tests/test_box.py`, `.venv/bin/python tests/test_lid.py`,
@@ -102,8 +123,10 @@ authoritative. Nothing has yet built a whole cascade end to end from `build/`.
   `.venv/bin/python tests/test_topper_corpus.py` and
   `.venv/bin/python tests/test_holder_corpus.py` (against all 44 cached lids,
   all 18 cached token holders, all 48 cached toppers and all 50 cached holders;
-  the last one needs `--part holder` built first and takes 12-15 MINUTES,
-  because it rebuilds all 50 at `Version="6.6"` to compare like for like).
+  the last one needs `--part holder` built first and takes about six minutes,
+  because it rebuilds all 50 at `Version="6.6"` to compare like for like), and
+  `.venv/bin/python tests/test_build_meshes.py` (every body in `build/` is a
+  closed surface; line contacts listed, open boundaries fail).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`
   draws the lot on one sheet when you want to LOOK at a build.
 - **Assemblies** put the parts into a whole cascade — `closed`, `closed-lid`,
@@ -127,9 +150,11 @@ authoritative. Nothing has yet built a whole cascade end to end from `build/`.
 - A **render is part of the checking, not the output of it.** A closed lid goes
   on EITHER WAY ROUND — both turns measure 0.0000 mm3 and both seat the closing
   bump — so only the logo can tell, and **three of the four games' lid marks
-  are 180 degrees from the fourth**. One game reads upside down whichever way
-  the lid goes on, on the shipped product as much as in `cad/`. Look at the
-  pictures; no number sees this.
+  WERE 180 degrees from the fourth** until Dominion's drawing was turned on
+  2026-09-04 (`spec/LID.md`); the 24 cached Dominion lids still have the old
+  turn. One game read upside down whichever way the lid went on, on the
+  shipped product as much as in `cad/`. Look at the pictures; no number sees
+  this.
 
 ## Ground rules
 

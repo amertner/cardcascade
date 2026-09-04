@@ -10,10 +10,10 @@ so this reads all 48 cached meshes instead — 0 API calls — and holds every o
 of them to the placement rules: the envelope, the ribs and front bands, the two
 holder tabs, and the eight lip notches.
 
-Onshape's catalogue is 6 expansions over 8 bodies, and only the BODY is built
-here: `Expansion Name` is not written. So the eight `Blank` files are checked on
-volume as well, and the other forty on placement only — an engraved topper is
-the blank less its lettering, which is 10 to 30 mm3.
+Onshape's catalogue is 6 expansions over 8 bodies. The eight `Blank` files are
+checked on volume as well, and the other forty on placement and on the mark's
+rim — an engraved topper is the blank less its lettering, which is 10 to 30
+mm3, and the lettering itself is asserted against the STEPs in test_topper.py.
 
 Probed by ray-casting the mesh, the same way `tests/test_lid_corpus.py` does,
 and with the same rule: **never aim a ray at a feature's exact centre**. A

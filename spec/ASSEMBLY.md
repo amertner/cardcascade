@@ -98,16 +98,20 @@ lid is on, so it is the one mark a closed cascade shows. Rendered in plan:
 | FCM | a turn about **Y** |
 | Innovation | a turn about **Y** |
 
-**One game's mark is upside down on a closed lid whichever turn is chosen.**
-Nothing in `cad/` rotates the artwork — there is no per-game transform in
-`parts/lid.py` or `art.py` — so the four `logos/<Game>/lid_logo.dxf` disagree
-with each other. And the build's inlays match the cached Onshape lid's to 0.001
-in every X span, so Onshape imported the same files and **this is on the
-shipped product**, not on the rebuild.
+**One game's mark WAS upside down on a closed lid whichever turn was chosen
+— until 2026-09-04.** Nothing in `cad/` rotates the artwork — there is no
+per-game transform in `parts/lid.py` or `art.py` — so the four
+`logos/<Game>/lid_logo.dxf` disagreed with each other. And the build's inlays
+matched the cached Onshape lid's to 0.001 in every X span, so Onshape
+imported the same files and **this was on the shipped product**, not on the
+rebuild.
 
-`Y` is used, because three of the four read correctly under it. That is a
-majority and not a proof. The fix is a rotation of one DXF or of three, and
-which is Allan's call.
+`Y` is used, because three of the four read correctly under it, and the
+photograph of three closed Innovation boxes reading upright from the
+labelled front says the three are right. Allan had Dominion's DXF turned
+(`spec/LID.md`, "Dominion's mark WAS 180° out"), so all four now read
+upright under the `Y` turn, and `tests/test_lid.py` holds Dominion's regions
+to the old reference turned.
 
 The route to this is worth recording, because it is a lesson about method
 twice over. The placement was first written as `Y`, then changed to `X` on the
@@ -312,7 +316,7 @@ A resolver, because two of them are not finished:
 |---|---|---|
 | Box, Lid, Pusher, TokenHolder | `cad/` source (B-rep) | done, and they are the whole lock mechanism |
 | Holder | cached `individual/<Game>/Holder *.3mf` | `cad/parts/holder.py` is finished, but `individual/` is what SHIPPED, and an assembly is a statement about a real cascade |
-| Topper | cached `individual/Innovation/Topper *.3mf` | `cad/parts/topper.py` builds the BLANK, but the `Expansion Name` group is not written yet, so the five labelled ones are only available cached |
+| Topper | cached `individual/Innovation/Topper *.3mf` | `cad/parts/topper.py` builds all six, but as with the Holder the cache is what SHIPPED |
 
 `cad.assemble --holder source` swaps the build123d Holder in, and is how the
 Holder's convergence gets watched. It is also the only way to assemble the two
@@ -385,7 +389,10 @@ that holds on one cascade and not on 50 is the finding worth having.
 
 * ~~Which way the pusher's depth axis runs in storage.~~ Not open: two axes are
   forced by features and the third by right-handedness.
-* **Which lid mark is the reference, and which three turn.** Parked (Allan,
+* ~~**Which lid mark is the reference, and which three turn.**~~ Settled
+  2026-09-04: the three were the reference, Dominion's DXF turned — the
+  Innovation photo of three closed boxes was the authority the note below
+  asked for. The rest of this entry is kept as it was written. Parked (Allan,
   2026-09-03 — away from the printed boxes). Nothing geometric in the lid
   distinguishes the two ways it closes, so the physical product is the only
   authority: look at a closed box, and whichever game reads upright is the

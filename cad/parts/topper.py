@@ -43,9 +43,9 @@ The BLANK is complete: `build()` reproduces all three rolled-back exports and
 the unfilleted one with zero symmetric difference in both directions, on two
 parameter sets, and the filleted `Unseen` body holds nothing it lacks.
 
-INCOMPLETE only in that the `Expansion Name` group — the mark and the
-expansion's name, 19 features — is not written, so the other five of the six
-are not buildable yet. `spec/TOPPER.md` records every rule they will need.
+The `Expansion Name` group — the mark and the expansion's name, 19 features —
+is written too, for all five labelled expansions (`MARKS`); `spec/TOPPER.md`
+records the rules behind it.
 """
 import math
 
@@ -666,9 +666,9 @@ def build(p, d=None, expansion="Blank"):
     """One Topper, in the Onshape tree's own order.
 
     `Blank` carries no name and no logo. The other five are the same body with
-    `Expansion Name` engraved, and only `Cities` and `Unseen` have their marks
-    written — see `MARKS`. Asking for one of the other three raises rather than
-    quietly writing a topper with a name and no mark.
+    `Expansion Name` engraved — the name and the mark from `MARKS`. Asking for
+    an expansion `MARKS` does not know raises rather than quietly writing a
+    topper with a name and no mark.
     """
     if p.GameName != "Innovation":
         raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
@@ -697,8 +697,7 @@ def build(p, d=None, expansion="Blank"):
 
 # ---------------------------------------------------------------------------
 # `Expansion Name` — the mark and the expansion's name, engraved in the
-# UNDERSIDE. Placement is solved; the five marks' own outlines are not written
-# yet. See spec/TOPPER.md.
+# UNDERSIDE. The placement and all five marks; see spec/TOPPER.md.
 
 FONT = str(TX.FONT_DIR / "NotoSerif-Bold.ttf")   # Noto Serif Bold (Allan)
 
@@ -755,9 +754,44 @@ def cap_band(p, d):
     return depth(p, d) - 2 * EDGE_ROUND - 3 * logo_edge_dist(p, d)
 
 
+# The deepest descender any expansion name has: `Figures`' `g`, and Onshape's
+# `g`, which reaches 0.00459 em deeper than the vendored font's
+# (spec/TOPPER.md, "The vendored Noto Serif Bold"). The doubled bottom
+# margin exists to hold it, and it is what stops the floor being reached.
+DESCENDER_EM = -(TX.metrics("Figures", FONT)[2] - 0.00459)
+
+
 def font_size(p, d):
-    """The em that puts `cap_band` at BAND_EM of it."""
-    return cap_band(p, d) / BAND_EM
+    """The em that puts `cap_band` at BAND_EM of it — or the CUT floor
+    (`cad/text.py`, "floors") where that is larger.
+
+    Cut, not proud, although the sketch stands the inlay 0.010 proud: the
+    topper prints face down and flat, the lettering is a second-filament
+    fill in a pocket, and the 0.010 is there to make the sliver work, not
+    to raise the text (Allan, 2026-09-04). Noto Serif Bold's hairline is
+    0.054 em, so the floor is 3.70 em. Every size in the catalogue fits at
+    5.4 em or more except the two 10-card unsleeved ones (`S10-Un`,
+    `M10-Un`), which fit at 3.61 and are raised to the floor; their 4.40
+    flat holds 4.07 em with the sketch's 1:2 margins and `Figures`' `g`
+    under the band (DESCENDER_EM), so the raise fits, and `baseline_y`
+    shares what the flat has left in that 1:2. A floor the flat could not
+    hold would raise `DoesNotFit` rather than put the `g` into the round —
+    which is what the PROUD floor's 4.63 em did before this was settled.
+    """
+    fitted = cap_band(p, d) / BAND_EM
+    floor = TX.floor_size(FONT)
+    if fitted >= floor:
+        return fitted
+    _x, rear, front = face_datum(p, d)
+    flat = front - rear
+    # The largest em whose band AND deepest descender fit with the 1:2 split:
+    #   2/3 (flat - BAND_EM s) >= DESCENDER_EM s
+    holds = 2 * flat / (3 * DESCENDER_EM + 2 * BAND_EM)
+    if holds < floor:
+        raise TX.DoesNotFit(f"topper lettering at its floor ({floor:.3f} em) "
+                            f"does not fit the {flat:.2f} flat with `Figures`' "
+                            f"g; it holds {holds:.3f}")
+    return floor
 
 
 def baseline_y(p, d):
@@ -765,8 +799,14 @@ def baseline_y(p, d):
     face's FRONT edge. Exact on all three filleted references — -8.000,
     -10.400, -14.950 — against ink that overshoots it by a round letter's
     0.036, 0.055 and 0.090."""
-    _x, _rear, y_front = face_datum(p, d)
-    return y_front - 2 * logo_edge_dist(p, d)
+    _x, y_rear, y_front = face_datum(p, d)
+    # `2 * LogoEdgeDist` is two thirds of what the flat has left once the cap
+    # band is out of it — `3 * LogoEdgeDist` — and it is written that way so
+    # a band raised to its floor (`font_size`) keeps the sketch's 1:2 split
+    # of the margins instead of walking off the rear round. Identical where
+    # the floor does not bind, which is everywhere but the 10-card unsleeved.
+    left = (y_front - y_rear) - font_size(p, d) * BAND_EM
+    return y_front - 2 * left / 3
 
 
 def text_origin_x(p, d):

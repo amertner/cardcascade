@@ -74,6 +74,47 @@ def font_size_for_cap(cap, font_path=LOGO_FONT):
     return cap / _metrics(font_path)[0]
 
 
+# --- floors: no stroke thinner than the printer can lay down --------------
+#
+# Every sizing rule in the catalogue FITS text to a box, and a small box
+# used to shrink a line without limit — a pusher's version line reached a
+# 0.10 mm stroke, a box's model line 0.12. A floor is applied at every
+# placement (Allan, 2026-09-04): text CUT into a part may not go below
+# FLOOR_CUT of stroke, and text that STANDS PROUD — embossed, or laid in the
+# second filament — not below FLOOR_PROUD, the slicer laying a proud line
+# thinner than its nozzle dynamically but not indefinitely. A line whose
+# fitted size is under its floor is raised to it, its margins giving way;
+# where even the floor does not physically fit the part the placement
+# RAISES rather than write something illegible or something that overruns.
+#
+# The stroke is each face's THINNEST, in em, measured off a 1000 px/em
+# raster of the strings the catalogue sets (distance transform along the
+# medial axis, first percentile — the corner pixels excluded). Orbitron and
+# Open Sans are near-monoline; Noto Serif's number is its hairline.
+STROKE = {                        # em, thinnest stroke
+    "Orbitron-Bold.ttf": 0.118,
+    "OpenSans-Bold.ttf": 0.100,
+    "NotoSerif-Bold.ttf": 0.054,
+}
+FLOOR_CUT = 0.200                 # mm, engraved into the part
+FLOOR_PROUD = 0.250               # mm, embossed or a second-filament inlay
+SERIF_FONT = str(FONT_DIR / "NotoSerif-Bold.ttf")   # the Topper's
+
+
+def floor_size(font=LOGO_FONT, proud=False):
+    """The smallest em `font` may be set at, cut or proud."""
+    return (FLOOR_PROUD if proud else FLOOR_CUT) / STROKE[Path(font).name]
+
+
+def floored(size, font=LOGO_FONT, proud=False):
+    """`size`, or the floor if that is larger."""
+    return max(size, floor_size(font, proud))
+
+
+class DoesNotFit(ValueError):
+    """A line at its floor overruns the part. Raised, never written."""
+
+
 @lru_cache(maxsize=64)
 def _width_per_cap(txt, font_path=LOGO_FONT):
     """Rendered ink width of `txt` per unit of cap height. A property of the
@@ -103,9 +144,20 @@ def logo_lines(p, d, chamfer=2.0):
     cap = min((strip - 2 * margin) / asc_per_cap,
               (x_end - x0) / (_width_per_cap(d.ProductName, LOGO_FONT)
                               + _LSB_C / cap_em))
-    size = font_size_for_cap(cap, LOGO_FONT)
+    size = floored(font_size_for_cap(cap, LOGO_FONT), LOGO_FONT)
+    cap = size * cap_em
+    if cap * asc_per_cap > strip + 1e-9 or \
+            x0 + (_width_per_cap(d.ProductName, LOGO_FONT) * cap
+                  + _LSB_C * size) > x_end + 1e-9:
+        raise DoesNotFit(f"{d.ProductName!r} at its floor ({size:.3f} em) "
+                         f"overruns the pusher's front strip")
+    # The version line is half the product's — and no smaller than the floor,
+    # which the four 2-riser Dominion pushers reach (0.885 em fitted against
+    # 1.695). It never grows past the product's own cap, whose band below the
+    # baseline is where it sits, and the floor is always under that.
     lines = [(d.ProductName, size, -(margin + cap * asc_per_cap)),
-             (d.calVersion, size / 2, -(margin + cap * asc_per_cap + cap))]
+             (d.calVersion, min(size, floored(size / 2, LOGO_FONT)),
+              -(margin + cap * asc_per_cap + cap))]
     out = []
     for txt, sz, base in lines:
         if not txt.startswith("C"):
@@ -145,8 +197,15 @@ def detail_placement(p, d, notch_depth=5.2):
     wpc = _width_per_cap(txt, DETAIL_FONT)
     cap = min((band - LOGO_MARGIN * band) / (asc_em / cap_em),
               (depth - 2 * LOGO_MARGIN * depth) / wpc)
-    return (txt, font_size_for_cap(cap, DETAIL_FONT), DETAIL_BASELINE_X,
-            -(depth - wpc * cap) / 2)
+    # FCM's `Pusher 3x6-Un` fits at 1.806 em and is raised to the 2.000 floor;
+    # its ink then runs 11.82 of the 14.04 depth, inside the 12 % margins'
+    # hard limit.
+    size = floored(font_size_for_cap(cap, DETAIL_FONT), DETAIL_FONT)
+    cap = size * cap_em
+    if cap * asc_em / cap_em > band + 1e-9 or wpc * cap > depth + 1e-9:
+        raise DoesNotFit(f"{txt!r} at its floor ({size:.3f} em) overruns the "
+                         f"pusher's leading edge")
+    return (txt, size, DETAIL_BASELINE_X, -(depth - wpc * cap) / 2)
 
 # --- metrics -------------------------------------------------------------
 CAP = 0.720          # Orbitron Bold's OS/2 capHeight, 720/1000

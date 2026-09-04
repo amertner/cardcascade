@@ -567,6 +567,15 @@ def lip_rests(p, d, first, part):
 ENGRAVE = 0.200
 TEXT_INSET = 10.000        # past the end block, from Allan's sketch
 TEXT_GAP = 4.000           # the least space left between the two blocks
+# How far short of the right-hand inset the capacity's INK stops, in EM.
+# Measured, not derived, like the TokenHolder's `TRAIL`: with the block
+# right-aligned on its advance the build sat 0.0130 em left of every
+# reference (0.0119 on `246`), at five different sizes, so it scales with
+# the em and is a property of Onshape's right alignment rather than of the
+# inset. It is not the last glyph's right bearing (`d` is 0.0776 in Open
+# Sans Bold), and it is not the TokenHolder's 0.0754 either — that one is
+# Orbitron — so the two are recorded separately rather than pretended one.
+CAP_TRAIL = 0.0646
 
 
 def text_blocks(p, d, first):
@@ -597,27 +606,39 @@ def text_size(p, d, first):
     room = (x1 - x0) - 2 * (END_BLOCK + TEXT_INSET) - TEXT_GAP
     per_em = (T.ink(name, size=1.0)[0]
               + T.ink(cap, font=T.DETAIL_FONT, size=1.0)[0])
-    return min(by_depth, room / per_em)
+    # And no smaller than either face's cut floor (`cad/text.py`, "floors");
+    # the shallowest holder in the catalogue is 3.17 em against a 2.00 floor,
+    # so today this binds nowhere.
+    floor = max(T.floor_size(T.LOGO_FONT), T.floor_size(T.DETAIL_FONT))
+    size = max(min(by_depth, room / per_em), floor)
+    if size * per_em > room + 1e-9:
+        raise T.DoesNotFit(f"holder text at its floor ({size:.3f} em) does "
+                           f"not fit between the insets")
+    return size
 
 
-def engrave(txt, font, size, x, baseline, mirror):
+def engrave(txt, font, size, x, baseline):
     """One block, as a solid to subtract from the underside.
 
     Placed by the PEN ORIGIN — `cad.text.metrics` gives the bearings, which no
-    measurement of rendered ink can recover. `mirror` flips it in X so the text
-    reads the right way round when the holder is turned over.
+    measurement of rendered ink can recover. The glyphs are turned over in Y
+    (mirrored about XZ), which keeps their X order and puts glyph-up toward
+    -Y: the orientation an UNDERSIDE engraving has to have to read the right
+    way round once the holder is turned over, and the one every reference
+    has — the period of `7.0` sits hard against the baseline on the +Y side
+    of the cap band, and the descender of `p` reaches past it on the -Y side.
+    The TokenHolder's `branding` is the same rule for the same reason. A
+    block mirrored in X instead reads a half turn out, and one not mirrored
+    at all is mirror-writing; ink width and volume cannot tell either apart.
     """
     _adv, lsb, lo, _hi = T.metrics(txt, font)
     with BuildPart() as part:
-        with BuildSketch(Plane.XY) as sk:
+        with BuildSketch(Plane.XY):
             glyphs = Text(txt, font_size=size, font_path=font,
                           align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
             add(Pos(lsb * size, lo * size) * glyphs)
         extrude(amount=ENGRAVE)
-    solid = part.part
-    if mirror:
-        solid = solid.mirror(Plane.YZ)
-    return solid.moved(Location((x, baseline, 0)))
+    return part.part.mirror(Plane.XZ).moved(Location((x, baseline, 0)))
 
 
 def bottom_text(p, d, first, part):
@@ -626,15 +647,25 @@ def bottom_text(p, d, first, part):
     size = text_size(p, d, first)
     x0, x1 = x_span(p, d)
     depth = holder_depth(p, d, first)
-    # The cap band centred in the depth. The reference's baseline moves with the
-    # string's own ink extents and lands within 0.4 of this; since the size is a
-    # divergence anyway, centring is the rule that stays sensible when it binds.
-    baseline = -(depth + T.CAP * size) / 2
+    # The cap band centred in the depth, and the glyphs hanging toward -Y from
+    # the baseline (`engrave`), so the baseline is the band's +Y edge. The
+    # reference's baseline moves with the string's own ink extents and lands
+    # within 0.4 of this; since the size is a divergence anyway, centring is
+    # the rule that stays sensible when it binds.
+    baseline = -(depth - T.CAP * size) / 2
     z = base_z(d)
-    for txt, font, xa, mirror in (
-            (name, T.LOGO_FONT, x0 + END_BLOCK + TEXT_INSET, False),
-            (cap, T.DETAIL_FONT, x1 - END_BLOCK - TEXT_INSET, True)):
-        tool = engrave(txt, font, size, xa, baseline, mirror)
+    # The name is left-aligned on its pen origin, exact to 0.0004 against
+    # every reference. The capacity is right-aligned: its ink stops CAP_TRAIL
+    # short of the inset, and the pen origin is that less the ink's own run
+    # (advance less the last right bearing), both read from the font.
+    cap_adv = T.metrics(cap, T.DETAIL_FONT)[0]
+    cap_rsb = T.right_bearing(cap, T.DETAIL_FONT)
+    cap_pen = (x1 - END_BLOCK - TEXT_INSET
+               - (CAP_TRAIL + cap_adv - cap_rsb) * size)
+    for txt, font, xa in (
+            (name, T.LOGO_FONT, x0 + END_BLOCK + TEXT_INSET),
+            (cap, T.DETAIL_FONT, cap_pen)):
+        tool = engrave(txt, font, size, xa, baseline)
         part = part - tool.moved(Location((0, 0, z)))
     return part
 

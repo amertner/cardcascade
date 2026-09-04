@@ -148,7 +148,11 @@ for name, fn, p, first in REFS:
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
-        print(f"  SKIP — {path} not present")
+        # A missing reference is a FAILURE, not a skip: every STEP in
+        # spec/reference is checked in, and a suite that turns green
+        # when one goes missing is not a suite.
+        print(f"  FAIL — reference {path.name} not present")
+        fails.append(f"{name}: reference {path.name} missing")
         continue
     ref = import_step(str(path)).solids()[0]
     d = D.derive(p)
@@ -511,6 +515,47 @@ for name, fn, p, first in REFS:
         got = shape & cell
         check(f"{who}: material just above the engraving floor",
               bool(got and got.volume > 1.0), True)
+
+    # --- the engraving's ORIENTATION ------------------------------------
+    # Ink width and volume are both invariant under a mirror, which is how
+    # the name block shipped as mirror-writing for a while: built glyph-up
+    # toward +Y on an underside that reads from -Z. So the ink is compared
+    # LUMP BY LUMP — one connected piece of ink at a time, in X order, each
+    # lump's box against the STEP's. A block mirrored in Y moves its period
+    # by a cap height; one mirrored in X reverses the lump order. Only where
+    # the size is Onshape's can the lumps correspond; where it is capped the
+    # build's own period is held to the +Y side of the band, which is what
+    # "reads the right way round from below" means in this frame.
+    def ink_lumps(shape):
+        dep = holder.holder_depth(p, d, first)
+        lo, hi = x0 + holder.END_BLOCK + 1.0, x1 - holder.END_BLOCK - 1.0
+        slab = Box(hi - lo, dep + 2.0, 1.0).moved(
+            Location(((lo + hi) / 2, -dep / 2, holder.base_z(d) + 0.5)))
+        void = slab - shape
+        got = [q for q in void.solids() if q.volume > 0.02] if void else []
+        return sorted(((q.bounding_box().min.X, q.bounding_box().max.X,
+                        q.bounding_box().min.Y, q.bounding_box().max.Y)
+                       for q in got), key=lambda b: (round(b[0], 1), b[2]))
+
+    mine_lumps = ink_lumps(mine)
+    band_mid = -holder.holder_depth(p, d, first) / 2
+    period = min(mine_lumps, key=lambda b: (b[1] - b[0]) * (b[3] - b[2]))
+    check("build: the smallest lump (a period) sits on the +Y side of the band",
+          (period[2] + period[3]) / 2 > band_mid, True)
+    if not capped:
+        ref_lumps = ink_lumps(ref)
+        check("the STEP and the build have the same number of ink lumps",
+              len(mine_lumps), len(ref_lumps))
+        if len(mine_lumps) == len(ref_lumps):
+            dx = max(max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+                     for a, b in zip(mine_lumps, ref_lumps))
+            dy = max(max(abs(a[2] - b[2]), abs(a[3] - b[3]))
+                     for a, b in zip(mine_lumps, ref_lumps))
+            # X to a twentieth: the pen origins are placed, not fitted. Y to
+            # the 0.4 the centring rule is known to sit within (holder.py,
+            # `bottom_text`) — a mirror is off by a whole cap height.
+            check("every lump's X box matches the STEP's", round(dx, 3), 0.0, 0.05)
+            check("every lump's Y box matches the STEP's", round(dy, 3), 0.0, 0.4)
 
 
 if HELD_OUT:

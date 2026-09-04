@@ -43,6 +43,15 @@ import provenance as PROV
 HERE = Path(__file__).parent          # automation/
 ROOT = HERE.parent                    # repo root — cascades/ and individual/ live here
 
+# Where components are read from and where refreshed projects are written.
+# The defaults are the shipped pipeline: individual/ in, cascades/ in place.
+# `--components` points at another root laid out the same way — what
+# `python -m cad.promote` writes under build/components/ — and `--out` writes
+# the refreshed project under DIR/<Game folder>/ instead of over the shipped
+# one, which is how a cascade is built from cad/ without touching what shipped.
+COMPONENTS = ROOT / "individual"
+OUT_DIR = None
+
 
 # ----------------------------------------------------------------- selection
 def resolve_games(game_arg):
@@ -326,6 +335,15 @@ def find_project(folder_dir, game, casc):
     return None, f"{canon!r} absent and no project carries model {tag}"
 
 
+def out_path(project, folder):
+    """Where a refreshed project is written: over itself, or under --out."""
+    if OUT_DIR is None:
+        return project
+    dst = OUT_DIR / folder / project.name
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    return dst
+
+
 def assemble_one(game, spec, casc, dry):
     """Refresh one cascade in place with make_cascade --keep-layout. Returns
     (status, detail) where status is 'ok' | 'skip' | 'fail'."""
@@ -342,15 +360,15 @@ def assemble_one(game, spec, casc, dry):
         return "skip", f"components with no template slot: {unused}"
 
     missing = [f for f in swap.values()
-               if not (ROOT / "individual" / folder / f).exists()]
+               if not (COMPONENTS / folder / f).exists()]
     if missing:
         return "skip", f"components not on disk: {', '.join(sorted(missing))}"
 
     cmd = [sys.executable, str(HERE / "make_cascade.py"), str(template),
-           "-o", str(template), "--keep-layout"]
+           "-o", str(out_path(template, folder)), "--keep-layout"]
     split = split_mesh_names(template)
     for obj, file in swap.items():
-        path = ROOT / "individual" / folder / file
+        path = COMPONENTS / folder / file
         if obj in split:
             # instances don't share a mesh — reach each one by index
             cmd += [arg for i in range(1, split[obj] + 1)
@@ -418,7 +436,7 @@ def rebuild_one(game, spec, casc, dry):
     if unused:                            # --auto-plates can't ADD a missing slot
         return "skip", f"components with no donor slot: {unused}"
     missing = [f for f in swap.values()
-               if not (ROOT / "individual" / folder / f).exists()]
+               if not (COMPONENTS / folder / f).exists()]
     if missing:
         return "skip", f"components not on disk: {', '.join(sorted(missing))}"
 
@@ -431,9 +449,9 @@ def rebuild_one(game, spec, casc, dry):
 
     bed = bed_for(casc)
     cmd = [sys.executable, str(HERE / "make_cascade.py"), str(donor),
-           "-o", str(donor), "--auto-plates", "--bed", bed]
+           "-o", str(out_path(donor, folder)), "--auto-plates", "--bed", bed]
     for obj, file in swap.items():
-        cmd += ["--part", f"{obj}={ROOT / 'individual' / folder / file}"]
+        cmd += ["--part", f"{obj}={COMPONENTS / folder / file}"]
     for old, new in renames.items():
         cmd += ["--rename", f"{old}={new}"]
     note = f"  [bed {bed}]" + (f" (left: {unmatched})" if unmatched else "")
@@ -541,7 +559,21 @@ def main():
                          "plate layout from the box's own project as donor, bed "
                          "from parts.csv) instead of the default keep-layout swap; "
                          "use to first-build a box whose only project is stale")
+    ap.add_argument("--components", type=Path,
+                    help="component root laid out like individual/ (e.g. "
+                         "build/components from `python -m cad.promote`); "
+                         "skips the export stage, since nothing under it came "
+                         "from Onshape")
+    ap.add_argument("--out", type=Path,
+                    help="write refreshed projects under DIR/<Game folder>/ "
+                         "instead of in place")
     args = ap.parse_args()
+
+    global COMPONENTS, OUT_DIR
+    if args.components:
+        COMPONENTS = args.components.resolve()
+    if args.out:
+        OUT_DIR = args.out.resolve()
 
     sizes = {s.strip().upper() for s in (args.size or "").split(",") if s.strip()}
     sleeving = {"un": "Un", "sl": "Sl"}.get(args.sleeving)
@@ -566,7 +598,9 @@ def main():
         print("aborted.")
         return
 
-    if not args.dry_run:
+    if args.components:
+        print(f"● EXPORT — skipped: components come from {COMPONENTS}\n")
+    elif not args.dry_run:
         if not run_exports(selection, args.auto):
             print("aborted before assemble.")
             return

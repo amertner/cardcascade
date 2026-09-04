@@ -7,10 +7,11 @@ is generated from `parts.csv` with **zero API calls** and the design is in git.
 downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
 `filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
 
-**Done so far: the Pusher, the Box, the Lid, the TokenHolder and the
-Holder**, the Lid including its logo pattern for all four games and the
-TokenHolder in both its configurations. Only the **Topper** is not written at
-all. The Onshape path is still the one that builds a cascade.
+**Every part is written: the Pusher, the Box, the Lid, the TokenHolder, the
+Holder and the Topper** — the Lid including its logo pattern for all four
+games, the TokenHolder in both its configurations, the Topper for all six
+expansions. The Onshape path is still the one that builds a cascade: nothing
+has yet turned `build/` into a shipped project.
 
 The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
 is FITTED to the lid — the biggest mark that fits, sized to a proportion of
@@ -50,6 +51,11 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
     --filaments '#F4F4F2,#1B1B1B' --part 'Lid=#0E6BA8' -o tmp/cascade.glb
 blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
 
+.venv/bin/python -m cad.promote --model S4.16.10.32-Un   # build/ -> build/components/, planner names
+automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \
+    --components build/components --out build/cascades --auto   # a project, from cad/
+
+.venv/bin/python tests/run_all.py                # every suite, ~20 min; --quick, --only
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
 .venv/bin/python tests/test_box.py               # source vs the nine STEPs
@@ -59,6 +65,8 @@ blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
 .venv/bin/python tests/test_token_holder_corpus.py  # the rules vs all 18
 .venv/bin/python tests/test_holder.py            # source vs all ten STEPs
 .venv/bin/python tests/test_holder_corpus.py     # build/ vs the 50 in individual/
+.venv/bin/python tests/test_lock.py              # the C1-C5 table's three copies agree
+.venv/bin/python tests/test_build_meshes.py      # every written body is closed
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
 .venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
 ```
@@ -151,7 +159,18 @@ The weight matters and was tested, not guessed: against the reference STEPs
 Open Sans **Bold** lands within `0.0006 mm`, where SemiBold is out by `0.17`
 and Regular by `0.34`. The thin `l` is what separates them.
 
-## Text sizing is a rule, not a transcription
+## Text sizing is a rule, not a transcription, and it has a floor
+
+Since 2026-09-04 every text placement is FLOORED (`cad/text.py`, "floors"):
+text cut into a part is set no smaller than a `0.200` mm stroke and text that
+stands proud — embossed, or a second-filament inlay — no smaller than `0.250`,
+each face's thinnest stroke measured off a raster of the strings it sets. A
+line under its floor is raised to it and gives up margin; one that would then
+overrun the part raises `DoesNotFit` rather than write it. It raises
+sixteen lines across the catalogue — four pusher version lines, one detail
+line, nine box lines, and the 10-card unsleeved toppers' names, whose inlay
+prints face down in a pocket and so takes the CUT floor (`spec/TOPPER.md`).
+`tests/test_text_floors.py` asserts the set exactly.
 
 Onshape can constrain sketch text in only one dimension, so a box that suits
 one parameter set does not suit another — the same string comes out `3.85x`
@@ -181,13 +200,15 @@ to 0.001. Two findings came out of it:
   cascade** — a constant, with every parameter cancelling — which leaves a
   holder on its tread with 0.350 at the front and 0.050 at the back. Nothing is
   broken by it, and nothing before now could see it.
-* **Three of the four games' lid marks are 180 degrees from the fourth.** A
+* **Three of the four games' lid marks were 180 degrees from the fourth.** A
   closed lid can go on either way round — nothing geometric distinguishes the
   two, and both measure 0.0000 mm3 — so the only thing that can tell is the
-  logo, and Dominion's disagrees with Compile's, FCM's and Innovation's. One
-  game is upside down whichever way is chosen, on the shipped product as much
-  as here: `cad/` rotates no artwork, and its inlays match the cached Onshape
-  lids to 0.001.
+  logo, and Dominion's disagreed with Compile's, FCM's and Innovation's. One
+  game was upside down whichever way was chosen, on the shipped product as
+  much as here: `cad/` rotates no artwork, and its inlays matched the cached
+  Onshape lids to 0.001. Settled 2026-09-04 from a photograph of the shipped
+  Innovation boxes: Dominion's DXF is turned, and `tests/test_lid.py` holds it
+  to the old reference turned (`spec/LID.md`).
 
 `spec/ASSEMBLY.md` has both. The second is the case for treating renders as
 part of the checking rather than its output: it is invisible to every number
@@ -281,9 +302,8 @@ of the API budget the moment it is done in Onshape instead.
 
 Then the **Box**, which went first in the end because Allan had its feature
 tree and five STEPs to hand, and then the **Lid**: shell, sockets, closing
-grooves, outer rounds, the floor's engraving and the logo pattern. What is left
-there is DATA rather than shape — the artwork for two games, and the rule
-behind the logo's scale.
+grooves, outer rounds, the floor's engraving and the logo pattern, the artwork
+for all four games and the rule behind the logo's scale.
 
 Then the **TokenHolder**, which is done: it is the simplest part in the
 catalogue after the Pusher, it has a STEP for each of its two configurations,
@@ -295,4 +315,5 @@ compute for itself — `Fillet 1`, whose two rounds meet exactly, and the chamfe
 on `Lip Rest` — both modelled into their cuts and both measured. It is also the
 part that found the one meshing bug in the writer (`spec/HOLDER.md`, "The mesh").
 
-Then the Topper, which is what is left.
+Then the **Topper**, which is done: the blank and all six expansions, the five
+marks derived from `calLogoSidelength` rather than traced (`spec/TOPPER.md`).

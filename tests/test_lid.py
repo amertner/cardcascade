@@ -162,7 +162,11 @@ for name, fn, P in REFS:
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
-        print(f"  SKIP — {path} not present")
+        # A missing reference is a FAILURE, not a skip: every STEP in
+        # spec/reference is checked in, and a suite that turns green
+        # when one goes missing is not a suite.
+        print(f"  FAIL — reference {path.name} not present")
+        fails.append(f"{name}: reference {path.name} missing")
         continue
     d = D.derive(P)
     # The STEP carries the logo pattern's inlays as separate solids sitting in
@@ -385,6 +389,44 @@ for name, fn, P in REFS:
         # lines and matches to 0.000; Innovation's carries 361 arcs and 234
         # B-splines and lands at 0.09 %.
         check("inlay volume", round(mv, 3), round(rv, 3), rv * 1e-3)
+        # ORIENTATION, asserted from both ends. Dominion's drawing was a half
+        # turn from Compile's, FCM's and Innovation's — upside down on a
+        # closed box whichever way the lid went on — and was turned about its
+        # own centre on 2026-09-04 (Allan; spec/LID.md). The Dominion
+        # reference STEP still carries the OLD orientation, so the build's
+        # regions must be the reference's turned 180 degrees about the mark's
+        # centre, region for region, and must NOT be the reference's as they
+        # stand; Innovation's generated mark was never turned and must match
+        # as drawn. Volume and footprint cannot see a half turn; this can.
+        def regions(inlays, turn):
+            bb = Compound(children=inlays).bounding_box()
+            cx, cy = (bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2
+            out = []
+            for s_ in inlays:
+                c = s_.center()
+                x, y = (2 * cx - c.X, 2 * cy - c.Y) if turn else (c.X, c.Y)
+                out.append((x, y, s_.volume))
+            return out
+
+        def matched(a, b):
+            """Every region of `a` has one of `b` within 0.1 mm of centroid
+            and 3 % of volume — loose enough for the generated Innovation
+            mark, whose smallest regions are rebuilt from the font rather
+            than lifted (the total agrees to 0.08 %), and a turn moves a
+            region by tens of millimetres, so the negative check keeps its
+            teeth."""
+            return all(any(abs(x - u) < 0.1 and abs(y - v) < 0.1
+                           and abs(w - q) < 0.03 * w for u, v, q in b)
+                       for x, y, w in a)
+        turned = name.startswith("Dominion")
+        check(f"the build's regions are the STEP's"
+              f"{' turned a half turn' if turned else ' as drawn'}",
+              matched(regions(ref_inlays, turned), regions(mine_inlays, False)),
+              True)
+        if turned:
+            check("... and not the STEP's as drawn (the turn is real)",
+                  matched(regions(ref_inlays, False),
+                          regions(mine_inlays, False)), False)
         rb = Compound(children=ref_inlays).bounding_box()
         mb = Compound(children=mine_inlays).bounding_box()
         check("inlay footprint",
@@ -425,7 +467,8 @@ for name, fn, P in REFS:
 print("\n=== the export pair ===")
 plain = STEP_DIR / "Lid Dominion 246S.step"
 if not plain.exists():
-    print(f"  SKIP — {plain} not present")
+    print(f"  FAIL — reference {plain.name} not present")
+    fails.append(f"export pair: reference {plain.name} missing")
 else:
     P = REFS[0][2]
     solids = import_step(str(plain)).solids()

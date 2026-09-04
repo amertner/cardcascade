@@ -50,7 +50,11 @@ def check(label, got, want, tol=1e-6):
 for name, path, p in REFS:
     print(f"\n=== {name} ===")
     if not path.exists():
-        print(f"  SKIP — {path} not present")
+        # A missing reference is a FAILURE, not a skip: every STEP in
+        # spec/reference is checked in, and a suite that turns green
+        # when one goes missing is not a suite.
+        print(f"  FAIL — reference {path.name} not present")
+        fails.append(f"{name}: reference {path.name} missing")
         continue
     ref = import_step(str(path)).solids()[0]
     part = pusher.build(p, text=False)
@@ -150,8 +154,15 @@ for name, path, p in REFS:
     (txt, sz, x, base), (ver, sz2, x2, base2) = T.logo_lines(p, d)
     logo_cap_em, logo_asc_em = T._metrics(T.LOGO_FONT)
     cap = sz * logo_cap_em
-    check(f"{name}: version cap is half the product's",
-          round(sz2 * logo_cap_em, 6), round(cap / 2, 6))
+    # Half the product's cap — or the 0.200 mm stroke floor where half is
+    # under it, which `Dominion 246` is (0.885 em fitted, 1.695 floored) and
+    # `Compile 105` is not. Asserted as the rule, from both ends.
+    half_under_floor = sz / 2 < T.floor_size(T.LOGO_FONT) - 1e-9
+    check(f"{name}: the fitted half-cap is {'under' if half_under_floor else 'over'} the floor",
+          half_under_floor, name.startswith("Dominion 246"))
+    check(f"{name}: version cap is half the product's, floored",
+          round(sz2 * logo_cap_em, 6),
+          round(min(sz, T.floored(sz / 2, T.LOGO_FONT)) * logo_cap_em, 6))
     check(f"{name}: version baseline one cap below",
           round(base - base2, 6), round(cap, 6))
     # ink spans from `base` up to -margin, so the depth it uses is -base, and

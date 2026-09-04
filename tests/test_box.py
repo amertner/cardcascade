@@ -94,7 +94,11 @@ for name, fn, p in REFS:
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
-        print(f"  SKIP — {path} not present")
+        # A missing reference is a FAILURE, not a skip: every STEP in
+        # spec/reference is checked in, and a suite that turns green
+        # when one goes missing is not a suite.
+        print(f"  FAIL — reference {path.name} not present")
+        fails.append(f"{name}: reference {path.name} missing")
         continue
     ref = import_step(str(path)).solids()[0]
     d = D.derive(p)
@@ -211,6 +215,17 @@ for name, fn, p in REFS:
     check("hanging hole positions", gaps, want)
     check("every hanging hole is HOLE_W wide",
           sorted({round(b - a, 3) for a, b in gaps}), [round(box.HOLE_W, 3)])
+    # The build cuts `hole_openings`, which is `hanging_holes` unless an edge
+    # lands on a divider face (HOLE_CLEAR). None of the nine references is one
+    # of the three boxes where it does, so here the two must be the same and
+    # the build's own back wall must read exactly as the STEP's.
+    check("no reference hole is clipped by a divider face",
+          box.hole_openings(p, d) == box.hanging_holes(p, d), True)
+    mpieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
+                     for q in (mine & bar).solids())
+    mgaps = [(round(a[1], 3), round(b[0], 3))
+             for a, b in zip(mpieces, mpieces[1:])]
+    check("build: hanging hole positions", mgaps, want)
 
     # `Divider` — WHOLE, and that is a deliberate divergence. Onshape runs the
     # hanging holes straight through the dividers; `cad/` stops them at the
@@ -694,6 +709,27 @@ check("... at the length it had at eight", _lens[0], 64.000, 1e-3)
 _p = params.Primary(3, 7, 21, 10, 0, 10, 1, 0, "Dominion")
 check("and below eight the margin is the plain 2.500",
       round(box.logo_margin(_p, D.derive(_p)), 3), round(box.LOGO_MARGIN, 3), 1e-9)
+
+
+# --- HOLE_CLEAR: the three boxes whose hole edge lands on a divider face -----
+# Asserted from both ends, as every divergence is: on these three, and only
+# these three, exactly ONE hole — the one whose -X edge is the first
+# divider's -X face — is HOLE_CLEAR narrower than the sketch's.
+print("\n=== HOLE_CLEAR ===")
+clipped = {}
+for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for sleeved in (0, 1):
+        q = params.from_row(row, sleeved)
+        e = D.derive(q)
+        a, b = box.hanging_holes(q, e), box.hole_openings(q, e)
+        if a != b:
+            clipped[e.calModelName] = [
+                (round(x, 3), round(y, 3), round(u, 3), round(v, 3))
+                for (x, y), (u, v) in zip(a, b) if (x, y) != (u, v)]
+check("the boxes with a clipped hole, and the hole", clipped, {
+    "XS5.15.10.45.Sl": [(-26.05, -16.05, -25.85, -16.05)],
+    "S5.10.10.45.Sl": [(-60.55, -50.55, -60.35, -50.55)],
+    "M5.10.10.45.Sl": [(-95.05, -85.05, -94.85, -85.05)]})
 
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
 sys.exit(1 if fails else 0)

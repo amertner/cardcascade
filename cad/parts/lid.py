@@ -296,7 +296,7 @@ def logo_size(d):
     Box's `ProductName`, and the same cause. See `cad/README.md`, "Text sizing
     is a rule, not a transcription".
     """
-    return T.fit_size(d.ProductName, logo_width(d))
+    return T.floored(T.fit_size(d.ProductName, logo_width(d)), proud=True)
 
 
 def emboss(txt, size, x_pen, baseline, proud):

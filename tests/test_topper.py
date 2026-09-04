@@ -392,6 +392,21 @@ for tag, fn, pp, word in NAMED:
     # in Unseen, `t` and `i` in Cities.
     a, lsb, lo, _hi = TX.metrics(word, T.FONT)
     size = T.font_size(pp, dd)
+    # The STEP is Onshape's rule UNFLOORED: the band at BAND_EM of the em and
+    # the baseline 2*LogoEdgeDist in. `font_size` raises the 10-card unsleeved
+    # toppers to the 0.250 mm proud floor (`cad/text.py`, "floors"), so on
+    # `Unseen M10-Un` the reference is measured against the unfloored rule
+    # and the build against the floored one — both ends of the divergence.
+    ref_size = T.cap_band(pp, dd) / T.BAND_EM
+    ref_base = T.face_datum(pp, dd)[2] - 2 * T.logo_edge_dist(pp, dd)
+    raised = size > ref_size + 1e-9
+    check(f"{tag}: the floor {'raises' if raised else 'does not raise'} this size",
+          raised, tag.endswith("M10-Un"))
+    if raised:
+        check(f"{tag}: ... because Onshape's size is under the cut floor",
+              ref_size < TX.floor_size(T.FONT), True)
+        check(f"{tag}: ... and the build's IS the floor",
+              round(size, 6), round(TX.floor_size(T.FONT), 6))
     # By LETTER, not by solid: a dotted `i` is two solids and its tittle never
     # comes near the baseline, so a per-solid minimum reads the dot instead.
     glyphs = []
@@ -400,13 +415,13 @@ for tag, fn, pp, word in NAMED:
             glyphs[-1] = (glyphs[-1][0], max(glyphs[-1][1], b.max.Y))
         else:
             glyphs.append((b.max.X, b.max.Y))
-    check(f"{tag}: a flat letter sits exactly on 2*LogoEdgeDist in",
-          round(min(g[1] for g in glyphs), 3), round(base, 3), 1e-3)
-    check(f"{tag}: and the round ones overshoot it by the font's own yMin",
-          round(max(b.max.Y for b in text) - base, 4), round(-lo * size, 4),
-          0.008 * size)
-    check(f"{tag}: the pen starts at 1.5L + 3 past the flat face",
-          round(min(b.min.X for b in text) - lsb * size, 3),
+    check(f"{tag}: STEP: a flat letter sits exactly on 2*LogoEdgeDist in",
+          round(min(g[1] for g in glyphs), 3), round(ref_base, 3), 1e-3)
+    check(f"{tag}: STEP: and the round ones overshoot it by the font's own yMin",
+          round(max(b.max.Y for b in text) - ref_base, 4),
+          round(-lo * ref_size, 4), 0.008 * ref_size)
+    check(f"{tag}: STEP: the pen starts at 1.5L + 3 past the flat face",
+          round(min(b.min.X for b in text) - lsb * ref_size, 3),
           round(T.text_origin_x(pp, dd), 3), 0.01)
 
     # and the whole word, rendered and placed the way build() will place it
@@ -416,6 +431,14 @@ for tag, fn, pp, word in NAMED:
     pb = placed.bounding_box()
     tb = (min(b.min.X for b in text), max(b.max.X for b in text),
           min(b.min.Y for b in text), max(b.max.Y for b in text))
+    if raised:
+        # The STEP's ink, scaled up about the pen and the baseline by the
+        # ratio of the two sizes and moved to the floored baseline, is where
+        # the build's ink must be: the same word, the same font, one rule.
+        k = size / ref_size
+        x_pen = T.text_origin_x(pp, dd)
+        tb = (x_pen + (tb[0] - x_pen) * k, x_pen + (tb[1] - x_pen) * k,
+              base + (tb[2] - ref_base) * k, base + (tb[3] - ref_base) * k)
     # A tolerance PROPORTIONAL to the em, not an absolute one: the vendored
     # Noto Serif Bold is not byte-identical to Onshape's — `s` measures
     # 3.6/1000 em wider there — so the word's ink drifts by a fixed fraction of
@@ -485,11 +508,24 @@ for tag, fn, pp, word in NAMED:
     ref_cut = blank_b - ref
     check(f"{tag}: the engraving comes out in the same number of pieces",
           len(mine_cut.solids()), len(ref_cut.solids()))
-    check(f"{tag}: what it removes, within 0.2%",
-          round(100 * abs(mine_cut.volume - ref_cut.volume) / ref_cut.volume, 3) < 0.2,
-          True)
-    check(f"{tag}: tessellated volume within 0.005% of the reference",
-          round(100 * abs(tri_volume(named) - tri_volume(ref))
+    # Where the floor raises the lettering (`M10-Un`), the pocket grows by
+    # the name's area at the two sizes — the mark is unchanged — and that is
+    # what the STEP's removed volume is held to; elsewhere the two agree.
+    ref_size = T.cap_band(pp, dd) / T.BAND_EM
+    size = T.font_size(pp, dd)
+    extra = 0.0
+    if size > ref_size + 1e-9:
+        from build123d import Text as _Text, Align as _Align
+        area = _Text(word, font_size=ref_size, font_path=T.FONT,
+                     align=(_Align.MIN, _Align.MIN)).area
+        extra = area * ((size / ref_size) ** 2 - 1) * T.ENGRAVE
+    check(f"{tag}: what it removes, within 0.2%"
+          + (f" (plus {extra:.2f} mm3 of raised lettering)" if extra else ""),
+          round(100 * abs(mine_cut.volume - (ref_cut.volume + extra))
+                / ref_cut.volume, 3) < 0.2, True)
+    check(f"{tag}: tessellated volume within 0.005% of the reference"
+          + (" less the raised lettering" if extra else ""),
+          round(100 * abs(tri_volume(named) - (tri_volume(ref) - extra))
                 / tri_volume(ref), 4) < 0.005, True)
     check(f"{tag}: still one solid", len(named.solids()), 1)
 

@@ -1,8 +1,9 @@
 # The Topper, measured
 
-**IN PROGRESS.** Nothing is built yet — `cad/parts/topper.py` does not exist.
-This is the measurement record so far, written down as it is established rather
-than at the end, so the open questions are visible. "Still open" at the bottom
+**DONE** — `cad/parts/topper.py` builds the blank and all six expansions; the
+closing section says what remains open. This is the measurement record, written
+down as it was established rather than at the end, so the open questions stay
+visible. "Still open" at the bottom
 is the live list.
 
 The cap that closes the top of a card slot. **Innovation only**: no other
@@ -614,6 +615,25 @@ So: `Topper Unseen M10-Sl.3mf` and `Topper Unseen M15-Sl.3mf` want re-exporting.
 Nothing needs changing in Onshape.
 
 ## The lettering: its CAP BAND fills the space between the margins
+
+**Floored since 2026-09-04** (`cad/text.py`, "floors"; Allan): the lettering
+is held to the CUT floor of `0.200` mm — `3.70` em for Noto Serif Bold, whose
+hairline is `0.054` em. Cut and not proud, although the sketch stands the
+inlay `0.010` proud: the topper prints face down and flat, the lettering is
+a second-filament fill in a pocket, and the `0.010` is there to make the
+sliver work (Allan). The rule below gives `3.61` em on the two 10-card
+unsleeved sizes (`S10-Un`, `M10-Un`; `5.4` and up everywhere else), and
+those two are raised to `3.70`. A `6.00` topper's flat is `4.40`; with the
+cap band at `BAND_EM` and `Figures`' `g` (Onshape's, `0.2406` em deep) under
+it, the sketch's 1:2 margins hold `4.07` em, so the raise fits, and
+`baseline_y` shares what the flat has left in that 1:2 rather than holding
+the baseline at `2 * LogoEdgeDist`. The PROUD floor would have wanted `4.63`,
+which the flat cannot hold — tried, and the `g` went `0.403` into the front
+round, which `tests/test_topper.py`'s descender check caught; that is why
+the floor's kind matters here. `tests/test_topper.py` measures `Unseen
+M10-Un`'s STEP against the unfloored rule and the build against the floored
+one, and the cached 10-card unsleeved toppers in `individual/` differ from
+`build/` by exactly this.
 
 The logo tracks `calLogoSidelength`. The lettering does **not** — they are two
 different rules on the same face, and building the text off `calLogoSidelength`

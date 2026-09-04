@@ -163,6 +163,17 @@ DIVIDER_W = 1.600        # `Divider` between adjacent pusher slots
 HOLE_W = 10.000          # `Hanging holes` — the lattice through the back
 HOLES_PER_SLOT = 5
 HOLE_INSET = 8.300       # first hole, from the left inner wall
+# A hanging hole stops this short of a storage divider's face when its own
+# edge would otherwise land EXACTLY on it. DELIBERATE DIVERGENCE (Allan, 2026-
+# 09-04): on the three sleeved Innovation boxes — `M5.10.10.45-Sl`,
+# `S5.10.10.45-Sl`, `XS5.15.10.45-Sl` — the hole pitch puts a hole's -X edge
+# on a divider's -X face, and because the holes here stop at the slot band
+# where Onshape's cut through the dividers, wall material and divider
+# material then touched along that one line, corner to corner: six edges
+# with four triangles on them in the written mesh. It sliced, but it was
+# the one non-manifold thing left in the catalogue. `hole_openings` applies
+# it; `hanging_holes` stays the transcription of the sketch.
+HOLE_CLEAR = 0.200
 HOLE_ROWS = 3
 HOLE_ROW_BOTTOM = 3.000
 HOLE_ROW_TOP = 69.500
@@ -280,6 +291,22 @@ def hanging_holes(p, d):
             for k in range(p.HorizontalSlots) for j in range(HOLES_PER_SLOT)]
 
 
+def hole_openings(p, d):
+    """`hanging_holes`, less HOLE_CLEAR at any edge that coincides with a
+    storage divider's face. Identical to `hanging_holes` on every box but the
+    three sleeved Innovation ones (see HOLE_CLEAR), and what `rear_storage`
+    actually cuts."""
+    faces = [x for a, e in storage_dividers(p, d) for x in (a, e)]
+    out = []
+    for lo, hi in hanging_holes(p, d):
+        if any(abs(lo - f) < 1e-6 for f in faces):
+            lo += HOLE_CLEAR
+        if any(abs(hi - f) < 1e-6 for f in faces):
+            hi -= HOLE_CLEAR
+        out.append((lo, hi))
+    return out
+
+
 def hole_rows():
     """(z0, z1) of each lattice row. Constant — the same three rows on every
     reference, so this is not a function of the riser count."""
@@ -343,7 +370,7 @@ def rear_storage(p, d, part):
     # openings are wanted; sawing through the pusher hangers is not. See
     # spec/BOX.md.
     divs = storage_dividers(p, d)
-    for x_lo, x_hi in hanging_holes(p, d):
+    for x_lo, x_hi in hole_openings(p, d):
         for z_lo, z_hi in hole_rows():
             cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y0, z_lo, z_hi))
             for a, e in _except(x_lo, x_hi, divs):
@@ -982,7 +1009,14 @@ def floor_text(p, d, part):
     span = y_back - y_front
 
     # --- -X: calModelName, then GameName, one size, reading toward -Y -------
-    size = T.fit_size(d.calModelName, span - MODEL_MARGIN)
+    # Every size here is FLOORED (`cad/text.py`, "floors"): fitted to the
+    # sketch's box, and raised to the 0.200 mm stroke floor where the box is
+    # too short for it — two model lines, one product, one capacity and five
+    # version lines across the catalogue, all on the four shortest boxes and
+    # `S2.40.12-30.32-Un`. A floored line may use the margin the sketch
+    # leaves; it may not overrun the card area, which is what is checked.
+    size = T.floored(T.fit_size(d.calModelName, span - MODEL_MARGIN))
+    _fits(d.calModelName, size, span)
     cap = T.CAP * size
     x = -edge - TEXT_INSET                # the first line's cap top
     for txt in (d.calModelName, p.GameName):
@@ -992,19 +1026,32 @@ def floor_text(p, d, part):
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
     start = y_front + LOGO_MARGIN
     logo_len = span - LOGO_MARGIN - logo_margin(p, d)
-    logo_size = T.fit_size(d.ProductName, logo_len)
+    logo_size = T.floored(T.fit_size(d.ProductName, logo_len))
+    _fits(d.ProductName, logo_size, span)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight
     base = edge + TEXT_INSET + logo_cap
     part = part - engrave_line(d.ProductName, logo_size, base, start, +1, +1)
-    cap_size = T.fit_size(d.calCapacityLabel, logo_len)
+    cap_size = T.floored(T.fit_size(d.calCapacityLabel, logo_len))
+    _fits(d.calCapacityLabel, cap_size, span)
     base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
     part = part - engrave_line(d.calCapacityLabel, cap_size, base, start, +1, +1)
     # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:
     # it should say CC, as the Lid does. A DELIBERATE DIVERGENCE, and
     # tests/test_box.py asserts both sides of it.
-    ver_size = VERSION_CAP * logo_cap / T.CAP
-    base = base + VERSION_GAP * logo_cap + VERSION_CAP * logo_cap
+    # Three quarters of the logo's cap, and no smaller than the floor — but
+    # never larger than the logo's own cap, which the floor is always under.
+    ver_size = min(logo_size, T.floored(VERSION_CAP * logo_size))
+    ver_cap = T.CAP * ver_size
+    base = base + VERSION_GAP * logo_cap + ver_cap
     return part - engrave_line(d.calVersion, ver_size, base, start, +1, +1)
+
+
+def _fits(txt, size, span):
+    """A floored line may eat its margin; it may not leave the card area."""
+    ink = T.ink(txt, size=size)[0]
+    if ink > span + 1e-9:
+        raise T.DoesNotFit(f"{txt!r} at {size:.3f} em is {ink:.2f} of ink in a "
+                           f"{span:.2f} card area")
 
 
 # `Smooth box edges` — a SMOOTH_R fillet on `#SharpEdges`.
@@ -1131,7 +1178,7 @@ def build(p):
     """`p` is a params.Primary. Returns the Box as a build123d Part.
 
     Feature groups in the studio's own order, which is what `spec/BOX.md`
-    transcribes. Everything from `Front pocket` on is still to be written.
+    transcribes, through to the final `Smooth box edges`.
     """
     d = D.derive(p)
     part = shell(p, d)

@@ -163,22 +163,9 @@ def mesh_volume(verts, tris):
 
 
 def open_edges(verts, tris):
-    """(unpaired, doubled) directed-edge counts.
-
-    A closed orientable surface traverses every directed edge (a, b) exactly
-    once, and its reverse (b, a) exactly once, in the neighbouring triangle.
-    `unpaired` counts an edge whose reverse is missing or does not match it — a
-    hole. `doubled` counts one walked more than once, which is two faces on the
-    same side of it. Either is a print a slicer has to guess its way through.
-    """
-    seen = Counter()
-    for a, b, c in tris:
-        a, b, c = int(a), int(b), int(c)
-        for e in ((a, b), (b, c), (c, a)):
-            seen[e] += 1
-    unpaired = sum(1 for e, n in seen.items() if seen.get((e[1], e[0]), 0) != n)
-    doubled = sum(1 for n in seen.values() if n > 1)
-    return unpaired, doubled
+    """(unpaired, doubled) — `mesh3mf.faults`, which this test is where it
+    came from; kept under its old name so the checks below read as before."""
+    return mesh3mf.faults(tris)
 
 
 # --- every written holder is a sound mesh -----------------------------------

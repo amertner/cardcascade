@@ -185,7 +185,13 @@ def text_size(p, d, half):
     by_width = (width(d) - 2 * TEXT_INSET) / (adv - rsb + TRAIL)
 
     by_depth = (depth(p, d, half) / 2 - CLEARANCE) / cap_reach(txt)
-    return min(by_width, by_depth)
+    # And no smaller than the cut floor (`cad/text.py`, "floors"): 4.93 em is
+    # the catalogue's smallest against 1.70, so it binds nowhere today.
+    size = T.floored(min(by_width, by_depth), T.LOGO_FONT)
+    if size > min(by_width, by_depth) + 1e-9 and \
+            size * cap_reach(txt) > depth(p, d, half) / 2:
+        raise T.DoesNotFit(f"{txt!r} at its floor overruns the tray")
+    return size
 
 
 def cap_reach(txt):

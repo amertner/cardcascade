@@ -391,6 +391,34 @@ form. The capacity is the holder's OWN card count, so the first-riser holder
 shows `FirstSlidingSlotCards`. Both are inset `10.000` past the end blocks, the
 name left-aligned and the capacity right, matching Allan's sketch dimension.
 
+### Orientation, and the mirror that ink width cannot see
+
+Both blocks are turned over in Y — glyph-up toward `-Y`, mirrored about
+`Plane.XZ` as the TokenHolder's `branding` is — because this is an UNDERSIDE
+engraving and reads from `-Z`. The reference settles it: the period of `7.0`
+sits at `y -2.018..-1.000`, hard against the `+Y` edge of the cap band, and
+the descender of the `p` in `Compile` reaches past the band's `-Y` edge to
+`-6.989`. So the baseline is the band's `+Y` edge, at `-(depth - cap) / 2`.
+
+For a while the build had the name unmirrored (glyph-up `+Y`: mirror-writing
+from below, its period at `-6.600..-5.581`) and the capacity mirrored in X
+instead (readable, but a half turn from the name), and every check passed,
+because the ink WIDTH and the VOLUME of a block are both invariant under a
+mirror. `tests/test_holder.py` now compares the ink LUMP BY LUMP — each
+connected piece of ink, in X order, its box against the STEP's — on every
+reference whose size is Onshape's: 22 to 30 lumps a holder, X to `0.05`, Y to
+`0.4`. A Y-mirror moves the period by a cap height and an X-mirror reverses
+the lump order, so neither can pass again. Where the size is capped only the
+build's own period is held to the `+Y` side of the band.
+
+Two placements fell out of the comparison. The name's pen origin is exact
+(`0.0004`). The capacity's ink stops `CAP_TRAIL = 0.0646` em short of the
+right inset — measured at five sizes, `0.0130` em left of every reference
+when right-aligned on the advance instead (`0.0119` on `246`), so it scales
+with the em and belongs to Onshape's right alignment. It is not the `d`'s
+right bearing (`0.0776`) and not the TokenHolder's `TRAIL` (`0.0754`, in
+Orbitron), so it is its own measured constant rather than a shared rule.
+
 ### The size
 
 Onshape's rule is **cap height = `depth - 2.000`**, and it reproduces every
@@ -648,11 +676,14 @@ nothing, so the volume is unchanged to `1e-11`, and the surface closes. All 56
 written holders are now closed and manifold, which
 `tests/test_holder_corpus.py` asserts on every run.
 
-### Two faults it does NOT fix, found by the same scan
+### Two faults it does NOT fix, found by the same scan — one since fixed
 
-Sweeping all 800 written bodies for the same thing turns up two more, both
+Sweeping all 800 written bodies for the same thing turned up two more, both
 outside the Holder and neither of them a flap. **They are recorded here because
 this is where the scan was written, not because they belong to this part.**
+The scan itself is now `mesh3mf.faults`, `mesh3mf.write` refuses a body with
+an open boundary, and `tests/test_build_meshes.py` runs it over all of
+`build/`.
 
 | what | where | reading |
 |---|---|---|
@@ -663,6 +694,37 @@ Onshape's own 850 cached bodies have neither, so both are the writer's or the
 solid's and not the design's. The lid one is the more serious — an open
 boundary is a hole a slicer has to guess at, where a line contact usually
 prints.
+
+**The lid inlays: FIXED, in the writer.** The prisms were sound; the mesh was
+not, and only when the lid BODY had been built first in the same process.
+OCCT stores a triangulation on the face, and `BRepMesh_IncrementalMesh` keeps
+one it finds fine enough rather than redoing it — so a mark face that had been
+meshed once already (a bounding box does it; so does the pocket boolean) and
+was then reused as the cap of the inlay's extrusion kept its old vertices while
+the fresh side faces got new ones, and along the shared edges the two did not
+agree: 24 unpaired edges on each of the three largest regions, and only on the
+four lids whose mark is GENERATED (`@innovation-plain`), the drawn marks being
+re-read from the DXF each time. `mesh3mf.triangulate` now calls
+`BRepTools.Clean` first so every face meshes together, once, at the writer's
+tolerance. A fresh copy of the faces was tried first and did not help, which is
+what pointed at the triangulation rather than the topology.
+
+**The box line contact: FIXED, by a design call (Allan, 2026-09-04) — the
+hole stops `0.200` short of the divider face it landed on;
+`box.HOLE_CLEAR`, `spec/BOX.md`.** The line was at
+`x -26.050, y 29.825` on `XS5.15.10.45-Sl` (the earlier reading of
+`-95.050, 28.200` was in another frame): the `-X` end face of a hanging hole
+(`x -26.050..-16.050`, `y 28.525..29.825`) and the `-X` face of the divider
+that stands on the slot band (`x -26.050..-24.450`, `y 29.825..33.625`) are
+coplanar and share the edge at `y 29.825`, so wall material and divider
+material touch along it corner to corner. It is a coincidence of the hole
+pitch (`HOLE_INSET 8.300`, `HOLE_W 10.000`) with the divider position at
+this width, which is why only three boxes have it. Onshape never sees it
+because its holes cut THROUGH the dividers; `cad/`'s stop at the slot band
+by Allan's decision (`spec/BOX.md`), which is what makes the contact
+possible. Before the clearance the three boxes sliced regardless (Bambu
+Studio, `return_code` 0, no complaint), so this was the last non-manifold
+thing in the catalogue rather than a print failure.
 
 ## The feature names that carry no geometry
 
