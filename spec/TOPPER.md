@@ -316,9 +316,13 @@ reproduce exactly:
     bands  -33.500..-26.100  26.100..40.900  93.100..107.900
            160.100..174.900  227.100..234.500
 
-`7.400` is `#FootDistanceFromWall`, which would read as the band straddling the
-pusher's path. The `Divider` sketch gives the profile but not where the width
-comes from, so that stays a hypothesis and is not encoded as one.
+`7.400` is NOT `#FootDistanceFromWall`, which an earlier revision guessed. The
+`Remove most of front` sketch (Allan's screenshot, 2026-09-04) is drawn on the
+`Remove Inner Hole` face and dimensions each opening's edge **`6`** from that
+pocket's end, and **`6 + 0.6`** from the rib's face. The pocket's end is
+`INNER_END_INSET 1.400` in from the part's end and the rib's face `RIB_W / 2 =
+0.800` from the boundary, so both read `7.400`, and `topper.BAND_HALF` is now
+`FRONT_MARGIN + INNER_END_INSET` with the second reading asserted against it.
 
 ### The lip notches are the HOLDER's lip base, with no clearance
 
@@ -851,16 +855,11 @@ What is left is small, and mostly not about the geometry.
   stops after the rear lips and does not yet build the feature the tab lands
   in, so there is nothing on that side to assert against. It goes in as soon as
   the holder does.
-- **The `Divider` sketch has no dimensions** (Allan, 2026-09-04): it maps onto
-  the holder's imported `Top slant angle` triangle to replicate its diagonal.
-  That triangle's vertical leg is `max(#calSlotDepth + 2mm, #calHeightIncrement
-  - 1mm)` and its top leg `sliderDistance - 1.2` (`7.2` on the 15-card unsleeved
-  holder, `5.2` to `10.95` across the eight topper sets), so it fixes the
-  slant — which `cascade_slope` already has — and NOT `BAND_HALF`, which is
-  `7.400` on every set. The band is the front-wall removal's: `Remove most of
-  front` and its companions cut over `calSlotwidth - 2 * BAND_HALF` centred on
-  each slot, and the `7.400` is a dimension or expression in THAT sketch,
-  still to be read.
+- ~~**The `Divider` sketch has no dimensions**~~ (Allan, 2026-09-04): it maps
+  onto the holder's imported `Top slant angle` triangle to replicate its
+  diagonal, which `cascade_slope` already has. `BAND_HALF` was never its: it is
+  `Remove most of front`'s `6` from the pocket's end plus the pocket's `1.400`
+  end inset — see "Ribs and front bands". Settled.
 - ~~**`LIP_ROOM_RISE 2.000`**~~ IS `holder.SLANT_STEP` by construction, the
   same imported points, and is bound to it (2026-09-04).
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly

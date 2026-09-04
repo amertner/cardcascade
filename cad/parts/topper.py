@@ -87,10 +87,14 @@ FRONT_WALL_RISE = 1.400    # how far the front wall stands above the floor's top
 # plan, not a solid post — a plan section alone reads as one 14.800 block and
 # is what an earlier revision of spec/TOPPER.md recorded.
 RIB_W = D.WallThickness             # 1.600, the rib through the depth
-BAND_HALF = 7.400                   # so the front band is 14.800 wide
-# 7.400 is `#FootDistanceFromWall`. That would read as the band straddling the
-# pusher's path, and it is a hypothesis — the `Divider` sketch gives the
-# profile but not where the width comes from. Not encoded as that.
+# The band's half width is DERIVED below, once INNER_END_INSET is defined:
+# `Remove most of front` (Allan's screenshot, 2026-09-04) is sketched on the
+# `Remove Inner Hole` face and puts each opening's edge FRONT_MARGIN = 6.000
+# from that pocket's end — which is INNER_END_INSET in from the part's end —
+# and `6 + 0.6` from the rib's face, which is RIB_W / 2 from the boundary.
+# Both readings are 7.400, and neither is `#FootDistanceFromWall`, which an
+# earlier revision guessed.
+FRONT_MARGIN = 6.000
 
 # `Inner Hole Outline` is sketched IN THE SLANT PLANE — its sketch plane is
 # `Face of TriangleMatch` — so its two dimensions are measured there, not in Y.
@@ -102,6 +106,9 @@ BAND_HALF = 7.400                   # so the front band is 14.800 wide
 # on every row, because the slope moves with calSlotDepth.
 INNER_INSET = 0.800        # from the slant's rear edge, ALONG the slant
 INNER_END_INSET = 1.400    # from each end of the part, in X
+BAND_HALF = FRONT_MARGIN + INNER_END_INSET   # 7.400: the front band is 14.800
+assert abs(BAND_HALF - (FRONT_MARGIN + 0.6 + RIB_W / 2)) < 1e-9, \
+    "the sketch's two readings of the band, 6 + 1.4 and 6.6 + 0.8, disagree"
 
 TAB_W = D.WallThickness    # 1.600
 TAB_INSET = 1.300          # from each end of the part

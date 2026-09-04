@@ -337,6 +337,12 @@ for _f, _fn, _p, _e in B.topper_catalogue():
     check(f"{_k}: z_base derives to Z_BASE", round(T.z_base(_p, D.derive(_p)), 6),
           round(T.Z_BASE, 6), 1e-6)
 check("LIP_ROOM_RISE is the holder's SLANT_STEP", T.LIP_ROOM_RISE, H.SLANT_STEP)
+# `Remove most of front`: the opening's edge is 6.000 from the pocket's end,
+# and the pocket's end is 1.400 from the part's — 7.400, read two ways.
+check("BAND_HALF is FRONT_MARGIN + INNER_END_INSET", round(T.BAND_HALF, 6),
+      round(T.FRONT_MARGIN + T.INNER_END_INSET, 6))
+check("... and equally 6.6 from the rib's face", round(T.BAND_HALF, 6),
+      round(T.FRONT_MARGIN + 0.6 + T.RIB_W / 2, 6))
 
 print("\n=== `Expansion Name`: where the mark and the name go ===")
 # Every filleted STEP: all five expansions at M15-Sl, plus two more Unseens at
