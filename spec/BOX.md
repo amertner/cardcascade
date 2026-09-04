@@ -1143,9 +1143,10 @@ future kernel that manages them fails the suite rather than passing quietly.
   the `Front Label Holder` / `Side Label Holder` groups are built behind the
   flag rather than unconditionally, even though the catalogue cannot exercise
   the `0` branch.
-- The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not yet
-  identified. It is NOT symmetric, which is odd given both label-holder groups
-  mirror.
+- ~~The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not
+  yet identified.~~ Identified — see "The label holders" above: the side
+  holder is on the `-X` end only and the closing bump on `+X`, and it is not
+  symmetric because the side holder is not mirrored.
 - **The rear storage's last two features**: `Make rightmost pocket deeper` and
   the rear thumb cutout at `#calFingerHoleOffset`. The latter shows in the diff
   as a `ThumbCutoutRadius`-sized arc through the outer back wall, `z 72.9..85.0`
