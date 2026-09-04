@@ -39,6 +39,7 @@ SUITES = [
     ("test_assembly", False, False),
     ("test_pusher_regression", True, False),
     ("test_lid_corpus", False, False),
+    ("test_box_corpus", True, False),
     ("test_token_holder_corpus", False, False),
     ("test_topper_corpus", False, True),
     ("test_build_meshes", True, False),

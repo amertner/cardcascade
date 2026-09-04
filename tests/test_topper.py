@@ -475,6 +475,23 @@ for tag, fn, pp, word in NAMED:
                 - min(q.bounding_box().min.X for q in ref), 4), 1e-4)
     check(f"{tag}: ... centred on the box",
           round(mine.bounding_box().center().X, 6), 0.0, 1e-6)
+    # ORIENTATION. Area, piece count and width are all invariant under a
+    # mirror or a half turn, and the mark is placed by a mirror about XZ
+    # (`expansion_name`), so this is where a wrong sign would hide. Each
+    # piece's centroid, relative to the mark box's centre, must match a piece
+    # of the built mark's — the built mark is drawn about its own origin and
+    # its +y is the part's -Y once placed — to 0.05 mm. Figures is an annulus
+    # and cannot tell, but Unseen's rays hang below its shield and Artifacts'
+    # and Echoes' triangles point one way.
+    bx0, by0, bx1, by1 = T.mark_box(pp, dd)     # THIS reference's box, not
+    cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2    # the last loop's leftover
+    ref_pts = sorted((round(q.center().X - cx, 2), round(cy - q.center().Y, 2))
+                     for q in ref)
+    mine_pts = sorted((round(f.center().X, 2), round(f.center().Y, 2))
+                      for f in mine.faces())
+    check(f"{tag}: every piece sits where the STEP's does, sign and all",
+          all(any(abs(x - u) < 0.05 and abs(y - v) < 0.05 for u, v in mine_pts)
+              for x, y in ref_pts), True)
 
 print("\n=== and each is a RULE, not an outline ===")
 Lq = D.derive(M15SL).calLogoSidelength
