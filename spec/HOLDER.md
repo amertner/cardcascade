@@ -412,12 +412,14 @@ the lump order, so neither can pass again. Where the size is capped only the
 build's own period is held to the `+Y` side of the band.
 
 Two placements fell out of the comparison. The name's pen origin is exact
-(`0.0004`). The capacity's ink stops `CAP_TRAIL = 0.0646` em short of the
-right inset — measured at five sizes, `0.0130` em left of every reference
-when right-aligned on the advance instead (`0.0119` on `246`), so it scales
-with the em and belongs to Onshape's right alignment. It is not the `d`'s
-right bearing (`0.0776`) and not the TokenHolder's `TRAIL` (`0.0754`, in
-Orbitron), so it is its own measured constant rather than a shared rule.
+(`0.0004`). The capacity's ink stops `CAP_TRAIL` short of the right inset —
+measured as `0.0646` em at five sizes (`0.0130` em left of every reference
+when right-aligned on the advance instead), confirmed to the same four
+decimals by Allan's right-aligned sample of 2026-09-04, and then DERIVED with
+the TokenHolder's `TRAIL` as one rule: a quarter of the font's space advance,
+`text.box_trail`, `0.0649` for Open Sans Bold and `0.0765` for Orbitron Bold,
+within what the sample can tell (`±0.0004`). It is not the `d`'s right
+bearing (`0.0776`).
 
 ### The size
 

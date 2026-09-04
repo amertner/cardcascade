@@ -91,20 +91,16 @@ GRIP_ROUND = 0.500
 ENGRAVE = 0.200
 TEXT_INSET = 10.000        # the text box's left edge, from Allan's sketch
 
-# How far short of the right-hand TEXT_INSET the ink stops, in EM. Measured,
-# not derived. Taken off the STEP, where it is exact — it puts the em at
-# 5.70000 against two independent readings of the reference, the cap band and
-# the `l` — and confirmed on all 18 cached meshes, which give 0.0764 ± 0.001
-# because Onshape's own tessellation of a glyph outline is worth about that.
-#
-# It is a constant of the LAYOUT rather than of the string: the sleeved family
-# ends in `l` (right bearing 0.019) and the unsleeved in `n` (0.053), and the
-# same number falls out of both once the bearing is taken off, which is what
-# says it is not a fudge fitted to one of them. What it IS in Onshape's terms
-# is not known, and spec/TOKENHOLDER.md says so rather than inventing a reason
-# — it is not `lsb`, not either right bearing, and not any derived variable.
-# Compare `text._LSB_C`, its counterpart at the leading edge.
-TRAIL = 0.0754
+# How far short of the right-hand TEXT_INSET the ink stops, in EM: a quarter
+# of Orbitron Bold's space advance, `text.box_trail` — what an Onshape text box
+# does at its right edge, whatever the last glyph. It was a measured 0.0754
+# here (off the STEP, with the em read from the cap band, ±0.002), 0.0764
+# ±0.001 on the 18 cached trays, and 0.0761 ±0.0004 on Allan's right-aligned
+# sample; 0.0765 is inside every one of those and is the same rule that gives
+# the Holder's Open Sans number. It is a constant of the LAYOUT, not the
+# string, which is what said it was not a fudge. Compare `text._LSB_C`, its
+# counterpart at the leading edge.
+TRAIL = T.box_trail(T.LOGO_FONT)
 
 
 def width(d):

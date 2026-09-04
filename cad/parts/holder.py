@@ -584,19 +584,14 @@ def lip_rests(p, d, first, part):
 ENGRAVE = 0.200
 TEXT_INSET = 10.000        # past the end block, from Allan's sketch
 TEXT_GAP = 4.000           # the least space left between the two blocks
-# How far short of the right-hand inset the capacity's INK stops, in EM.
-# Measured, not derived, like the TokenHolder's `TRAIL`: with the block
-# right-aligned on its advance the build sat 0.0130 em left of every
-# reference (0.0119 on `246`), at five different sizes, so it scales with
-# the em and is a property of Onshape's right alignment rather than of the
-# inset. It is not the last glyph's right bearing (`d` is 0.0776 in Open
-# Sans Bold), and it is not the TokenHolder's 0.0754 either — that one is
-# Orbitron — so the two are recorded separately rather than pretended one.
-# CONFIRMED 2026-09-04 by Allan's right-aligned sample (`spec/reference/Text
-# right-aligned sample.step`): `Open Sans Bold`, right-aligned in Onshape to a
-# box edge at x 110.135, ends its ink 0.0646 em short of it — this number, with
-# the same last glyph. It is what an Onshape text box does at its right edge.
-CAP_TRAIL = 0.0646
+# How far short of the right-hand inset the capacity's INK stops, in EM: a
+# quarter of Open Sans Bold's space advance, `text.box_trail`. Measured first
+# as 0.0646 against five references (with the block right-aligned on its
+# advance the build sat 0.0130 em left of every one), then confirmed to the
+# same four decimals by Allan's right-aligned sample, and finally derived: the
+# rule that gives the TokenHolder's Orbitron number gives this one, 0.0649,
+# within the 0.0004 the sample can tell.
+CAP_TRAIL = T.box_trail(T.DETAIL_FONT)
 
 
 def text_blocks(p, d, first):

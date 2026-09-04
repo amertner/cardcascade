@@ -262,6 +262,26 @@ def fit_size(txt, box_len, font=LOGO_FONT):
     return box_len / metrics(txt, font)[0]
 
 
+@lru_cache(maxsize=8)
+def box_trail(font=LOGO_FONT):
+    """How far short of an Onshape text box's RIGHT edge the ink stops, per em:
+    a quarter of the font's space advance.
+
+    Read off Allan's right-aligned samples (`spec/reference/Text right-aligned
+    sample*.step`, 2026-09-04): four lines in three fonts, boxes 10 tall, one
+    shared right edge at x 110.135. Open Sans Bold ends its ink 0.0646 em short
+    of it and Orbitron Bold 0.0761, each ±0.0004 from the dimension's rounding,
+    whatever the last glyph — and a quarter of the space advance is 0.0649 and
+    0.0765. The two parts had carried these as fitted constants: the holder's
+    0.0646 exactly, the tray's 0.0754 (±0.002 once the cap-band reading it
+    rests on is propagated; the 18 cached trays read 0.0764 ± 0.001). One rule
+    for both is what the sample was asked for, and this is it. Why Onshape
+    pads a text box by a quarter space is not known; that it does is.
+    """
+    f = _ttf(font)
+    return f["hmtx"][f.getBestCmap()[ord(" ")]][0] / f["head"].unitsPerEm / 4
+
+
 @lru_cache(maxsize=256)
 def right_bearing(txt, font=LOGO_FONT):
     """The LAST glyph's right side bearing, per em — its advance less its ink.

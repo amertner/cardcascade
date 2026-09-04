@@ -211,7 +211,15 @@ and stops `TRAIL` em short of the right-hand `10.000`:
 
     em = (width - 2*10.000) / (advance - right_bearing(last glyph) + TRAIL)
 
-with **`TRAIL = 0.0754`**. That number is measured, not derived. Off the STEP,
+with **`TRAIL`** — since 2026-09-04 DERIVED: a quarter of the font's space
+advance, `text.box_trail`, `0.0765` for Orbitron Bold. Allan's right-aligned
+samples (`spec/reference/Text right-aligned sample*.step`: four lines in three
+fonts, boxes `10` tall, one right edge at `x 110.135`) read the ink `0.0761
+±0.0004` em short of the edge for Orbitron Bold and `0.0646 ±0.0004` for Open
+Sans Bold, whatever the last glyph; a quarter space is `0.0765` and `0.0649`,
+and the Holder's own constant was `0.0646`. The `0.0754` below was measured,
+not derived, and carries `±0.002` once the cap-band reading it rests on is
+propagated, so it never disagreed. The record of that measurement: off the STEP,
 where it is exact, it puts the em at `5.70000` against two independent readings
 of the reference — the cap band at `0.720` em and the `l` at `0.771`, which
 agree to four decimals. All 18 cached meshes give `0.0764 ± 0.001`, and

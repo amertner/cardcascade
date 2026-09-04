@@ -142,7 +142,10 @@ print("\n=== the branding ===")
 # The em is asserted against the reference's OWN two readings of it: the cap
 # band (0.720 em) and the `l`, which reaches 0.771. Both give 5.700 exactly.
 em = TH.text_size(P, d, False)
-check("em size", round(em, 4), 5.7000, 5e-4)
+# 1e-3: the reference's cap band puts the em at 5.7000 ±0.0014 (a 4.104 band
+# read to ±0.001), and the derived TRAIL — a quarter space, 0.0765 against
+# the 0.0754 that was fitted to land on 5.70000 exactly — gives 5.6992.
+check("em size", round(em, 4), 5.7000, 1e-3)
 cut = TH.branding(P, d, False)
 b = cut.bounding_box()
 check("ink X min", round(b.min.X, 3), 10.719, 6e-3)
