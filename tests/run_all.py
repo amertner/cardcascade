@@ -6,8 +6,8 @@ them all, so "the tests pass" was never a checkable statement. This runs
 them under the venv's python in the order below, one line per suite with its
 wall time, and exits non-zero if any did.
 
-    .venv/bin/python tests/run_all.py            # everything, ~20 minutes
-    .venv/bin/python tests/run_all.py --quick    # skip the corpus suites
+    .venv/bin/python tests/run_all.py            # everything, ~15 minutes
+    .venv/bin/python tests/run_all.py --quick    # skip the slow STEP suites
     .venv/bin/python tests/run_all.py --only holder,lock
 
 The regression suites read `build/` — run `python -m cad.build --part all`
@@ -42,7 +42,7 @@ SUITES = [
     ("test_token_holder_corpus", False, False),
     ("test_topper_corpus", False, True),
     ("test_build_meshes", True, False),
-    ("test_holder_corpus", True, True),
+    ("test_holder_corpus", True, False),
 ]
 
 

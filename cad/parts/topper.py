@@ -56,6 +56,7 @@ from build123d import (
 )
 
 from .. import derive as D
+from .. import tables as TB
 from .. import text as TX
 from . import holder as H
 
@@ -637,6 +638,8 @@ def _figures_mark(L):
 MARKS = {"Artifacts": _artifacts_mark, "Cities": _cities_mark,
          "Echoes": _echoes_mark, "Figures": _figures_mark,
          "Unseen": _unseen_mark}
+assert tuple(sorted(MARKS)) == TB.TOPPER_EXPANSIONS, \
+    "cad/tables.TOPPER_EXPANSIONS is the catalogue's copy of MARKS' keys"
 
 
 def expansion_name(p, d, expansion):

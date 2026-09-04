@@ -643,8 +643,14 @@ def engrave(txt, font, size, x, baseline):
     return part.part.mirror(Plane.XZ).moved(Location((x, baseline, 0)))
 
 
-def bottom_text(p, d, first, part):
-    """Cut both blocks into the underside."""
+def engraving(p, d, first):
+    """The two text blocks as positioned solids — what `bottom_text` cuts.
+
+    Exposed so a caller can price the engraving without cutting it:
+    `tests/test_holder_corpus.py` builds the holder once with `text=False`
+    and subtracts the engraving at either version's string, instead of
+    building it twice.
+    """
     name, cap = text_blocks(p, d, first)
     size = text_size(p, d, first)
     x0, x1 = x_span(p, d)
@@ -664,16 +670,22 @@ def bottom_text(p, d, first, part):
     cap_rsb = T.right_bearing(cap, T.DETAIL_FONT)
     cap_pen = (x1 - END_BLOCK - TEXT_INSET
                - (CAP_TRAIL + cap_adv - cap_rsb) * size)
-    for txt, font, xa in (
-            (name, T.LOGO_FONT, x0 + END_BLOCK + TEXT_INSET),
-            (cap, T.DETAIL_FONT, cap_pen)):
-        tool = engrave(txt, font, size, xa, baseline)
-        part = part - tool.moved(Location((0, 0, z)))
-    return part
+    return [engrave(txt, font, size, xa, baseline).moved(Location((0, 0, z)))
+            for txt, font, xa in ((name, T.LOGO_FONT, x0 + END_BLOCK + TEXT_INSET),
+                                  (cap, T.DETAIL_FONT, cap_pen))]
 
 
-def build(p, first=False):
-    """`p` is a params.Primary. Returns the Holder as a build123d Part."""
+def bottom_text(p, d, first, part):
+    """Cut both blocks into the underside, in one boolean."""
+    return part.cut(*engraving(p, d, first))
+
+
+def build(p, first=False, text=True):
+    """`p` is a params.Primary. Returns the Holder as a build123d Part.
+
+    `text=False` leaves the underside blank — the Pusher has the same flag —
+    for a caller that wants to price the engraving separately (`engraving`).
+    """
     d = D.derive(p)
     part = shell(p, d, first)
     part = card_pockets(p, d, first, part)
@@ -682,4 +694,4 @@ def build(p, first=False):
     part = side_slots(p, d, first, part)
     part = rear_lips(p, d, first, part)
     part = lip_rests(p, d, first, part)
-    return bottom_text(p, d, first, part)
+    return bottom_text(p, d, first, part) if text else part

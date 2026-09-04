@@ -34,12 +34,13 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.build                    # 34 pushers -> build/<Game>/
 .venv/bin/python -m cad.build --list             # the catalogue, no writing
 
-.venv/bin/python -m cad.build --part lid         # all 50 — under a minute
+.venv/bin/python -m cad.build --part lid         # all 50 — 2.5 min pooled
 .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
-.venv/bin/python -m cad.build --part box         # all 50 — MINUTES
+.venv/bin/python -m cad.build --part box         # all 50 — 2 min pooled
 .venv/bin/python -m cad.build --part tokenholder # 22, Dominion only, seconds
-.venv/bin/python -m cad.build --part holder      # all 56 — 3 s each
-.venv/bin/python -m cad.build --part all         # all of them
+.venv/bin/python -m cad.build --part holder      # all 56 — 1 min pooled
+.venv/bin/python -m cad.build --part all         # all 260 — 5 min; 0 s again
+.venv/bin/python -m cad.build --part all --jobs 1 --force   # serial, everything
 
 .venv/bin/python -m cad.assemble --model S4.16.10.32-Un --state all
 .venv/bin/python -m cad.fit --model S4.16.10.32-Un --state play
@@ -64,22 +65,27 @@ automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \
 .venv/bin/python tests/test_token_holder.py      # source vs both STEPs
 .venv/bin/python tests/test_token_holder_corpus.py  # the rules vs all 18
 .venv/bin/python tests/test_holder.py            # source vs all ten STEPs
-.venv/bin/python tests/test_holder_corpus.py     # build/ vs the 50 in individual/
+.venv/bin/python tests/test_holder_corpus.py     # build/ vs the 50 in individual/, pooled
 .venv/bin/python tests/test_lock.py              # the C1-C5 table's three copies agree
 .venv/bin/python tests/test_build_meshes.py      # every written body is closed
 .venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png
 .venv/bin/python -m cad.render build/*/Box*.3mf --box --contact tmp/box.png
 ```
 
-Pushers are the default because they take under a second each, as a lid does. A
-box is about ten, so `--part box` on the whole catalogue is minutes — `--model`
-matches on the model code and is how to build one. `--box` on the renderer swaps the
-camera: its default is aimed at a pusher lying flat and renders a 105 mm-tall
-box as a squashed ribbon.
+Builds run in a process pool, one part per job and every core by default
+(`--jobs`), and every file gets a STAMP beside it — a digest of its Primary
+and of every source file under `cad/`, `logos/` and `fonts/` — so a rerun
+with nothing changed skips it in a fraction of a second and any edit
+anywhere in `cad/` rebuilds everything that could depend on it. `--force`
+ignores the stamps. `--model` matches on the filename and is how to build
+one. `--box` on the renderer swaps the camera: its default is aimed at a
+pusher lying flat and renders a 105 mm-tall box as a squashed ribbon.
 
 `build/` is disposable and gitignored. Rebuilding unchanged source gives
-byte-identical files, so `cad.build` reports `changed` only when something
-really moved.
+byte-identical files — the pool included, proven by a pooled rebuild of the
+serial catalogue changing nothing — so `cad.build` reports `changed` only
+when something really moved. Six holders are two geometries under two names
+each (the Mat twins); one is built and the other is its bytes.
 
 ## Layout
 

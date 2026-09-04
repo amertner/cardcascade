@@ -3,19 +3,22 @@
 
     .venv/bin/python -m cad.build                 # every pusher, every game
     .venv/bin/python -m cad.build --game Dominion
-    .venv/bin/python -m cad.build --list          # what it would build
+    .venv/bin/python -m cad.build --list          # what it would build, 0.1 s
 
-    .venv/bin/python -m cad.build --part lid      # every lid — seconds each
-    .venv/bin/python -m cad.build --part box      # every box — MINUTES
+    .venv/bin/python -m cad.build --part lid      # every lid — 2.5 min pooled
+    .venv/bin/python -m cad.build --part box      # every box — 2 min pooled
     .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
-    .venv/bin/python -m cad.build --part holder   # every holder — 3s each
+    .venv/bin/python -m cad.build --part holder   # every holder — 1 min pooled
     .venv/bin/python -m cad.build --part tokenholder  # Dominion only
     .venv/bin/python -m cad.build --part topper   # Innovation only
-    .venv/bin/python -m cad.build --part all      # all six
+    .venv/bin/python -m cad.build --part all      # all six — 5 min pooled
+    .venv/bin/python -m cad.build --part all      # again: 0 s, all skipped
+    .venv/bin/python -m cad.build --jobs 1        # serial; --force rebuilds
 
-Pushers are the default because they are a few seconds each. A box is ten to
-twenty, so all 50 is a quarter of an hour; `--model` matches on the model code and is the way to build
-one. Look at the result with
+Builds run in a process pool, one part per job (`--jobs`, default every
+core), and a stamp beside each file records what it was built from, so a
+rerun with nothing changed skips it; `--model` matches on the filename and
+is the way to build one. Look at the result with
 
     .venv/bin/python -m cad.render "build/Dominion/Box S2.40.12-30.45-Sl.3mf" \
         --box --contact tmp/box.png
@@ -46,21 +49,22 @@ and 472 Card pushers, which have overrides and no collision), and two are new.
 geometries would land on one name.
 """
 import argparse
+import hashlib
+import os
 import sys
+import time
 from pathlib import Path
-
-from build123d import Location
 
 from . import derive as D
 from . import mesh3mf
 from . import params
 from . import lock as L
-from .parts import box as box_part
-from .parts import holder as holder_part
-from .parts import lid as lid_part
-from .parts import pusher
-from .parts import token_holder
-from .parts import topper as topper_part
+from . import tables as TB
+
+# build123d is NOT imported here. It costs four seconds to load, and the
+# catalogue paths — `--list`, `--help`, `cad.promote`, `cad.assemble --list` —
+# are pure arithmetic over parts.csv; the part modules are imported inside
+# the builders, in the process that actually builds.
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
@@ -124,6 +128,7 @@ def build_lid(p, out_dir, folder, filename):
     order does not — but the order is fixed anyway (down the artwork, largest
     first) to keep a rebuild byte-identical.
     """
+    from .parts import lid as lid_part
     part, inlays = lid_part.build_all(p)
     bodies = [("Lid", part)]
     bodies += [(f"Part {i}", s) for i, s in enumerate(
@@ -196,6 +201,7 @@ def build_holder(p, first, out_dir, folder, filename):
     body name (`make_cascade.load_export` sorts by object id), and the `object`
     role `plan_exports` emits is `FirstHolder` either way.
     """
+    from .parts import holder as holder_part
     part = holder_part.build(p, first)
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
@@ -243,8 +249,9 @@ def topper_shape_key(p, d):
 # the cache, which is where that would show up.
 SINGLE_SET = "one expansion"
 
-# Only what `topper.MARKS` can actually draw, plus the Blank.
-TOPPER_EXPANSIONS = ("Blank",) + tuple(sorted(topper_part.MARKS))
+# The Blank and the five marks — `tables.TOPPER_EXPANSIONS`, which
+# `parts/topper.py` asserts is what `MARKS` draws.
+TOPPER_EXPANSIONS = ("Blank",) + TB.TOPPER_EXPANSIONS
 
 
 def topper_catalogue(csv=CSV, game=None, model=None):
@@ -285,6 +292,7 @@ def topper_catalogue(csv=CSV, game=None, model=None):
 
 def build_topper(p, expansion, out_dir, folder, filename):
     """Build one topper and write the 3MF. One body, named as the corpus does."""
+    from .parts import topper as topper_part
     part = topper_part.build(p, None, expansion)
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
@@ -319,6 +327,7 @@ def box_catalogue(csv=CSV, game=None, model=None):
 def build_box(p, out_dir, folder, filename):
     """Build one box and write the 3MF. Boxes are NOT placed in an assembly
     offset — the part studio's origin is the assembly's."""
+    from .parts import box as box_part
     part = box_part.build(p)
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
@@ -424,6 +433,7 @@ def build_token_holder(p, half, out_dir, folder, filename):
     Like the Box and the Lid it sits at the part studio's origin, which is the
     assembly's — every cached component is already at those coordinates.
     """
+    from .parts import token_holder
     part = token_holder.build(p, half)
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
@@ -439,6 +449,8 @@ def build_token_holder(p, half, out_dir, folder, filename):
 
 def build_pusher(p, out_dir, folder, filename):
     """Build one pusher, place it in assembly position, write the 3MF."""
+    from build123d import Location
+    from .parts import pusher
     d = D.derive(p)
     part = pusher.build(p).moved(Location(pusher.assembly_offset(d)))
     path = out_dir / folder / filename
@@ -454,6 +466,167 @@ def build_pusher(p, out_dir, folder, filename):
             "new": before is None}
 
 
+# --- running a catalogue: stamps, a pool, and one loop for every kind --------
+#
+# A build is a list of SPECS — (kind, Primary, extra, targets) — run through
+# `_job`, in a process pool by default. Each job builds once and writes every
+# target: six holders are the same geometry under two names (the Mat twins),
+# and the second name is a copy of the first's bytes, not a second build.
+#
+# A STAMP beside each written file records a digest of everything the file
+# depends on — the Primary, the kind and its extra, and every source file
+# under cad/, logos/ and fonts/ — so a rerun with nothing changed skips the
+# build and says so, and any edit anywhere in cad/ invalidates every stamp.
+# `--force` ignores them. The 3MF itself is still the thing compared: a
+# rebuilt file is `changed` only when its bytes moved.
+
+STAMP_DIR = ".stamps"
+
+
+def source_hash():
+    """One digest over everything a part can depend on besides its Primary."""
+    h = hashlib.sha256()
+    files = sorted(list((ROOT / "cad").rglob("*.py"))
+                   + list((ROOT / "logos").rglob("*.dxf"))
+                   + list((ROOT / "fonts").glob("*.ttf")))
+    for f in files:
+        h.update(str(f.relative_to(ROOT)).encode())
+        h.update(f.read_bytes())
+    return h.hexdigest()
+
+
+def stamp_of(src, kind, p, extra):
+    return hashlib.sha256(f"{src}|{kind}|{p!r}|{extra!r}".encode()).hexdigest()
+
+
+def stamp_path(out_dir, folder, filename):
+    return out_dir / STAMP_DIR / folder / (filename + ".sha256")
+
+
+def _build(kind, p, extra, out_dir, folder, filename):
+    if kind == "lid":
+        return build_lid(p, out_dir, folder, filename)
+    if kind == "holder":
+        return build_holder(p, extra, out_dir, folder, filename)
+    if kind == "tokenholder":
+        return build_token_holder(p, extra, out_dir, folder, filename)
+    if kind == "topper":
+        return build_topper(p, extra, out_dir, folder, filename)
+    if kind == "box":
+        return build_box(p, out_dir, folder, filename)
+    if kind == "pusher":
+        return build_pusher(p, out_dir, folder, filename)
+    raise ValueError(kind)
+
+
+def _job(spec):
+    """One unit of work, in a worker: build once, write every target."""
+    kind, p, extra = spec["kind"], spec["p"], spec["extra"]
+    out_dir, targets = spec["out_dir"], spec["targets"]
+    if not spec["force"] and all(
+            (out_dir / f / fn).exists()
+            and stamp_path(out_dir, f, fn).exists()
+            and stamp_path(out_dir, f, fn).read_text() == spec["stamp"]
+            for f, fn in targets):
+        return [{"path": out_dir / f / fn, "folder": f, "filename": fn,
+                 "bytes": (out_dir / f / fn).stat().st_size,
+                 "skipped": True, "changed": False, "new": False}
+                for f, fn in targets]
+    folder, fn = targets[0]
+    t0 = time.perf_counter()
+    r = _build(kind, p, extra, out_dir, folder, fn)
+    r.update(folder=folder, filename=fn, skipped=False,
+             seconds=time.perf_counter() - t0)
+    out = [r]
+    data = r["path"].read_bytes()
+    for f, fn2 in targets[1:]:
+        path = out_dir / f / fn2
+        before = path.read_bytes() if path.exists() else None
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        out.append(dict(r, path=path, folder=f, filename=fn2, seconds=0.0,
+                        changed=before is not None and before != data,
+                        new=before is None))
+    for f, fn2 in targets:
+        sp = stamp_path(out_dir, f, fn2)
+        sp.parent.mkdir(parents=True, exist_ok=True)
+        sp.write_text(spec["stamp"])
+    return out
+
+
+def run_jobs(specs, jobs):
+    """Every spec through `_job`, in catalogue order, `jobs` at a time."""
+    if jobs <= 1 or len(specs) <= 1:
+        return [_job(s) for s in specs]
+    import concurrent.futures as cf
+    import multiprocessing as mp
+    with cf.ProcessPoolExecutor(max_workers=min(jobs, len(specs)),
+                                mp_context=mp.get_context("spawn")) as ex:
+        return list(ex.map(_job, specs))
+
+
+def holder_key(p, first):
+    """What a holder's geometry depends on: everything in its Primary but the
+    front capacity and the Mat branch, which `holder_file` carries through
+    `calModelName` and the part never reads. Two files with one key are one
+    build — the six Mat twins, byte-identical before this deduplicated them."""
+    return (p.GameName, p.HorizontalSlots, p.RisingSliders,
+            p.CardsPerSlidingSlot, p.isFirstSlidingSlotOverride,
+            p.FirstSlidingSlotCards, p.isSleeved, p.Version, first)
+
+
+KINDS = ("lid", "holder", "tokenholder", "topper", "box", "pusher")
+NOUN = {"lid": "lids", "holder": "holders", "tokenholder": "token holders",
+        "topper": "toppers", "box": "boxes", "pusher": "pushers"}
+
+
+def specs_for(kind, args, src):
+    """[(folder, filename, Primary, extra)] for `--list`, and the job specs."""
+    if kind == "lid":
+        items = [(f, fn, p, None) for f, fn, p in
+                 lid_catalogue(args.csv, args.game, args.model)]
+    elif kind == "holder":
+        items = holder_catalogue(args.csv, args.game, args.model)
+    elif kind == "tokenholder":
+        items = token_holder_catalogue(args.csv, args.game, args.model,
+                                       args.legacy_names)
+    elif kind == "topper":
+        items = topper_catalogue(args.csv, args.game, args.model)
+    elif kind == "box":
+        items = [(f, fn, p, None) for f, fn, p in
+                 box_catalogue(args.csv, args.game, args.model)]
+    else:
+        items = [(f, fn, p, None) for f, fn, p in
+                 catalogue(args.csv, args.game, args.legacy_names)]
+    groups = {}
+    for folder, fn, p, extra in items:
+        key = (holder_key(p, extra) if kind == "holder"
+               else (folder, fn))
+        g = groups.setdefault(key, {"kind": kind, "p": p, "extra": extra,
+                                    "out_dir": args.out, "targets": [],
+                                    "force": args.force,
+                                    "stamp": stamp_of(src, kind, p, extra)})
+        g["targets"].append((folder, fn))
+    return items, list(groups.values())
+
+
+def _row(kind, r):
+    """One printed line per written file."""
+    mark = ("skipped" if r["skipped"] else "new" if r["new"]
+            else "changed" if r["changed"] else "")
+    name = f"{r['folder']}/{r['filename']}"
+    if r["skipped"]:
+        return f"  {name:44s} {'':>11s} {r['bytes'] / 1024:6.0f}  {mark}"
+    if kind == "pusher":
+        return (f"  {name:44s} D {r['depth']:6.2f} rise {r['rise']:6.3f} "
+                f"{r['cls']:>3s} {r['verts']:7d} {r['tris']:7d} "
+                f"{r['bytes'] / 1024:6.0f}  {r['seconds']:5.1f}s  {mark}")
+    bodies = f"{r['bodies']:4d}" if "bodies" in r else "    "
+    return (f"  {name:44s} {r['volume']:11.1f} {bodies} {r['verts']:7d} "
+            f"{r['tris']:7d} {r['bytes'] / 1024:6.0f}  {r['seconds']:5.1f}s  "
+            f"{mark}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -463,146 +636,55 @@ def main(argv=None):
     ap.add_argument("--legacy-names", action="store_true",
                     help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
-    ap.add_argument("--part",
-                    choices=("pusher", "box", "lid", "holder", "tokenholder",
-                             "topper", "all"),
-                    default="pusher",
-                    help="what to build. Pushers are the default because they "
-                         "are seconds; a box is ten to twenty, so all 50 is "
-                         "a quarter of an hour")
-    ap.add_argument("--model", help="build only boxes whose model code contains "
+    ap.add_argument("--part", choices=KINDS + ("all",), default="pusher",
+                    help="what to build; `all` is the lot, a few minutes with "
+                         "the pool")
+    ap.add_argument("--model", help="build only parts whose filename contains "
                                     "this, e.g. S2.40.12-30.45-Sl")
+    ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1,
+                    help="parallel builds (default: every core); 1 is serial")
+    ap.add_argument("--force", action="store_true",
+                    help="rebuild even where the stamp says nothing changed")
     args = ap.parse_args(argv)
 
-    if args.part in ("lid", "all"):
-        lids = lid_catalogue(args.csv, args.game, args.model)
+    kinds = KINDS if args.part == "all" else (args.part,)
+    src = source_hash()
+    t_all = time.perf_counter()
+    for kind in kinds:
+        items, specs = specs_for(kind, args, src)
         if args.list:
-            for folder, fn, p in lids:
-                print(f"  {folder + '/' + fn}")
-            print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}")
-        else:
-            print(f"  {'file':44s} {'mm3':>11s} {'bod':>4s} {'verts':>7s} "
-                  f"{'tris':>7s} {'KB':>6s}")
-            total, plain = 0, []
-            for folder, fn, p in lids:
-                r = build_lid(p, args.out, folder, fn)
-                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
-                if r["bodies"] == 1:
-                    plain.append(p.GameName)
-                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
-                      f"{r['bodies']:4d} {r['verts']:7d} {r['tris']:7d} "
-                      f"{r['bytes'] / 1024:6.0f}  {mark}")
-                total += r["bytes"]
+            for folder, fn, p, _extra in items:
+                line = f"  {folder + '/' + fn}"
+                if kind == "pusher":
+                    d = D.derive(p)
+                    line = (f"  {folder + '/' + fn:40s} D {d.calPusherTotalDepth:6.2f}  "
+                            f"{L.lock_class(d.calPusherTotalDepth)[0]}")
+                print(line)
+            print(f"\n  {len(items)} {NOUN[kind]}\n")
+            continue
+        t0 = time.perf_counter()
+        results = [r for group in run_jobs(specs, args.jobs) for r in group]
+        results.sort(key=lambda r: (r["folder"], r["filename"]))
+        for r in results:
+            print(_row(kind, r))
+        if kind == "lid":
+            plain = sorted({r["folder"] for r in results
+                            if not r["skipped"] and r.get("bodies") == 1})
             if plain:
-                # Not silently: a lid without its logo is a lid that cannot be
-                # printed in two filaments.
-                print(f"\n  NO LOGO ARTWORK for {sorted(set(plain))} — those "
-                      f"lids built without a pattern (cad/tables.LID_LOGO)")
-            print(f"\n  {len(lids)} lid{'' if len(lids) == 1 else 's'}, "
-                  f"{total / 1e6:.1f} MB, in {args.out}")
-        if args.part == "lid":
-            return 0
-
-    if args.part in ("holder", "all"):
-        holders = holder_catalogue(args.csv, args.game, args.model)
-        if args.list:
-            for folder, fn, p, first in holders:
-                print(f"  {folder + '/' + fn}")
-            print(f"\n  {len(holders)} holders")
-        else:
-            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
-            total = 0
-            for folder, fn, p, first in holders:
-                r = build_holder(p, first, args.out, folder, fn)
-                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
-                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
-                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
-                total += r["bytes"]
-            print(f"\n  {len(holders)} holders, {total / 1e6:.1f} MB, in {args.out}")
-        if args.part == "holder":
-            return 0
-
-    if args.part in ("tokenholder", "all"):
-        ths = token_holder_catalogue(args.csv, args.game, args.model,
-                                     args.legacy_names)
-        if args.list:
-            for folder, fn, p, half in ths:
-                print(f"  {folder + '/' + fn}")
-            print(f"\n  {len(ths)} token holders")
-        else:
-            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} "
-                  f"{'KB':>6s}")
-            total = 0
-            for folder, fn, p, half in ths:
-                r = build_token_holder(p, half, args.out, folder, fn)
-                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
-                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
-                      f"{r['verts']:7d} {r['tris']:7d} "
-                      f"{r['bytes'] / 1024:6.0f}  {mark}")
-                total += r["bytes"]
-            print(f"\n  {len(ths)} token holders, {total / 1e6:.1f} MB, "
-                  f"in {args.out}")
-        if args.part == "tokenholder":
-            return 0
-
-    if args.part in ("topper", "all"):
-        toppers = topper_catalogue(args.csv, args.game, args.model)
-        if args.list:
-            for folder, fn, p, _e in toppers:
-                print(f"  {folder + '/' + fn}")
-            print(f"\n  {len(toppers)} toppers")
-        else:
-            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
-            total = 0
-            for folder, fn, p, expansion in toppers:
-                r = build_topper(p, expansion, args.out, folder, fn)
-                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
-                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
-                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
-                total += r["bytes"]
-            print(f"\n  {len(toppers)} toppers, {total / 1e6:.1f} MB, in {args.out}")
-        if args.part == "topper":
-            return 0
-
-    if args.part in ("box", "all"):
-        boxes = box_catalogue(args.csv, args.game, args.model)
-        if args.list:
-            for folder, fn, p in boxes:
-                print(f"  {folder + '/' + fn}")
-            print(f"\n  {len(boxes)} boxes")
-        else:
-            print(f"  {'file':44s} {'mm3':>11s} {'verts':>7s} {'tris':>7s} {'KB':>6s}")
-            total = 0
-            for folder, fn, p in boxes:
-                r = build_box(p, args.out, folder, fn)
-                mark = "new" if r["new"] else ("changed" if r["changed"] else "")
-                print(f"  {folder + '/' + fn:44s} {r['volume']:11.1f} "
-                      f"{r['verts']:7d} {r['tris']:7d} {r['bytes'] / 1024:6.0f}  {mark}")
-                total += r["bytes"]
-            print(f"\n  {len(boxes)} boxes, {total / 1e6:.1f} MB, in {args.out}")
-        if args.part == "box":
-            return 0
-
-    items = catalogue(args.csv, args.game, args.legacy_names)
-    if args.list:
-        for folder, fn, p in items:
-            d = D.derive(p)
-            print(f"  {folder + '/' + fn:40s} D {d.calPusherTotalDepth:6.2f}  "
-                  f"{L.lock_class(d.calPusherTotalDepth)[0]}")
-        print(f"\n  {len(items)} pushers")
-        return 0
-
-    print(f"  {'file':40s} {'D':>6s} {'rise':>6s} {'cls':>4s} "
-          f"{'verts':>6s} {'tris':>6s} {'KB':>6s}")
-    total = 0
-    for folder, fn, p in items:
-        r = build_pusher(p, args.out, folder, fn)
-        mark = "new" if r["new"] else ("changed" if r["changed"] else "")
-        print(f"  {folder + '/' + fn:40s} {r['depth']:6.2f} {r['rise']:6.3f} "
-              f"{r['cls']:>4s} {r['verts']:6d} {r['tris']:6d} "
-              f"{r['bytes'] / 1024:6.0f}  {mark}")
-        total += r["bytes"]
-    print(f"\n  {len(items)} pushers, {total / 1e6:.1f} MB, in {args.out}")
+                # Not silently: a lid without its logo is a lid that cannot
+                # be printed in two filaments.
+                print(f"\n  NO LOGO ARTWORK for {plain} — those lids built "
+                      f"without a pattern (cad/tables.LID_LOGO)")
+        built = sum(1 for r in results if not r["skipped"])
+        print(f"\n  {len(results)} {NOUN[kind]}: {built} built "
+              f"({sum(1 for r in results if r['new'])} new, "
+              f"{sum(1 for r in results if r['changed'])} changed), "
+              f"{len(results) - built} unchanged and skipped, "
+              f"{sum(r['bytes'] for r in results) / 1e6:.1f} MB, "
+              f"{time.perf_counter() - t0:.0f} s with {args.jobs} job(s), "
+              f"in {args.out}\n")
+    if not args.list and len(kinds) > 1:
+        print(f"  all {len(kinds)} kinds in {(time.perf_counter() - t_all) / 60:.1f} min")
     return 0
 
 

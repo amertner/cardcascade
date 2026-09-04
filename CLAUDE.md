@@ -95,14 +95,15 @@ result has not been printed.
   faults it does NOT fix"; `spec/BOX.md`.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does the
-  lot. `--part holder` is 56 files at about three seconds each. `--part tokenholder`
-  is 22 files in seconds (22, not `individual/`'s 18: the old dedup key drops
-  the size letter the tray has engraved on it, so two cascades ship a tray
-  labelled for the other — `spec/TOKENHOLDER.md`). `--part topper` is 48 in
-  95 s. A box takes about ten seconds and a pusher under one; a LID costs
-  whatever its logo artwork costs, because every region of the mark is its own
-  boolean — 17 s for Dominion's 459 edges, 57 s for Compile's 1885. Run all 50
-  in the background.
+  lot in about FIVE MINUTES: builds run in a process pool (`--jobs`, every
+  core by default) and a stamp beside each file skips it on a rerun when
+  nothing it depends on changed (`--force` overrides). `--part tokenholder`
+  is 22 files (22, not `individual/`'s 18: the old dedup key drops the size
+  letter the tray has engraved on it, so two cascades ship a tray labelled
+  for the other — `spec/TOKENHOLDER.md`). Serially a box builds in 5-7 s, a
+  holder in 1.5, a pusher in 3, and a LID costs whatever its mark costs —
+  2 s for Dominion's 459 edges, 13 for Compile's 1885 — with meshing at
+  0.01 mm adding 3-12 s to each of them.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
 - Tests: `.venv/bin/python tests/run_all.py` runs every suite below in order
@@ -123,8 +124,9 @@ result has not been printed.
   `.venv/bin/python tests/test_topper_corpus.py` and
   `.venv/bin/python tests/test_holder_corpus.py` (against all 44 cached lids,
   all 18 cached token holders, all 48 cached toppers and all 50 cached holders;
-  the last one needs `--part holder` built first and takes about six minutes,
-  because it rebuilds all 50 at `Version="6.6"` to compare like for like), and
+  the last one needs `--part holder` built first and takes about a minute,
+  pooled: it builds each holder once blank and prices the `CC 6.6` engraving
+  by intersection to compare like for like), and
   `.venv/bin/python tests/test_build_meshes.py` (every body in `build/` is a
   closed surface; line contacts listed, open boundaries fail).
 - `.venv/bin/python -m cad.render build/*/*.3mf --contact tmp/contact.png`

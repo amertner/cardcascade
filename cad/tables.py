@@ -80,3 +80,10 @@ LID_LOGO = {
 LID_LOGO_EDITION = {
     "Innovation": {"S3.15.10": "plain", "XS5.15.10": "plain"},
 }
+
+
+# The five Innovation expansions whose topper mark `cad/parts/topper.MARKS`
+# draws, in catalogue order. Data here rather than read off `MARKS` so that
+# `cad.build --list` and `cad.promote` can name the toppers without importing
+# build123d; `topper.py` asserts the two agree.
+TOPPER_EXPANSIONS = ("Artifacts", "Cities", "Echoes", "Figures", "Unseen")
