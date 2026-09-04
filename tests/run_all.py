@@ -33,6 +33,7 @@ SUITES = [
     ("test_pusher", False, False),
     ("test_box", False, True),
     ("test_lid", False, True),
+    ("test_lid_marks", False, False),
     ("test_token_holder", False, False),
     ("test_topper", False, False),
     ("test_holder", False, True),

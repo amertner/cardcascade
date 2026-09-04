@@ -725,7 +725,13 @@ statement; the area check is corroboration at `0.5 mm2`.
   composition is his call.
 - ~~**Dominion's mark is a half turn out** from Compile's, FCM's and
   Innovation's.~~ Turned 2026-09-04; see "Dominion's mark WAS 180° out".
-- **Stroke weight on the marks that are still outlines.** Scaling an outline
+- **Stroke weight on the marks that are still outlines** — now FLOORED, not
+  open (Allan, 2026-09-04): the mark is an inlay in a pocket and takes the
+  cut floor, `0.200` mm, and `tests/test_lid_marks.py` rasterises every
+  drawn mark at every scale the fit picks and holds its thinnest stroke to
+  it. Compile's is `0.250` at its drawn size and `0.250` on its smallest lid
+  (`0.905`), the closest in the catalogue; Dominion's, FCM's and Innovation's
+  are `0.49` and up. Scaling an outline
   scales its strokes, where the Onshape sketches hold `#LineWidth` absolute.
   Innovation's plain mark no longer does this because it is generated; the
   other five drawings do, and it bites hardest where a mark is enlarged a long

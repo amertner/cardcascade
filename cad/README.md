@@ -62,6 +62,7 @@ automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \
 .venv/bin/python tests/test_box.py               # source vs the nine STEPs
 .venv/bin/python tests/test_lid.py               # source vs the four STEPs
 .venv/bin/python tests/test_lid_corpus.py        # the rules vs 48 cached lids
+.venv/bin/python tests/test_lid_marks.py         # every drawn mark's strokes vs the cut floor
 .venv/bin/python tests/test_box_corpus.py        # the rules vs 48 cached AND 50 built boxes
 .venv/bin/python tests/test_token_holder.py      # source vs both STEPs
 .venv/bin/python tests/test_token_holder_corpus.py  # the rules vs all 18
@@ -132,6 +133,7 @@ tests/
   test_box.py               the part vs the nine Box STEPs
   test_lid.py               the part vs the four structural Lid STEPs
   test_lid_corpus.py        the Lid's placement rules vs 48 cached meshes
+  test_lid_marks.py         the drawn marks' thinnest strokes vs the cut floor
   test_box_corpus.py        the Box's, vs 48 cached AND the 50 written 3MFs
   probe.py                  ray-casting a mesh: the corpus tests' instrument
   test_token_holder.py      the part vs both TokenHolder STEPs

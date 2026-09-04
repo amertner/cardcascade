@@ -123,6 +123,9 @@ result has not been printed.
   `.venv/bin/python tests/test_topper.py` and
   `.venv/bin/python tests/test_holder.py` (source vs their STEPs), and
   `.venv/bin/python tests/test_lid_corpus.py`,
+  `.venv/bin/python tests/test_lid_marks.py` (every drawn lid mark's thinnest
+  stroke at every scale the fit picks, held to the cut floor — Compile's is
+  0.250 mm at its drawn size),
   `.venv/bin/python tests/test_box_corpus.py` (all 48 cached boxes AND the 50
   written ones against the placement rules, by ray — `tests/probe.py` — with
   the three deliberate divergences asserted from both ends; needs `--part
