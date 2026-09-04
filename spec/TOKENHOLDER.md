@@ -280,14 +280,20 @@ followed.
 
 ## Still open
 
-- **No unsleeved STEP.** Everything unsleeved rests on the cached meshes, which
-  are exact enough for the envelope and the ink box but not for a section. The
-  `TRAIL` reading in particular is pinned by one sleeved export; an unsleeved
-  one would confirm it independently, since that family ends in a different
-  glyph.
-- **No merged STEP.** The merged widths and the single centred divider are
-  confirmed on eight meshes, which is strong, but the rim and grip detail at
-  128 mm of width has never been seen exactly.
+- ~~**No unsleeved STEP.**~~ `HalfTokenHolder M6.21.10.45-Un.step` (2026-09-04)
+  — exported as the HALF, `5.790` deep. Envelope to `1e-6`, volume to
+  `0.001 %`, and the engraving reproduces with an `n` (right bearing `0.053`)
+  where the sleeved string ends in `l` (`0.019`): **`TRAIL` is a property of
+  the text box, not of the last glyph**, which is what one export with a
+  different final glyph was asked to say. Its cause in Onshape's terms is
+  still not known.
+- ~~**No merged STEP.**~~ `HalfTokenHolder M4.21.10.45-M-Sl.step` (2026-09-04)
+  — the merged HALF, `8.100` deep and `128.100` wide, which is ONE OF THE THREE
+  clipped references (`9.105` of ink in an `8.100` part). It is now the exact
+  record of that divergence: `tests/test_token_holder.py` reads Onshape's ink
+  reaching the part's own front and back faces and ours stopping `CLEARANCE`
+  short, heavier by under `0.1 %`. The FULL unsleeved and FULL merged trays
+  still have no STEP; both rest on the cached meshes.
 - **The three clipped engravings should be fixed in Onshape too**, or the
   divergence stays permanent. Until then `individual/` keeps three trays with
   nicked walls.

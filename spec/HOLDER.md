@@ -584,36 +584,46 @@ of `14`.
 **"Through all" is literal.** The removed volume stops changing once the sweep
 passes about `20`, and every longer value gives the same solid.
 
-### `Chamfer lip rest` is `1.500` at 45 degrees, on the LOWER pair
+### `Lip Rest` is the lip's own LENGTH, and `Chamfer lip rest` widens its mouth — SETTLED by two rollbacks
 
-Allan's dialog gives the size; which two edges it takes, and whether the rest
-carries any clearance, are measured. The section is a HEXAGON, not a rectangle —
-`width` at the top and `width - 2 * 1.500` at the bottom — and the rest is
-EXACTLY the lip's own base width with no clearance at all:
+Two rollback exports of `333` (`Holder S9.21.10.62-Sl after Lip Rest.step`
+and `... after Chamfer lip rest.step`, 2026-09-04) isolate the rest exactly,
+and they overturn the reading below, which was the best of four against the
+ten references' bands and still left `±5 mm3`:
 
-| model | residual in that band |
+| section of the rest, in XZ | against the unchamfered rollback, whole rest region |
 |---|---|
-| plain rectangle, `0.300` clearance a side | `-66.32` |
-| chamfered on the UPPER pair, `0.300` clearance | `-25.59` |
-| chamfered on the LOWER pair, `0.300` clearance | `-14.66` |
-| **chamfered on the LOWER pair, NO clearance** | **`-4.88`** |
+| rectangle `LIP_LEN + 2 * LIP_CHAMFER` = `12.400` (the lip's base — what was built) | over-cuts by `1.592` |
+| rectangle `14.800` | over-cuts by `3.185` |
+| **rectangle `LIP_LEN` = `10.000`** — the lip's own length, no chamfer allowance, no clearance | **`0.000` either way** |
+
+The three earlier readings tried the lip's base and its tip and never its
+length. Then `Chamfer lip rest` REMOVES `1.143 mm3` per rest — it widens the
+mouth, it does not narrow the tool — as two slivers `1.500` wide at the top of
+the section tapering down its `2.000`. In the XZ section the mouth is a
+trapezoid, `LIP_LEN + 2 * REST_CHAMFER` = `13.000` at the top and `LIP_LEN + 2
+* (REST_CHAMFER - SLANT_STEP * c)` at the bottom with `c = 1 / sqrt(1 +
+slope^2)` the slant's cosine — `10.444` on `333` — and that reproduces the
+chamfered rollback to **`0.000 mm3`** either way. Read as a true 45-degree
+chamfer of the two mouth edges in the plane normal to the oblique sweep,
+whose trace on the vertical section leans by the section's height times the
+cosine (the sine gives `9.923` and leaves `0.173`). The residual this section
+used to carry is gone; the whole `333` now stands `-0.011 %` from its final
+STEP, all of it elsewhere.
+
+The rollbacks also fix the tree's order: at `after Chamfer lip rest` the part
+has ONE lip and ONE rest (compartment 0's left), and the other five lips are
+absent — `148.6 mm3`, five lumps of `29.7` — so the lips and rests are
+patterned after the chamfer. `before Fillet 1` is EARLY: no end blocks, no
+side slots, no lips (`x -32.500..162.500`, `z ±44.250`), its slant band still
+uncut (`1641 mm3` of material above `z 34.6` that the build's lattice state
+has already removed), no scallops, and its floor `1.000` higher than the
+finished part's — so the rollback predates the slant, `Card holder bottom`
+and the finger cutouts, and no build state corresponds to it without
+reordering the tree. It is filed; nothing is asserted against it yet.
 
 The same dialog confirms `Chamfer lip` at `1.200`, which was already measured
 off the lip's own taper.
-
-Three earlier readings of this chamfer were tried and rejected before the
-dialog arrived, and are recorded so they are not tried again: a constant width
-(the slivers are four different widths), a constant taper along the sweep (the
-width falls with depth but not linearly in either the sweep or `Y`), and the
-lip's TIP width rather than its base — which predicts the sliver widths well,
-`1.026 / 0.892 / 0.635 / 0.610` against `0.977 / 0.850 / 0.600 / 0.580`
-measured, and was tempting enough to build, but made every measurable case
-worse.
-
-A residual of about `+/-5 mm3` per holder remains in that band, mixed in sign
-where it was uniformly negative before — roughly a tenth of what it was, and
-smaller than the unexplained term already carried. It is not zero and is not
-claimed to be.
 
 ## Completeness, band by band
 

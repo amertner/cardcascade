@@ -506,38 +506,53 @@ def rear_lips(p, d, first, part):
 # stops changing once the sweep passes ~20, so anything longer is the same
 # cut. 200 clears the tallest holder's diagonal from any start.
 LIP_REST_THROUGH = 200.0
-LIP_REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan)
-
-
+REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan) — see `lip_rests`
 def lip_rests(p, d, first, part):
-    """Cut the lip rests."""
+    """Cut the lip rests.
+
+    The section is the lip's OWN LENGTH by SLANT_STEP — `LIP_LEN` wide, 10.000,
+    with no chamfer allowance and no clearance — extruded along the slant. That
+    is settled by the rollback `Holder S9.21.10.62-Sl after Lip Rest.step`
+    (2026-09-04): a 10.000 rectangle reproduces Onshape's unchamfered cut over
+    the whole rest region to 0.000 mm3 either way, where the 12.400 base width
+    this used to carry over-cuts by 1.592 and 14.800 by 3.185. The three
+    earlier readings spec/HOLDER.md records tried the base and the tip and
+    never the length itself.
+
+    `Chamfer lip rest` then WIDENS the mouth: `Holder ... after Chamfer lip
+    rest.step` removes 1.143 mm3 per rest, two slivers a `REST_CHAMFER` wide
+    at the top of the section that taper down its 2.000. In the XZ section
+    the mouth is a trapezoid — `LIP_LEN + 2 * REST_CHAMFER` at the top and
+    `LIP_LEN + 2 * (REST_CHAMFER - SLANT_STEP * c)` at the bottom, `c` the
+    slant's cosine `1 / sqrt(1 + slope^2)` — which reproduces the chamfered
+    rollback to 0.001 mm3 (10.444 at the bottom on `333`; the sine gives
+    9.923 and leaves 0.173). Read as a 45-degree chamfer of the two mouth
+    edges, which run along the oblique sweep: in the plane normal to that
+    sweep the chamfer is a true 45 degrees, and its trace on the vertical
+    section leans by the section's height times the slant's cosine. The hexagon
+    that stood here (chamfers narrowing the tool on the lower pair) was the
+    best of four readings against the ten references' bands and left 0.37
+    mm3 on this one; it was the right dialog and the wrong edges.
+
+    An OBLIQUE prism, not a right one: the section lies in the plane Y = 0 and
+    is extruded ALONG the slant, which is not its normal, so every
+    cross-section at constant Y is that same upright trapezoid translated.
+    Building it as a rotated box instead gives perpendicular end faces, and the
+    near end then reaches 0.769 further forward in Y and sits 0.6 low in Z —
+    both measurable against `333`, whose cut starts at Y -7.668 where
+    `2 * calSlotDepth` along the slant lands, not at the -6.899 a right prism
+    would give.
+    """
     slope = slant_slope(p, d, first)
     t0 = 2.0 * d.calSlotDepth
-    width = LIP_LEN + 2 * LIP_CHAMFER
-    # An OBLIQUE prism, not a right one: the lip's face lies in the plane Y = 0
-    # and is extruded ALONG the slant, which is not its normal, so every
-    # cross-section at constant Y is that same upright rectangle translated.
-    # Building it as a rotated box instead gives perpendicular end faces, and
-    # the near end then reaches 0.769 further forward in Y and sits 0.6 low in
-    # Z — both measurable against `333`, whose cut starts at Y -7.668 where
-    # `2 * calSlotDepth` along the slant lands, not at the -6.899 a right prism
-    # would give.
     unit = 1.0 / math.sqrt(1.0 + slope * slope)
     dirv = Vector(0.0, -unit, -slope * unit)
-    # `Chamfer lip rest` — LIP_REST_CHAMFER at 45 degrees on the rest's two long
-    # side edges, so the section is a HEXAGON and not a rectangle: `width` at
-    # the top and `width - 2 * LIP_REST_CHAMFER` at the bottom. Which PAIR of
-    # edges is measured, not assumed. Against the ten references the residual
-    # in this band is 4.88 for the lower pair, 25.59 for the upper, and 66.32
-    # for a plain rectangle.
-    c = LIP_REST_CHAMFER
-    w, h = width / 2, SLANT_STEP / 2
-    lo = -1.0                              # the LOWER pair
+    top = LIP_LEN / 2 + REST_CHAMFER
+    bottom = LIP_LEN / 2 + REST_CHAMFER - SLANT_STEP * unit
+    h = SLANT_STEP / 2
     with BuildSketch(Plane.XZ) as sk:
         with BuildLine():
-            Polyline((-w, -lo * h), (w, -lo * h), (w, lo * (c - h)),
-                     (w - c, lo * h), (-(w - c), lo * h), (-w, lo * (c - h)),
-                     close=True)
+            Polyline((-bottom, -h), (bottom, -h), (top, h), (-top, h), close=True)
         make_face()
     x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
     tools = []

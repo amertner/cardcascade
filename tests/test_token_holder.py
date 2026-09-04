@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from build123d import import_step, Plane            # noqa: E402
+from build123d import import_step, Plane, Box, Location   # noqa: E402
 from cad import params, derive as D, text as TX      # noqa: E402
 from cad.parts import token_holder as TH             # noqa: E402
 
@@ -157,6 +157,70 @@ check("the text box's origin is TEXT_INSET from the left edge",
 check("the cap band is centred on the part's depth",
       round(b.max.Y - TX.CAP * em / 2, 3),
       round(-TH.CLEARANCE - TH.depth(P, d, False) / 2, 3), 5e-3)
+
+print("\n=== two more HALF references, 2026-09-04 ===")
+# Both hand-exported as the HALF configuration (their depths, 5.790 and 8.100,
+# are the two half depths spec/TOKENHOLDER.md records; the FULL builds are
+# 4.7 % and 7.2 % heavier). The unsleeved one puts a `n` where the sleeved
+# string has an `l` — right bearings 0.053 against 0.019 — and the envelope
+# and volume still reproduce, which is what says TRAIL is a property of the
+# text box and not of the last glyph. The merged one is `HalfTokenHolder
+# 21-Sl merged`, one of the three references whose text Onshape CLIPS (9.105
+# of ink in an 8.100 part), so it is the exact record of that divergence:
+# the reference's ink runs to the part's own edge and ours does not.
+MORE = [("HALF Un", "HalfTokenHolder M6.21.10.45-Un.step",
+         params.Primary(4, 6, 21, 10, 0, 10, 0, 0, "Dominion"), False),
+        ("HALF merged Sl", "HalfTokenHolder M4.21.10.45-M-Sl.step",
+         params.Primary(4, 4, 21, 10, 0, 10, 1, 1, "Dominion"), True)]
+for name, fn, q, clipped in MORE:
+    dq = D.derive(q)
+    ref = import_step(str(STEP_DIR / fn)).solids()[0]
+    mine = TH.build(q, True)
+    b, r = mine.bounding_box(), ref.bounding_box()
+    for ax in "XYZ":
+        check(f"{name}: {ax} min", round(getattr(b.min, ax), 6),
+              round(getattr(r.min, ax), 6), 1e-6)
+        check(f"{name}: {ax} max", round(getattr(b.max, ax), 6),
+              round(getattr(r.max, ax), 6), 1e-6)
+    check(f"{name}: depth is the HALF's", round(b.max.Y - b.min.Y, 3),
+          round(TH.depth(q, dq, True), 3), 1e-3)
+    for z in (1.5, 40.0, 64.5, 74.0, 80.0):
+        check(f"{name}: section area at Z {z}",
+              round(section_area(mine, z), 3), round(section_area(ref, z), 3), 1e-3)
+    def ink_y(shape):
+        """Y extent of the underside engraving — the voids just above z = 0."""
+        bb = shape.bounding_box()
+        # exactly the part's footprint in Y, so a glyph that reaches a face
+        # stays a void of its own instead of merging with the outside
+        slab = Box(bb.size.X - 2 * TH.CLEARANCE, bb.size.Y, TH.ENGRAVE - 0.02).moved(
+            Location(((bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2, TH.ENGRAVE / 2)))
+        lumps = [q for q in (slab - shape).solids()
+                 if q.volume > 0.01 and q.bounding_box().min.Y >= bb.min.Y - 1e-3
+                 and q.bounding_box().max.Y <= bb.max.Y + 1e-3]
+        return (min(q.bounding_box().min.Y for q in lumps),
+                max(q.bounding_box().max.Y for q in lumps))
+    if not clipped:
+        check(f"{name}: within 0.002% of the reference",
+              round(100 * abs(mine.volume / ref.volume - 1), 4), 0.0, 0.002)
+        # 0.1 here where the sleeved pair holds 0.05: the `n` and the `U` are
+        # two more glyphs whose outlines build123d and Onshape fit differently.
+        check(f"{name}: the engraved floor, to 0.1 mm2",
+              round(section_area(mine, 0.1), 3), round(section_area(ref, 0.1), 3), 0.1)
+    else:
+        # The divergence, from both ends: Onshape's text box is fitted on width
+        # alone, so on this part its ink reaches the part's OWN front and back
+        # faces (the tell spec/TOKENHOLDER.md records — an outline clipping a
+        # sketch); ours is bounded by the depth too and stops CLEARANCE short,
+        # so ours engraves less and is heavier, by under 0.1 %.
+        ry0, ry1 = ink_y(ref)
+        my0, my1 = ink_y(mine)
+        check(f"{name}: Onshape's ink reaches the part's back face",
+              round(ry0, 3), round(r.min.Y, 3), 1e-3)
+        check(f"{name}: ... and its front face", round(ry1, 3), round(r.max.Y, 3), 1e-3)
+        check(f"{name}: ours stops short of both",
+              my0 > r.min.Y + 1e-3 and my1 < r.max.Y - 1e-3, True)
+        check(f"{name}: ... and is heavier by under 0.1%",
+              0.0 < 100 * (mine.volume / ref.volume - 1) < 0.1, True)
 
 print("\n=== it is Dominion-only, and says so ===")
 try:
