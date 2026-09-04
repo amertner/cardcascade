@@ -852,12 +852,15 @@ What is left is small, and mostly not about the geometry.
   in, so there is nothing on that side to assert against. It goes in as soon as
   the holder does.
 - **The `Divider` sketch has no dimensions** (Allan, 2026-09-04): it maps onto
-  points IMPORTED from the holder to replicate its diagonal. So `BAND_HALF
-  7.400` is not `#FootDistanceFromWall` or any variable — it is some holder
-  point's X from the slot's centre, and which one is work here, not input:
-  the holder's lip is `LIP_LEN 10.000` with a `1.200` chamfer each side, `3.000`
-  from a `12.000` scallop, and none of those alone is `7.400` from the slot
-  edge. It holds on all three parameter sets.
+  the holder's imported `Top slant angle` triangle to replicate its diagonal.
+  That triangle's vertical leg is `max(#calSlotDepth + 2mm, #calHeightIncrement
+  - 1mm)` and its top leg `sliderDistance - 1.2` (`7.2` on the 15-card unsleeved
+  holder, `5.2` to `10.95` across the eight topper sets), so it fixes the
+  slant — which `cascade_slope` already has — and NOT `BAND_HALF`, which is
+  `7.400` on every set. The band is the front-wall removal's: `Remove most of
+  front` and its companions cut over `calSlotwidth - 2 * BAND_HALF` centred on
+  each slot, and the `7.400` is a dimension or expression in THAT sketch,
+  still to be read.
 - ~~**`LIP_ROOM_RISE 2.000`**~~ IS `holder.SLANT_STEP` by construction, the
   same imported points, and is bound to it (2026-09-04).
 - **The text scaling rule.** `PIPELINE.md` records the 10-card text as exactly

@@ -14,7 +14,7 @@ Each row says what would settle it, and whether that is a file from Onshape
 
 | constant | where | value | holds on | what would settle it |
 |---|---|---|---|---|
-| `BAND_HALF` | `cad/parts/topper.py` | `7.400` | three parameter sets, M and S | WORK. The `Divider` sketch has no dimensions and maps onto points imported from the holder (Allan, 2026-09-04), so `7.400` is some holder point's distance from the slot's centre; finding which — the lip's plan, the scallop, the end block — derives it. |
+| `BAND_HALF` | `cad/parts/topper.py` | `7.400` | all eight parameter sets | INPUT. The `Divider` sketch maps onto the holder's imported `Top slant angle` triangle (Allan, 2026-09-04), and that fixes the DIAGONAL — its top leg is `sliderDistance - 1.2`, `7.2` on the 15-card unsleeved set and `5.2` to `10.95` across the eight — not the band, which is `14.800` on all of them. The band belongs to `Remove most of front` and its companions, which take the front wall away over `calSlotwidth - 2 * 7.4` centred on each slot; that sketch's own width or margin expression is the number. |
 | `TWIST`, `NOMINAL_SIZE`, `ARM0` | `cad/marks.py` | `0.1039`, `20.8416`, `-46.14` | the two Innovation plain-mark drawings, to 0.019 mm | WORK. The Logo Flourishes sketch is on file (`logos/Innovation/sketch/Logo Flourishes.dxf`, 2026-09-04) and agrees where compared — `LINE_WIDTH` `0.600`, the annulus bore within `0.003` of the font's `I`, arms `0.600 x 3.000`. Reading `TWIST` and `ARM0` off its five arm rectangles, and `NOMINAL_SIZE` off the annulus, replaces three fitted numbers with the sketch's; the same sketch is the material for generating the Ultimate mark instead of drawing it. |
 
 Both are work here, not input: a holder point to name and a sketch to read.

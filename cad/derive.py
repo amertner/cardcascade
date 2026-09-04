@@ -228,17 +228,28 @@ def derive(p):
 
 def cascade_slope(d, slider_distance):
     """`dZ/dY` of the cascade diagonal — the Holder's `Top slant angle` and,
-    inverted, the Box's lip angle (`Import Holder patterns` brings it across):
+    inverted, the Box's lip angle (`Import Holder patterns` brings it across).
 
-        (calHeightIncrement - 1.0) / (slider_distance - 1.2)
+    The sketch's own expression (Allan's screenshot, 2026-09-04): a triangle
+    whose vertical leg is
 
+        max(#calSlotDepth + 2mm, #calHeightIncrement - 1mm)
+
+    and whose top leg is `slider_distance - 1.2`. `#calSlotDepth` is the
+    STANDARD slot depth even on the first-riser holder — the 246 first-riser
+    reference reads 0.7812, which only the rise term gives there — while
     `slider_distance` is `calSliderDistance` for a standard holder and
     `calFirstSliderDistance` for the first-riser one and for the Box's lip,
-    which meets the front holder. Measured off the slant faces' normals on
-    three Holder references (1.7857 / 0.7812 / 1.2037 predicted and read) and
-    off the diagonal of all 50 cached holders for the Box.
+    which meets the front holder. The rise term wins on every row in the
+    catalogue, by 0.667 at the tightest (`S9.21.10.62-Sl`, 8.000 against
+    8.667), and `tests/test_derive.py` says so; a row where the slot depth won
+    would put a steeper diagonal on that holder, exactly as Onshape would.
+    Measured off the slant faces' normals on three Holder references (1.7857 /
+    0.7812 / 1.2037 predicted and read) and off the diagonal of all 50 cached
+    holders for the Box.
     """
-    return (d.calHeightIncrement - 1.0) / (slider_distance - 1.2)
+    rise = max(d.calSlotDepth + 2.0, d.calHeightIncrement - 1.0)
+    return rise / (slider_distance - 1.2)
 
 
 def back_slot_pitch(d):

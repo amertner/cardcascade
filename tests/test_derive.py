@@ -92,5 +92,22 @@ check("lid depths within 0.1 mm of parts.csv", bad_d, 0)
 check("model codes reproduce parts.csv (mod -M / placeholder)", bad_m, 0)
 print(f"  ({n} cascades checked)")
 
+
+print("\n=== the slant's max(): which term wins, on every row ===")
+# `Top slant angle`'s vertical leg is max(calSlotDepth + 2, calHeightIncrement
+# - 1). The rise term wins on every row today — asserted, with the tightest
+# row named, so a new row that flipped the branch is seen rather than silently
+# given a steeper holder.
+_worst = None
+for _row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for _sl in (0, 1):
+        _p = params.from_row(_row, _sl); _d = derive.derive(_p)
+        _m = (_d.calHeightIncrement - 1.0) - (_d.calSlotDepth + 2.0)
+        if _worst is None or _m < _worst[0]:
+            _worst = (_m, _d.calModelName)
+check("the rise term wins the slant's max() on every row", _worst[0] > 0, True)
+check("... by 0.667 at the tightest, S9.21.10.62-Sl", (round(_worst[0], 3), _worst[1]),
+      (0.667, "S9.21.10.62.Sl"))
+
 print(f"\n{'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")
 sys.exit(1 if fails else 0)
