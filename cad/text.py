@@ -177,7 +177,7 @@ def detail_line(p):
     return f"{p.CardsPerSlidingSlot} {'Sleeved' if p.isSleeved else 'Unsleeved'}"
 
 
-def detail_placement(p, d, notch_depth=5.2):
+def detail_placement(p, d):
     """(text, font_size, baseline_x, start_y) for the detail line.
 
     It reads down the depth near the leading edge, so it is bounded by the band

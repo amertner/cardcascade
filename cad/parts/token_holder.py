@@ -170,7 +170,7 @@ def text_size(p, d, half):
     changes. `tests/test_token_holder_corpus.py` asserts both halves.
     """
     txt = text_line(p, d)
-    adv, lsb, lo, hi = T.metrics(txt, T.LOGO_FONT)
+    adv = T.metrics(txt, T.LOGO_FONT)[0]
     rsb = T.right_bearing(txt, T.LOGO_FONT)
 
     # Width: the ink runs from TEXT_INSET + lsb to (width - TEXT_INSET) - TRAIL,
@@ -309,7 +309,7 @@ def branding(p, d, half):
 
     txt = text_line(p, d)
     em = text_size(p, d, half)
-    adv, lsb, lo, hi = T.metrics(txt, T.LOGO_FONT)
+    lsb = T.metrics(txt, T.LOGO_FONT)[1]
     with BuildPart() as cut:
         with BuildSketch(Plane.XY):
             Text(txt, font_size=em, font_path=T.LOGO_FONT,

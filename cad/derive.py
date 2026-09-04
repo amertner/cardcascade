@@ -43,7 +43,16 @@ LipHeight = 2.0                     # "Up from 1mm"
 
 
 class Derived:
-    """Immutable attribute view over the computed variable set."""
+    """Immutable attribute view over the computed variable set.
+
+    It carries EVERY variable the studio computes, not only the ones a part
+    module reads: about two dozen are read by nothing in `cad/` (the label
+    sizes, the Onshape-only helpers, the token holder's slot arithmetic). That
+    is deliberate — `derive()` is a transcription of the studio and is tested
+    as one (`tests/test_derive.py`), and a variable that is unread today is
+    still the record of what Onshape computes, and the one a future part or a
+    test will want. Do not prune them for tidiness.
+    """
     __slots__ = ("_v",)
 
     def __init__(self, v):

@@ -23,6 +23,7 @@ truth the rebuild can be checked against.
     .venv/bin/python tests/test_pusher.py
 """
 import sys
+import tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -231,10 +232,10 @@ print(f"  ..  smallest cap in the catalogue: {tight[0][0]:.2f} mm on "
 check("classes cover C1..C5",
       sorted({L.lock_class(D.derive(q).calPusherTotalDepth)[0] for q in seen.values()}),
       ["C1", "C2", "C3", "C4", "C5"])
-out = Path("/tmp/pusher_smoke.3mf")
-m = Mesher(); m.add_shape(pusher.build(REFS[0][2]), part_number="Pusher"); m.write(out)
-check("3MF export", out.exists() and out.stat().st_size > 0, True)
-out.unlink(missing_ok=True)
+with tempfile.TemporaryDirectory() as tmp:
+    out = Path(tmp) / "pusher_smoke.3mf"
+    m = Mesher(); m.add_shape(pusher.build(REFS[0][2]), part_number="Pusher"); m.write(out)
+    check("3MF export", out.exists() and out.stat().st_size > 0, True)
 
 print(f"\n{'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")
 sys.exit(1 if fails else 0)

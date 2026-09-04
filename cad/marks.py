@@ -93,7 +93,7 @@ def innovation_plain(size):
     letter_I = min(faces, key=lambda f: f.bounding_box().min.X)
 
     ring = _ring(letter_I, base, u)
-    star = _star(tittle, size, u)
+    star = _star(tittle, u)
 
     out = []
     for f in faces:
@@ -119,7 +119,7 @@ def _ring(letter_I, base, u):
     return (disc - bore).moved(at).moved(Location((0, 0, -disc.center().Z)))
 
 
-def _star(tittle, size, u):
+def _star(tittle, u):
     """Five arms through the tittle — `LINE_WIDTH` wide, `ARM` long, `ARM_STEP`
     apart, each `TWIST` off the centre."""
     bb = tittle.bounding_box()

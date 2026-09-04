@@ -98,6 +98,7 @@ cad/
   tables.py     per-game lookups, transcribed from the variable studio
   lock.py       LOCK_STANDARD.md in code; shared by box, lid, pusher
   text.py       fonts and the sizing rules
+  geom.py       slab, tray, text_solid — the three shapes every part drew itself
   art.py        imported 2D artwork: a DXF's loops -> filled regions
   mesh3mf.py    read/write a component 3MF in the shape Onshape's have
   build.py      the CLI: parts.csv -> build/<Game>/*.3mf
@@ -106,6 +107,7 @@ cad/
   assemble.py   the CLI: parts.csv -> build/assemblies/<Game>/*.3mf
   fit.py        interference and margins — the reason the assemblies exist
   gltf.py       an assembly -> .glb, for a renderer that can light it
+  lazy.py       a module imported on first use; keeps build123d out of --list
   parts/
     pusher.py   done
     box.py      done

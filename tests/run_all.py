@@ -11,8 +11,8 @@ wall time, and exits non-zero if any did.
     .venv/bin/python tests/run_all.py --only holder,lock
 
 The regression suites read `build/` — run `python -m cad.build --part all`
-first, or `run_all.py --build` to have it done here. `test_pusher_regression`
-and `test_holder_corpus` are the two that need it; `test_build_meshes` scans
+first, or `run_all.py --build` to have it done here. `test_pusher_regression`,
+`test_holder_corpus` and `test_smoke` are the ones that need it; `test_build_meshes` scans
 whatever is there.
 """
 import argparse
@@ -45,6 +45,7 @@ SUITES = [
     ("test_topper_corpus", False, True),
     ("test_build_meshes", True, False),
     ("test_holder_corpus", True, False),
+    ("test_smoke", True, True),
 ]
 
 

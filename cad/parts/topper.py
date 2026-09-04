@@ -309,7 +309,7 @@ def slot_x(p, d):
     return [d.calSlotwidth * k for k in range(p.HorizontalSlots)]
 
 
-def _arc(bl, a, c, b):
+def _arc(a, c, b):
     """A quarter arc from `a` to `b` about centre `c`, as a ThreePointArc.
 
     Given explicitly rather than with a signed RadiusArc: which side a radius
@@ -351,7 +351,7 @@ def front_removal(p, d):
     alone would pass a tool with neither. The symmetric difference is what
     catches it — `tests/test_topper.py` asserts both directions separately.
     """
-    front, rear = y_span(p, d)
+    front, _rear = y_span(p, d)
     z0 = Z_BASE + FLOOR + FRONT_WALL_RISE
     z1 = slant_z(p, d, front - FRONT_WALL)
     r = FRONT_FILLET
@@ -362,16 +362,16 @@ def front_removal(p, d):
         with BuildPart() as part:
             with BuildSketch(Plane.XZ):
                 with BuildLine():
-                    _arc(None, (xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
+                    _arc((xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
                     Line((xl, z0 + r), (xl, z1 - r))
-                    _arc(None, (xl, z1 - r), (xl - r, z1 - r), (xl - r, z1))
+                    _arc((xl, z1 - r), (xl - r, z1 - r), (xl - r, z1))
                     # up and over the wall's top, so the tool's top face is not
                     # coincident with it; there is nothing above z1 at this Y.
                     Polyline((xl - r, z1), (xl - r, z1 + 1.0),
                              (xr + r, z1 + 1.0), (xr + r, z1))
-                    _arc(None, (xr + r, z1), (xr + r, z1 - r), (xr, z1 - r))
+                    _arc((xr + r, z1), (xr + r, z1 - r), (xr, z1 - r))
                     Line((xr, z1 - r), (xr, z0 + r))
-                    _arc(None, (xr, z0 + r), (xr - r, z0 + r), (xr - r, z0))
+                    _arc((xr, z0 + r), (xr - r, z0 + r), (xr - r, z0))
                     Line((xr - r, z0), (xl + r, z0))
                 make_face()
             extrude(amount=FRONT_WALL)
@@ -430,7 +430,7 @@ def lip_rooms(p, d):
     is outside the part and in front of it is the pocket, so the extra is air
     either way and no face of the cut is coincident with a face of the body.
     """
-    front, rear = y_span(p, d)
+    _front, rear = y_span(p, d)
     z0 = Z_BASE + FLOOR + LIP_ROOM_RISE
     z1 = Z_BASE + TOTAL_HEIGHT + 1.0
     r = LIP_FILLET
@@ -440,9 +440,9 @@ def lip_rooms(p, d):
         with BuildPart() as part:
             with BuildSketch(Plane.XZ):
                 with BuildLine():
-                    _arc(None, (xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
+                    _arc((xl + r, z0), (xl + r, z0 + r), (xl, z0 + r))
                     Polyline((xl, z0 + r), (xl, z1), (xr, z1), (xr, z0 + r))
-                    _arc(None, (xr, z0 + r), (xr - r, z0 + r), (xr - r, z0))
+                    _arc((xr, z0 + r), (xr - r, z0 + r), (xr - r, z0))
                     Line((xr - r, z0), (xl + r, z0))
                 make_face()
             extrude(amount=depth_y)
@@ -460,9 +460,10 @@ def dividers(p, d):
     is the pocket filled back in over 1.600, not a shape of its own.
     """
     out = None
+    hole = inner_hole(p, d)                 # the same prism under every rib
     for c in post_x(p, d):
         strip = Pos(c, 0, 0) * Box(RIB_W, 1000, 1000)
-        r = inner_hole(p, d) & strip
+        r = hole & strip
         out = r if out is None else out + r
     return out
 
@@ -545,8 +546,8 @@ def _unseen_mark(L):
     r = L / 2
     with BuildSketch() as sk:
         with BuildLine():
-            _arc(None, (-r, c), (0.0, c), (0.0, c - r))
-            _arc(None, (0.0, c - r), (0.0, c), (r, c))
+            _arc((-r, c), (0.0, c), (0.0, c - r))
+            _arc((0.0, c - r), (0.0, c), (r, c))
             # the upper arc, by its three points: the two shoulders and the apex
             ThreePointArc((r, c), (0.0, r), (-r, c))
         make_face()

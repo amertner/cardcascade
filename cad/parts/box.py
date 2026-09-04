@@ -15,14 +15,13 @@ Complete: `build()` runs the whole tree through `Smooth box edges`, and
 every measurement and `tests/test_box.py` for what is proven against the nine
 reference STEPs.
 """
-from build123d import (
-    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder, GeomType,
-    Kind, Line, Location, Mode, Plane, Polygon, Pos, Rectangle, SlotOverall,
-    Text, ThreePointArc, add, chamfer, extrude, fillet, make_face, offset,
-    revolve,
-)
+from build123d import (Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
+                       GeomType, Line, Location, Plane, Polygon, SlotOverall,
+                       ThreePointArc, add, chamfer, extrude, fillet, make_face,
+                       revolve)
 
 from .. import derive as D
+from ..geom import slab, text_solid, tray
 from .. import lock as L
 from .. import text as T
 
@@ -89,14 +88,7 @@ def shell(p, d):
     the top face removed. The sketch is centred on the origin: the STEPs put
     the outer walls at exactly +-#BoxWidth/2.
     """
-    with BuildPart() as part:
-        with BuildSketch(Plane.XY):
-            Rectangle(box_width(p, d), box_depth(p, d))
-        extrude(amount=d.BoxHeight)
-        top = part.faces().sort_by(lambda f: f.center().Z)[-1]
-        offset(amount=-WALL, openings=top, kind=Kind.INTERSECTION,
-               mode=Mode.REPLACE)
-    return part.part
+    return tray(box_width(p, d), box_depth(p, d), d.BoxHeight, WALL)
 
 
 # The front pocket's back wall. Measured 1.000 thick on all five references —
@@ -328,10 +320,6 @@ def rear_storage(p, d, part):
     n = pusher_slot_count(p, d)
     pitch = D.back_slot_pitch(d)
     left, top = -inner, d.BoxHeight + 1
-
-    def slab(x_lo, x_hi, ylo, yhi, zlo, zhi):
-        return Box(x_hi - x_lo, yhi - ylo, zhi - zlo).moved(
-            Location(((x_lo + x_hi) / 2, (ylo + yhi) / 2, (zlo + zhi) / 2)))
 
     part = part + rear_block(p, d)
     cuts = [
@@ -565,9 +553,10 @@ def round_hole(y0, y1, r, f, x, z, over=5.0):
     return tool.part.moved(Location((x, 0, z)))
 
 
-def thumb_tool(p, d, x):
-    """One thumb hole: a THUMB_R cylinder through the panel on Y, filleted
-    THUMB_FILLET into both faces.
+def thumb_tool(p, d):
+    """One thumb hole, centred on x = 0: a THUMB_R cylinder through the panel
+    on Y, filleted THUMB_FILLET into both faces. `front_pocket` moves a copy
+    to each slot.
 
     Revolved from its profile rather than cut-then-`fillet()`: the angled
     cutout takes the top off the hole, so its edge is an ARC and not a circle,
@@ -578,7 +567,7 @@ def thumb_tool(p, d, x):
     plain 12.400 cylinder — which the STEP's own profile caught at once.
     """
     _fw, fb, back = pocket_span(p, d)
-    return round_hole(fb, back, THUMB_R, THUMB_FILLET, x, THUMB_Z)
+    return round_hole(fb, back, THUMB_R, THUMB_FILLET, 0.0, THUMB_Z)
 
 
 # `Lip`. Two per thumb, symmetric about it, standing proud of the panel's BACK
@@ -612,8 +601,8 @@ def lip_slope(d):
     return 1.0 / D.cascade_slope(d, d.calFirstSliderDistance)
 
 
-def lip_tool(p, d, x):
-    """One lip, centred on `x`.
+def lip_tool(p, d):
+    """One lip, centred on x = 0; `front_pocket` moves a copy to each.
 
     In section it is a PARALLELOGRAM: from the panel's back face at LIP_Z, up
     and back along LIP_DEPTH at `lip_slope`, LIP_HEIGHT tall in Z. Seen from
@@ -651,7 +640,7 @@ def lip_tool(p, d, x):
                     (-half + LIP_CHAMFER, back + LIP_CHAMFER),
                     (-half, back), align=None)
         extrude(amount=LIP_Z + LIP_HEIGHT + LIP_DEPTH + 5)
-    return (prism.part & foot.part).moved(Location((x, 0, 0)))
+    return prism.part & foot.part
 
 
 def front_dividers(p, d):
@@ -722,14 +711,9 @@ def front_pocket(p, d, part):
     when the cut was clipped to the inner width, and what the corner-round
     probe caught, 1.816 mm3 at each end.
     """
-    BD = box_depth(p, d)
     inner = box_width(p, d) / 2 - WALL
     fw, fb, back = pocket_span(p, d)
     H = d.BoxHeight
-
-    def slab(x_lo, x_hi, ylo, yhi, zlo, zhi):
-        return Box(x_hi - x_lo, yhi - ylo, zhi - zlo).moved(
-            Location(((x_lo + x_hi) / 2, (ylo + yhi) / 2, (zlo + zhi) / 2)))
 
     # `Front divider` — the panel that closes the pocket, 1.000 thick and
     # carrying the same lattice as the back wall (cut below).
@@ -758,9 +742,12 @@ def front_pocket(p, d, part):
     # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
     # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
     # lip, so both only ever meet the panel.
+    # Both tools are built ONCE at x = 0 and a copy moved to each slot: the
+    # revolve and the intersection are the same solid every time.
     centres = thumb_centres(p, d)
-    add = add.cut(*[thumb_tool(p, d, x) for x in centres])
-    add = add.fuse(*[lip_tool(p, d, x + sign * LIP_OFFSET)
+    thumb, lip = thumb_tool(p, d), lip_tool(p, d)
+    add = add.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
+    add = add.fuse(*[lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
                      for x in centres for sign in (-1, +1)])
     return part + (add - angled_cutout(p, d))
 
@@ -828,28 +815,25 @@ def label_holder(length, fasteners=()):
     """
     half = length / 2
     depth = LABEL_PROUD + LABEL_ROOT
-    height = LABEL_Z1 - LABEL_Z0
-
-    def slab(u, y_lo, y_hi, z_lo, z_hi):
-        return Box(u, y_hi - y_lo, z_hi - z_lo).moved(
-            Location((0, (y_lo + y_hi) / 2, (z_lo + z_hi) / 2)))
 
     # `Tag holder` + `Chamfer 2`: the chamfer is measured from the OUTER face,
     # so it reaches the wall exactly. The top edge is left square — that is the
     # side the label slides in from.
-    pad = slab(length, -LABEL_PROUD, LABEL_ROOT, LABEL_Z0, LABEL_Z1)
+    pad = slab(-half, half, -LABEL_PROUD, LABEL_ROOT, LABEL_Z0, LABEL_Z1)
     outer = pad.faces().sort_by(Axis.Y)[0]
     pad = chamfer([e for e in outer.edges() if e.center().Z < LABEL_Z1 - 1e-6],
                   LABEL_CHAMFER)
     # `Cutout` + `Sweep`: the slot, chamfered the same way off its own deep face.
-    cut = slab(length - 2 * LABEL_GROOVE_IN, -LABEL_GROOVE, LABEL_ROOT + 1.0,
+    cut = slab(-half + LABEL_GROOVE_IN, half - LABEL_GROOVE_IN,
+               -LABEL_GROOVE, LABEL_ROOT + 1.0,
                LABEL_Z0 + LABEL_GROOVE_IN, LABEL_Z1 + 2.0)
     deep = cut.faces().sort_by(Axis.Y)[0]
     cut = chamfer([e for e in deep.edges()
                    if e.center().Z < LABEL_Z1 + 2.0 - 1e-6], LABEL_GROOVE)
     pad = pad - cut
     # ... and the middle, clean through.
-    pad = pad - slab(length - 2 * LABEL_OPEN_IN, -depth - 1.0, LABEL_ROOT + 1.0,
+    pad = pad - slab(-half + LABEL_OPEN_IN, half - LABEL_OPEN_IN,
+                     -depth - 1.0, LABEL_ROOT + 1.0,
                      LABEL_Z0 + LABEL_OPEN_IN, LABEL_Z1 + 2.0)
     if not fasteners:
         return pad
@@ -986,27 +970,16 @@ def card_area(p, d):
             box_depth(p, d) / 2 - WALL)
 
 
-def engrave_line(txt, size, baseline, start, toward, sign):
+def engrave_line(txt, size, baseline, start, toward):
     """One line of engraved text, as a solid to subtract.
 
     `baseline` is the line's baseline in X, `start` where its pen begins in Y,
     and `toward` +1 or -1 the reading direction. The glyphs are placed by the
-    PEN ORIGIN — `cad.text.metrics` gives the bearings, which no measurement of
-    rendered ink can recover.
+    PEN ORIGIN (`geom.text_solid`), which no measurement of rendered ink can
+    recover.
     """
-    _adv, lsb, lo, _hi = T.metrics(txt)
-    with BuildPart() as part:
-        with BuildSketch(Plane.XY.offset(WALL - ENGRAVE)):
-            # Mode.PRIVATE, or `Text` adds itself to the sketch where it stands
-            # AND the shifted copy is added on top of it.
-            glyphs = Text(txt, font_size=size, font_path=T.LOGO_FONT,
-                          align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
-            # align=MIN puts the INK's corner on the origin, which leaves the
-            # pen origin at -lsb and the baseline at -lo. Shift by +lsb, +lo to
-            # bring BOTH to zero.
-            add(Pos(lsb * size, lo * size) * glyphs)
-        extrude(amount=ENGRAVE)
-    solid = part.part.rotate(Axis.Z, 90 * (1 if toward > 0 else -1))
+    solid = text_solid(txt, T.LOGO_FONT, size, ENGRAVE, z=WALL - ENGRAVE)
+    solid = solid.rotate(Axis.Z, 90 * (1 if toward > 0 else -1))
     return solid.moved(Location((baseline, start, 0)))
 
 
@@ -1035,7 +1008,7 @@ def floor_text(p, d, part):
     tools = []                            # all five lines, cut at the end
     for txt in (d.calModelName, p.GameName):
         tools.append(engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
-                                  -1, -1))
+                                  -1))
         x = x - cap - MODEL_GAP           # next line, one gap further out
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
     start = y_front + LOGO_MARGIN
@@ -1044,11 +1017,11 @@ def floor_text(p, d, part):
     _fits(d.ProductName, logo_size, span)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight
     base = edge + TEXT_INSET + logo_cap
-    tools.append(engrave_line(d.ProductName, logo_size, base, start, +1, +1))
+    tools.append(engrave_line(d.ProductName, logo_size, base, start, +1))
     cap_size = T.floored(T.fit_size(d.calCapacityLabel, logo_len))
     _fits(d.calCapacityLabel, cap_size, span)
     base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
-    tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1, +1))
+    tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1))
     # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:
     # it should say CC, as the Lid does. A DELIBERATE DIVERGENCE, and
     # tests/test_box.py asserts both sides of it.
@@ -1057,7 +1030,7 @@ def floor_text(p, d, part):
     ver_size = min(logo_size, T.floored(VERSION_CAP * logo_size))
     ver_cap = T.CAP * ver_size
     base = base + VERSION_GAP * logo_cap + ver_cap
-    tools.append(engrave_line(d.calVersion, ver_size, base, start, +1, +1))
+    tools.append(engrave_line(d.calVersion, ver_size, base, start, +1))
     return part.cut(*tools)
 
 

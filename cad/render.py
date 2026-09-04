@@ -102,7 +102,7 @@ def scene(items, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0),
     zbuf = np.full((height, width), np.inf)
     lit = np.asarray(light, dtype=float)
     lit /= np.linalg.norm(lit)
-    for (verts, tris, colour), v, (cxp, cyp, czp) in zip(items, vs, proj):
+    for (_verts, tris, colour), v, (cxp, cyp, czp) in zip(items, vs, proj):
         _paint(img, zbuf, v, tris, cxp, cyp, czp, x0, y0, span_y, pad, scale,
                width, height, lit, colour)
     return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
@@ -255,7 +255,7 @@ def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
     from PIL import ImageDraw
     tiles = []
     for path in paths:
-        for name, verts, tris in mesh3mf.read(path):
+        for _name, verts, tris in mesh3mf.read(path):
             for az, el in views:
                 img = render(verts, tris, az, el, cell)
                 img.thumbnail((cell, cell))

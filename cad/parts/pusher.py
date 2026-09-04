@@ -16,10 +16,9 @@ A hand-exported STEP, and a component 3MF, arrive in ASSEMBLY position:
 box, as tests/test_pusher.py does, because that stays right whatever the
 placement turns out to be.
 """
-from build123d import (
-    BuildPart, BuildSketch, BuildLine, Polyline, Plane, Location, Locations,
-    Box, Mode, Pos, Rot, add, make_face, extrude, fillet, Align, Text,
-)
+from build123d import (BuildPart, BuildSketch, BuildLine, Polyline, Plane,
+                       Locations, Box, Mode, Pos, Rot, add, make_face, extrude,
+                       fillet, Align, Text)
 
 from .. import derive as D
 from .. import lock as L
@@ -73,9 +72,9 @@ def profile_points(p, d, notch=True):
                 (0.0, yc - L.NOTCH_W / 2)]
     pts += [(0.0, -W),
            (inc - CHAMFER, -W), (inc, -W + CHAMFER)]
-    y = -W + CHAMFER
-    for k, drop in enumerate(slider_drops(p, d), start=1):
-        y_top = -(W - sum(slider_drops(p, d)[:k]))
+    drops = slider_drops(p, d)
+    for k in range(1, len(drops) + 1):
+        y_top = -(W - sum(drops[:k]))
         if k == p.RisingSliders:
             y_top = -CHAMFER                    # Chamfer 2 clips the last riser
         pts.append((k * inc, y_top))
@@ -129,7 +128,7 @@ def build(p, text=True):
                             amount=ENGRAVE))
 
     with BuildPart() as pusher:
-        with BuildSketch(Plane.XY) as sk:
+        with BuildSketch(Plane.XY):
             with BuildLine():
                 Polyline(*profile_points(p, d, notch=L.has_notch(s)))
             make_face()

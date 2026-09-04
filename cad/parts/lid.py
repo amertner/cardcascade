@@ -18,13 +18,12 @@ engraving, and the logo pattern in the underside — every game has artwork now
 Onshape on purpose: the mark is FITTED to the lid rather than drawn at one or
 two fixed sizes. See `spec/LID.md`, "Sizing the mark".
 """
-from build123d import (
-    Align, Axis, Box, BuildPart, BuildSketch, Kind, Location, Mode, Plane,
-    Polygon, Pos, Rectangle, Text, add, chamfer, extrude, fillet, offset,
-)
+from build123d import (Axis, Box, BuildPart, BuildSketch, Location, Plane,
+                       Polygon, chamfer, extrude, fillet)
 
 from . import box as box_part
 from .. import derive as D
+from ..geom import slab, text_solid, tray
 from .. import lock as L
 from .. import marks as MK
 from .. import tables as TB
@@ -60,14 +59,7 @@ def lid_depth(d):
 def shell(p, d):
     """The tray: a rectangle extruded to `LidHeight` and hollowed to WALL with
     the TOP face removed, so the floor and the four walls are 1.600."""
-    with BuildPart() as part:
-        with BuildSketch(Plane.XY):
-            Rectangle(lid_width(p, d), lid_depth(d))
-        extrude(amount=d.LidHeight)
-        top = part.faces().sort_by(lambda f: f.center().Z)[-1]
-        offset(amount=-WALL, openings=top, kind=Kind.INTERSECTION,
-               mode=Mode.REPLACE)
-    return part.part
+    return tray(lid_width(p, d), lid_depth(d), d.LidHeight, WALL)
 
 
 # --- the pusher sockets ----------------------------------------------------
@@ -155,24 +147,21 @@ def socket(p, d, x):
     _cls, s = L.lock_class(d.calPusherTotalDepth)
     centre = (y0 + y1) / 2
 
-    def slab(x_lo, x_hi, ylo, yhi):
-        return Box(x_hi - x_lo, yhi - ylo, z1 - z0).moved(
-            Location(((x_lo + x_hi) / 2, (ylo + yhi) / 2, (z0 + z1) / 2)))
-
     block = slab(x - d.calFootTotalWidth / 2, x + d.calFootTotalWidth / 2,
-                 y0, y1)
+                 y0, y1, z0, z1)
     chan_lo, chan_hi = x - L.LID_CHANNEL_W / 2, x + L.LID_CHANNEL_W / 2
     cuts = []
     if L.has_notch(s):
         for a, b in ((y0, centre - KEY_RIB_LEN / 2),
                      (centre + KEY_RIB_LEN / 2, y1)):
-            cuts.append(slab(chan_lo, chan_hi, a, b))
+            cuts.append(slab(chan_lo, chan_hi, a, b, z0, z1))
     else:
-        cuts.append(slab(chan_lo, chan_hi, y0, y1))
+        cuts.append(slab(chan_lo, chan_hi, y0, y1, z0, z1))
     for sign in (-1, +1):
         c = centre + sign * s
         cuts.append(slab(chan_lo - L.LID_RECESS_STEP, chan_lo,
-                         c - L.LID_RECESS_LEN / 2, c + L.LID_RECESS_LEN / 2))
+                         c - L.LID_RECESS_LEN / 2, c + L.LID_RECESS_LEN / 2,
+                         z0, z1))
     for cut in cuts:
         block = block - cut
     return block
@@ -301,20 +290,11 @@ def emboss(txt, size, x_pen, baseline, proud):
     """One line of embossed text, as a solid to fuse.
 
     `x_pen` is where the pen starts and `baseline` the baseline. The glyphs are
-    placed by the PEN ORIGIN, which no measurement of rendered ink recovers —
-    `cad.text.metrics` reads the bearings out of the font file. Two traps, both
-    already paid for in `box.engrave_line`: `Text` adds ITSELF to the sketch as
-    well as the shifted copy unless it is `Mode.PRIVATE`, and `align=MIN` leaves
-    the pen at `-lsb`, so the shift is `+lsb, +lo`.
+    placed by the PEN ORIGIN (`geom.text_solid`), which no measurement of
+    rendered ink recovers.
     """
-    _adv, lsb, lo, _hi = T.metrics(txt)
-    with BuildPart() as part:
-        with BuildSketch(Plane.XY.offset(WALL)):
-            glyphs = Text(txt, font_size=size, font_path=T.LOGO_FONT,
-                          align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
-            add(Pos(lsb * size, lo * size) * glyphs)
-        extrude(amount=proud)
-    return part.part.moved(Location((x_pen, baseline, 0)))
+    return text_solid(txt, T.LOGO_FONT, size, proud, z=WALL).moved(
+        Location((x_pen, baseline, 0)))
 
 
 def right_aligned(txt, size, right, baseline, proud):

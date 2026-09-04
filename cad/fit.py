@@ -33,12 +33,10 @@ from pathlib import Path
 from . import assembly as A
 from . import derive as D
 from . import lock as L
-from . import params
 from .parts import box as box_part
 from .parts import holder as holder_part
 from .parts import lid as lid_part
 from .parts import pusher as pusher_part
-from .parts import token_holder as th_part
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
@@ -111,7 +109,7 @@ def socketed_pusher_margins(p, d):
     out.append(Margin("play: tab tip to the recess floor", tip - floor, None,
                       note=f"standard's play is {L.LID_RECESS_STEP - L.TAB_PROUD:.3f} "
                            "with the plate hard over"))
-    y0, y1 = lid_part.socket_span(p, d)
+    _y0, y1 = lid_part.socket_span(p, d)
     under = A.lid_under(p, d)
     out.append(Margin("play: pusher overhangs its socket, back",
                       pl((0, 0, 0))[1] - under((0, y1, 0))[1],

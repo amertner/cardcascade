@@ -43,7 +43,9 @@ from . import build as B
 from . import derive as D
 from . import mesh3mf
 from . import params
-from .parts import pusher as pusher_part
+from .lazy import lazy
+
+pusher_part = lazy(".parts.pusher", __package__)
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
@@ -191,7 +193,7 @@ def topper_meshes(p, d, folder, expansion):
     return _all(path)
 
 
-def topper_risers(p, d, folder, short_name=None):
+def topper_risers(p, d, short_name=None):
     """[(riser, first)] that carry a topper. Innovation only."""
     if p.GameName != "Innovation" or short_name in NO_TOPPERS:
         return []
@@ -230,7 +232,7 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
     # topper to say). Each is its own cached component, so each is its own mesh
     # with one instance; the expansion order is the catalogue's and is
     # arbitrary as far as the geometry is concerned.
-    for j, first in topper_risers(p, d, folder, short_name):
+    for j, first in topper_risers(p, d, short_name):
         pl = (A.topper if closed else A.topper_play)(p, d, j, first)
         for mesh in topper_meshes(p, d, folder, TOPPERS[j % len(TOPPERS)]):
             add(mesh, [pl])

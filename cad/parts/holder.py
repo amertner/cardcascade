@@ -38,13 +38,12 @@ compute them: `Fillet 1` (`finger_tool`) and the chamfer on `Lip Rest`
 """
 import math
 
-from build123d import (
-    Align, Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
-    Location, Mode, Plane, Polyline, Pos, Rectangle, Text, Torus, Vector,
-    add, extrude, make_face,
-)
+from build123d import (Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
+                       Location, Plane, Polyline, Torus, Vector, extrude,
+                       make_face)
 
 from .. import derive as D
+from ..geom import text_solid
 from .. import text as T
 
 # The vertical datum. The base and the TOP OF THE CARD POCKET are symmetric
@@ -195,7 +194,7 @@ def shell(p, d, first):
     depth = holder_depth(p, d, first)
     z0 = base_z(d)
     with BuildPart() as part:
-        with BuildSketch(Plane.YZ) as sec:
+        with BuildSketch(Plane.YZ):
             with BuildLine():
                 Polyline((0.0, z0), (-depth, z0),
                          (-depth, slant_z(p, d, first, -depth)),
@@ -466,24 +465,25 @@ def slant_band(p, d, first, x0, x1):
 
 def rear_lips(p, d, first, part):
     """Add the lips: the plan outline, clipped to the band between the slants."""
-    y1 = lip_reach_y(p, d, first)
     pts = lip_plan(p, d, first)
     # Tall enough to reach the slant band, which sits around Z = 44; extruding
     # +-40 about the origin misses it entirely.
     tall = 200.0
     with BuildPart() as blank:
-        with BuildSketch(Plane.XY) as sk:
+        with BuildSketch(Plane.XY):
             with BuildLine():
                 Polyline(*pts, close=True)
             make_face()
         extrude(amount=tall, both=True)
     one = blank.part
+    # The band is the same prism at every compartment: built once, moved.
+    band = slant_band(p, d, first, -30.0, 30.0)
     lips = []
     for xc in compartment_x(p, d):
-        band = slant_band(p, d, first, xc - 30.0, xc + 30.0)
+        at = Location((xc, 0, 0))
         for sign in (+1, -1):
             lip = one if sign > 0 else one.mirror(Plane.YZ)
-            lips.append(lip.moved(Location((xc, 0, 0))) & band)
+            lips.append(lip.moved(at) & band.moved(at))
     return part.fuse(*lips)
 
 
@@ -647,14 +647,8 @@ def engrave(txt, font, size, x, baseline):
     block mirrored in X instead reads a half turn out, and one not mirrored
     at all is mirror-writing; ink width and volume cannot tell either apart.
     """
-    _adv, lsb, lo, _hi = T.metrics(txt, font)
-    with BuildPart() as part:
-        with BuildSketch(Plane.XY):
-            glyphs = Text(txt, font_size=size, font_path=font,
-                          align=(Align.MIN, Align.MIN), mode=Mode.PRIVATE)
-            add(Pos(lsb * size, lo * size) * glyphs)
-        extrude(amount=ENGRAVE)
-    return part.part.mirror(Plane.XZ).moved(Location((x, baseline, 0)))
+    return text_solid(txt, font, size, ENGRAVE).mirror(Plane.XZ).moved(
+        Location((x, baseline, 0)))
 
 
 def engraving(p, d, first):

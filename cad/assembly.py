@@ -13,15 +13,19 @@ assembly's"). The corpus cannot supply a frame: `individual/*/_raw/Assembly
 *.3mf` carries `<components>` transforms, but they are the print layout, and
 `assembly_split.py` discards them.
 
-Nothing here imports build123d, so the placements are pure arithmetic and are
-tested on their own — the same split `derive.py` has. `Place.location()` builds
+Nothing here imports build123d — the part modules it takes its arithmetic
+from are loaded on first use (`cad/lazy.py`) — so the placements are pure
+arithmetic and are tested on their own, the same split `derive.py` has. `Place.location()` builds
 the build123d `Location` on demand for a caller that has one.
 """
 from . import derive as D
 from . import lock as L
-from .parts import box as box_part
-from .parts import holder as holder_part
-from .parts import pusher as pusher_part
+from .lazy import lazy
+
+# The part modules, for their arithmetic — imported on first use, because
+# importing one loads build123d (`cad/lazy.py`).
+box_part = lazy(".parts.box", __package__)
+holder_part = lazy(".parts.holder", __package__)
 
 CLOSED = "closed"          # on the shelf, lid off
 CLOSED_LID = "closed-lid"  # on the shelf, lid on
@@ -125,7 +129,7 @@ def pusher_stored(p, d, k):
     """
     depth = d.calPusherTotalDepth
     centre = box_part.pusher_slots(p, d)[k]
-    y0, y1 = box_part.slot_band(p, d)
+    _y0, y1 = box_part.slot_band(p, d)
     return Place(x_dir=(0, 0, -1), z_dir=(0, -1, 0),
                  origin=(centre + depth / 2, y1 - PLATE_SLOP, d.BoxHeight))
 
