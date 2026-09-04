@@ -38,10 +38,30 @@ def _int(row, col, default=0):
 
 
 def from_row(row, sleeved, version="7.0"):
-    """One parts.csv row + a sleeving -> Primary. Mirrors build_primary()."""
-    first = _int(row, "Cards/First Riser")
-    slot = _int(row, "Cards/Riser slot")
+    """One parts.csv row + a sleeving -> Primary. Mirrors build_primary().
+
+    A malformed row names itself: a number that will not parse or a Game the
+    studio does not know raises a ValueError carrying the row's Short name,
+    rather than an `int()` traceback with no row in it or a KeyError from
+    deep in `derive`.
+    """
+    short = (row.get("Short name") or "?").strip()
+    try:
+        first = _int(row, "Cards/First Riser")
+        slot = _int(row, "Cards/Riser slot")
+    except ValueError as e:
+        raise ValueError(f"parts.csv row {short!r}: {e}") from None
     game = (row.get("Game") or "").strip()
+    if GAME_NAME.get(game, game) not in GAME_NAME.values():
+        raise ValueError(f"parts.csv row {short!r}: unknown Game {game!r}; "
+                         f"known: {sorted(GAME_NAME)}")
+    try:
+        return _primary(row, sleeved, version, first, slot, game)
+    except ValueError as e:
+        raise ValueError(f"parts.csv row {short!r}: {e}") from None
+
+
+def _primary(row, sleeved, version, first, slot, game):
     return Primary(
         HorizontalSlots=_int(row, "Horizontal"),
         RisingSliders=_int(row, "Risers"),

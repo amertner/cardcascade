@@ -57,10 +57,13 @@ result has not been printed.
   HALF are one part at two depths, and "merged" means the mat merges two front
   slots so the tray gets both — `HorizontalSlots` cancels out of its width.
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
-  **only** place a formula lives. `#BoxWidth` is the one SKETCH variable in it,
-  because `calTokenHolderSlotWidth` is written in terms of it;
-  `parts/box.box_width` reads it back. Component modules read a frozen `Derived` and
-  never recompute. `spec/DERIVED.md` is the record.
+  **only** place a VARIABLE-STUDIO formula lives. Two SKETCH variables live
+  there too — `#BoxWidth`, because `calTokenHolderSlotWidth` is written in
+  terms of it, and `#calPusherSlots`, because three modules read it — and so
+  do the two part-studio formulas two parts share (`cascade_slope`,
+  `back_slot_pitch`). A part-studio formula one part uses stays in that part,
+  once. Component modules read a frozen `Derived` and never recompute.
+  `spec/DERIVED.md` is the record.
 - `individual/<Game>/` is now also the **regression corpus** — 242 components
   and 68 raw assemblies that cannot be re-fetched at any sane budget. The
   rebuild writes to `build/`, never over it.

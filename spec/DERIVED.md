@@ -187,3 +187,22 @@ Box from its feature tree plus six, the Lid from four plus its sketches, and
 the TokenHolder from two plus all 18 of its cached components (0 API calls
 throughout). Holder and Topper still want the same treatment — and, for the
 Topper, a STEP exported by hand before its shape can be written down.
+
+## Two additions of 2026-09-04: `#calPusherSlots`, and the shared formulas
+
+`#calPusherSlots` — 2 for every Innovation box and for an S box, else 3 —
+joins `#BoxWidth` as a sketch variable transcribed here, because three modules
+read it (the Box, the assembly's pusher placement, the tests) and
+`parts/box.pusher_slot_count` had been re-deriving it with its own `GameName
+== "Innovation"`, a second copy of the rule `isOnlyTwoPusherSlots` states.
+Checked against the old expression on all 50 rows.
+
+Two part-studio formulas that TWO parts share are written here once, as
+functions rather than variables (they take an argument the studio does not
+have): `cascade_slope(d, slider_distance)`, the Holder's `Top slant angle` and,
+inverted at `calFirstSliderDistance`, the Box's lip angle — transcribed as
+reciprocals of each other in the two parts until now; and
+`back_slot_pitch(d)`, `#dBackSlotWidth = calPusherTotalDepth + 4.0`, which the
+Box had inline three times and the assembly once. A part-studio formula one
+part uses (the Lid's text offsets, the Topper's `#LogoEdgeDist`) stays in that
+part.

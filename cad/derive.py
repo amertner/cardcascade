@@ -90,6 +90,13 @@ def derive(p):
     # prevent. `cad/parts/box.box_width` reads it back, so Box, Lid and
     # TokenHolder still share exactly one transcription. See spec/DERIVED.md.
     v["BoxWidth"] = 2 * WallThickness + 11.1 + v["calSlotwidth"] * p.HorizontalSlots
+    # `#calPusherSlots` is the second sketch variable: how many pushers the
+    # rear storage takes. 2 for every Innovation box (`isOnlyTwoPusherSlots`,
+    # below, is the studio's own answer) and for an S box, else 3. Here for
+    # the same reason `#BoxWidth` is — the Box, the Lid and the assembly all
+    # read it, and it was being re-derived in `parts/box.py` with its own
+    # `GameName == "Innovation"`, a second copy of the rule this file owns.
+    v["calPusherSlots"] = 2 if (g == "Innovation" or p.HorizontalSlots <= 3) else 3
     v["calSlotDepth"] = v["calCardThickness"] * p.CardsPerSlidingSlot
     v["calFirstSlotDepth"] = (v["calSlotDepth"] if p.isFirstSlidingSlotOverride == 0
                               else v["calCardThickness"] * p.FirstSlidingSlotCards)
@@ -207,3 +214,35 @@ def derive(p):
                                  8.5 if ptd >= 24.8 else
                                  5.1 if ptd >= 18.0 else 3.1)
     return Derived(v)
+
+
+
+# --- part-studio formulas that TWO parts share --------------------------------
+#
+# Not studio variables — each is a sketch's own expression — but written once
+# here rather than once per part, which is the rule this module exists for.
+# A part-studio formula ONE part uses stays in that part (the Lid's text
+# offsets, the Topper's `#LogoEdgeDist`); these are the ones that were found
+# transcribed twice, and in one case as reciprocals of each other.
+
+
+def cascade_slope(d, slider_distance):
+    """`dZ/dY` of the cascade diagonal — the Holder's `Top slant angle` and,
+    inverted, the Box's lip angle (`Import Holder patterns` brings it across):
+
+        (calHeightIncrement - 1.0) / (slider_distance - 1.2)
+
+    `slider_distance` is `calSliderDistance` for a standard holder and
+    `calFirstSliderDistance` for the first-riser one and for the Box's lip,
+    which meets the front holder. Measured off the slant faces' normals on
+    three Holder references (1.7857 / 0.7812 / 1.2037 predicted and read) and
+    off the diagonal of all 50 cached holders for the Box.
+    """
+    return (d.calHeightIncrement - 1.0) / (slider_distance - 1.2)
+
+
+def back_slot_pitch(d):
+    """`#dBackSlotWidth` — the rear pusher storage's pitch along X: the stored
+    pusher's own depth plus 2.000 of clearance a side. Read off the rim
+    cutouts of four Box STEPs; `assembly.py` places the pushers by it."""
+    return d.calPusherTotalDepth + 4.0

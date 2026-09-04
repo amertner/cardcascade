@@ -61,7 +61,7 @@ automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
 .venv/bin/python tests/test_box.py               # source vs the nine STEPs
 .venv/bin/python tests/test_lid.py               # source vs the four STEPs
-.venv/bin/python tests/test_lid_corpus.py        # the rules vs 44 cached lids
+.venv/bin/python tests/test_lid_corpus.py        # the rules vs 48 cached lids
 .venv/bin/python tests/test_box_corpus.py        # the rules vs 48 cached AND 50 built boxes
 .venv/bin/python tests/test_token_holder.py      # source vs both STEPs
 .venv/bin/python tests/test_token_holder_corpus.py  # the rules vs all 18
@@ -130,7 +130,7 @@ tests/
   test_pusher_regression.py the 34 written 3MFs vs the 32 in individual/
   test_box.py               the part vs the nine Box STEPs
   test_lid.py               the part vs the four structural Lid STEPs
-  test_lid_corpus.py        the Lid's placement rules vs 44 cached meshes
+  test_lid_corpus.py        the Lid's placement rules vs 48 cached meshes
   test_box_corpus.py        the Box's, vs 48 cached AND the 50 written 3MFs
   probe.py                  ray-casting a mesh: the corpus tests' instrument
   test_token_holder.py      the part vs both TokenHolder STEPs
@@ -225,9 +225,15 @@ part of the checking rather than its output: it is invisible to every number
 
 ## Six decisions
 
-**1. Derived variables live in exactly one module.**
+**1. Derived variables live in exactly one module, and a shared formula too.**
 `derive.py` takes a `Primary` and returns a frozen `Derived`. Component modules
-read from it and never recompute. This mirrors Onshape (variable studio → part
+read from it and never recompute. The rule is narrower than "every formula":
+the variable studio is transcribed in full, a sketch variable joins it when
+more than one module reads it (`#BoxWidth`, `#calPusherSlots`), and a
+part-studio formula two parts share is written once there (`cascade_slope`,
+`back_slot_pitch`) — the Box's lip angle and the Holder's slant were the same
+expression transcribed as reciprocals of each other until it was. A formula
+one part uses stays in that part. This mirrors Onshape (variable studio → part
 studios read the variables), makes the derived layer testable on its own, and is
 the only way the same quantity — inner box width, say — stays identical across
 Box, Lid and Holder. `Derived` is frozen so a part cannot write to it.
@@ -248,9 +254,10 @@ until a component type has passed regression.
 **4. One generation: 7.0.**
 `lock.py` is the 7.0 catalogue, and `pusher.build` **refuses** a `Primary` at
 any other version rather than stamp `CC 6.6` on 7.0 tabs. The Lid is the same
-story on its own half of the lock: 25 of the 44 cached lids are 7.0 and 19 are
-not, told apart by a `1.700` recess step against the pre-7.0 `1.800`, and
-`tests/test_lid_corpus.py` asserts the first group and reports the second. A pre-7.0 pusher put
+story on its own half of the lock: a 7.0 lid is told from a pre-7.0 one by a
+`1.700` recess step against the pre-7.0 `1.800`, and `tests/test_lid_corpus.py`
+asserts the first group and reports the second — all 48 cached lids are 7.0
+since the September refreshes, as are all 48 boxes (`tests/test_box_corpus.py`). A pre-7.0 pusher put
 its tabs at a fixed inset from the two depth edges instead (4.20 front, 4.00
 back, notch always — measured identical on all 14 still-6.6 pushers in
 `individual/`), and nothing here reproduces that. So `build/` is the migration
@@ -287,13 +294,13 @@ differs from a reference is a bug.
 ## What each part is checked against
 
 The Pusher and the Box have hand-exported STEPs and nothing else; the Lid has
-both — four structural STEPs **and** 46 cached meshes in `individual/`. Both
+both — four structural STEPs **and** 48 cached meshes in `individual/`. Both
 are used, because they answer different questions. A STEP is exact and gives
 faces, so it settles a section; four of them cannot tell a rule from a
 coincidence across a 50-lid catalogue, which is what the meshes are for.
 
 Neither settles WHY, and on the Lid that mattered twice. Two placements
-reproduced all 46 lids exactly and were still attached to the wrong datum — the
+reproduced all 48 lids exactly and were still attached to the wrong datum — the
 engraving hung off the pusher sockets where the sketch hangs it off the wall,
 and the socket set read as centred with a mysterious `-0.300` where the sketch
 anchors its first socket and lets the margin fall where it falls. Both are

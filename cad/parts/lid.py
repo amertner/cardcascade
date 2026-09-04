@@ -34,7 +34,7 @@ WALL = D.WallThickness       # 1.600, confirmed on the STEP at +-105.350
 
 # The lid stands 4.600 wider than the box's sketch box — 2.300 a side, which is
 # the box's 1.000 of running clearance plus the lid's own 1.600 wall less the
-# 0.300 the closing bump needs. Exact on all 46 lids in `individual/` and on
+# 0.300 the closing bump needs. Exact on all 48 lids in `individual/` and on
 # the reference STEP; the depth needs no such constant, because `calLidDepth`
 # IS the lid's measured depth, to 0.001 on every one of them.
 WIDTH_OVER_BOX = 4.600
@@ -92,7 +92,7 @@ def socket_count(p):
 
     NB this is the plain size rule and NOT `isOnlyTwoPusherSlots`: an
     Innovation M lid carries three sockets where its box has two rear storage
-    slots and its cascade ships two pushers. Measured on all 46 lids —
+    slots and its cascade ships two pushers. Measured on all 48 lids —
     `spec/LID.md` records it as Onshape's own inconsistency, reproduced here.
 
     The MIDDLE socket of those three is the unused one and is to be removed
@@ -129,7 +129,7 @@ def socket_centres(p, d):
 def socket_span(p, d):
     """(y0, y1) of a socket. Its length is the standard's `D - 0.400` and its
     BACK edge sits `SOCKET_BACK` in from the lid's back face — constant on all
-    46 lids, whose depths run 34.98 to 111.30."""
+    48 lids, whose depths run 34.98 to 111.30."""
     y1 = lid_depth(d) / 2 - SOCKET_BACK
     return y1 - (d.calPusherTotalDepth - L.LID_SOCKET_CLEARANCE), y1
 
@@ -268,7 +268,7 @@ def logo_offset(p, d):
 
     So on every lid but an XS one the two blocks are mirror images; on an XS
     lid the logo keeps the bare offset and the text block moves DOWN instead —
-    see `text_block`. Exact on all 44 cached lids.
+    see `text_block`. Exact on all 48 cached lids.
     """
     extra = d.calFootTotalWidth + 2.0 if p.HorizontalSlots > 2 else 0.0
     return d.calLidTextOffset + 2 * d.calSlotwidth / 3 + extra

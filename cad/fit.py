@@ -227,7 +227,7 @@ def cached_holder(p, d, folder, first=False):
     from . import assemble
     try:
         _n, verts, _t = assemble.holder_mesh(p, d, folder, first)
-    except Exception:
+    except assemble.MissingHolder:      # the one expected way to have none
         return None
     v = np.asarray(verts)
     x_lo, x_hi = v[:, 0].min(), v[:, 0].max()

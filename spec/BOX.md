@@ -378,7 +378,7 @@ vertically. The rest is then placed to bring the top of that staircase to
 `0.500` below the rim, where its tabs meet the box rim cutouts, until the
 `25.000` cap takes over for a short pusher.
 
-Read off **all 44 canonical Boxes in `individual/`** by ray-probing the meshes
+Read off **all 48 cached Boxes in `individual/`** by ray-probing the meshes
 (0 API calls, `verify._meshes` does the loading). Three distinct values, two of
 them below the cap, so the formula is pinned and not just fitted:
 
@@ -710,7 +710,7 @@ is `calHeightIncrement`, `16.000` against `10.875`, which is a riser-count term
 and has no business in a front-pocket feature until you know the angle is
 imported from a part that does care about it.
 
-**Confirmed on all 46 canonical Holders in `individual/`** (0 API calls). Their
+**Confirmed on all 50 cached Holders in `individual/`** (0 API calls). Their
 diagonal cutout's face normal gives the angle directly, and the formula
 reproduces every one across four games, both sleevings, rises from `9.667` to
 `22.000` and slider distances from `4.800` to `20.400`.

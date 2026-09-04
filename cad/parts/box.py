@@ -55,21 +55,17 @@ def pusher_slots(p, d):
     a pitch in. Read off the rim cutouts of four STEPs spanning 2 and 3 slots
     and C2/C3/C5; `tests/test_box.py` holds it to them.
     """
-    pitch = d.calPusherTotalDepth + 4.0
+    pitch = D.back_slot_pitch(d)
     x0 = -box_width(p, d) / 2 + WALL
-    return [x0 + (k + 0.5) * pitch for k in range(pusher_slot_count(p))]
+    return [x0 + (k + 0.5) * pitch for k in range(pusher_slot_count(p, d))]
 
 
-def pusher_slot_count(p):
-    """`#calPusherSlots`. 2 for an S box and for every Innovation box, else 3.
-
-    `components.pushers_for` computes the same thing from the size letter and
-    gets Innovation XS wrong (no `XS` key, so it falls through to 3 against the
-    box's 2). `isOnlyTwoPusherSlots` is the CAD's own answer and is used here.
-    """
-    if p.GameName == "Innovation":
-        return 2
-    return 2 if p.HorizontalSlots <= 3 else 3
+def pusher_slot_count(p, d=None):
+    """`#calPusherSlots` — `derive.py`'s, which owns the rule (2 for an S box
+    and for every Innovation box, else 3). `components.pushers_for` computes
+    the same thing from the size letter and gets Innovation XS wrong (no `XS`
+    key, so it falls through to 3 against the box's 2)."""
+    return (d if d is not None else D.derive(p)).calPusherSlots
 
 
 def finger_hole_offset(p, d):
@@ -82,7 +78,7 @@ def finger_hole_offset(p, d):
     pusher slot after the first, then centre what is left over. Checks out at
     162.5 on `M4.21.10.45-Sl`, which is the value his feature tree shows.
     """
-    n = pusher_slot_count(p)
+    n = pusher_slot_count(p, d)
     return (n - 1 + (p.HorizontalSlots - n) / 2) * d.calSlotwidth
 
 
@@ -198,7 +194,7 @@ def pusher_rest(p, d):
     top of that staircase to `0.500` below the rim, where the tabs meet the box
     rim cutouts — until the cap takes over for a short pusher.
 
-    Read off all 44 canonical Boxes in `individual/` by ray-probing the meshes
+    Read off all 48 cached Boxes in `individual/` by ray-probing the meshes
     (0 API calls). Three distinct values, two of them below the cap: `25.000`
     wherever `calPusherTotalHeight <= 79.5`, `24.500` at `80.000`, and `17.500`
     at `87.000` — which is the ceiling `calHeightIncrement` imposes, and so the
@@ -231,9 +227,9 @@ def storage_dividers(p, d):
     inner wall, which already is one, and the last CLOSING the run on the
     right."""
     left = -box_width(p, d) / 2 + WALL
-    pitch = d.calPusherTotalDepth + 4.0
+    pitch = D.back_slot_pitch(d)
     return [(left + k * pitch, left + k * pitch + DIVIDER_W)
-            for k in range(1, pusher_slot_count(p) + 1)]
+            for k in range(1, pusher_slot_count(p, d) + 1)]
 
 
 def rear_thumb_x(p, d):
@@ -248,7 +244,7 @@ def rear_thumb_x(p, d):
     is what separates that reading from a plain offset.
     """
     return (-box_width(p, d) / 2 + WALL + finger_hole_offset(p, d)
-            + d.calPusherTotalDepth + 4.0 + DIVIDER_W)
+            + D.back_slot_pitch(d) + DIVIDER_W)
 
 
 def rear_block(p, d):
@@ -329,8 +325,8 @@ def rear_storage(p, d, part):
     BW, BD = box_width(p, d), box_depth(p, d)
     inner = BW / 2 - WALL
     y0, y1 = slot_band(p, d)
-    n = pusher_slot_count(p)
-    pitch = d.calPusherTotalDepth + 4.0
+    n = pusher_slot_count(p, d)
+    pitch = D.back_slot_pitch(d)
     left, top = -inner, d.BoxHeight + 1
 
     def slab(x_lo, x_hi, ylo, yhi, zlo, zhi):
@@ -602,15 +598,18 @@ def lip_slope(d):
 
     **It is the HOLDER's diagonal cutout angle** (Allan) — the group opens with
     `Import Holder patterns` and this is what comes across. Confirmed against
-    the diagonal face normal of all 46 canonical Holders in `individual/`
+    the diagonal face normal of all 50 cached Holders in `individual/`
     (0 API calls), over four games, both sleevings, rises from 9.667 to 22.000
     and slider distances from 4.800 to 20.400; every one agrees.
 
     It is the FIRST slider distance because the lip meets the front holder.
     `Box Dominion 246S` is the only reference that can tell them apart —
     `20.400` against `9.600` — and it reads 1.280, not 0.560.
+
+    One formula with the Holder's `slant_slope`: `derive.cascade_slope`,
+    inverted, at the first slider distance.
     """
-    return (d.calFirstSliderDistance - 1.2) / (d.calHeightIncrement - 1.0)
+    return 1.0 / D.cascade_slope(d, d.calFirstSliderDistance)
 
 
 def lip_tool(p, d, x):
@@ -896,9 +895,13 @@ def fastener_centres(p, d):
     is `10.000` long.
     """
     length = front_label_len(p, d)
-    if length < FRONT_LABEL_WIDE + 3.600:
+    if length < FRONT_LABEL_WIDE + LABEL_HOLDER_EXTRA:
         return (0.0,)
     return (-length / 6, length / 6)
+
+
+# A label holder is its label plus this, 1.800 of frame at each end.
+LABEL_HOLDER_EXTRA = 3.600
 
 
 def front_label_len(p, d):
@@ -915,8 +918,9 @@ def front_label_len(p, d):
     because that is the reason. XS is the only row in the catalogue it catches:
     every S box is at least 209.300 wide.
     """
-    wide = FRONT_LABEL_WIDE + 3.600
-    return wide if box_width(p, d) >= wide else FRONT_LABEL_NARROW + 3.600
+    wide = FRONT_LABEL_WIDE + LABEL_HOLDER_EXTRA
+    return (wide if box_width(p, d) >= wide
+            else FRONT_LABEL_NARROW + LABEL_HOLDER_EXTRA)
 
 
 def label_holders(p, d, part):

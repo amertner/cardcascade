@@ -174,7 +174,7 @@ def slant_slope(p, d, first):
     references, against 1.7857 / 0.7812 / 1.2037 predicted. The rival reading
     (the other slider distance) is 2.3x out on the 246 pair.
     """
-    return (d.calHeightIncrement - 1.0) / (slider_distance(p, d, first) - 1.2)
+    return D.cascade_slope(d, slider_distance(p, d, first))
 
 
 def slant_z(p, d, first, y, lower=False):
