@@ -284,17 +284,33 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     n = len(objects)
     next_id = n + 1
     resources, build_items, cfg_objects, meshes = [], [], [], {}
+    shared = {}     # sub-model body, ids stripped -> (file name, its mesh ids)
     identify = 100
     for oi, obj in enumerate(objects):
         oid = oi + 1
         ocx, ocy, ocz = obj.centre
         comps, parts_cfg = [], []
-        fname = f"/3D/Objects/object_{oid}.model"
-        chunks = []
-        for part in obj.parts:
-            mid = next_id
-            next_id += 1
-            chunks.append(mesh_model(mid, part))
+        # every mesh of an object in ONE sub-model file, as Studio writes them
+        mids = list(range(next_id, next_id + len(obj.parts)))
+        next_id += len(obj.parts)
+        body = _merge_models([mesh_model(mid, part)
+                              for mid, part in zip(mids, obj.parts)])
+        key = _ANON.sub("", body)
+        twin = shared.get(key)
+        if twin is None:
+            fname = f"/3D/Objects/object_{oid}.model"
+            meshes[fname.lstrip("/")] = body
+            shared[key] = (fname, mids)
+        else:
+            # The SAME part printed more than once — four holders, two pushers.
+            # Studio shares one sub-model between them (its four `<object>`s all
+            # name object_35.model) and so do we: a mesh is stored centred on
+            # its own bbox, so two copies differ only in the build item's
+            # transform. Ids go back in the pot; the mesh id and the
+            # `<part id>` in model_settings repeat across objects, as Studio's do.
+            fname, mids = twin
+            next_id -= len(obj.parts)
+        for part, mid in zip(obj.parts, mids):
             cx, cy, cz = part.centre
             if len(obj.parts) == 1:
                 tr = (0.0, 0.0, 0.0)
@@ -321,8 +337,6 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
                 f'degenerate_facets="0" facets_removed="0" facets_reversed="0" '
                 f'backwards_edges="0"/>\n'
                 f'    </part>\n')
-        # every mesh of an object in ONE sub-model file, as Studio writes them
-        meshes[fname.lstrip("/")] = _merge_models(chunks)
         resources.append(f'  <object id="{oid}" p:UUID="{_uuid()}" type="model">\n'
                          '   <components>\n' + "".join(comps) +
                          '   </components>\n  </object>\n')
@@ -407,8 +421,18 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         for name, text in members.items():
-            z.writestr(zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0)), text)
+            # An explicit ZipInfo carries its OWN compress_type, and its default
+            # is ZIP_STORED — the constructor's ZIP_DEFLATED above does not
+            # reach it. Set it here or every project is a stored zip of XML:
+            # 21.7 MB where 1.8 MB will do (`mesh3mf.write` does the same).
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, text)
     return path
+
+
+# What makes two sub-model files the same mesh: everything but their ids.
+_ANON = re.compile(r'p:UUID="[^"]*"|<object id="\d+"')
 
 
 def _merge_models(chunks):
