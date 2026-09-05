@@ -114,8 +114,13 @@ both slice the same and `filaments.used_extruders` reads both.
 - Parts keep the names the component file gives them (`Lid`, `Part 2`, ...).
 - Plates are `<scheme name> — <project title>`, as `make_cascade` writes them;
   Bambu forbids `<>:/\|?*"` in a plate name.
-- The project file is `<Game> <Short name> <Sleeved|Unsleeved> (<model>).3mf`
-  (`components.cascade_filename`); FCM's own scheme is exempt.
+- The project file is `<Game> <Short name> <Sleeved|Unsleeved> v<version>
+  (<model>).3mf` (`components.cascade_filename`) — the version being what the
+  parts inside are stamped with, so a downloaded print profile says which
+  generation it is. FCM's form, `FCM Occ 2S v7.0 (180 Card L3-18-6-20-Sl).3mf`,
+  is generated too, from parts.csv's `Project label` column.
+  The title is not only the filename: it is the 3MF's `Title` metadata and the
+  tail of every plate name, so all three carry the version.
 
 ## What the writer does not decide, and `cad/layout.py` does
 

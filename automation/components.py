@@ -111,19 +111,48 @@ def game_by_name(name):
     return None, None
 
 
-def cascade_filename(game, short_name, sleeved, model):
+def cascade_filename(game, short_name, sleeved, model, version, label=None):
     """Canonical output name for an assembled cascade project:
 
-        "<Game> <Short name> <Sleeved|Unsleeved> (<model>).3mf"
-        e.g. "Compile 126 Card Sleeved (S5.7.7.45-Sl).3mf"
+        "<Game> <Short name> <Sleeved|Unsleeved> v<version> (<model>).3mf"
+        e.g. "Compile 126 Card Sleeved v7.0 (S5.7.7.45-Sl).3mf"
 
     The Short name need not be a card count — Innovation's rows are named for
     what a box holds ("3 Ages 5 Expansions"), which is what its buyers look for.
 
     `sleeved` is "Sl"/"Un" (as in the cascade context); `model` is the row's
-    per-sleeving model code (e.g. "M8.40.10.62-Sl")."""
-    slv = "Sleeved" if sleeved == "Sl" else "Unsleeved"
-    name = f"{game} {short_name} {slv} ({model}).3mf"
+    per-sleeving model code (e.g. "M8.40.10.62-Sl").
+
+    `version` is what the name PROMISES about the parts inside, and it is not
+    optional: two cascades differing only in generation are two different
+    products and a downloaded print profile has nothing else to say which it
+    is. On the Onshape path it is the cascade's GENERATION (parts.csv `Build`,
+    blank meaning onshape_config.CURRENT) — the per-type table behind that name
+    is not uniform (a "7.0" cascade carries 6.6 holders), and the generation is
+    precisely the name for that set. On the cad path every part really is built
+    at one version and it is that version.
+
+    `label` is parts.csv's `Project label` and switches to the FCM form:
+
+        "FCM Occ 2S v7.0 (180 Card L3-18-6-20-Sl).3mf"
+
+    — *the 2nd box for Occupations, sleeved*, which is how those boxes are
+    thought about and which the canonical form cannot say. The label carries
+    the set and its index ("Occ 2", "Milestones 1", "Alt"); the sleeving letter
+    joins it directly when it ends in a digit and after a space otherwise, so
+    "Occ 2" + "S" reads "Occ 2S" and "Alt" + "S" reads "Alt S". The game is its
+    folder code, the card count moves inside the bracket, and the model's dots
+    fold to dashes — all as the four published FCM projects have it."""
+    ver = f" v{version}" if version else ""
+    if label:
+        folder = (GAMES.get(game) or {}).get("folder", game)
+        sl = "S" if sleeved == "Sl" else "U"
+        sep = "" if label[-1:].isdigit() else " "
+        name = (f"{folder} {label}{sep}{sl}{ver} "
+                f"({short_name} {model.replace('.', '-')}).3mf")
+    else:
+        slv = "Sleeved" if sleeved == "Sl" else "Unsleeved"
+        name = f"{game} {short_name} {slv}{ver} ({model}).3mf"
     # Some model codes carry a '/' (e.g. S2.40.12/30.32-Un) — a path separator,
     # so fold it and other filesystem-hostile chars to '-' (as legacy names did).
     for ch in "/\\:":

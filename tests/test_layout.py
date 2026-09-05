@@ -38,7 +38,16 @@ import filaments as FIL                                                         
 import towers                                                                    # noqa: E402
 
 STUDIO = Path("/Applications/BambuStudio.app/Contents/MacOS/BambuStudio")
-SHIPPED_168 = ROOT / "cascades" / "Dominion" / "Dominion 168 Card Unsleeved (S4.16.10.32-Un).3mf"
+def shipped(folder, model):
+    """The shipped project carrying `model`, whatever named it. The name is not
+    stable — the version went into it on 2026-09-05 — but the model code in the
+    bracket is, and it is unique per cascade (`refresh_cascades.find_project`)."""
+    hits = sorted((ROOT / "cascades" / folder).glob(f"*({model}).3mf"))
+    assert len(hits) == 1, f"{model}: {len(hits)} shipped projects"
+    return hits[0]
+
+
+SHIPPED_168 = shipped("Dominion", "S4.16.10.32-Un")
 fails = []
 
 

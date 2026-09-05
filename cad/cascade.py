@@ -98,12 +98,22 @@ def objects(row, p, d, root=BUILD):
 
 def title(row, p, d):
     """The project's name, `components.cascade_filename` without the suffix:
-    `Dominion 168 Card Unsleeved (S4.16.10.32-Un)`. The model code is the
-    row's own per-sleeving column, as the shipped names have it."""
+    `Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)`. The model code is the
+    row's own per-sleeving column, as the shipped names have it.
+
+    The version is `p.Version` — what `cad.build` stamped every part with, and
+    on this path that really is every part, so the name and the engraving say
+    the same thing. It is why `--version 7.1` writes a set that can be told
+    from the 7.0 one on a MakerWorld page as well as on the shelf.
+
+    This is the project's TITLE as much as its filename: `project.write` puts it
+    in the 3MF's `Title` metadata and at the end of every plate name."""
     model = (row.get("Sleeved model" if p.isSleeved else "Unsl Model") or "").strip()
     return C.cascade_filename((row.get("Game") or p.GameName).strip(),
                               (row.get("Short name") or "").strip(),
-                              "Sl" if p.isSleeved else "Un", model)[:-len(".3mf")]
+                              "Sl" if p.isSleeved else "Un", model,
+                              p.Version, (row.get("Project label") or "").strip()
+                              )[:-len(".3mf")]
 
 
 def bed_for(row, p):

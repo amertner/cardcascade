@@ -48,7 +48,8 @@ every cascade on disk. **Everything is 7.0 going forward** (Allan,
 2026-09-05): a twin's 7.0 holders and pushers supersede the 6.6 and pre-7.0
 ones in a shipped project. **7.1 is the cad-built release**: the same 7.0
 geometry under a `CC 7.1` stamp (`lock.SAME_GEOMETRY`), so a cad-built
-cascade can be told from an Onshape-exported one on the shelf. A set at a
+cascade can be told from an Onshape-exported one on the shelf — and, since the
+version went into the project name, in the file too (`... Sleeved v7.1 (...)`). A set at a
 version goes in its own tree — `cad.build --version 7.1 --out build/v7.1`,
 then `cad.cascade --version 7.1 --components build/v7.1 --out
 build/v7.1/cascades` — and the defaults stay 7.0, which is what every
@@ -243,8 +244,20 @@ been printed yet.
   one (both modes write in place). New cascade = `make_cascade.py` called
   directly with a donor project, and the donor needs at least as many
   instances of every object as the new box — `--count` only ever drops.
-- FCM's project filenames are deliberately non-canonical. **Never run
-  `--standardize-names` on FCM.**
+- **A project's name carries its VERSION** — `Dominion 168 Card Sleeved v7.0
+  (S4.16.10.32-Sl).3mf` (`components.cascade_filename`, the one place the rule
+  lives; the argument is required, not optional). On the Onshape path it is the
+  cascade's GENERATION (parts.csv `Build`, blank = CURRENT), which does NOT mean
+  every part reads it: `7.0` is Box/Lid/Pusher 7.0 and Holder/Topper/TokenHolder
+  6.6, and `290 Card (Mat)` is pinned `6.6` and named so. On the cad path it is
+  `p.Version` and every part really is at it. The name is also the 3MF `Title`
+  and the tail of every plate name.
+- FCM's filenames are its own scheme — `FCM Occ 2S v7.0 (180 Card
+  L3-18-6-20-Sl).3mf`, *the 2nd box for Occupations, sleeved* — but they are
+  GENERATED now, from parts.csv's `Project label` column (`Occ 2`,
+  `Milestones 1`, `Alt`), so `--standardize-names` covers FCM too. The label is
+  a column and not a rule read off `Set/Extension`, because `Occupations 3` is
+  the alternative single-box split and ships as `Alt`.
 - `Status` in `parts.csv` is informational except `Parked`, which skips the
   row. FCM records published rows as `Pub 6.5`, Dominion as `Published`.
 

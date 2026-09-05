@@ -55,6 +55,10 @@ def build_context(row, sleeved, game, spec):
     return {
         "game": game, "folder": spec["folder"],
         "short_name": col(row, "Short name"),
+        # parts.csv `Project label` — set only where the canonical project name
+        # cannot say what the box IS (FCM's "Occ 2": the 2nd box for
+        # Occupations). components.cascade_filename switches form on it.
+        "label": col(row, "Project label"),
         "base_model": base, "model": model,
         "size": size,
         "horizontal": int(col(row, "Horizontal") or 0),
@@ -374,7 +378,8 @@ def main():
              "model": c["model"], "sleeved": c["sleeved"],
              "status": c["status"],
              "file": C.cascade_filename(game, c["ctx"]["short_name"],
-                                        c["sleeved"], c["model"]),
+                                        c["sleeved"], c["model"],
+                                        c["ctx"]["generation"], c["ctx"]["label"]),
              "parts": [{"object": it["object"], "file": it["file"],
                         "count": it["count"],
                         **({"instance": it["instance"]}

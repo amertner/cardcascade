@@ -15,7 +15,7 @@ not obvious from the format carry the reason in place.
     objs = [PJ.Obj.from_file("Box", Path("build/Dominion/Box S4.16.10.32-Un.3mf")), ...]
     plates = [PJ.Plate("Box + pushers", tower=(15, 200)), ...]
     places = [PJ.Placement(obj=0, plate=1, x=128, y=128, angle=0), ...]
-    PJ.write(out, "p1", objs, plates, places, title="Dominion 168 Card Unsleeved (S4.16.10.32-Un)")
+    PJ.write(out, "p1", objs, plates, places, title="Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)")
 """
 import json
 import math

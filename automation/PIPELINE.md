@@ -36,8 +36,12 @@ Columns (the `Horizontal … 3D printer` block are the geometry inputs):
 `Short name, Base model, Unsl Model, Sleeved model, Game, Set/Extension,
 Status, Horizontal, Risers, Cards/Riser slot, Cards/First Riser,
 Front capacity, Box Height / mm, Merged-slot, TokenHolder, 3D printer, Notes,
-Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm, Label holders`.
-The last is read by `cad/` only (`spec/BOX.md`); the planner ignores it.
+Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm, Label holders,
+Project label`. `Label holders` is read by `cad/` only (`spec/BOX.md`); the
+planner ignores it. `Project label` names the PROJECT rather than the geometry
+and is set only where the canonical name cannot say what the box is — FCM's
+four rows (`Occ 1`, `Occ 2`, `Milestones 1`, `Alt`), blank everywhere else
+("Cascade projects are named canonically", below).
 
 **The W/D columns are the ASSEMBLED, CLOSED cascade** — i.e. the LID's outer
 size, because the box fits inside the lid. Across the 33 built cascades the
@@ -1384,17 +1388,44 @@ refresh_cascades.py [--game G] [--size S,M,L] [--sleeving un/sl] [--name STR]
   missing parts onto the lid object's default extruder, which is the lettering
   colour; check the built lid reads `{'2': 10, '1': 1}` before trusting it.
 - Cascade projects are named canonically — `<Game> <Short name>
-  <Sleeved|Unsleeved> (<model>).3mf` (`components.cascade_filename`, `/`→`-`);
-  Innovation/Compile/Dominion match. `--standardize-names` git-renames legacy
-  projects (e.g. Dominion's old `CC 400S …`) to this form.
+  <Sleeved|Unsleeved> v<version> (<model>).3mf` (`components.cascade_filename`,
+  `/`→`-`); Innovation/Compile/Dominion match. `--standardize-names` git-renames
+  legacy projects (e.g. Dominion's old `CC 400S …`) to this form.
+- **The version is part of the name** (Allan, 2026-09-05). A print profile is
+  downloaded and kept, and the file is all its owner has to say WHICH cascade
+  it is: two generations of one box are two products that differ in the lock,
+  and `Dominion 168 Card Sleeved (S4.16.10.32-Sl).3mf` could be either. So the
+  name carries the cascade's GENERATION — parts.csv's `Build`, blank meaning
+  `onshape_config.CURRENT` — which is exactly the thing that names one
+  self-consistent set of per-type versions. It is NOT a claim that every part
+  reads that number: generation `7.0` is Box/Lid/Pusher at 7.0 and
+  Holder/Topper/TokenHolder at 6.6, and `290 Card (Mat)`, pinned `6.6`, is
+  named `v6.6`. On the `cad/` path (`cad.cascade`) every part really is built
+  at one version and the name is that version — which is what tells a `7.1`
+  cad-built project from its `7.0` twin on a MakerWorld page as well as on the
+  shelf.
+- **FCM's scheme is generated, not exempt** (changed 2026-09-05). It reads
+  `FCM Occ 2S v7.0 (180 Card L3-18-6-20-Sl).3mf` — *the 2nd box for
+  Occupations, sleeved* — which is how those boxes are thought about and which
+  the canonical form can't say. parts.csv's `Project label` column carries what
+  can't be derived (`Occ 2`, `Milestones 1`, `Alt`); `cascade_filename`
+  switches form on it, appending the sleeving letter to the label directly when
+  it ends in a digit and after a space otherwise (`Occ 2S`, `Alt S`), moving the
+  card count inside the bracket and folding the model's dots to dashes. The
+  label was a column rather than a rule inferred from `Set/Extension` because
+  the four rows do not share one: `Occupations 3` is the ALTERNATIVE single-box
+  split and ships as `Alt`, not `Occ 3`. `--standardize-names` now covers FCM.
 - **The canonical name is not required.** `find_project` takes it when it
-  exists and otherwise matches the **model code** the filename carries, with
-  `.` folded to `-`. FCM keeps its own scheme deliberately — `FCM Occ 2S (180
-  Card L3-18-6-20-Sl).3mf` is *the 2nd box for Occupations, sleeved*, which is
-  how those boxes are thought about and which the canonical form can't say.
-  Since a model code is unique per cascade, any naming that embeds it works
-  with no per-game rule; an ambiguous or absent match is reported, never
-  guessed. Do NOT run `--standardize-names` over FCM.
+  exists and otherwise matches the **model code** the filename carries, folded
+  (`.`, `/` → `-`) on both sides so a dotted canonical code and FCM's dashed one
+  compare alike. Since a model code is unique per cascade, any naming that
+  embeds it works with no per-game rule; an ambiguous or absent match is
+  reported, never guessed. It is what still finds a project named under a
+  superseded scheme — which every project was, the day the version went into
+  the name. Where two cascades SHARE a model code (`202 Card (Mat)` and
+  `244 Card` are both `M4.21.10.32-Un`), only the Short name separates them, so
+  `find_legacy` tries the previous canonical name — the same one without the
+  version — before it falls back.
 - ASSEMBLE maps a component to its template slot by **role**, not exact name
   (templates suffix objects: `Lid 400S`, `Topper Cities S-Un`, `TokenHolder
   Full`/`Half`, bare `Topper` = Blank). It refuses (skips + diagnoses) rather

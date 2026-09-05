@@ -29,6 +29,7 @@ PY = sys.executable
 SUITES = [
     ("test_derive", False, False),
     ("test_lock", False, False),
+    ("test_names", False, False),
     ("test_text_floors", False, False),
     ("test_pusher", False, False),
     ("test_box", False, True),
