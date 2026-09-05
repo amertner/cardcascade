@@ -7,11 +7,11 @@ labels. Everything here generates printable 3MF projects.
 
 | | Labels | Cascades (the boxes) | The rebuild |
 |---|---|---|---|
-| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` | `python -m cad.build` |
+| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` | `python -m cad.build`, then `python -m cad.cascade` |
 | Geometry from | build123d, generated locally | Onshape, exported via API | build123d, generated locally |
 | Config | `cc.cfg` | `automation/parts.csv` | `automation/parts.csv` |
 | Read first | `README.md` | `automation/PIPELINE.md` | `cad/README.md`, `spec/` |
-| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` | `build/<Game>/` (gitignored) |
+| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` | `build/<Game>/` parts, `build/cascades/<Game>/` projects (gitignored) |
 
 **Read the relevant doc before editing any of them.** `PIPELINE.md` in
 particular records decisions and their reasoning; it is the design record, not
@@ -31,17 +31,23 @@ expansions, its five marks derived from `calLogoSidelength` rather than traced
 (`spec/TOPPER.md`); the Holder reproduces all ten references to `+0.007%` once
 its intended text divergence is set aside (`spec/HOLDER.md`).
 
-So no component's GEOMETRY needs Onshape any more. That is not the same as
-saying a cascade does not: `automation/` still assembles, verifies and packages
-one, is what has actually shipped every cascade on disk, and stays
-authoritative. One cascade has been built end to end from `build/`:
-`python -m cad.promote` stages built parts under the planner's names, and
-`refresh_cascades.py --components build/components --out build/cascades`
-assembles from them without touching `cascades/` or `individual/`. Dominion
-`168 Card Unsleeved` came through that, `filaments.py --check`, `towers.py`
-and a Bambu Studio slice (`return_code` 0). Four token holders cannot be
-staged that way — `spec/TOKENHOLDER.md`'s size-letter collision — and the
-result has not been printed.
+So no component's GEOMETRY needs Onshape any more, and since 2026-09-05 a
+whole cascade does not either: **`python -m cad.cascade`** takes a parts.csv
+row to a Bambu Studio project with no donor, no plan and no API —
+`cad/cascade.py` composes the parts from `build/` by their engraved names,
+`cad/layout.py` lays them out (make_cascade's rules, lifted; `spec/PROJECT.md`),
+`cad/project.py` writes the file from the bed profile, and `filaments`,
+`towers` and (with `--slice`) a Studio slice check it. Every cascade but
+Dominion 650 Sleeved, which is at the H2C's physical limit, comes through.
+It writes to `build/cascades/<Game>/`, beside and not over `cascades/`: the
+two pipelines run in PARALLEL, and **`python -m cad.compare`** is the
+scorecard — 45 of the 46 shipped projects print the same parts as their cad
+twins (`tests/test_parallel.py`), the 46th being the 650 above — while
+`automation/` remains what has shipped every cascade on disk. The older route — `python -m cad.promote` staging built parts under
+the planner's names for `refresh_cascades.py --components` — still works for
+all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
+and is what the layout module was checked against. Nothing from `build/` has
+been printed yet.
 
 - The Lid's logo is the one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed

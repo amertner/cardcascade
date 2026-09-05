@@ -189,3 +189,23 @@ and 1h06/1h06 per plate.
 50 cascades (49, and the one refusal above) with towers and MakerWorld
 checks clean, and slices a P1 and an H2C cascade — Dominion 168 Unsleeved
 and 560 Sleeved — with every plate returning 0.
+
+## The parallel run: `cad.cascade` and `cad.compare`
+
+`python -m cad.cascade` is the pipeline as one command: row to project in
+`build/cascades/<Game>/`, the bed from the row's `3D printer` column, the
+source hash, row hash, model and version written into the file's metadata,
+`filaments` and `towers` run on the result and `--slice` for Studio's
+verdict. `python -m cad.compare` then holds every shipped project under
+`cascades/` to its twin: the same roles in the same numbers, each object's
+size within its role's known divergence (a 7.0 holder up to 1.6 longer than
+a 6.6; the rest 0.05), both slots used the same way, the tower legal,
+MakerWorld clean; the layout itself — where on a plate a part sits — is not
+compared, because the shipped ones are hand-tuned and the cad ones the
+rule's. Legacy object names are read for what they are (`TokenHolder Half`,
+a token holder left as `Part 1`). `tests/test_parallel.py` runs both.
+
+The scorecard on 2026-09-05: 45 shipped projects print the same parts as
+their twins, none differ, and Dominion 650 Sleeved has no twin. The first
+run of it found the topper defect above (every shipped topper prints in two
+slots; the built ones in one), which is what the harness is for.

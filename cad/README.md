@@ -57,9 +57,14 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
     --filaments '#F4F4F2,#1B1B1B' --part 'Lid=#0E6BA8' -o tmp/cascade.glb
 blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
 
-.venv/bin/python -m cad.promote --model S4.16.10.32-Un   # build/ -> build/components/, planner names
+.venv/bin/python -m cad.cascade --model S4.16.10.32-Un   # row -> build/cascades/<Game>/<title>.3mf
+.venv/bin/python -m cad.cascade --game Dominion --sleeving un --slice   # ... and Studio slices each
+.venv/bin/python -m cad.cascade --build                  # every cascade, parts built first if stale
+.venv/bin/python -m cad.cascade --list                   # what would be made, and on which bed
+
+.venv/bin/python -m cad.promote --model S4.16.10.32-Un   # the OLD route: build/ -> planner names ->
 automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \
-    --components build/components --out build/cascades --auto   # a project, from cad/
+    --components build/components --out build/cascades --auto   # make_cascade with a donor
 
 .venv/bin/python tests/run_all.py                # every suite, ~20 min; --quick, --only
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
