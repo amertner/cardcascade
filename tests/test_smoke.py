@@ -8,8 +8,7 @@ script no other suite imports — `cad.gltf`, `cad.render` and
 `render/cascade.py` had none until this file.
 
     .venv/bin/python -m cad.build --part all          # needs build/
-    .venv/bin/python -m cad.assemble --model S4.16.10.32-Un --state closed-lid
-    .venv/bin/python tests/test_smoke.py             # about a minute
+    .venv/bin/python tests/test_smoke.py             # about a minute; assembles what it needs
 
 Blender is an APPLICATION, not a dependency (`spec/RENDER.md`): the photoreal
 check runs only where `/Applications/Blender.app` is, and says so when it is
@@ -47,10 +46,17 @@ def run(label, *cmd):
     return proc.stdout + proc.stderr
 
 
+# The assembly is made here if it is missing — a fresh clone has no
+# build/assemblies/, and a test that needs one should not wait for a hand to
+# run cad.assemble first (found on the first run on a second machine).
+if not ASSEMBLY.exists() and BOX.exists():
+    print("=== the assembly this needs, made first ===")
+    run("cad.assemble --state closed-lid", PY, "-m", "cad.assemble", "--model",
+        "S4.16.10.32-Un", "--state", "closed-lid")
 for needed in (ASSEMBLY, BOX, PROJECT):
     check(f"input on disk: {needed.relative_to(ROOT)}", needed.exists())
 if fails:
-    print("\nFAIL: run cad.build --part all and cad.assemble first")
+    print("\nFAIL: run cad.build --part all first")
     sys.exit(1)
 
 with tempfile.TemporaryDirectory() as tmp:
