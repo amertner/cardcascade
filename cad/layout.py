@@ -28,10 +28,14 @@ What is decided here, in order:
    The whole plate is nudged off a corner exclude area if centring clipped
    it, and every placement is validated: on the bed, clear of the exclude
    area, clear of its neighbours by CLEARANCE.
-4. THE TOWER, per plate — inside the intersection of every extruder's
-   printable area (the H2C's two nozzles reach different parts of the bed,
-   and both purge into it), and clear of the parts by WIPE_GAP if any spot
-   is, else TIGHT_GAP, preferring the spot furthest from the bed's centre.
+4. THE TOWER, per plate — `start_spot(bed)` when it is legal and clear, which
+   is the inset position every shipped project puts it at and is derived from
+   the bed rather than hardcoded (a constant written for the P1 was off the end
+   of the A1 mini, so the mini took the corner fallback on every plate and
+   Studio refused to slice it). Otherwise: inside the intersection of every
+   extruder's printable area (the H2C's two nozzles reach different parts of
+   the bed, and both purge into it), and clear of the parts by WIPE_GAP if any
+   spot is, else TIGHT_GAP, preferring the spot furthest from the bed's centre.
    When no spot clears, the plate's contents are slid to each edge in turn to
    open the opposite one, then turned 90 degrees and tried again; a plate
    that still has no room for its tower is REFUSED, not warned about (Allan,
@@ -533,10 +537,32 @@ def tower_bounds(ps):
             min(b[2] for b in boxes), min(b[3] for b in boxes))
 
 
-def tower(ps, bed, placed, exclude, start=(15.0, 200.0)):
-    """Where the plate's prime tower goes: `start` if it is legal and clear,
-    else the legal spot furthest from the bed's centre that clears the parts
-    by WIPE_GAP, else by TIGHT_GAP — or None when no spot clears."""
+def start_spot(bed):
+    """The tower's PREFERRED position on `bed`: inset from the near-left corner,
+    high up the plate, where every shipped project has put it.
+
+    It was the constant `(15.0, 200.0)`, which is 200 up a 256 mm P1 bed and off
+    the end of a 180 mm A1 mini one. A start that is not legal is never taken,
+    so the mini bed fell through to the corner search on EVERY plate and put the
+    tower at `(0, 0)`, flush with two bed edges — and Studio refuses to slice
+    that, `-104`, "G-code outside of the printable area ... caused by support,
+    wipe tower, brim, or skirt", which is also what MakerWorld runs on upload.
+    Both mini cascades failed and all 48 others passed, which is the whole
+    catalogue's worth of evidence for one hardcoded number.
+
+    Deriving it from the bed's depth keeps `(15.0, 200.0)` exactly on the P1,
+    leaves the H2C alone (x = 15 is outside ITS x0 = 25, so it falls through to
+    the corner search as before, to the (265, 0) its four published projects
+    were verified at), and gives the mini a spot 15 mm from one edge and 21 from
+    the other."""
+    return (15.0, PJ.BEDS[bed][1] - 56.0)
+
+
+def tower(ps, bed, placed, exclude, start=None):
+    """Where the plate's prime tower goes: `start_spot` if it is legal and
+    clear, else the legal spot furthest from the bed's centre that clears the
+    parts by WIPE_GAP, else by TIGHT_GAP — or None when no spot clears."""
+    start = start or start_spot(bed)
     bw, bd = PJ.BEDS[bed][:2]
     w = float(ps.get("prime_tower_width", 35))
     tx0, ty0, tx1, ty1 = tower_bounds(ps)

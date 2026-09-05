@@ -100,10 +100,37 @@ def slice_ok(path, tmp):
     return rc, len(list(outdir.glob("*.gcode")))
 
 
+print("=== 0. the tower's preferred spot, on every bed ===")
+# `start_spot` was the constant (15.0, 200.0) — 200 up a 256 mm P1 bed and off
+# the end of a 180 mm A1 mini one. An illegal start is never taken, so the mini
+# fell through to the corner search and put the tower at (0, 0), flush with two
+# bed edges, which Studio will not slice (-104). Needs no build/, so it runs
+# even when the catalogue below cannot.
+for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
+                    ("h2c", (15.0, 264.0))):
+    _ps = LY.profile(_bed)
+    _bw, _bd = PJ.BEDS[_bed][:2]
+    _x, _y = LY.start_spot(_bed)
+    check(f"{_bed}: start_spot is {_want}", (_x, _y) == _want, f"{(_x, _y)}")
+    _w = float(_ps.get("prime_tower_width", 35))
+    _x0, _y0, _x1, _y1 = LY.tower_bounds(_ps)
+    # The H2C's start is deliberately illegal (x 15 is outside its x0 = 25), so
+    # it falls through to the corner its four published projects were verified
+    # at. Everywhere else the start must be a spot the tower can actually use.
+    _legal = _x >= _x0 and _y >= _y0 and _x + _w <= _x1 and _y + _w <= _y1
+    check(f"{_bed}: start is {'illegal, by design' if _bed == 'h2c' else 'legal'}",
+          _legal == (_bed != "h2c"), f"legal={_legal}")
+# and an empty plate takes it, or the H2C's known corner
+for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
+                    ("h2c", (265.0, 0.0))):
+    check(f"{_bed}: an empty plate's tower is {_want}",
+          LY.tower(LY.profile(_bed), _bed, [], None) == _want,
+          f"{LY.tower(LY.profile(_bed), _bed, [], None)}")
+
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
 
-    print("=== 1. the same layout as make_cascade --auto-plates ===")
+    print("\n=== 1. the same layout as make_cascade --auto-plates ===")
     row, p, d = find("S4.16.10.32-Un")
     objects = CC.objects(row, p, d)
     bed, plates, placements = LY.layout(objects)
@@ -185,8 +212,12 @@ with tempfile.TemporaryDirectory() as tmp:
           len(written) == sum(1 for _ in rows()) - len(AT_THE_LIMIT), f"{len(written)}")
 
     if STUDIO.exists():
-        print("\n=== 3. Studio slices: a P1 and an H2C cascade ===")
-        for model in ("S4.16.10.32.Un", "L6.40.12.62.Sl", "L8.50.10.62.Sl"):
+        print("\n=== 3. Studio slices: a P1, two H2Cs and the A1 mini ===")
+        # XS5.15.10.32.Un is the only cascade on the mini bed apart from its
+        # sleeved twin, and the bed had no slice coverage at all until the
+        # tower landed at (0, 0) there and Studio refused it.
+        for model in ("S4.16.10.32.Un", "L6.40.12.62.Sl", "L8.50.10.62.Sl",
+                      "XS5.15.10.32.Un"):
             if model not in written:
                 check(f"{model} written", False)
                 continue
