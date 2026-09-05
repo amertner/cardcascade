@@ -216,7 +216,9 @@ been printed yet.
   only thing a person holding the part can read, so it is not cosmetic.
   `python3 automation/verify.py --stamps` reads the engraving off every box, lid
   and pusher and checks it against the cascade's generation; `export._write`
-  refuses a mismatch. `automation/PIPELINE.md`, "The engraved version is not the
+  refuses a mismatch. A box engraves its version down the depth, so the reader
+  turns the plane — with ROTATIONS, never a transpose, which reads the line
+  backwards and turns `7.0` into `0.7`. `automation/PIPELINE.md`, "The engraved version is not the
   recorded version".
 - **Never re-save a project in Bambu Studio to fix a MakerWorld rejection** —
   that converts a rejected upload into a failed verification. Use

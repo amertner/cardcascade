@@ -1162,12 +1162,24 @@ the parts do fit, both being 7.0. Innovation is clean. Fixing them is
 re-exports with `Version` at `7.0` and rebuilds the projects; NOT `--use-cache`,
 whose raws carry the same wrong stamp cut into the geometry.
 
-**Coverage: 58 read clean, 36 wrong, 34 unreadable**, and the unreadable are
-almost all boxes — a box's floor carries several strings at several sizes and
-the version word is not always found. That is why an unreadable stamp warns
-rather than refuses: this reader is a guard against a known failure, not a
-proof of correctness, and a component it cannot read is exactly as checked as
-it was before.
+**A rotated stamp was read backwards, and `6.6` hid it.** The first pass left 34
+components unreadable, nearly all boxes, and that was written up as a limit of
+box floor text. It was not: two of the four orientations the reader tries were
+TRANSPOSES, `(u, w) -> (w, u)`, which land the baseline in the right place but
+reverse the reading order. A box engraves its version down the depth, so every
+box was read backwards — and `6.6` is a palindrome, so it read correctly anyway
+and nothing showed. The first box re-exported at 7.0 came back as `0.7`, matched
+no known version, and reported unreadable. The fix is to use real rotations;
+with it, all 34 read, every one of them `7.0`.
+
+Nothing was missed while the bug stood, and the reason is worth keeping: a `6.6`
+stamp reads `6.6` in either direction, so no mis-stamped component could hide in
+the unreadable pile. The re-export scope was right for the wrong reason.
+
+**Coverage after the fix: every box, lid and pusher on disk reads.** An
+unreadable stamp still warns rather than refuses — the reader is a guard against
+a known failure, not a proof of correctness, and a component it cannot read is
+exactly as checked as it was before — but there are none left to warn about.
 
 **Why it matters is the lock, not the label.** "Old and new parts do not mix, in
 either direction" (`LOCK_STANDARD.md`): at `D = 50.40` a 6.6 lid's recesses sit

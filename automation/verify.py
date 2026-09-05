@@ -579,12 +579,18 @@ def _orientations(marks):
 
     Onshape runs some of these strings along the part's other axis — the box
     engraves its floor text reading down the depth — and a reader that knows
-    only one baseline direction misses those. Each orientation is chosen so the
-    line's baseline is `w0` and reading order is increasing `u`."""
+    only one baseline direction misses those. Each orientation puts the line's
+    baseline at `w0` and reading order at increasing `u`.
+
+    All four must be ROTATIONS. A transpose `(u, w) -> (w, u)` looks like it
+    turns the page and is a reflection: it lands the baseline in the right place
+    but reads the line backwards, so `7.0` comes out `0.7`. That went unnoticed
+    while every rotated stamp read `6.6`, which is a palindrome; the first box
+    re-exported at 7.0 failed to read at all."""
     yield marks
-    yield [(-m[1], -m[0], -m[3], -m[2]) for m in marks]
-    yield [(m[2], m[3], m[0], m[1]) for m in marks]
-    yield [(-m[3], -m[2], -m[1], -m[0]) for m in marks]
+    yield [(-m[1], -m[0], -m[3], -m[2]) for m in marks]           # 180
+    yield [(m[2], m[3], -m[1], -m[0]) for m in marks]             # +90
+    yield [(-m[3], -m[2], m[0], m[1]) for m in marks]             # -90
 
 
 def _lines(marks):
