@@ -29,15 +29,18 @@ The archive is written with a fixed timestamp so that rebuilding unchanged
 source gives a byte-identical file, and `build.py` can tell a real change from a
 re-run.
 """
-import os
 import re
 import zipfile
 
 TOLERANCE = 0.01        # RELATIVE deflection, see above
 # OCCT meshes a shape's faces on its own thread pool. Inside cad.build's
-# process pool that is ten shapes times ten threads on ten cores, so a worker
-# turns it off (CARDCASCADE_MESH_SERIAL=1); on its own a part keeps it.
-PARALLEL = os.environ.get("CARDCASCADE_MESH_SERIAL") != "1"
+# process pool that is one shape's threads per worker on every core at once,
+# and the load average reached 118 on a 10-core laptop; `build.run_jobs`
+# turns it off in each worker (`serial_meshing`), where the workers are the
+# parallelism. Measured on a quiet 14-core machine: the catalogue in 97 s
+# against 113 with it on, and only with a worker per core — at 8 workers the
+# serial run took 111. A part built on its own keeps it.
+PARALLEL = True
 ANGULAR = 0.2           # radians
 _EPOCH = (1980, 1, 1, 0, 0, 0)
 
@@ -183,6 +186,13 @@ def triangulate(shape, tolerance=TOLERANCE, angular=ANGULAR):
             if len(set(t)) == 3:            # welding can collapse a sliver
                 out_t.append(t)
     return out_v, _drop_flaps(out_t)
+
+
+def serial_meshing():
+    """Turn OCCT's per-shape meshing threads off — for a process-pool worker,
+    which is one of many."""
+    global PARALLEL
+    PARALLEL = False
 
 
 def model_xml(parts):

@@ -580,13 +580,17 @@ def cost(spec):
 
 
 def run_jobs(specs, jobs):
-    """Every spec through `_job`, in the order given, `jobs` at a time."""
+    """Every spec through `_job`, in the order given, `jobs` at a time — one
+    worker per core by default, each meshing single-threaded
+    (`mesh3mf.serial_meshing`): the workers are the parallelism, and OCCT's
+    own threads on top of them only fought for the cores."""
     if jobs <= 1 or len(specs) <= 1:
         return [_job(s) for s in specs]
     import concurrent.futures as cf
     import multiprocessing as mp
     with cf.ProcessPoolExecutor(max_workers=min(jobs, len(specs)),
-                                mp_context=mp.get_context("spawn")) as ex:
+                                mp_context=mp.get_context("spawn"),
+                                initializer=mesh3mf.serial_meshing) as ex:
         return list(ex.map(_job, specs))
 
 
