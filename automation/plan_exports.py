@@ -377,9 +377,10 @@ def main():
             {"name": c["name"], "short_name": c["ctx"]["short_name"],
              "model": c["model"], "sleeved": c["sleeved"],
              "status": c["status"],
-             "file": C.cascade_filename(game, c["ctx"]["short_name"],
-                                        c["sleeved"], c["model"],
-                                        c["ctx"]["generation"], c["ctx"]["label"]),
+             # the tracked tree's name, which make_cascade writes to: no
+             # version in it (components.tracked_name).
+             "file": C.tracked_name(game, c["ctx"]["short_name"],
+                                    c["sleeved"], c["model"], c["ctx"]["label"]),
              "parts": [{"object": it["object"], "file": it["file"],
                         "count": it["count"],
                         **({"instance": it["instance"]}

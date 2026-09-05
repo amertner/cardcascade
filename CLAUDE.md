@@ -51,8 +51,8 @@ geometry under a `CC 7.1` stamp (`lock.SAME_GEOMETRY`), so a cad-built
 cascade can be told from an Onshape-exported one on the shelf — and, since the
 version went into the project name, in the file too (`... Sleeved v7.1 (...)`).
 A set at a version goes in its own tree — `cad.build --version 7.1 --out build/v7.1`,
-then `cad.cascade --version 7.1 --components build/v7.1 --out
-build/v7.1/cascades` — and the defaults stay 7.0, which is what every
+then `cad.cascade --version 7.1 --components build/v7.1 --publish` — and the
+defaults stay 7.0, which is what every
 reference STEP and cached mesh is stamped. `verify.py --stamps` does not
 know 7.1's glyph signature yet and reads a 7.1 part as unreadable. The older route — `python -m cad.promote` staging built parts under
 the planner's names for `refresh_cascades.py --components` — still works for
@@ -256,15 +256,23 @@ been printed yet.
   one (both modes write in place). New cascade = `make_cascade.py` called
   directly with a donor project, and the donor needs at least as many
   instances of every object as the new box — `--count` only ever drops.
-- **A project's name carries its VERSION** — `Dominion 168 Card Sleeved v7.0
-  (S4.16.10.32-Sl).3mf` (`components.cascade_filename`, the one place the rule
-  lives; the argument is required, not optional). On the Onshape path it is the
-  cascade's GENERATION (parts.csv `Build`, blank = CURRENT), which does NOT mean
-  every part reads it: `7.0` is Box/Lid/Pusher 7.0 and Holder/Topper/TokenHolder
-  6.6, and `290 Card (Mat)` is pinned `6.6` and named so. On the cad path it is
-  `p.Version` and every part really is at it. The name is also the 3MF `Title`
-  and the tail of every plate name.
-- FCM's filenames are its own scheme — `FCM Occ 2S v7.0 (180 Card
+- **A NAME is an identity, a VERSION is a release** — the tracked trees hold
+  `Dominion 168 Card Sleeved (S4.16.10.32-Sl).3mf` with NO version
+  (`components.tracked_name`), so git follows a path and a release renames
+  nothing; the version is a tag. It is not lost: it goes in the 3MF `Title`
+  (`refresh_cascades.project_title`, `cad.cascade.title`, `make_cascade
+  --title`), which Studio shows and no rename can touch, and it is engraved on
+  the parts, which `verify.py --stamps` reads. It goes back into the file NAME
+  only for the tree that LEAVES the repo — `cad.cascade --publish`, writing
+  `build/dist/<version>/` — whose reader has nothing else to go on.
+  `components.cascade_filename` is still the one place the rule lives and its
+  `version` argument is still required; `None` is the deliberate answer.
+  On the Onshape path the version is the cascade's GENERATION (parts.csv
+  `Build`, blank = CURRENT), which does NOT mean every part reads it: `7.0` is
+  Box/Lid/Pusher 7.0 and Holder/Topper/TokenHolder 6.6, and `290 Card (Mat)` is
+  pinned `6.6`. On the cad path it is `p.Version` and every part really is at
+  it. The title is also the tail of every plate name on the cad path.
+- FCM's filenames are its own scheme — `FCM Occ 2S (180 Card
   L3-18-6-20-Sl).3mf`, *the 2nd box for Occupations, sleeved* — but they are
   GENERATED now, from parts.csv's `Project label` column (`Occ 2`,
   `Milestones 1`, `Alt`), so `--standardize-names` covers FCM too. The label is
