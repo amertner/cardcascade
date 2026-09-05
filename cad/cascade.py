@@ -16,6 +16,11 @@ every plate and requires return_code 0, the only check that sees a tower in
 unprintable space. Projects go to `build/cascades/<Game>/` unless `--out`
 says otherwise — the parallel period's tree, beside `cascades/`.
 
+`--publish` writes the set that LEAVES the repo, to `build/dist/<version>/`:
+the same projects with the version in their file names. In the repo a name is
+an identity and the version lives in the title and the engraving; on a
+download the name is the first thing its owner reads. See `filename`.
+
 The composition rules are `automation/PIPELINE.md`'s ("Component composition")
 and `automation/components.py`'s per-game policy, restated in `parts`.
 """
@@ -37,6 +42,7 @@ import towers                                            # noqa: E402
 
 BUILD = ROOT / "build"
 OUT = BUILD / "cascades"
+DIST = BUILD / "dist"          # --publish; under build/, so already gitignored
 CSV = ROOT / "automation" / "parts.csv"
 STUDIO = Path("/Applications/BambuStudio.app/Contents/MacOS/BambuStudio")
 
@@ -96,24 +102,42 @@ def objects(row, p, d, root=BUILD):
     return out
 
 
-def title(row, p, d):
-    """The project's name, `components.cascade_filename` without the suffix:
-    `Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)`. The model code is the
-    row's own per-sleeving column, as the shipped names have it.
-
-    The version is `p.Version` — what `cad.build` stamped every part with, and
-    on this path that really is every part, so the name and the engraving say
-    the same thing. It is why `--version 7.1` writes a set that can be told
-    from the 7.0 one on a MakerWorld page as well as on the shelf.
-
-    This is the project's TITLE as much as its filename: `project.write` puts it
-    in the 3MF's `Title` metadata and at the end of every plate name."""
+def _named(row, p, d, version):
+    """`components.cascade_filename` for this row, at `version` (None: none)."""
     model = (row.get("Sleeved model" if p.isSleeved else "Unsl Model") or "").strip()
     return C.cascade_filename((row.get("Game") or p.GameName).strip(),
                               (row.get("Short name") or "").strip(),
-                              "Sl" if p.isSleeved else "Un", model,
-                              p.Version, (row.get("Project label") or "").strip()
-                              )[:-len(".3mf")]
+                              "Sl" if p.isSleeved else "Un", model, version,
+                              (row.get("Project label") or "").strip())
+
+
+def filename(row, p, d, versioned=False):
+    """The project's FILE name. No version in it by default.
+
+    The version in a name serves one reader: someone holding a downloaded file,
+    deciding whether the pusher in their hand matches the lid. In the repo there
+    is no such reader — the tree is addressed by path — and it costs the whole
+    catalogue a rename on every release, which `refresh_cascades.find_project`
+    already records happening once: "every one of them did, the day the version
+    went into it". Tags carry a release; a filename should carry an identity.
+
+    So `build/cascades/` and `cascades/` hold the stable name, and `--publish`
+    puts the version back for the tree that leaves the repo. What the file says
+    about itself does NOT change with it — see `title` below."""
+    return _named(row, p, d, p.Version if versioned else None)
+
+
+def title(row, p, d):
+    """The project's TITLE, which ALWAYS carries the version:
+    `Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)`.
+
+    A filename is the one identifier its owner can trivially change, so the
+    version cannot live only there. `project.write` puts this in the 3MF's
+    `Title` metadata and at the end of every plate name, where Studio shows it
+    and no rename can touch it. The version is `p.Version` — what `cad.build`
+    stamped every part with, and on this path that really is every part, so the
+    title and the engraving say the same thing."""
+    return _named(row, p, d, p.Version)[:-len(".3mf")]
 
 
 def bed_for(row, p):
@@ -175,11 +199,12 @@ def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=Non
     return out
 
 
-def make(row, p, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD):
+def make(row, p, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD,
+         versioned=False):
     """One cascade's project, written and checked. Returns (path, notes)."""
     objs = objects(row, p, d, root)
     chosen, plates, places = LY.layout(objs, bed or bed_for(row, p))
-    path = Path(out_dir) / p.GameName / (title(row, p, d) + ".3mf")
+    path = Path(out_dir) / p.GameName / filename(row, p, d, versioned)
     PJ.write(path, chosen, objs, plates, places, title=title(row, p, d),
              metadata={"cardcascade:model": d.calModelName,
                        "cardcascade:source": source_stamp(),
@@ -218,7 +243,16 @@ def main(argv=None):
     ap.add_argument("--sleeving", choices=("un", "sl"))
     ap.add_argument("--name", help="part of the row's Short name, e.g. 168")
     ap.add_argument("--bed", choices=tuple(PJ.BEDS), help="force the bed for every cascade")
-    ap.add_argument("--out", default=OUT, type=Path)
+    ap.add_argument("--out", type=Path,
+                    help="default build/cascades/, or build/dist/<version>/ "
+                         "with --publish")
+    ap.add_argument("--publish", action="store_true",
+                    help="the set to upload: the version goes into the file "
+                         "NAME as well as the title, and the default --out "
+                         "becomes build/dist/<version>/ — a tree outside git "
+                         "that keeps the exact bytes you sent, which a "
+                         "MakerWorld rejection needs (never re-save one in "
+                         "Studio; automation/filaments.py --makerworld)")
     ap.add_argument("--csv", default=CSV, type=Path)
     ap.add_argument("--components", default=BUILD, type=Path,
                     help="where the parts are (build/)")
@@ -230,11 +264,13 @@ def main(argv=None):
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args(argv)
 
+    out = args.out or (DIST / args.version if args.publish else OUT)
     rows = catalogue(args.csv, args.game, args.model, args.size, args.sleeving, args.name,
                      args.version)
     if args.list:
         for row, p, d in rows:
-            print(f"  {p.GameName}/{title(row, p, d)}  bed {bed_for(row, p) or 'auto'}")
+            print(f"  {p.GameName}/{filename(row, p, d, args.publish)}"
+                  f"  bed {bed_for(row, p) or 'auto'}")
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
     if args.build:
@@ -247,13 +283,14 @@ def main(argv=None):
     failed = []
     for row, p, d in rows:
         try:
-            path, notes = make(row, p, d, args.out, args.bed, args.slice, args.components)
+            path, notes = make(row, p, d, out, args.bed, args.slice,
+                               args.components, args.publish)
         except SystemExit as e:
             failed.append(f"{p.GameName}/{title(row, p, d)}: {e}")
             print(f"  {p.GameName + '/' + title(row, p, d):62s} {'REFUSED':10s} {e}")
             continue
         print(f"  {p.GameName + '/' + path.name:62s} {notes[0]:10s} {'; '.join(notes[1:])}")
-    print(f"\n  {len(rows) - len(failed)} of {len(rows)} written to {args.out}")
+    print(f"\n  {len(rows) - len(failed)} of {len(rows)} written to {out}")
     for f in failed:
         print(f"  refused  {f}")
     return 1 if failed else 0

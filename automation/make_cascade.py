@@ -338,6 +338,13 @@ def main():
                     metavar="OLD=NEW")
     ap.add_argument("--plate-sub", action="append", default=[],
                     metavar="OLD=NEW")
+    ap.add_argument("--title", metavar="TEXT",
+                    help="set the 3MF's Title metadata (Studio shows it). This "
+                         "is where the VERSION lives now that the file name "
+                         "does not carry it: a name is the one identifier its "
+                         "owner can change, so the version cannot live only "
+                         "there. refresh_cascades passes the cascade's "
+                         "generation; cad.project writes the same string.")
     ap.add_argument("--gap", type=float, default=GAP_DEFAULT)
     ap.add_argument("--gap-override", action="append", default=[],
                     metavar="NAME=MM",
@@ -1501,6 +1508,21 @@ def main():
 
     root_p.write_text(xml)
     cfg_p.write_text(cfg)
+
+    # ---------------- title ----------------
+    # The donor's Title is empty on every shipped project, so this is the first
+    # thing in the file that says which generation it is. Set on the root model
+    # where Studio reads it; the plate names already carry the project name.
+    if args.title:
+        txt = root_p.read_text()
+        tag = '<metadata name="Title">'
+        if tag not in txt:
+            fail("no Title metadata in 3D/3dmodel.model to set")
+        txt = re.sub(r'<metadata name="Title">.*?</metadata>',
+                     f'<metadata name="Title">{esc(args.title)}</metadata>',
+                     txt, count=1, flags=re.S)
+        root_p.write_text(txt)
+        print(f"title: {args.title!r}")
 
     # ---------------- sanity: well-formed XML ----------------
     import xml.etree.ElementTree as ET

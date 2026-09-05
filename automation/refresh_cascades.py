@@ -327,6 +327,30 @@ def model_matches(folder_dir, casc):
     return sorted(p for p in folder_dir.glob("*.3mf") if tag in fold_model(p.name))
 
 
+def project_name(game, casc):
+    """The tracked tree's file name for a cascade — WITHOUT the version.
+
+    A name in the repo is an identity: git follows a path, and a version in it
+    renames the whole catalogue on every release (it did once already, and
+    `find_legacy` is what cleaned up after). The release is a tag, and what a
+    given file IS can be read out of the file — see `project_title`, which does
+    carry the version — or off the parts, whose engraving `verify.py --stamps`
+    reads. `cad.cascade --publish` puts it back in the name for the tree that
+    leaves the repo. `components.tracked_name` is where the rule lives."""
+    return C.tracked_name(game, casc["ctx"]["short_name"], casc["sleeved"],
+                          casc["model"], casc["ctx"]["label"])
+
+
+def project_title(game, casc):
+    """The 3MF `Title` for a cascade — WITH the version, which on this path is
+    the cascade's GENERATION (parts.csv `Build`). A file name is the one
+    identifier its owner can trivially change, so this is where the version
+    lives; make_cascade --title writes it."""
+    return C.cascade_filename(game, casc["ctx"]["short_name"], casc["sleeved"],
+                              casc["model"], casc["ctx"]["generation"],
+                              casc["ctx"]["label"])[:-len(".3mf")]
+
+
 def find_project(folder_dir, game, casc):
     """This cascade's project file, or None.
 
@@ -335,16 +359,15 @@ def find_project(folder_dir, game, casc):
     canonical names write the code with dots ("(S4.16.10.32-Un)") and FCM's
     with dashes ("(180 Card L3-18-6-20-Sl)"), and one fold matches either.
 
-    FCM's scheme — "FCM Occ 2S v7.0 (180 Card L3-18-6-20-Sl).3mf", *the 2nd box
-    for Occupations, sleeved* — is canonical too since 2026-09-05: parts.csv's
+    FCM's scheme — "FCM Occ 2S (180 Card L3-18-6-20-Sl).3mf", *the 2nd box for
+    Occupations, sleeved* — is canonical too since 2026-09-05: parts.csv's
     `Project label` carries what the canonical form can't say, so
     cascade_filename generates it rather than FCM being an exception. The
     model-code fallback stays: it is what finds a project whose name predates a
-    naming change (every one of them did, the day the version went into it),
-    and it needs no per-game rule to maintain."""
-    canon = C.cascade_filename(game, casc["ctx"]["short_name"],
-                               casc["sleeved"], casc["model"],
-                               casc["ctx"]["generation"], casc["ctx"]["label"])
+    naming change (every one of them did, twice — the day the version went into
+    the name and the day it came back out), and it needs no per-game rule to
+    maintain."""
+    canon = project_name(game, casc)
     if (folder_dir / canon).exists():
         return folder_dir / canon, canon
     hits = model_matches(folder_dir, casc)
@@ -387,7 +410,8 @@ def assemble_one(game, spec, casc, dry):
         return "skip", f"components not on disk: {', '.join(sorted(missing))}"
 
     cmd = [sys.executable, str(HERE / "make_cascade.py"), str(template),
-           "-o", str(out_path(template, folder)), "--keep-layout"]
+           "-o", str(out_path(template, folder)), "--keep-layout",
+           "--title", project_title(game, casc)]
     split = split_mesh_names(template)
     for obj, file in swap.items():
         path = COMPONENTS / folder / file
@@ -471,7 +495,8 @@ def rebuild_one(game, spec, casc, dry):
 
     bed = bed_for(casc)
     cmd = [sys.executable, str(HERE / "make_cascade.py"), str(donor),
-           "-o", str(out_path(donor, folder)), "--auto-plates", "--bed", bed]
+           "-o", str(out_path(donor, folder)), "--auto-plates", "--bed", bed,
+           "--title", project_title(game, casc)]
     for obj, file in swap.items():
         cmd += ["--part", f"{obj}={COMPONENTS / folder / file}"]
     for old, new in renames.items():
@@ -514,11 +539,12 @@ def find_legacy(folder_dir, casc):
     """Locate a pre-standard cascade project for this cascade so it can be
     git-renamed. Three ways, most precise first:
 
-      1. the canonical name WITHOUT the version — the scheme as it stood until
-         2026-09-05, and the one every project on disk was named under. It has
-         to come first because the model code alone cannot separate two
-         cascades that share one: `202 Card (Mat)` and `244 Card` are both
-         `M4.21.10.32-Un`, and the Short name is what tells them apart;
+      1. the canonical name WITH the version — the scheme between 2026-09-05
+         and the day the version came back out of the name, and the one the
+         whole tree was renamed to in between. It has to come first because the
+         model code alone cannot separate two cascades that share one:
+         `202 Card (Mat)` and `244 Card` are both `M4.21.10.32-Un`, and the
+         Short name is what tells them apart;
       2. the old Dominion 'CC <num><S|U> ...' form, by short-name number and
          sleeving;
       3. the MODEL CODE the filename carries — `find_project`'s own fallback,
@@ -526,10 +552,11 @@ def find_legacy(folder_dir, casc):
          Alt Sleeved", which predates the `Project label` column). Unique per
          cascade, so a single hit is that cascade's project; anything else
          returns None and is reported rather than guessed."""
-    prev = C.cascade_filename(casc["ctx"]["game"], casc["ctx"]["short_name"],
-                              casc["sleeved"], casc["model"], None)
-    if (folder_dir / prev).exists():
-        return folder_dir / prev
+    for prev in (project_title(casc["ctx"]["game"], casc) + ".3mf",
+                 C.cascade_filename(casc["ctx"]["game"], casc["ctx"]["short_name"],
+                                    casc["sleeved"], casc["model"], None)):
+        if (folder_dir / prev).exists():
+            return folder_dir / prev
     letter = "S" if casc["sleeved"] == "Sl" else "U"
     num = re.match(r"\d+", casc["ctx"]["short_name"])
     if num:
@@ -543,15 +570,13 @@ def find_legacy(folder_dir, casc):
 
 def standardize_names(selection, auto, dry):
     print("\n● STANDARDIZE NAMES — rename legacy cascade projects to "
-          "'<Game> <Short> <Sleeved|Unsleeved> v<version> (<model>).3mf'"
-          " (FCM: 'FCM <label><S|U> v<version> (<Short> <model>).3mf')\n")
+          "'<Game> <Short> <Sleeved|Unsleeved> (<model>).3mf'"
+          " (FCM: 'FCM <label><S|U> (<Short> <model>).3mf')\n")
     renames = []                             # (old Path, new Path)
     for game, spec, _, cs in selection:
         d = ROOT / "cascades" / spec["folder"]
         for c in cs:
-            canon = C.cascade_filename(game, c["ctx"]["short_name"],
-                                       c["sleeved"], c["model"],
-                                       c["ctx"]["generation"], c["ctx"]["label"])
+            canon = project_name(game, c)
             if (d / canon).exists():
                 continue                     # already standard
             legacy = find_legacy(d, c)

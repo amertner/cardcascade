@@ -123,10 +123,15 @@ def cascade_filename(game, short_name, sleeved, model, version, label=None):
     `sleeved` is "Sl"/"Un" (as in the cascade context); `model` is the row's
     per-sleeving model code (e.g. "M8.40.10.62-Sl").
 
-    `version` is what the name PROMISES about the parts inside, and it is not
-    optional: two cascades differing only in generation are two different
-    products and a downloaded print profile has nothing else to say which it
-    is. On the Onshape path it is the cascade's GENERATION (parts.csv `Build`,
+    `version` is what the name PROMISES about the parts inside, and the
+    argument is not optional — but `None` is a legal, deliberate answer,
+    meaning "no version in this name", and it is what the TRACKED trees pass.
+    A version in a repo filename renames the whole catalogue on every release
+    and buys nothing there; a downloaded print profile is the one place it has
+    a reader, so `cad.cascade --publish` passes the version and
+    `refresh_cascades.project_title` puts it in the 3MF `Title`, where no
+    rename can touch it. See PIPELINE.md, "A name is an identity, a version is
+    a release". On the Onshape path it is the cascade's GENERATION (parts.csv `Build`,
     blank meaning onshape_config.CURRENT) — the per-type table behind that name
     is not uniform (a "7.0" cascade carries 6.6 holders), and the generation is
     precisely the name for that set. On the cad path every part really is built
@@ -158,3 +163,21 @@ def cascade_filename(game, short_name, sleeved, model, version, label=None):
     for ch in "/\\:":
         name = name.replace(ch, "-")
     return name
+
+
+def tracked_name(game, short_name, sleeved, model, label=None):
+    """The name a cascade project has IN THE REPO — `cascade_filename` with no
+    version. The one place that policy is stated, for both pipelines.
+
+    A name in the repo is an identity: git follows a path, so a version in it
+    renames the whole catalogue on every release, and it did once already —
+    `refresh_cascades.find_legacy` is what cleaned up after. A release is a tag.
+    What a given file IS stays readable from the file: the version goes in the
+    3MF `Title` (`refresh_cascades.project_title`, `cad.cascade.title`), which
+    Studio shows and no rename can touch, and it is engraved on the parts, which
+    `verify.py --stamps` reads.
+
+    It goes back into the NAME only for the tree that leaves the repo, where its
+    reader — someone holding a download, deciding whether the pusher in their
+    hand fits the lid — has nothing else to go on: `cad.cascade --publish`."""
+    return cascade_filename(game, short_name, sleeved, model, None, label)

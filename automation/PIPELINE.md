@@ -1262,6 +1262,62 @@ recorded as `6.6`, the same fault in the other direction. The new check refuses
 that export rather than shipping it, which is the correct outcome but not a
 fixed bug — `build_primary` should take `gen` and send `generation_name(gen)`.
 
+### A name is an identity, a version is a release
+
+*(Allan, on seeing `v7.0` in 48 tracked filenames and a 7.1 build coming.)*
+
+The version went into the project name on 2026-09-05 for a good reason: a
+downloaded print profile is a file, and its owner has nothing else to say which
+generation it is. That reason is real, and it is the whole of the pusher-in-the-
+wrong-lid failure above. But it applies to exactly ONE reader — someone holding
+a download — and the repo has no such reader.
+
+In the repo a name is an identity. Git follows a path, so a version in the name
+renames the entire catalogue on every release. It already had: `find_legacy`
+exists because "every one of them did, the day the version went into it", and a
+7.0 → 7.1 bump would have done it again, 48 binaries renamed and rewritten in
+one commit, with `git log -- <path>` dead-ending at each. A release is a tag.
+That is what tags are.
+
+So the two are separated:
+
+| | carries the version | who reads it |
+|---|---|---|
+| tracked file name (`cascades/`, `build/cascades/`) | **no** — `components.tracked_name` | git, the pipeline |
+| 3MF `Title` | **yes** | Studio, anyone who opens the file |
+| the engraving on box, lid and pusher | **yes** | a person holding the part |
+| published file name (`build/dist/<version>/`) | **yes** — `cad.cascade --publish` | someone holding a download |
+
+**Nothing is lost by taking it out of the tracked name**, and that is what makes
+this safe rather than merely convenient: the version stays recoverable from the
+artefact three ways, one of which — the engraving — is the only one that
+survives being printed, and `verify.py --stamps` now reads it in 51 seconds.
+
+**The `Title` is new on the Onshape path.** It was EMPTY on every shipped
+project: the donor's, never set. So before this the version really did live in
+the filename alone there, and taking it out would have left nothing.
+`make_cascade --title` sets it and `refresh_cascades` passes the cascade's
+generation, so both pipelines now say the same thing in the same place —
+`cad/project.py` has always written it. The plate names already carried the
+project name without a version, which is now simply the canonical name.
+
+**Publish by REGENERATING, not by copying and renaming.** The title and the
+plate-name tails are built from the same string as the name, so a rename-only
+publish would ship a file called `v7.1` whose insides said `v7.0`. `cad.cascade
+--publish` writes the set from source; on the Onshape path `make_cascade -o`
+does the same for nothing.
+
+**`build/dist/<version>/`, not a temp dir.** It is under `build/`, so already
+gitignored, and it keeps the exact bytes that were uploaded — which a MakerWorld
+rejection needs, because the rule there is never to re-save a project in Studio
+to fix one (`filaments.py --makerworld` works on the file you sent). It also
+lets two releases be diffed.
+
+**What this gives up.** Two versions cannot sit side by side in the tracked tree
+under one name, so simultaneous multi-version publishing would need
+`build/dist/` to be the source of both. One current state plus tags is the model;
+if that changes, this decision changes with it.
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row
