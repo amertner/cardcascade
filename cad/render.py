@@ -213,19 +213,32 @@ def assembly_sheet(path, out, width=1600, views=None):
         yield target
 
 
-def assembly_contact(paths, target, view=HERO, cell=760, cols=3):
-    """One grid image of several assemblies, one tile each — the way to look
-    over a whole build in a glance rather than opening a file at a time."""
+def assembly_contact(paths, target, views=(HERO,), cell=760, cols=4):
+    """One grid image of several assemblies, one tile per assembly per named
+    view — the way to look over a whole build in a glance rather than opening
+    a file at a time.
+
+    Several views because one is not enough to check a cascade: the hero
+    shows the closed product, and `bottom` on the PLAY state is the only
+    picture that shows the lid's mark the way round it prints — which is how
+    Dominion's was found upside down (spec/LID.md). `cols` is rounded down
+    to a multiple of the view count so an assembly's views sit in one row.
+    """
     from PIL import ImageDraw
-    az, el = VIEWS[view]
+    if isinstance(views, str):
+        views = (views,)
+    cols = max(len(views), cols - cols % len(views))
     tiles = []
     for path in paths:
         items = [(v, tr, colour_for(n))
                  for n, v, tr in mesh3mf.read_assembly(path)]
-        img = scene(items, az, el, cell,
-                    perspective=PERSPECTIVE if view == HERO else None)
-        img.thumbnail((cell, cell))
-        tiles.append((path.stem, img))
+        for view in views:
+            az, el = VIEWS[view]
+            img = scene(items, az, el, cell,
+                        perspective=PERSPECTIVE if view == HERO else None)
+            img.thumbnail((cell, cell))
+            label = path.stem if len(views) == 1 else f"{path.stem}  [{view}]"
+            tiles.append((label, img))
     bar, gap = 18, 6
     rows = (len(tiles) + cols - 1) // cols
     h = max(t.height for _n, t in tiles) + bar
@@ -317,7 +330,9 @@ def main(argv=None):
                     help=f"shorthand for the box views {BOX_VIEWS}")
     ap.add_argument("--assembly", action="store_true",
                     help="an assembly 3MF: the six named views plus the hero, "
-                         "one PNG each, coloured per component")
+                         "one PNG each, coloured per component; with "
+                         "--contact, one tile per file per named --view "
+                         "(default hero)")
     args = ap.parse_args(argv)
 
     if args.assembly:
@@ -325,7 +340,7 @@ def main(argv=None):
         if args.view and not named:
             ap.error(f"--assembly takes NAMED views: {', '.join(VIEWS)}")
         if args.contact:
-            print(f"  {assembly_contact(args.files, args.contact, *named[:1])}")
+            print(f"  {assembly_contact(args.files, args.contact, named or (HERO,))}")
             return 0
         for f in args.files:
             for target in assembly_sheet(f, args.out, args.width, named or None):

@@ -47,6 +47,11 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.fit --model S4.16.10.32-Un --no-solids   # seconds
 .venv/bin/python -m cad.render \
     "build/assemblies/Dominion/S4.16.10.32-Un play.3mf" --assembly
+.venv/bin/python -m cad.assemble --game Innovation --state all      # then LOOK:
+.venv/bin/python -m cad.render build/assemblies/Innovation/*play.3mf \
+    --assembly --contact tmp/play.png --view hero --view bottom     # the lids' marks, as they print
+.venv/bin/python -m cad.render "build/assemblies/Innovation/*closed-lid.3mf" \
+    --assembly --contact tmp/closed.png                           # the closed product
 
 .venv/bin/python -m cad.gltf "build/assemblies/<Game>/<model> play.3mf" \
     --filaments '#F4F4F2,#1B1B1B' --part 'Lid=#0E6BA8' -o tmp/cascade.glb
