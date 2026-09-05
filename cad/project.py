@@ -42,7 +42,7 @@ BEDS = {
     "p1":   (256.0, 256.0, "p1p", "Bambu Lab P1P"),
     "h2c":  (330.0, 320.0, "h2c", "Bambu Lab H2C"),
 }
-PLATE_STRIDE = 1.2          # plates sit on a 2-column grid at 1.2 x the plate size
+PLATE_STRIDE = 1.2          # plates sit on a grid at 1.2 x the plate size
 
 # Every cascade: white in slot 1, black in slot 2 (PIPELINE.md, "Filament slots").
 FILAMENTS = ("#FFFFFF", "#000000")
@@ -150,11 +150,23 @@ class Placement:
 # --- geometry ---------------------------------------------------------------
 
 
-def plate_origin(bed, plate):
-    """Where plate `plate` (1-based) sits in the project's one coordinate
-    space: a two-column grid at PLATE_STRIDE x the plate size."""
+def plate_columns(n):
+    """How many columns Studio lays `n` plates in: the ceiling of sqrt(n) —
+    two for 2 to 4 plates, three for 5 to 9. make_cascade.plate_columns."""
+    root = n ** 0.5
+    return round(root) + 1 if root > round(root) else round(root)
+
+
+def plate_origin(bed, plate, n_plates):
+    """Where plate `plate` (1-based, of `n_plates`) sits in the project's one
+    coordinate space: a grid of `plate_columns` columns at PLATE_STRIDE x the
+    plate size, filled row by row, rows going -Y. Studio assigns an object to
+    the plate whose cell it sits in — a five-plate project written on a
+    two-column grid puts plate 3 where Studio has plate 4, and the slice
+    stops with "no object fully inside" (found on Dominion 560 Sleeved)."""
     w, d = BEDS[bed][0], BEDS[bed][1]
-    col, row = (plate - 1) % 2, (plate - 1) // 2
+    cols = plate_columns(n_plates)
+    col, row = (plate - 1) % cols, (plate - 1) // cols
     return col * PLATE_STRIDE * w, -row * PLATE_STRIDE * d
 
 
@@ -326,7 +338,7 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     for place in placements:
         obj = objects[place.obj]
         oid = place.obj + 1
-        origin = plate_origin(bed, place.plate)
+        origin = plate_origin(bed, place.plate, len(plates))
         tr = item_transform(obj, place, origin)
         build_items.append(f'  <item objectid="{oid}" p:UUID="{_uuid()}" '
                            f'transform="{tr}" printable="1"/>\n')
@@ -512,7 +524,7 @@ def read(path):
         plate = plate_of.get(oid)
         if plate is None:
             fail(f"{path}: object {oid} is on no plate")
-        ox, oy = plate_origin(bed, plate)
+        ox, oy = plate_origin(bed, plate, len(out.plates))
         angle = math.degrees(math.atan2(t[1], t[0]))
         out.placements[oid] = Placement(oid, plate, t[9] - ox, t[10] - oy, angle)
     return out
