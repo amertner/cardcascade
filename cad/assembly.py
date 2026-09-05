@@ -240,7 +240,6 @@ def token_holder(p, d):
 # in the lid's frame" in `closing_grooves`.
 
 LID_Y = 2.250              # the box sits this far back of the lid
-LID_CLOSED_Z = D.WallThickness  # + BoxHeight; see lid_closed
 
 
 def lid_closed(p, d):

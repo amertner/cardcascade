@@ -52,7 +52,7 @@ import math
 from build123d import (
     Align, Box, BuildLine, BuildPart, BuildSketch, Circle, Line, Location,
     Mode, Plane, Polyline, Pos, Text, ThreePointArc, chamfer, extrude, fillet,
-    make_face, mirror,
+    make_face,
 )
 
 from .. import derive as D
@@ -204,7 +204,7 @@ def post_x(p, d):
 
     `calSlotwidth * (k + 0.5)`, which is `HorizontalSlots - 1` of them: the
     count `More Dividers` patterns. The two ends carry half a post each,
-    because `Remove Inner Hole` stops END_INSET short of them.
+    because `Remove Inner Hole` stops INNER_END_INSET short of them.
     """
     return [d.calSlotwidth * (k + 0.5) for k in range(p.HorizontalSlots - 1)]
 
@@ -894,18 +894,6 @@ def mark_box(p, d):
     x0 = x + L / 2 + MARK_GAP
     cy = (front + rear) / 2
     return x0, cy - L / 2, x0 + L, cy + L / 2
-
-
-def engrave(p, d, sketch):
-    """Cut a sketch that is drawn in the READING frame into the underside.
-
-    The face is read from BELOW, so the drawing's +y is the part's -Y: the
-    sketch is mirrored about the X axis before it is sunk. Getting that
-    backwards leaves a part whose name is legible only in a mirror, which is
-    the same trap the TokenHolder's underside engraving sat in.
-    """
-    tool = extrude(mirror(sketch, about=Plane.XZ), amount=ENGRAVE)
-    return Pos(0, 0, Z_BASE) * tool
 
 
 def name_sketch(p, d, word):

@@ -42,7 +42,8 @@ LID_SOCKET_CLEARANCE = 0.400   # socket span is D - this, 0.200 at each end
 LID_RECESS_LEN = 4.000
 LID_RECESS_STEP = 1.700   # set on a test print, NOT calculated — do not tune
 BOX_CUTOUT_W = 4.500
-BOX_CUTOUT_D = 5.250
+BOX_CUTOUT_D = 5.250      # the standard's number; the box cuts 5.000 and
+#                           records why (`parts/box.RIM_CUTOUT_Z`)
 
 # Placement rule.
 EDGE_MIN = 2.000

@@ -17,7 +17,7 @@ reference STEPs.
 """
 from build123d import (Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
                        GeomType, Line, Location, Plane, Polygon, SlotOverall,
-                       ThreePointArc, add, chamfer, extrude, fillet, make_face,
+                       ThreePointArc, chamfer, extrude, fillet, make_face,
                        revolve)
 
 from .. import derive as D
@@ -92,9 +92,9 @@ def shell(p, d):
 
 
 # The front pocket's back wall. Measured 1.000 thick on all five references —
-# a panel at y = -#BoxDepth/2 + WALL + calFrontPocketDepth .. + 1.000 — and the
-# bottom slot starts at its back face, so the constant belongs here until the
-# Front pocket group is written and can own it.
+# a panel at y = -#BoxDepth/2 + WALL + calFrontPocketDepth .. + 1.000. It is
+# a front-pocket feature (`front_pocket`), but the bottom slot starts at its
+# back face, so it is stated up here where both read it.
 FRONT_DIVIDER = 1.000
 
 
@@ -304,7 +304,7 @@ def hole_rows():
 
 
 def rear_storage(p, d, part):
-    """The whole `Pusher holder & Rear Storage` group, less its thumb cutout.
+    """The whole `Pusher holder & Rear Storage` group, thumb cutout included.
 
     Every cut is a PLAIN rectangular box, and they are disjoint. Composing the
     negative first — empty the slot band, then subtract the rest and the
@@ -717,7 +717,7 @@ def front_pocket(p, d, part):
 
     # `Front divider` — the panel that closes the pocket, 1.000 thick and
     # carrying the same lattice as the back wall (cut below).
-    add = slab(-inner - WALL / 2, inner + WALL / 2, fb, back, 0.0, H)
+    pocket = slab(-inner - WALL / 2, inner + WALL / 2, fb, back, 0.0, H)
     # Each group of features is ONE boolean (see `rear_storage`): the pieces
     # within a group are disjoint, and the groups keep the tree's order —
     # dividers and pads fused, slits cut, thumbs cut, lips fused. A slot's
@@ -732,11 +732,11 @@ def front_pocket(p, d, part):
     for sign in (-1, +1):
         lo, hi = sorted((sign * (inner - FRONT_PAD), sign * (inner + WALL / 2)))
         solids.append(slab(lo, hi, fw - WALL / 2, back, 0.0, H))
-    add = add.fuse(*solids)
+    pocket = pocket.fuse(*solids)
     # `Slits in front pocket` — the SAME openings as the back's hanging holes,
     # at the same X and the same three rows. The padding starts 5.800 in and
     # the first hole 8.300 in, so no slit ever meets a pad or a divider.
-    add = add.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
+    pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
                     for x_lo, x_hi in hanging_holes(p, d)
                     for z_lo, z_hi in hole_rows()])
     # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
@@ -746,10 +746,10 @@ def front_pocket(p, d, part):
     # revolve and the intersection are the same solid every time.
     centres = thumb_centres(p, d)
     thumb, lip = thumb_tool(p, d), lip_tool(p, d)
-    add = add.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
-    add = add.fuse(*[lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
+    pocket = pocket.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
+    pocket = pocket.fuse(*[lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
                      for x in centres for sign in (-1, +1)])
-    return part + (add - angled_cutout(p, d))
+    return part + (pocket - angled_cutout(p, d))
 
 
 # `Closing mechanism`. A pad on each end wall that the lid grips. Its position

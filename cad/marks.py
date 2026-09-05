@@ -84,9 +84,7 @@ TWIST = 0.1041
 NOMINAL_SIZE = 20.8416
 
 # Everything below is in font units per 1000 em, so it scales with the size.
-CAP = 714.0                  # the I's cap height
 SERIF_MID = 693.0            # middle of the I's top serif slab (672..714)
-I_INK = 291.0                # the I's ink width; the annulus bore is half it
 ARM = 119.952                # star arm, centre to tip: 2.500 at NOMINAL_SIZE,
 #                              and 4.0002 measured on the big drawing - x1.6002
 # The first arm of the run, in the READING frame the mark is built in before

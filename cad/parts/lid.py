@@ -334,7 +334,7 @@ def logo_block(p, d):
     """`ProductName`, `calVersion` and the staircase — the -X block.
 
     `ProductName`'s cap top is `#FootDistanceFromWall + 1mm` below the lid's
-    inner back face, its box `text_offset` in from the left inner wall and
+    inner back face, its box `logo_offset` in from the left inner wall and
     `logo_width` long. The version is right-aligned on the same box, its cap
     top `VERSION_DROP` below `ProductName`'s baseline.
     """

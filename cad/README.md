@@ -132,7 +132,7 @@ cad/
     lid.py      done, logo pattern included — see spec/LID.md
     token_holder.py  done — FULL and HALF, Dominion only
     holder.py   done — see spec/HOLDER.md
-    topper.py   done — the blank; see spec/TOPPER.md
+    topper.py   done — the blank and all six expansions; see spec/TOPPER.md
 render/
   cascade.py    Blender/Cycles. Runs in BLENDER's python, not the venv
 spec/

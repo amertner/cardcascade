@@ -114,9 +114,8 @@ def project_filaments(path):
     return tuple(ps.get("filament_colour") or DEFAULT_FILAMENTS)
 
 
-def slot_for(name, slots=None):
-    """Which filament slot a component is printed in. `slots` is ignored —
-    it exists so a caller can pass a project's map for comparison."""
+def slot_for(name):
+    """Which filament slot a component is printed in."""
     return 2 if INLAY in (name or "") else 1
 
 
@@ -139,7 +138,7 @@ def colour_of(name, filaments, parts):
     return filaments[slot - 1] if slot - 1 < len(filaments) else filaments[0]
 
 
-def build(objects, filaments, slots, parts=None):
+def build(objects, filaments, parts=None):
     """(json dict, binary blob) for [(name, verts_mm, tris)]."""
     blob = bytearray()
     buffer_views, accessors, meshes, nodes = [], [], [], []
@@ -199,9 +198,9 @@ def build(objects, filaments, slots, parts=None):
     }, bytes(blob)
 
 
-def write(path, objects, filaments=DEFAULT_FILAMENTS, slots=None, parts=None):
+def write(path, objects, filaments=DEFAULT_FILAMENTS, parts=None):
     """Write a binary glTF. Returns its size in bytes."""
-    doc, blob = build(objects, filaments, slots or {}, parts)
+    doc, blob = build(objects, filaments, parts)
     js = json.dumps(doc, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)
     bl = blob + b"\0" * (-len(blob) % 4)
@@ -246,7 +245,6 @@ def main(argv=None):
               f"{sum(1 for s in slots.values() if s == 2)} on slot 2")
         print("  rule agrees with the project" if not wrong
               else f"  DISAGREES on {wrong}")
-    slots = {}
     if args.filaments:
         filaments = tuple(c.strip() for c in args.filaments.split(","))
     elif args.project:
@@ -263,7 +261,7 @@ def main(argv=None):
 
     objects = mesh3mf.read_assembly(args.assembly)
     out = args.out or args.assembly.with_suffix(".glb")
-    size = write(out, objects, filaments, slots, parts)
+    size = write(out, objects, filaments, parts)
     by_colour = {}
     for name, _v, _t in objects:
         by_colour.setdefault(colour_of(name, filaments, parts), []).append(name)

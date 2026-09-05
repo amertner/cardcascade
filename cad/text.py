@@ -98,7 +98,6 @@ STROKE = {                        # em, thinnest stroke
 }
 FLOOR_CUT = 0.200                 # mm, engraved into the part
 FLOOR_PROUD = 0.250               # mm, embossed or a second-filament inlay
-SERIF_FONT = str(FONT_DIR / "NotoSerif-Bold.ttf")   # the Topper's
 
 
 def floor_size(font=LOGO_FONT, proud=False):
