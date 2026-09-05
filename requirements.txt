@@ -1,1 +1,7 @@
+# build123d is PINNED: it carries OCCT, and the reference STEPs and cached
+# meshes every test compares against were built against this one.
 build123d==0.11.1
+# Pillow draws the contact sheets — `cad/render.py` imports PIL directly, and
+# nothing else pulls it in, so a fresh clone could not render (or pass
+# test_smoke) until it was installed by hand. Not pinned: it only writes PNGs.
+pillow>=10.0
