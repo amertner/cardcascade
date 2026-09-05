@@ -10,10 +10,11 @@ printed labels; this is that rule for `cad/`, without dragging in
 The artwork lives in `logos/<Game>/` and is already in the part's own frame —
 `spec/LID.md` records where each file came from.
 """
+import os
 from functools import lru_cache
 from pathlib import Path
 
-from build123d import Compound, Face, Wire, import_brep, import_dxf
+from build123d import Compound, Face, Wire, export_brep, import_brep, import_dxf
 
 LOGO_DIR = Path(__file__).resolve().parent.parent / "logos"
 
@@ -42,6 +43,31 @@ def _inside_point(face):
     raise RuntimeError("cannot find a point inside an outline")
 
 
+# Filling a DXF is slow — Compile's 1885-edge mark takes 3.3 s to chain, nest
+# and cut, FCM's 1.7 — and every build worker did it again for every game it
+# met. The filled faces are kept as a B-rep beside the build, named by the
+# drawing's own digest, so a changed drawing misses the cache by itself; a
+# B-rep round-trips the faces exactly (unlike a DXF, see `load`), and reads
+# back in 0.01 s. `build/` is gitignored, so nothing derived is committed.
+CACHE_DIR = Path(__file__).resolve().parent.parent / "build" / ".art"
+CACHE_TAG = "v1"          # bump when the filling below changes
+
+
+def _cached(path, fill):
+    """`fill(path)`'s faces, from the B-rep cache when the drawing is unchanged."""
+    import hashlib
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    cache = CACHE_DIR / f"{path.parent.name}.{path.stem}.{digest}.{CACHE_TAG}.brep"
+    if cache.exists():
+        return tuple(import_brep(str(cache)).faces())
+    faces = fill(path)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = cache.with_suffix(f".{os.getpid()}.tmp")   # workers race: write, then rename
+    export_brep(Compound(children=list(faces)), str(tmp))
+    tmp.replace(cache)
+    return faces
+
+
 @lru_cache(maxsize=8)
 def load(path):
     """The drawing in `path` (DXF) as filled faces, ready to extrude.
@@ -61,6 +87,11 @@ def load(path):
     """
     if path.suffix == ".brep":
         return tuple(import_brep(str(path)).faces())
+    return _cached(path, _fill_dxf)
+
+
+def _fill_dxf(path):
+    """The DXF's closed outlines as faces, holes cut — the slow part of `load`."""
     shapes = import_dxf(str(path))
     edges = shapes.edges()
     if not edges:

@@ -1185,4 +1185,11 @@ def build(p, d=None):
     part = front_pocket(p, d, part)
     part = closing_bumps(p, d, part)
     part = label_holders(p, d, part)
+    # The floor text stays LAST before the rounds, though it is the most
+    # expensive cut (2 to 3 s of a box's 6). Cutting it into the bare shell
+    # first, the way the Lid takes its logo pocket, was tried on 2026-09-05:
+    # identical geometry (symmetric difference 0.000000 on three boxes) and
+    # nearly twice the build time, because every boolean after it then
+    # carries the text's hundreds of spline faces. Spline text is the cost,
+    # not the order.
     return smooth_edges(p, d, floor_text(p, d, part))
