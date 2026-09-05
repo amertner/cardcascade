@@ -538,6 +538,7 @@ MARK_MIN, MARK_MAX = 0.05, 12.0    # a glyph is never outside this, in mm
 SPACE_PER_CAP = 0.25               # a word gap, against letter spacing under 0.1
 BASELINE_TOL = 0.15                # two lines sit a full cap apart, so this is safe
 MAX_PLANES = 80                    # bound the plane scan on a 46k-triangle box
+DOTS_PER_LINE = 50                 # progress dots before wrapping
 
 
 def _slicer(verts, tris, axis, bins=256):
@@ -1084,11 +1085,34 @@ def audit_stamps(root, verbose=False):
 
     A component shared by cascades at two different generations has no single
     right answer; plan_exports already reports that as a conflict, and this
-    skips it rather than reporting it twice."""
+    skips it rather than reporting it twice.
+
+    A dot per component as it goes: half a second each is quick enough to be
+    worth running and long enough that a silent minute looks like a hang. A
+    finding breaks the run of dots and prints itself where it happened, the way
+    a test runner does, so nothing waits until the end."""
     from pathlib import Path
     import components as C
     root = Path(root)
     bad = seen = unread = 0
+    dotted = [0]                       # dots on the current line
+
+    def tick():
+        if dotted[0] == 0:                 # indent lazily, so a run that ends
+            print("    ", end="", flush=True)   # on a finding leaves no stub
+        print(".", end="", flush=True)
+        dotted[0] += 1
+        if dotted[0] == DOTS_PER_LINE:
+            print(flush=True)
+            dotted[0] = 0
+
+    def report(*lines):
+        if dotted[0]:
+            print()
+            dotted[0] = 0
+        for line in lines:
+            print(line)
+
     for game, spec in C.GAMES.items():
         import plan_exports as P
         plan = P.compute_plan(game, spec, str(root / "automation" / "parts.csv"),
@@ -1106,14 +1130,18 @@ def audit_stamps(root, verbose=False):
                 fatal, warn = check_stamp(path.read_bytes(), want)
                 if fatal:
                     bad += 1
-                    print(f"    ✗  {folder}/{path.stem:42s} {fatal}")
-                    for name in u["generations"][want]:
-                        print(f"           used by {name}")
+                    report(f"    ✗  {folder}/{path.stem:42s} {fatal}",
+                           *(f"           used by {name}"
+                             for name in u["generations"][want]))
                 elif warn:
                     unread += 1
-                    print(f"    ?  {folder}/{path.stem:42s} {warn}")
+                    report(f"    ?  {folder}/{path.stem:42s} {warn}")
                 elif verbose:
-                    print(f"    ok {folder}/{path.stem:42s} CC {want}")
+                    report(f"    ok {folder}/{path.stem:42s} CC {want}")
+                else:
+                    tick()
+    if dotted[0]:
+        print()
     print(f"\n  {seen} boxes, lids and pushers checked; {bad} engraved with the "
           f"wrong version, {unread} unreadable.")
     return bad
