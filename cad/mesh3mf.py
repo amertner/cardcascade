@@ -14,7 +14,10 @@ own `Mesher` output:
 Meshing is the last step and the only lossy one. `TOLERANCE` / `ANGULAR` are set
 to put roughly Onshape's triangle count on a pusher (10286 against 9984), so the
 sampling checks in `verify.py` — which probe sections on an 80x80 lattice — see
-the same density they were tuned on.
+the same density they were tuned on. NB `TOLERANCE` is a RELATIVE deflection —
+a fraction of each edge's own size, which is how build123d's `Shape.mesh`
+calls OCCT — and not 0.01 mm of chord as its comment once said. The same box
+at an absolute 0.01 would carry 74 000 triangles against these 59 000.
 
 Vertices are welded on a 1e-6 mm key, which OCCT's per-face tessellation does
 not do for itself; it halves the file for free and leaves no degenerate
@@ -29,7 +32,7 @@ re-run.
 import re
 import zipfile
 
-TOLERANCE = 0.01        # mm, chordal
+TOLERANCE = 0.01        # RELATIVE deflection, see above
 ANGULAR = 0.2           # radians
 _EPOCH = (1980, 1, 1, 0, 0, 0)
 
@@ -135,21 +138,45 @@ def triangulate(shape, tolerance=TOLERANCE, angular=ANGULAR):
     lid body had been built first. `BRepTools.Clean` makes every face mesh
     together, once, at this tolerance.
     """
+    from OCP.BRep import BRep_Tool
+    from OCP.BRepMesh import BRepMesh_IncrementalMesh
     from OCP.BRepTools import BRepTools
+    from OCP.TopAbs import TopAbs_Orientation
+    from OCP.TopLoc import TopLoc_Location
     BRepTools.Clean_s(shape.wrapped)
-    verts, tris = shape.tessellate(tolerance, angular)
-    index, out_v, remap = {}, [], []
-    for v in verts:
-        key = (round(v.X, 6), round(v.Y, 6), round(v.Z, 6))
-        if key not in index:
-            index[key] = len(out_v)
-            out_v.append(key)
-        remap.append(index[key])
-    out_t = []
-    for a, b, c in tris:
-        t = (remap[a], remap[b], remap[c])
-        if len(set(t)) == 3:            # welding can collapse a sliver
-            out_t.append(t)
+    # The same call build123d's `Shape.mesh` makes — RELATIVE deflection (the
+    # third argument), in parallel — so the mesh is the one every file on disk
+    # was written with; OCCT does it in 0.3 to 0.6 s for any part here. The
+    # walk below is `Shape.tessellate` with ONE change: the triangles are read
+    # by index, `poly.Triangle(i)`, and not by iterating `poly.Triangles()`.
+    # That iterator costs 0.18 ms a triangle through OCP — 250 times the
+    # indexed read — and was the whole of the meshing time: 6 s of a box's 15
+    # and 17 of a Compile lid's 31, all of it in a for-loop header.
+    BRepMesh_IncrementalMesh(shape.wrapped, tolerance, True, angular, True)
+    index, out_v, out_t = {}, [], []
+    for face in shape.faces():
+        loc = TopLoc_Location()
+        poly = BRep_Tool.Triangulation_s(face.wrapped, loc)
+        if poly is None:
+            continue
+        trsf = loc.Transformation()
+        remap = []
+        for i in range(1, poly.NbNodes() + 1):
+            pnt = poly.Node(i).Transformed(trsf)
+            key = (round(pnt.X(), 6), round(pnt.Y(), 6), round(pnt.Z(), 6))
+            j = index.get(key)
+            if j is None:
+                j = index[key] = len(out_v)
+                out_v.append(key)
+            remap.append(j)
+        reverse = face.wrapped.Orientation() == TopAbs_Orientation.TopAbs_REVERSED
+        for i in range(1, poly.NbTriangles() + 1):
+            a, b, c = poly.Triangle(i).Get()
+            if reverse:
+                b, c = c, b
+            t = (remap[a - 1], remap[b - 1], remap[c - 1])
+            if len(set(t)) == 3:            # welding can collapse a sliver
+                out_t.append(t)
     return out_v, _drop_flaps(out_t)
 
 

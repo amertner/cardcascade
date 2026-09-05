@@ -39,7 +39,7 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.build --part box         # all 50 — 2 min pooled
 .venv/bin/python -m cad.build --part tokenholder # 22, Dominion only, seconds
 .venv/bin/python -m cad.build --part holder      # all 56 — 1 min pooled
-.venv/bin/python -m cad.build --part all         # all 260 — 5 min; 0 s again
+.venv/bin/python -m cad.build --part all         # all 260 — 3 min; 0 s again
 .venv/bin/python -m cad.build --part all --jobs 1 --force   # serial, everything
 
 .venv/bin/python -m cad.assemble --model S4.16.10.32-Un --state all

@@ -100,15 +100,17 @@ result has not been printed.
   faults it does NOT fix"; `spec/BOX.md`.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does the
-  lot in about FIVE MINUTES: builds run in a process pool (`--jobs`, every
+  lot in about THREE MINUTES: builds run in a process pool (`--jobs`, every
   core by default) and a stamp beside each file skips it on a rerun when
   nothing it depends on changed (`--force` overrides). `--part tokenholder`
   is 22 files (22, not `individual/`'s 18: the old dedup key drops the size
   letter the tray has engraved on it, so two cascades ship a tray labelled
-  for the other — `spec/TOKENHOLDER.md`). Serially a box builds in 5-7 s, a
+  for the other — `spec/TOKENHOLDER.md`). Serially a box builds in 6-9 s, a
   holder in 1.5, a pusher in 3, and a LID costs whatever its mark costs —
-  2 s for Dominion's 459 edges, 13 for Compile's 1885 — with meshing at
-  0.01 mm adding 3-12 s to each of them.
+  2 s for Dominion's 459 edges, 11-13 for Compile's 1885. Meshing adds under
+  a second to any of them since 2026-09-05; it used to add 3-17 s, all of it
+  spent iterating OCCT's triangle array through OCP (`mesh3mf.triangulate`).
+  The booleans are the cost now: a box's 16 cuts, a lid's mark pocket.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
 - Tests: `.venv/bin/python tests/run_all.py` runs every suite below in order
