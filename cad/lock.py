@@ -15,6 +15,16 @@ Every dimension is a constant across all 32 pushers. A design is one number:
 # depth edges (4.20 front, 4.00 back, notch always) and nothing here reproduces
 # that; `pusher.build` refuses rather than stamp the wrong version on it.
 GENERATION = "7.0"
+# Every version whose GEOMETRY is GENERATION's: a stamp bump with no change to
+# the parts. 7.1 is the first cad/-built release (2026-09-05), the same 7.0
+# geometry under a `CC 7.1` stamp so a cad-built cascade can be told from an
+# Onshape-exported 7.0 one on the shelf.
+SAME_GEOMETRY = ("7.0", "7.1")
+
+
+def geometry_of(version):
+    """The lock generation a version's parts are built to."""
+    return GENERATION if version in SAME_GEOMETRY else version
 
 # Sizes that do not move (LOCK_STANDARD.md).
 PUSHER_TOTAL = 4.500      # plate + tab proudness

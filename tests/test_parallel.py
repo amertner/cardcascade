@@ -16,6 +16,7 @@ Onshape pipeline can be retired: not a feeling, a scorecard.
     .venv/bin/python tests/test_parallel.py       # about 3 minutes
 """
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,6 +35,7 @@ def check(label, ok, detail=""):
 
 
 print("=== every cascade, written ===")
+t0 = time.time()
 refused = {}
 n = 0
 for row, p, d in CC.catalogue():
@@ -42,10 +44,11 @@ for row, p, d in CC.catalogue():
         n += 1
     except SystemExit as e:
         refused[d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl")] = str(e)
-print(f"  {n} written, {len(refused)} refused")
+print(f"  {n} written, {len(refused)} refused in {time.time() - t0:.0f} s")
 check("nothing is refused", set(refused) == AT_THE_LIMIT, str(refused))
 
 print("\n=== each shipped project against its twin ===")
+t0 = time.time()
 same, missing, differing = [], [], []
 for game in sorted(p.name for p in CMP.SHIPPED.iterdir() if p.is_dir()):
     if not (CMP.CAD / game).exists():
@@ -60,7 +63,8 @@ for game in sorted(p.name for p in CMP.SHIPPED.iterdir() if p.is_dir()):
         (differing if diffs else same).append((game, s_path.name, diffs))
 for game, name, diffs in differing:
     print(f"  DIFFERS  {game}/{name}: {'; '.join(diffs)}")
-print(f"  {len(same)} same print, {len(differing)} differing, {len(missing)} without a twin")
+print(f"  {len(same)} same print, {len(differing)} differing, {len(missing)} without a twin "
+      f"in {time.time() - t0:.0f} s")
 check("every shipped project with a twin prints the same parts", not differing)
 check("every shipped project has a twin",
       set(missing) == {CMP.model_of(f"x ({m}).3mf") for m in AT_THE_LIMIT}, str(missing))

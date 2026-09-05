@@ -139,7 +139,8 @@ def row_stamp(row):
     return hashlib.sha1(json.dumps(sorted(row.items())).encode()).hexdigest()[:12]
 
 
-def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=None):
+def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=None,
+              version="7.0"):
     """[(row, p, d)] for the cascades selected, Parked rows skipped."""
     out = []
     for row in params.load_rows(csv):
@@ -153,7 +154,7 @@ def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=Non
         for sleeved in (0, 1):
             if sleeving and sleeving.lower()[:2] != ("sl" if sleeved else "un"):
                 continue
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             d = D.derive(p)
             if model and model not in d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl") \
                     and model not in d.calModelName:
@@ -211,12 +212,16 @@ def main(argv=None):
     ap.add_argument("--csv", default=CSV, type=Path)
     ap.add_argument("--components", default=BUILD, type=Path,
                     help="where the parts are (build/)")
+    ap.add_argument("--version", default="7.0",
+                    help="the version the parts are stamped with; the parts under "
+                         "--components must have been built at it (cad.build --version)")
     ap.add_argument("--build", action="store_true", help="run cad.build --part all first")
     ap.add_argument("--slice", action="store_true", help="slice every project with BambuStudio")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args(argv)
 
-    rows = catalogue(args.csv, args.game, args.model, args.size, args.sleeving, args.name)
+    rows = catalogue(args.csv, args.game, args.model, args.size, args.sleeving, args.name,
+                     args.version)
     if args.list:
         for row, p, d in rows:
             print(f"  {p.GameName}/{title(row, p, d)}  bed {bed_for(row, p) or 'auto'}")
@@ -224,7 +229,8 @@ def main(argv=None):
         return 0
     if args.build:
         print("● cad.build --part all")
-        rc = B.main(["--part", "all", "--csv", str(args.csv)])
+        rc = B.main(["--part", "all", "--csv", str(args.csv), "--version", args.version,
+                     "--out", str(args.components)])
         if rc:
             return rc
     print(f"  {'project':62s} {'layout':10s} notes")

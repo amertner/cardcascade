@@ -106,12 +106,12 @@ def lid_file(d):
     return "Lid " + name.replace("/", "-") + ".3mf"
 
 
-def lid_catalogue(csv=CSV, game=None, model=None):
+def lid_catalogue(csv=CSV, game=None, model=None, version="7.0"):
     """[(folder, filename, Primary)] — every distinct lid, deduplicated."""
     out = {}
     for row in params.load_rows(csv):
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             if game and p.GameName.lower() != game.lower():
                 continue
             fn = lid_file(D.derive(p))
@@ -172,7 +172,7 @@ def holder_file(d, first=False):
     return stem + name.replace("/", "-") + ".3mf"
 
 
-def holder_catalogue(csv=CSV, game=None, model=None):
+def holder_catalogue(csv=CSV, game=None, model=None, version="7.0"):
     """[(folder, filename, Primary, first)] — every distinct holder.
 
     A row with a first-riser override yields TWO: the standard holder and the
@@ -182,7 +182,7 @@ def holder_catalogue(csv=CSV, game=None, model=None):
     out = {}
     for row in params.load_rows(csv):
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             if game and p.GameName.lower() != game.lower():
                 continue
             d = D.derive(p)
@@ -258,7 +258,7 @@ SINGLE_SET = "one expansion"
 TOPPER_EXPANSIONS = ("Blank",) + TB.TOPPER_EXPANSIONS
 
 
-def topper_catalogue(csv=CSV, game=None, model=None):
+def topper_catalogue(csv=CSV, game=None, model=None, version="7.0"):
     """[(folder, filename, Primary)] — every distinct topper.
 
     Innovation only, single-set cascades excluded: the blank and every
@@ -270,7 +270,7 @@ def topper_catalogue(csv=CSV, game=None, model=None):
         if SINGLE_SET in (row.get("Set/Extension") or "").lower():
             continue
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             if p.GameName != "Innovation":
                 continue
             if game and p.GameName.lower() != game.lower():
@@ -312,7 +312,7 @@ def build_topper(p, expansion, out_dir, folder, filename):
             "new": before is None}
 
 
-def box_catalogue(csv=CSV, game=None, model=None):
+def box_catalogue(csv=CSV, game=None, model=None, version="7.0"):
     """[(folder, filename, Primary)] — every distinct box, deduplicated.
 
     Boxes do NOT share across games or sleeving, and `calModelName` separates
@@ -321,7 +321,7 @@ def box_catalogue(csv=CSV, game=None, model=None):
     out = {}
     for row in params.load_rows(csv):
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             if game and p.GameName.lower() != game.lower():
                 continue
             d = D.derive(p)
@@ -347,7 +347,7 @@ def build_box(p, out_dir, folder, filename):
             "new": before is None}
 
 
-def catalogue(csv=CSV, game=None, legacy=False):
+def catalogue(csv=CSV, game=None, legacy=False, version="7.0"):
     """[(folder, filename, Primary)] — every distinct pusher, deduplicated.
 
     The key is the full one: the game, the riser count, the cards per slot, the
@@ -356,7 +356,7 @@ def catalogue(csv=CSV, game=None, legacy=False):
     out = {}
     for row in params.load_rows(csv):
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             if game and p.GameName.lower() != game.lower():
                 continue
             key = (p.GameName, p.RisingSliders, p.CardsPerSlidingSlot,
@@ -405,7 +405,7 @@ def token_holder_file(d, half, legacy=False):
     return f"{kind} {name}.3mf"
 
 
-def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False):
+def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False, version="7.0"):
     """[(folder, filename, Primary, half)] — every distinct token holder.
 
     A row asks for one through parts.csv's `TokenHolder` column (`full` or
@@ -417,7 +417,7 @@ def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False):
         if (row.get("TokenHolder") or "").strip().lower() in ("", "none"):
             continue
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = params.from_row(row, sleeved, version)
             if game and p.GameName.lower() != game.lower():
                 continue
             d = D.derive(p)
@@ -593,20 +593,20 @@ def specs_for(kind, args, src):
     """[(folder, filename, Primary, extra)] for `--list`, and the job specs."""
     if kind == "lid":
         items = [(f, fn, p, None) for f, fn, p in
-                 lid_catalogue(args.csv, args.game, args.model)]
+                 lid_catalogue(args.csv, args.game, args.model, args.version)]
     elif kind == "holder":
-        items = holder_catalogue(args.csv, args.game, args.model)
+        items = holder_catalogue(args.csv, args.game, args.model, args.version)
     elif kind == "tokenholder":
         items = token_holder_catalogue(args.csv, args.game, args.model,
-                                       args.legacy_names)
+                                       args.legacy_names, args.version)
     elif kind == "topper":
-        items = topper_catalogue(args.csv, args.game, args.model)
+        items = topper_catalogue(args.csv, args.game, args.model, args.version)
     elif kind == "box":
         items = [(f, fn, p, None) for f, fn, p in
-                 box_catalogue(args.csv, args.game, args.model)]
+                 box_catalogue(args.csv, args.game, args.model, args.version)]
     else:
         items = [(f, fn, p, None) for f, fn, p in
-                 catalogue(args.csv, args.game, args.legacy_names)]
+                 catalogue(args.csv, args.game, args.legacy_names, args.version)]
     groups = {}
     for folder, fn, p, extra in items:
         key = (holder_key(p, extra) if kind == "holder"
@@ -652,6 +652,10 @@ def main(argv=None):
                                     "this, e.g. S2.40.12-30.45-Sl")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1,
                     help="parallel builds (default: every core); 1 is serial")
+    ap.add_argument("--version", default=L.GENERATION,
+                    help="the version the parts are stamped with (default "
+                         f"{L.GENERATION}); any of lock.SAME_GEOMETRY builds the same "
+                         "geometry — pair it with --out to keep two sets apart")
     ap.add_argument("--force", action="store_true",
                     help="rebuild even where the stamp says nothing changed")
     args = ap.parse_args(argv)

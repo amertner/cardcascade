@@ -46,7 +46,14 @@ shipped projects print the same parts as their cad twins
 (`tests/test_parallel.py`) — while `automation/` remains what has shipped
 every cascade on disk. **Everything is 7.0 going forward** (Allan,
 2026-09-05): a twin's 7.0 holders and pushers supersede the 6.6 and pre-7.0
-ones in a shipped project. The older route — `python -m cad.promote` staging built parts under
+ones in a shipped project. **7.1 is the cad-built release**: the same 7.0
+geometry under a `CC 7.1` stamp (`lock.SAME_GEOMETRY`), so a cad-built
+cascade can be told from an Onshape-exported one on the shelf. A set at a
+version goes in its own tree — `cad.build --version 7.1 --out build/v7.1`,
+then `cad.cascade --version 7.1 --components build/v7.1 --out
+build/v7.1/cascades` — and the defaults stay 7.0, which is what every
+reference STEP and cached mesh is stamped. `verify.py --stamps` does not
+know 7.1's glyph signature yet and reads a 7.1 part as unreadable. The older route — `python -m cad.promote` staging built parts under
 the planner's names for `refresh_cascades.py --components` — still works for
 all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
 and is what the layout module was checked against. Nothing from `build/` has

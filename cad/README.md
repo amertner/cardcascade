@@ -61,6 +61,9 @@ blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
 .venv/bin/python -m cad.cascade --game Dominion --sleeving un --slice   # ... and Studio slices each
 .venv/bin/python -m cad.cascade --build                  # every cascade, parts built first if stale
 .venv/bin/python -m cad.cascade --list                   # what would be made, and on which bed
+.venv/bin/python -m cad.build --part all --version 7.1 --out build/v7.1      # a whole set at another
+.venv/bin/python -m cad.cascade --version 7.1 --components build/v7.1 \
+    --out build/v7.1/cascades                            # stamp, beside the 7.0 one
 
 .venv/bin/python -m cad.promote --model S4.16.10.32-Un   # the OLD route: build/ -> planner names ->
 automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \

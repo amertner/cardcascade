@@ -91,13 +91,14 @@ def assembly_offset(d):
 
 def build(p, text=True):
     """`p` is a params.Primary. Returns the Pusher as a build123d Part."""
-    if p.Version != L.GENERATION:
+    if L.geometry_of(p.Version) != L.GENERATION:
         raise ValueError(
             f"cad/ builds {L.GENERATION} geometry only, so a Primary at "
             f"{p.Version!r} would get {L.GENERATION} tabs under a "
             f"'CC {p.Version}' stamp — the mixed-generation part parts.csv's "
             f"Build column exists to prevent. Leave the 6.6 pushers to "
-            f"individual/ until their cascades migrate.")
+            f"individual/ until their cascades migrate. (7.1 is 7.0 geometry "
+            f"with a new stamp: lock.SAME_GEOMETRY.)")
     d = D.derive(p)
     W = d.calPusherTotalDepth
     inc = d.calHeightIncrement
