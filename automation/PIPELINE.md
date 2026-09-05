@@ -36,7 +36,8 @@ Columns (the `Horizontal … 3D printer` block are the geometry inputs):
 `Short name, Base model, Unsl Model, Sleeved model, Game, Set/Extension,
 Status, Horizontal, Risers, Cards/Riser slot, Cards/First Riser,
 Front capacity, Box Height / mm, Merged-slot, TokenHolder, 3D printer, Notes,
-Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm`.
+Unsleeved W/mm, Unsleeved D/mm, Sleeved W/mm, Sleeved D/mm, Label holders`.
+The last is read by `cad/` only (`spec/BOX.md`); the planner ignores it.
 
 **The W/D columns are the ASSEMBLED, CLOSED cascade** — i.e. the LID's outer
 size, because the box fits inside the lid. Across the 33 built cascades the

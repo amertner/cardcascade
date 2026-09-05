@@ -86,7 +86,11 @@ def box_file(d):
     separators differ from the studio's string.
     """
     name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
-    return "Box " + name.replace("/", "-") + ".3mf"
+    # The one option the model code does not carry. The planner has no such
+    # variant — `plan_exports` names a box by its model alone — so a cascade
+    # built with it is a `cad/` build and not a refresh (spec/BOX.md).
+    suffix = "" if d.isLabelHoldersOnBox else " no label holders"
+    return "Box " + name.replace("/", "-") + suffix + ".3mf"
 
 
 def lid_file(d):

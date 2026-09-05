@@ -188,7 +188,12 @@ def derive(p):
     # cad/tables.py for why that game is gone.
     v["ProductName"] = "Card Cascade"
     v["gameShortName"] = T.GAME_SHORT_NAME[g]
-    v["isLabelHoldersOnBox"] = 0 if g == "Colours" else (1 if p.HorizontalSlots > 1 else 0)
+    # The studio's rule, AND the one input Onshape does not have: parts.csv's
+    # `Label holders` column (`params.Primary.LabelHolders`) can turn them off
+    # on a box the rule would give them to. Allan: users have asked for a box
+    # without label holders. It cannot turn them ON where the rule says no.
+    v["isLabelHoldersOnBox"] = (0 if g == "Colours" or p.HorizontalSlots <= 1
+                                else p.LabelHolders)
     v["isOnlyTwoPusherSlots"] = 1 if g == "Innovation" else 0
 
     v["NotchLength"] = 3.5 if v["calSlotDepth"] > 5.5 else 2.5

@@ -1138,20 +1138,23 @@ future kernel that manages them fails the suite rather than passing quietly.
 
 ## Still open
 
-- **`isLabelHoldersOnBox` is to become a real option.** Always `1` today, but
-  Allan wants it usable — users have asked for a box without label holders. So
-  the `Front Label Holder` / `Side Label Holder` groups are built behind the
-  flag rather than unconditionally. The `0` branch is EXERCISED since
-  2026-09-04: `Box Innovation S5.15.15.62-Sl without label holders.step` is
-  that row with the flag off, `box.build(p, d)` takes a Derived with it
-  flipped, and `tests/test_box.py` holds the two to the same envelope —
-  `#BoxWidth + 2.000` by `#BoxDepth + 4.500`, a closing bump each end and the
-  rear block, so of the `2.600` and `6.100` the finished box adds the holders
-  are `0.600` (the side holder standing past the bump it covers) and `1.600`
-  — differing only where every box does (the dividers stay whole; the
-  text). What is still missing is the OPTION: a
-  parts.csv column or a Primary field that sets the flag, which `derive.py`
-  today computes from the game and the slot count alone.
+- ~~**`isLabelHoldersOnBox` is to become a real option.**~~ It is one
+  (2026-09-05). Allan: users have asked for a box without label holders. The
+  parts.csv `Label holders` column — blank or `TRUE` for every shipped row,
+  `FALSE` to leave them off — becomes `params.Primary.LabelHolders`, the one
+  input Onshape has no variable for, and `derive.py` folds it into the flag:
+  `0 if Colours or HorizontalSlots <= 1 else LabelHolders`. It can only turn
+  the holders OFF where the studio's rule would build them. A box built with
+  it is named apart, `Box <model> no label holders.3mf` (`build.box_file`),
+  because the model code does not carry the option and the planner names a
+  box by its model alone — so such a cascade is a `cad/` build, not a
+  `refresh_cascades.py` refresh. The `0` branch is held to
+  `Box Innovation S5.15.15.62-Sl without label holders.step` by
+  `tests/test_box.py`, now through the column rather than a flipped Derived:
+  the same envelope — `#BoxWidth + 2.000` by `#BoxDepth + 4.500`, a closing
+  bump each end and the rear block, so of the `2.600` and `6.100` the
+  finished box adds the holders are `0.600` and `1.600` — differing only
+  where every box does (the dividers stay whole; the text).
 - ~~The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not
   yet identified.~~ Identified — see "The label holders" above: the side
   holder is on the `-X` end only and the closing bump on `+X`, and it is not
@@ -1172,8 +1175,8 @@ future kernel that manages them fails the suite rather than passing quietly.
   `115 mm³` of panel I still carry at `z 75.1..87.5`, the lip as five `35.977`
   lumps at `z 85.5..88.8`, the front label holder as a `1.600` sweep at
   `y = -#BoxDepth/2 - 1.600` over `z 40.500..64.500`, and the side label holder
-- **`isLabelHoldersOnBox` is built behind the flag** but no catalogue row can
-  exercise the `0` branch, so that path is written and unexercised.
+- ~~**`isLabelHoldersOnBox` is built behind the flag** but no catalogue row can
+  exercise the `0` branch~~ — the `Label holders` column exercises it (above).
 - **Probe hygiene.** Four probe bugs so far have been caught only because the
   STEP failed the same check as the build — a bar too narrow to contain what it
   measured, a cap a millimetre low, a cell that clipped a slice of wall, and a

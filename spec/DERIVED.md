@@ -144,6 +144,13 @@ Transcribed as written; none blocks the rebuild.
 
 ## Variables the parts added
 
+- **`LabelHolders`** (2026-09-05) is an INPUT, not a variable — the eleventh
+  field of `params.Primary`, from the parts.csv `Label holders` column, and
+  the one input Onshape has nothing for. `derive.py` folds it into
+  `isLabelHoldersOnBox`: the studio's `0 if Colours or HorizontalSlots <= 1`
+  stands, and where that would give `1` the column decides. Blank is `1`, so
+  every shipped row derives exactly what the studio does; `spec/BOX.md`.
+
 The transcription was made from the variable studio; two more surfaced later,
 in the Lid's own sketches (Allan, 2026-09-02), and are now in `derive.py`
 beside their neighbours:

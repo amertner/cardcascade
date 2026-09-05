@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from build123d import import_step, Box, Location   # noqa: E402
-from cad import params, derive as D, lock as L, text as TX  # noqa: E402
+from cad import build, params, derive as D, lock as L, text as TX  # noqa: E402
 from cad.parts import box                         # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -730,8 +730,19 @@ else:
                 if D.derive(params.from_row(r, 1)).calModelName.startswith("S5.15.15"))
     nl_d = D.derive(nl_p)
     check("the catalogue row has the flag ON", nl_d.isLabelHoldersOnBox, 1)
-    nl_d0 = D.Derived({**dict(nl_d.items()), "isLabelHoldersOnBox": 0})
-    nl_mine = box.build(nl_p, nl_d0)
+    # The OPTION: parts.csv's `Label holders` column becomes
+    # `Primary.LabelHolders`, and derive folds it into the flag. Off by the
+    # column, off in the Derived, and named apart on disk.
+    nl_row = next(r for r in params.load_rows(ROOT / "automation" / "parts.csv")
+                  if D.derive(params.from_row(r, 1)).calModelName.startswith("S5.15.15"))
+    nl_p0 = params.from_row({**nl_row, "Label holders": "FALSE"}, 1)
+    check("`Label holders` FALSE reaches the Primary", nl_p0.LabelHolders, 0)
+    nl_d0 = D.derive(nl_p0)
+    check("... and turns the flag off", nl_d0.isLabelHoldersOnBox, 0)
+    check("... and names the box apart", build.box_file(nl_d0),
+          build.box_file(nl_d).replace(".3mf", " no label holders.3mf"))
+    check("a blank column leaves them on", params.from_row(nl_row, 1).LabelHolders, 1)
+    nl_mine = box.build(nl_p0)
     rb, mb = nl_ref.bounding_box(), nl_mine.bounding_box()
     for ax in "XYZ":
         check(f"no holders: {ax} min", round(getattr(mb.min, ax), 3), round(getattr(rb.min, ax), 3), 1e-3)

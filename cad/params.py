@@ -1,8 +1,11 @@
 """Primary — the ten Onshape variable-studio inputs, and how a parts.csv row
 becomes them.
 
-These are exactly the variables `automation/set_variables.build_primary` POSTs.
-Nothing else is an input; everything else is computed in `derive.py`.
+These are exactly the variables `automation/set_variables.build_primary` POSTs,
+plus ONE that Onshape has no input for: `LabelHolders`, the parts.csv `Label
+holders` column, which `derive.py` folds into `isLabelHoldersOnBox` where the
+studio computes that flag from the game and the slot count alone. Nothing else
+is an input; everything else is computed in `derive.py`.
 """
 from dataclasses import dataclass
 import csv
@@ -30,6 +33,9 @@ class Primary:
     MatPocket: int
     GameName: str
     Version: str = "7.0"
+    # cad/ only — see the module docstring. 1 is what every shipped box has;
+    # 0 leaves the front and side label holders off (`box.label_holders`).
+    LabelHolders: int = 1
 
 
 def _int(row, col, default=0):
@@ -73,6 +79,8 @@ def _primary(row, sleeved, version, first, slot, game):
         MatPocket=1 if (row.get("Merged-slot") or "").strip().upper() == "TRUE" else 0,
         GameName=GAME_NAME.get(game, game),
         Version=version,
+        LabelHolders=0 if (row.get("Label holders") or "").strip().upper()
+        in ("FALSE", "0", "NO", "OFF") else 1,
     )
 
 
