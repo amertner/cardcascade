@@ -49,8 +49,8 @@ every cascade on disk. **Everything is 7.0 going forward** (Allan,
 ones in a shipped project. **7.1 is the cad-built release**: the same 7.0
 geometry under a `CC 7.1` stamp (`lock.SAME_GEOMETRY`), so a cad-built
 cascade can be told from an Onshape-exported one on the shelf — and, since the
-version went into the project name, in the file too (`... Sleeved v7.1 (...)`). A set at a
-version goes in its own tree — `cad.build --version 7.1 --out build/v7.1`,
+version went into the project name, in the file too (`... Sleeved v7.1 (...)`).
+A set at a version goes in its own tree — `cad.build --version 7.1 --out build/v7.1`,
 then `cad.cascade --version 7.1 --components build/v7.1 --out
 build/v7.1/cascades` — and the defaults stay 7.0, which is what every
 reference STEP and cached mesh is stamped. `verify.py --stamps` does not
@@ -117,9 +117,11 @@ been printed yet.
   faults it does NOT fix"; `spec/BOX.md`.
 - Build one: `.venv/bin/python -m cad.build --part box --model <model code>`;
   every pusher is the bare `python -m cad.build`, and `--part all` does the
-  lot in about THREE MINUTES: builds run in a process pool (`--jobs`, every
-  core by default) and a stamp beside each file skips it on a rerun when
-  nothing it depends on changed (`--force` overrides). `--part tokenholder`
+  lot in about THREE MINUTES on this laptop and 97 s on a quiet 14-core
+  machine: every kind's jobs go through ONE process pool, longest first, one
+  worker per core (`--jobs`), each meshing single-threaded, and a stamp
+  beside each file skips it on a rerun when nothing it depends on changed
+  (`--force` overrides). `--part tokenholder`
   is 22 files (22, not `individual/`'s 18: the old dedup key drops the size
   letter the tray has engraved on it, so two cascades ship a tray labelled
   for the other — `spec/TOKENHOLDER.md`). Serially a box builds in 6-9 s, a
@@ -130,9 +132,10 @@ been printed yet.
   The booleans are the cost now: a box's 16 cuts, a lid's mark pocket.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
-- Tests: `.venv/bin/python tests/run_all.py` runs every suite below in order
-  and says which failed (`--quick` skips the slow ones, `--only holder,lock`
-  picks). One at a time: `python3 tests/test_derive.py` and
+- Tests: `.venv/bin/python tests/run_all.py` runs every suite below — several
+  at a time within a core budget, longest first, so 33 minutes of suites take
+  about 8 — and says which failed (`--quick` skips the slow ones, `--only
+  holder,lock` picks, `--jobs 1` runs them one at a time in table order). One at a time: `python3 tests/test_derive.py` and
   `python3 tests/test_lock.py` (pure arithmetic, system python is fine; the
   second holds the three copies of the C1-C5 table to each other),
   `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported

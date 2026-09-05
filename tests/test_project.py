@@ -35,6 +35,7 @@ import filaments as FIL                                          # noqa: E402
 import make_cascade as MC                                        # noqa: E402
 import towers                                                    # noqa: E402
 
+
 def shipped(folder, model):
     """The shipped project carrying `model`, whatever named it. The name is not
     stable — the version went into it on 2026-09-05 — but the model code in the
