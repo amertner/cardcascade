@@ -34,6 +34,7 @@ from pathlib import Path
 
 from . import build as B, derive as D, layout as LY, params, project as PJ, tables as TB
 from .lock import GENERATION
+from .refuse import Refused, refuse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automation"))
@@ -91,8 +92,7 @@ def objects(row, p, d, root=BUILD):
     folder = root / p.GameName
     missing = sorted({fn for _n, fn in parts(row, p, d) if not (folder / fn).exists()})
     if missing:
-        raise SystemExit(f"REFUSING: not built under {folder}: {missing} — "
-                         f"run python -m cad.build --part all")
+        refuse(f"not built under {folder}: {missing} — run python -m cad.build --part all")
     cache = {}
     out = []
     for name, fn in parts(row, p, d):
@@ -207,14 +207,14 @@ def make(row, p, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD,
     ps = json.loads(zipfile.ZipFile(path).read("Metadata/project_settings.config"))
     blocking = [x for x in FIL.makerworld_problems(ps) if x[3]]
     if blocking:
-        raise SystemExit(f"REFUSING: {path.name}: MakerWorld would reject it: {blocking}")
+        refuse(f"{path.name}: MakerWorld would reject it: {blocking}")
     bad = towers.problems(path)
     if bad:
-        raise SystemExit(f"REFUSING: {path.name}: prime tower outside a nozzle's reach: {bad}")
+        refuse(f"{path.name}: prime tower outside a nozzle's reach: {bad}")
     notes = [f"{chosen} x{len(plates)}"]
     if do_slice:
         if not STUDIO.exists():
-            raise SystemExit("REFUSING: --slice needs BambuStudio.app")
+            refuse("--slice needs BambuStudio.app")
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             subprocess.run([str(STUDIO), "--slice", "0", "--outputdir", tmp, str(path)],
@@ -223,7 +223,7 @@ def make(row, p, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD,
             rc = json.loads(result.read_text()).get("return_code") if result.exists() else None
             if rc != 0:
                 err = json.loads(result.read_text()).get("error_string") if result.exists() else "no result.json"
-                raise SystemExit(f"REFUSING: {path.name}: slice return_code {rc}: {err}")
+                refuse(f"{path.name}: slice return_code {rc}: {err}")
             notes.append(f"sliced {len(list(Path(tmp).glob('*.gcode')))} plates")
     return path, notes
 
@@ -279,9 +279,9 @@ def main(argv=None):
         try:
             path, notes = make(row, p, d, out, args.bed, args.slice,
                                args.components, args.publish)
-        except SystemExit as e:
-            failed.append(f"{p.GameName}/{title(row, p, d)}: {e}")
-            print(f"  {p.GameName + '/' + title(row, p, d):62s} {'REFUSED':10s} {e}")
+        except Refused as e:
+            failed.append(f"{p.GameName}/{title(row, p, d)}: {e.reason}")
+            print(f"  {p.GameName + '/' + title(row, p, d):62s} {'REFUSED':10s} {e.reason}")
             continue
         print(f"  {p.GameName + '/' + path.name:62s} {notes[0]:10s} {'; '.join(notes[1:])}")
     print(f"\n  {len(rows) - len(failed)} of {len(rows)} written to {out}")

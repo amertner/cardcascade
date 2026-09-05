@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from cad import cascade as CC, compare as CMP   # noqa: E402
+from cad.refuse import Refused                  # noqa: E402
 
 AT_THE_LIMIT = set()
 fails = []
@@ -42,7 +43,7 @@ for row, p, d in CC.catalogue():
     try:
         CC.make(row, p, d)
         n += 1
-    except SystemExit as e:
+    except Refused as e:
         refused[d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl")] = str(e)
 print(f"  {n} written, {len(refused)} refused in {time.time() - t0:.0f} s")
 check("nothing is refused", set(refused) == AT_THE_LIMIT, str(refused))

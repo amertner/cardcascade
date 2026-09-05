@@ -60,6 +60,7 @@ from . import mesh3mf
 from . import params
 from . import lock as L
 from . import tables as TB
+from .refuse import Refused, refuse
 
 # build123d is NOT imported here. It costs four seconds to load, and the
 # catalogue paths — `--list`, `--help`, `cad.promote`, `cad.assemble --list` —
@@ -353,8 +354,8 @@ def pusher_catalogue(csv=CSV, game=None, legacy=False, version=L.GENERATION):
             if prev is not p:
                 clash.append(f"{folder}/{fn}")
         if clash:
-            sys.exit("--legacy-names: two distinct geometries share a name: "
-                     + ", ".join(sorted(clash)))
+            refuse("--legacy-names: two distinct geometries share a name: "
+                   + ", ".join(sorted(clash)))
     return [out[k] for k in sorted(out)]
 
 
@@ -407,9 +408,8 @@ def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False,
             key = (p.GameName, fn)
             ident = (d.calTokenHolderModel, half)
             if legacy and clash.setdefault(key, ident) != ident:
-                raise SystemExit(
-                    f"--legacy-names: {fn} would carry both "
-                    f"{clash[key][0]} and {ident[0]}")
+                refuse(f"--legacy-names: {fn} would carry both "
+                       f"{clash[key][0]} and {ident[0]}")
             out.setdefault(key, (p.GameName, fn, p, half))
     return [out[k] for k in sorted(out)]
 
@@ -658,7 +658,15 @@ def main(argv=None):
     ap.add_argument("--force", action="store_true",
                     help="rebuild even where the stamp says nothing changed")
     args = ap.parse_args(argv)
+    try:
+        return run(args)
+    except Refused as e:
+        print(f"  {e}")
+        return 1
 
+
+def run(args):
+    """The build `args` asks for; `main` is the argument parsing round it."""
     kinds = KINDS if args.part == "all" else (args.part,)
     src = source_hash()
     t_all = time.perf_counter()

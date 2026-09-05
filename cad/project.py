@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import mesh3mf
+from .refuse import refuse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automation"))
@@ -67,10 +68,6 @@ NS = ('xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" '
 PLATE_SAFE = re.compile(r'[<>:/\\|?*"]')
 
 
-def fail(msg):
-    raise SystemExit(f"REFUSING: {msg}")
-
-
 # --- the inputs -------------------------------------------------------------
 
 
@@ -107,7 +104,7 @@ class Obj:
         parts = [Part(n, v, t, INLAY if n.startswith("Part ") else BODY)
                  for n, v, t in mesh3mf.read(Path(path))]
         if not parts:
-            fail(f"{path}: no mesh")
+            refuse(f"{path}: no mesh")
         return cls(name, parts)
 
     @property
@@ -222,7 +219,7 @@ def settings(bed, n_plates, towers, filaments=FILAMENTS):
     have = [c.upper() for c in ps.get("filament_colour", [])]
     want = [c.upper() for c in filaments]
     if sorted(have) != sorted(want):
-        fail(f"profile {BEDS[bed][2]} carries filaments {have}, not {want}")
+        refuse(f"profile {BEDS[bed][2]} carries filaments {have}, not {want}")
     order = [have.index(c) for c in want]
     if order != list(range(len(order))):
         # `remap` turns every per-filament array with the colours, the flush
@@ -230,7 +227,7 @@ def settings(bed, n_plates, towers, filaments=FILAMENTS):
         ps, _notes = FIL.remap(ps, order)
     ps = force_print_settings(ps)
     if len(towers) != n_plates:
-        fail(f"{len(towers)} tower positions for {n_plates} plates")
+        refuse(f"{len(towers)} tower positions for {n_plates} plates")
     ps["wipe_tower_x"] = [_g(x) for x, _y in towers]
     ps["wipe_tower_y"] = [_g(y) for _x, y in towers]
     return ps
@@ -272,13 +269,13 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     name -> value pairs for `3dmodel.model` — the source hash, say."""
     path = Path(path)
     if bed not in BEDS:
-        fail(f"unknown bed {bed!r}; one of {sorted(BEDS)}")
+        refuse(f"unknown bed {bed!r}; one of {sorted(BEDS)}")
     placed = sorted(p.obj for p in placements)
     if placed != list(range(len(objects))):
-        fail(f"every object must be placed exactly once; got {placed}")
+        refuse(f"every object must be placed exactly once; got {placed}")
     for p in placements:
         if not 1 <= p.plate <= len(plates):
-            fail(f"placement on plate {p.plate}; there are {len(plates)}")
+            refuse(f"placement on plate {p.plate}; there are {len(plates)}")
 
     # Ids: one space for objects and meshes. Objects take 1..n, meshes follow.
     n = len(objects)
@@ -371,7 +368,7 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     cfg_plates = []
     for i, plate in enumerate(plates, start=1):
         if not by_plate[i]:
-            fail(f"plate {i} ({plate.name}) has no object on it")
+            refuse(f"plate {i} ({plate.name}) has no object on it")
         cfg_plates.append(
             '  <plate>\n'
             f'    <metadata key="plater_id" value="{i}"/>\n'
@@ -490,7 +487,7 @@ def read(path):
         bed = {("256x256",): "p1", ("330x320",): "h2c", ("180x180",): "mini"}.get(
             (area[2],) if len(area) > 2 else (), None)
     if bed is None:
-        fail(f"{path}: unknown printer {ps.get('printer_model')!r}")
+        refuse(f"{path}: unknown printer {ps.get('printer_model')!r}")
     cfg = zf.read("Metadata/model_settings.config").decode()
     xml = zf.read("3D/3dmodel.model").decode()
     title = ""
@@ -547,7 +544,7 @@ def read(path):
         t = [float(v) for v in it.group(2).split()]
         plate = plate_of.get(oid)
         if plate is None:
-            fail(f"{path}: object {oid} is on no plate")
+            refuse(f"{path}: object {oid} is on no plate")
         ox, oy = plate_origin(bed, plate, len(out.plates))
         angle = math.degrees(math.atan2(t[1], t[0]))
         out.placements[oid] = Placement(oid, plate, t[9] - ox, t[10] - oy, angle)

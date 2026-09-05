@@ -34,6 +34,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "automation"))
 
 from cad import cascade as CC, derive as D, layout as LY, params, project as PJ  # noqa: E402
+from cad.refuse import Refused                                                   # noqa: E402
 import filaments as FIL                                                          # noqa: E402
 import towers                                                                    # noqa: E402
 
@@ -170,7 +171,7 @@ with tempfile.TemporaryDirectory() as tmp:
             bed, plates, places = LY.layout(objs)
             out = tmp / f"{model}.3mf"
             PJ.write(out, bed, objs, plates, places, title=CC.title(row, p, d))
-        except SystemExit as e:
+        except Refused as e:
             check(f"{p.GameName} {model}: refused, and known to be at the bed's limit",
                   model in AT_THE_LIMIT, str(e))
             continue

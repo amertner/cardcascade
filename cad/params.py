@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import csv
 
 from .lock import GENERATION
+from .refuse import refuse
 
 # parts.csv "Game" -> the GameName the Onshape model expects. FCM is the one
 # that differs (set_variables.py passes the short code, not "Food Chain
@@ -99,7 +100,7 @@ def game_code(name):
     for csv_name, code in GAME_NAME.items():
         if name.lower() in (csv_name.lower(), code.lower()):
             return code
-    raise SystemExit(f"REFUSING: unknown game {name!r}; one of {sorted(GAME_NAME.values())}")
+    refuse(f"unknown game {name!r}; one of {sorted(GAME_NAME.values())}")
 
 
 def cascades(csv_path, game=None, version=GENERATION):

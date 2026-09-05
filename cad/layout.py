@@ -45,6 +45,7 @@ import json
 import math
 
 from . import project as PJ
+from .refuse import refuse
 
 # --- the numbers -------------------------------------------------------------
 
@@ -81,10 +82,6 @@ def role(name):
         if name.startswith(r):
             return r
     return "Other"
-
-
-def fail(msg):
-    raise SystemExit(f"REFUSING: {msg}")
 
 
 # --- oriented boxes ------------------------------------------------------------
@@ -241,9 +238,9 @@ def choose_bed(objects, forced=None):
     Sleeved on its P1P, 4.3 mm from the edge) and is refused otherwise."""
     if forced:
         if forced not in PJ.BEDS:
-            fail(f"unknown bed {forced!r}; one of {sorted(PJ.BEDS)}")
+            refuse(f"unknown bed {forced!r}; one of {sorted(PJ.BEDS)}")
         if not fits(forced, objects, relaxed=True):
-            fail(f"the forced bed {forced} does not fit every part at any angle")
+            refuse(f"the forced bed {forced} does not fit every part at any angle")
         return forced
     for bed in PJ.BEDS:                    # smallest first
         if fits(bed, objects):
@@ -251,7 +248,7 @@ def choose_bed(objects, forced=None):
     for bed in PJ.BEDS:
         if fits(bed, objects, relaxed=True):
             return bed
-    fail("no candidate bed fits every part at any angle between 30 and 60 deg")
+    refuse("no candidate bed fits every part at any angle between 30 and 60 deg")
 
 
 # --- the plates ---------------------------------------------------------------
@@ -322,12 +319,12 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
         if sum(dims[i]) / math.sqrt(2) > min(uw, ud) - STRIP_MARGIN:
             ang, slack = fit_angle(dims[i][0], dims[i][1], uw, ud)
             if slack < 0:
-                fail(f"{objects[i].name} cannot fit the {bw:g}x{bd:g} bed at any "
-                     f"angle between 30 and 60 degrees ({-slack:.1f} mm over)")
+                refuse(f"{objects[i].name} cannot fit the {bw:g}x{bd:g} bed at any "
+                       f"angle between 30 and 60 degrees ({-slack:.1f} mm over)")
             tight[i] = ang
     if len(tight) > 1 or (tight and len(rot_ids) > 1):
-        fail(f"{[objects[i].name for i in rot_ids]}: more than one object on the "
-             f"plate needs the bed's whole diagonal")
+        refuse(f"{[objects[i].name for i in rot_ids]}: more than one object on the "
+               f"plate needs the bed's whole diagonal")
     placements, placed = {}, []
     if tight:
         (i, ang), = tight.items()
@@ -338,8 +335,8 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
         placed.append((i, (cx, cy, w / 2, d / 2, th + quarter)))
         flat = [j for j in idxs if j != i]
         if flat:
-            fail(f"{objects[i].name} takes its plate's whole diagonal; "
-                 f"{[objects[j].name for j in flat]} cannot share it")
+            refuse(f"{objects[i].name} takes its plate's whole diagonal; "
+                   f"{[objects[j].name for j in flat]} cannot share it")
     elif rot_ids:
         # strips along two bed edges from a shared corner — a column down the
         # +x edge, then a row along the +y edge — or the centred band when
@@ -402,7 +399,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
                     cx += GRID
                 cy -= GRID
             if spot is None:
-                fail(f"no room left for {objects[i].name}")
+                refuse(f"no room left for {objects[i].name}")
             placements[i] = (quarter, spot[0], spot[1])
             placed.append((i, (spot[0], spot[1], w / 2, d / 2, quarter)))
     else:
@@ -467,20 +464,28 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
     return placements, placed
 
 
-def validate(objects, placed, bed, exclude):
-    """Every placed object on the bed, off the exclude area and CLEARANCE from
-    its neighbours — or a refusal naming the first that is not."""
+def misfit(objects, placed, bed, exclude):
+    """Why this plate is not legal — the first placed object off the bed, in
+    the exclude area or within CLEARANCE of a neighbour — or None."""
     bw, bd = PJ.BEDS[bed][:2]
     for k, (i, ob) in enumerate(placed):
         x0, y0, x1, y1 = obb_aabb(ob)
         if x0 < -1e-6 or y0 < -1e-6 or x1 > bw + 1e-6 or y1 > bd + 1e-6:
-            fail(f"{objects[i].name} does not fit the bed "
-                 f"({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
+            return (f"{objects[i].name} does not fit the bed "
+                    f"({x0:.1f},{y0:.1f})-({x1:.1f},{y1:.1f})")
         if exclude and sat_overlap(ob, exclude, CLEARANCE):
-            fail(f"{objects[i].name} enters the bed's exclude area")
+            return f"{objects[i].name} enters the bed's exclude area"
         for j, ob2 in placed[:k]:
             if sat_overlap(ob, ob2, CLEARANCE):
-                fail(f"{objects[i].name} overlaps {objects[j].name}")
+                return f"{objects[i].name} overlaps {objects[j].name}"
+    return None
+
+
+def validate(objects, placed, bed, exclude):
+    """`misfit`, refused."""
+    reason = misfit(objects, placed, bed, exclude)
+    if reason:
+        refuse(reason)
 
 
 def shifted(placements, placed, dx, dy):
@@ -622,12 +627,10 @@ def plate(objects, idxs, bed, ps, exclude, name):
         where, placed = pack_plate(objects, idxs, bed, exclude, turn=turn, ps=ps)
         for dx, dy in slides(placed, bed, exclude):
             w2, p2 = shifted(where, placed, dx, dy)
-            try:
-                validate(objects, p2, bed, exclude)
-            except SystemExit:
+            if misfit(objects, p2, bed, exclude):
                 continue
             at = tower(ps, bed, p2, exclude)
             if at is not None:
                 return w2, p2, at
-    fail(f"plate {name}: no room for the prime tower, as packed or turned "
-         f"a quarter round")
+    refuse(f"plate {name}: no room for the prime tower, as packed or turned "
+           f"a quarter round")
