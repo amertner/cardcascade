@@ -704,7 +704,7 @@ def inlays(p, d, expansion):
     return sorted(solid.solids(), key=lambda q: (q.bounding_box().min.X, q.bounding_box().min.Y))
 
 
-EXPANSIONS = ("Blank", "Artifacts", "Cities", "Echoes", "Figures", "Unseen")
+EXPANSIONS = TB.TOPPERS
 
 
 def build(p, d=None, expansion="Blank"):

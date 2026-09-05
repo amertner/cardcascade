@@ -50,7 +50,7 @@ def record(part, fn, line, fitted, final, font, proud):
 
 
 print("=== pushers ===")
-for _folder, fn, p in B.catalogue():
+for _folder, fn, p in B.pusher_catalogue():
     d = D.derive(p)
     (txt, sz, _x, _b), (_v, vsz, _x2, _b2) = T.logo_lines(p, d)
     cap_em, asc_em = T._metrics(T.LOGO_FONT)

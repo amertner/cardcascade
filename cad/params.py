@@ -10,6 +10,8 @@ is an input; everything else is computed in `derive.py`.
 from dataclasses import dataclass
 import csv
 
+from .lock import GENERATION
+
 # parts.csv "Game" -> the GameName the Onshape model expects. FCM is the one
 # that differs (set_variables.py passes the short code, not "Food Chain
 # Magnate"); the rest are identical.
@@ -32,7 +34,7 @@ class Primary:
     isSleeved: int
     MatPocket: int
     GameName: str
-    Version: str = "7.0"
+    Version: str = GENERATION
     # cad/ only — see the module docstring. 1 is what every shipped box has;
     # 0 leaves the front and side label holders off (`box.label_holders`).
     LabelHolders: int = 1
@@ -43,7 +45,7 @@ def _int(row, col, default=0):
     return int(v) if v else default
 
 
-def from_row(row, sleeved, version="7.0"):
+def from_row(row, sleeved, version=GENERATION):
     """One parts.csv row + a sleeving -> Primary. Mirrors build_primary().
 
     A malformed row names itself: a number that will not parse or a Game the
@@ -85,6 +87,30 @@ def _primary(row, sleeved, version, first, slot, game):
 
 
 def load_rows(path):
+    """Every parts.csv row but the Parked ones — the one place that status is read."""
     with open(path, newline="") as f:
         return [r for r in csv.DictReader(f)
                 if (r.get("Status") or "").strip() != "Parked"]
+
+
+def game_code(name):
+    """The GameName a `--game` argument means, however it is spelt: the
+    parts.csv name (`Food Chain Magnate`) or the code (`FCM`), any case."""
+    for csv_name, code in GAME_NAME.items():
+        if name.lower() in (csv_name.lower(), code.lower()):
+            return code
+    raise SystemExit(f"REFUSING: unknown game {name!r}; one of {sorted(GAME_NAME.values())}")
+
+
+def cascades(csv_path, game=None, version=GENERATION):
+    """[(row, Primary)] for every row at both sleevings, `game` filtered —
+    the one row selector every CLI's --game goes through."""
+    code = game_code(game) if game else None
+    out = []
+    for row in load_rows(csv_path):
+        for sleeved in (0, 1):
+            p = from_row(row, sleeved, version)
+            if code and p.GameName != code:
+                continue
+            out.append((row, p))
+    return out

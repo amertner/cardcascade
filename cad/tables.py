@@ -88,3 +88,5 @@ LID_LOGO_EDITION = {
 # `cad.build --list` and `cad.promote` can name the toppers without importing
 # build123d; `topper.py` asserts the two agree.
 TOPPER_EXPANSIONS = ("Artifacts", "Cities", "Echoes", "Figures", "Unseen")
+# The six toppers a cascade ships, in catalogue order: the Blank and the five.
+TOPPERS = ("Blank",) + TOPPER_EXPANSIONS

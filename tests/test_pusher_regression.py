@@ -65,7 +65,7 @@ def span(path):
             min(c[0]), max(c[1]), min(c[2]))
 
 
-items = B.catalogue()
+items = B.pusher_catalogue()
 # Which built files the planner's key would collapse onto one name. Only
 # Dominion 6x10 does: `324 Card` (no override) and `290 Card (Mat)` (first
 # riser 12) differ by 1.20 mm sleeved and share `Pusher 6x10-*.3mf`.

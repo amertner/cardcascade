@@ -262,19 +262,12 @@ def catalogue(csv=CSV, game=None, model=None):
     derivable from the geometry: only the sets whose expansions need one carry
     it (`plan_exports.compose`)."""
     out = []
-    for row in params.load_rows(csv):
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
-            d = D.derive(p)
-            if game and p.GameName.lower() != game.lower():
-                continue
-            if model and model not in B.box_file(d):
-                continue
-            tokens = (row.get("TokenHolder") or "").strip().lower()
-            out.append((params.GAME_NAME.get((row.get("Game") or "").strip(),
-                                             p.GameName), p,
-                        tokens not in ("", "none"),
-                        (row.get("Short name") or "").strip()))
+    for row, p in params.cascades(csv, game):
+        if not B.model_matches(D.derive(p), model):
+            continue
+        tokens = (row.get("TokenHolder") or "").strip().lower()
+        out.append((p.GameName, p, tokens not in ("", "none"),
+                    (row.get("Short name") or "").strip()))
     return out
 
 
@@ -319,7 +312,7 @@ def main(argv=None):
             except MissingHolder as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break
-            stem = B.box_file(d)[len("Box "):-len(".3mf")]
+            stem = B.model_stem(d.calModelName)
             path = args.out / "assemblies" / folder / f"{stem} {state}.3mf"
             meshed = mesh3mf.write_assembly(path, parts, instances,
                                             name=f"{stem} {state}")

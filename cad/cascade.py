@@ -33,6 +33,7 @@ import zipfile
 from pathlib import Path
 
 from . import build as B, derive as D, layout as LY, params, project as PJ, tables as TB
+from .lock import GENERATION
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automation"))
@@ -79,7 +80,7 @@ def parts(row, p, d):
     spec = C.GAMES.get(p.GameName) or {}
     short = (row.get("Short name") or "").strip()
     if p.GameName == "Innovation" and short not in spec.get("no_toppers", set()):
-        for exp in TB.TOPPER_EXPANSIONS + ("Blank",):
+        for exp in TB.TOPPERS:
             out.append((f"Topper {exp}", B.topper_file(p, d, exp)))
     return out
 
@@ -174,28 +175,21 @@ def row_stamp(row):
 
 
 def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=None,
-              version="7.0"):
-    """[(row, p, d)] for the cascades selected, Parked rows skipped."""
+              version=GENERATION):
+    """[(row, p, d)] for the cascades selected."""
+    sizes = [x.strip().upper() for x in size.split(",")] if size else None
     out = []
-    for row in params.load_rows(csv):
-        if (row.get("Status") or "").strip() == "Parked":
-            continue
-        if game and (row.get("Game") or "").strip() not in (game, params.GAME_NAME.get(game, game)) \
-                and params.GAME_NAME.get((row.get("Game") or "").strip()) != game:
-            continue
+    for row, p in params.cascades(csv, game, version):
         if name and name.lower() not in (row.get("Short name") or "").lower():
             continue
-        for sleeved in (0, 1):
-            if sleeving and sleeving.lower()[:2] != ("sl" if sleeved else "un"):
-                continue
-            p = params.from_row(row, sleeved, version)
-            d = D.derive(p)
-            if model and model not in d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl") \
-                    and model not in d.calModelName:
-                continue
-            if size and d.calSizeLetter.upper() not in [x.strip().upper() for x in size.split(",")]:
-                continue
-            out.append((row, p, d))
+        if sleeving and sleeving.lower()[:2] != ("sl" if p.isSleeved else "un"):
+            continue
+        d = D.derive(p)
+        if not B.model_matches(d, model):
+            continue
+        if sizes and d.calSizeLetter.upper() not in sizes:
+            continue
+        out.append((row, p, d))
     return out
 
 
@@ -256,7 +250,7 @@ def main(argv=None):
     ap.add_argument("--csv", default=CSV, type=Path)
     ap.add_argument("--components", default=BUILD, type=Path,
                     help="where the parts are (build/)")
-    ap.add_argument("--version", default="7.0",
+    ap.add_argument("--version", default=GENERATION,
                     help="the version the parts are stamped with; the parts under "
                          "--components must have been built at it (cad.build --version)")
     ap.add_argument("--build", action="store_true", help="run cad.build --part all first")

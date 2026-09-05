@@ -70,6 +70,19 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
 
 
+def model_stem(code):
+    """A studio model code as the file names carry it: `S2.40.12-30.45-Sl`
+    for `S2.40.12/30.45.Sl` — the dot before the sleeving and the `/` of a
+    first-riser override both folded to `-`."""
+    return code.replace(".Sl", "-Sl").replace(".Un", "-Un").replace("/", "-")
+
+
+def model_matches(d, query):
+    """Does a `--model` argument — a model code or part of one, dots or
+    dashes — pick this cascade?"""
+    return not query or model_stem(query).lower() in model_stem(d.calModelName).lower()
+
+
 def pusher_file(p, legacy=False):
     slv = "Sl" if p.isSleeved else "Un"
     first = ("" if legacy or not p.isFirstSlidingSlotOverride
@@ -85,12 +98,11 @@ def box_file(d):
     sleeving — and CLAUDE.md makes the CAD the authority on it. Only the
     separators differ from the studio's string.
     """
-    name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
     # The one option the model code does not carry. The planner has no such
     # variant — `plan_exports` names a box by its model alone — so a cascade
     # built with it is a `cad/` build and not a refresh (spec/BOX.md).
     suffix = "" if d.isLabelHoldersOnBox else " no label holders"
-    return "Box " + name.replace("/", "-") + suffix + ".3mf"
+    return "Box " + model_stem(d.calModelName) + suffix + ".3mf"
 
 
 def lid_file(d):
@@ -102,22 +114,17 @@ def lid_file(d):
     files today; they part company when the floor's engraved `calModelName` is
     built, and the CAD is the authority on that code (CLAUDE.md).
     """
-    name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
-    return "Lid " + name.replace("/", "-") + ".3mf"
+    return "Lid " + model_stem(d.calModelName) + ".3mf"
 
 
-def lid_catalogue(csv=CSV, game=None, model=None, version="7.0"):
+def lid_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     """[(folder, filename, Primary)] — every distinct lid, deduplicated."""
     out = {}
-    for row in params.load_rows(csv):
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved, version)
-            if game and p.GameName.lower() != game.lower():
-                continue
-            fn = lid_file(D.derive(p))
-            if model and model.lower() not in fn.lower():
-                continue
-            out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+    for _row, p in params.cascades(csv, game, version):
+        fn = lid_file(D.derive(p))
+        if model and model.lower() not in fn.lower():
+            continue
+        out.setdefault((p.GameName, fn), (p.GameName, fn, p))
     return [out[k] for k in sorted(out)]
 
 
@@ -167,12 +174,11 @@ def holder_file(d, first=False):
     for it, and missing the card count, which sets the depth. Both are in
     `calModelName`.
     """
-    name = d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
-    stem = "FirstHolder " if first else "Holder "
-    return stem + name.replace("/", "-") + ".3mf"
+    kind = "FirstHolder" if first else "Holder"
+    return f"{kind} {model_stem(d.calModelName)}.3mf"
 
 
-def holder_catalogue(csv=CSV, game=None, model=None, version="7.0"):
+def holder_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     """[(folder, filename, Primary, first)] — every distinct holder.
 
     A row with a first-riser override yields TWO: the standard holder and the
@@ -180,18 +186,14 @@ def holder_catalogue(csv=CSV, game=None, model=None, version="7.0"):
     `plan_exports.compose` emits them.
     """
     out = {}
-    for row in params.load_rows(csv):
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved, version)
-            if game and p.GameName.lower() != game.lower():
+    for _row, p in params.cascades(csv, game, version):
+        d = D.derive(p)
+        for first in ((False, True) if p.isFirstSlidingSlotOverride
+                      else (False,)):
+            fn = holder_file(d, first)
+            if model and model.lower() not in fn.lower():
                 continue
-            d = D.derive(p)
-            for first in ((False, True) if p.isFirstSlidingSlotOverride
-                          else (False,)):
-                fn = holder_file(d, first)
-                if model and model.lower() not in fn.lower():
-                    continue
-                out.setdefault((p.GameName, fn), (p.GameName, fn, p, first))
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p, first))
     return [out[k] for k in sorted(out)]
 
 
@@ -253,44 +255,34 @@ def topper_shape_key(p, d):
 # the cache, which is where that would show up.
 SINGLE_SET = "one expansion"
 
-# The Blank and the five marks — `tables.TOPPER_EXPANSIONS`, which
-# `parts/topper.py` asserts is what `MARKS` draws.
-TOPPER_EXPANSIONS = ("Blank",) + TB.TOPPER_EXPANSIONS
-
-
-def topper_catalogue(csv=CSV, game=None, model=None, version="7.0"):
+def topper_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     """[(folder, filename, Primary)] — every distinct topper.
 
     Innovation only, single-set cascades excluded: the blank and every
-    expansion whose mark `topper.MARKS` has, which is all five. See
-    spec/TOPPER.md.
+    expansion whose mark `topper.MARKS` has, which is all five
+    (`tables.TOPPERS`). See spec/TOPPER.md.
     """
     out, shapes = {}, {}
-    for row in params.load_rows(csv):
+    for row, p in params.cascades(csv, game, version):
+        if p.GameName != "Innovation":
+            continue
         if SINGLE_SET in (row.get("Set/Extension") or "").lower():
             continue
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved, version)
-            if p.GameName != "Innovation":
+        d = D.derive(p)
+        key = topper_shape_key(p, d)
+        for expansion in TB.TOPPERS:
+            fn = topper_file(p, d, expansion)
+            if model and model.lower() not in fn.lower():
                 continue
-            if game and p.GameName.lower() != game.lower():
-                continue
-            d = D.derive(p)
-            key = topper_shape_key(p, d)
-            for expansion in TOPPER_EXPANSIONS:
-                fn = topper_file(p, d, expansion)
-                if model and model.lower() not in fn.lower():
-                    continue
-                seen = shapes.get(fn)
-                if seen is not None and seen != key:
-                    raise ValueError(
-                        f"two parameter sets want to be {fn!r} and are not the "
-                        f"same shape: {seen} vs {key}. The filename is "
-                        f"Onshape's and carries no riser count; see "
-                        f"build.topper_file.")
-                shapes[fn] = key
-                out.setdefault((p.GameName, fn),
-                               (p.GameName, fn, p, expansion))
+            seen = shapes.get(fn)
+            if seen is not None and seen != key:
+                raise ValueError(
+                    f"two parameter sets want to be {fn!r} and are not the "
+                    f"same shape: {seen} vs {key}. The filename is "
+                    f"Onshape's and carries no riser count; see "
+                    f"build.topper_file.")
+            shapes[fn] = key
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p, expansion))
     return [out[k] for k in sorted(out)]
 
 
@@ -312,23 +304,18 @@ def build_topper(p, expansion, out_dir, folder, filename):
             "new": before is None}
 
 
-def box_catalogue(csv=CSV, game=None, model=None, version="7.0"):
+def box_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     """[(folder, filename, Primary)] — every distinct box, deduplicated.
 
     Boxes do NOT share across games or sleeving, and `calModelName` separates
     every axis that changes the geometry, so it is the whole key.
     """
     out = {}
-    for row in params.load_rows(csv):
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved, version)
-            if game and p.GameName.lower() != game.lower():
-                continue
-            d = D.derive(p)
-            fn = box_file(d)
-            if model and model.lower() not in fn.lower():
-                continue
-            out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+    for _row, p in params.cascades(csv, game, version):
+        fn = box_file(D.derive(p))
+        if model and model.lower() not in fn.lower():
+            continue
+        out.setdefault((p.GameName, fn), (p.GameName, fn, p))
     return [out[k] for k in sorted(out)]
 
 
@@ -347,22 +334,18 @@ def build_box(p, out_dir, folder, filename):
             "new": before is None}
 
 
-def catalogue(csv=CSV, game=None, legacy=False, version="7.0"):
+def pusher_catalogue(csv=CSV, game=None, legacy=False, version=L.GENERATION):
     """[(folder, filename, Primary)] — every distinct pusher, deduplicated.
 
     The key is the full one: the game, the riser count, the cards per slot, the
     first-riser override and the sleeving. 34 entries against the planner's 32.
     """
     out = {}
-    for row in params.load_rows(csv):
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved, version)
-            if game and p.GameName.lower() != game.lower():
-                continue
-            key = (p.GameName, p.RisingSliders, p.CardsPerSlidingSlot,
-                   p.FirstSlidingSlotCards if p.isFirstSlidingSlotOverride else 0,
-                   sleeved)
-            out.setdefault(key, (p.GameName, pusher_file(p, legacy), p))
+    for _row, p in params.cascades(csv, game, version):
+        key = (p.GameName, p.RisingSliders, p.CardsPerSlidingSlot,
+               p.FirstSlidingSlotCards if p.isFirstSlidingSlotOverride else 0,
+               p.isSleeved)
+        out.setdefault(key, (p.GameName, pusher_file(p, legacy), p))
     if legacy:
         names, clash = {}, []
         for folder, fn, p in out.values():
@@ -401,11 +384,11 @@ def token_holder_file(d, half, legacy=False):
         digits = "".join(c for c in body if c.isdigit())
         slv = "Sl" if cap.endswith(".Sl") else "Un"
         return f"{kind} {digits}-{slv}{mat}.3mf"
-    name = d.calTokenHolderModel.replace(".Sl", "-Sl").replace(".Un", "-Un")
-    return f"{kind} {name}.3mf"
+    return f"{kind} {model_stem(d.calTokenHolderModel)}.3mf"
 
 
-def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False, version="7.0"):
+def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False,
+                           version=L.GENERATION):
     """[(folder, filename, Primary, half)] — every distinct token holder.
 
     A row asks for one through parts.csv's `TokenHolder` column (`full` or
@@ -413,25 +396,21 @@ def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False, version
     is what `plan_exports.compose` emits and what `PIPELINE.md` records.
     """
     out, clash = {}, {}
-    for row in params.load_rows(csv):
+    for row, p in params.cascades(csv, game, version):
         if (row.get("TokenHolder") or "").strip().lower() in ("", "none"):
             continue
-        for sleeved in (0, 1):
-            p = params.from_row(row, sleeved, version)
-            if game and p.GameName.lower() != game.lower():
+        d = D.derive(p)
+        for half in ((False, True) if p.MatPocket else (False,)):
+            fn = token_holder_file(d, half, legacy)
+            if model and model.lower() not in fn.lower():
                 continue
-            d = D.derive(p)
-            for half in ((False, True) if p.MatPocket else (False,)):
-                fn = token_holder_file(d, half, legacy)
-                if model and model.lower() not in fn.lower():
-                    continue
-                key = (p.GameName, fn)
-                ident = (d.calTokenHolderModel, half)
-                if legacy and clash.setdefault(key, ident) != ident:
-                    raise SystemExit(
-                        f"--legacy-names: {fn} would carry both "
-                        f"{clash[key][0]} and {ident[0]}")
-                out.setdefault(key, (p.GameName, fn, p, half))
+            key = (p.GameName, fn)
+            ident = (d.calTokenHolderModel, half)
+            if legacy and clash.setdefault(key, ident) != ident:
+                raise SystemExit(
+                    f"--legacy-names: {fn} would carry both "
+                    f"{clash[key][0]} and {ident[0]}")
+            out.setdefault(key, (p.GameName, fn, p, half))
     return [out[k] for k in sorted(out)]
 
 
@@ -626,7 +605,7 @@ def specs_for(kind, args, src):
                  box_catalogue(args.csv, args.game, args.model, args.version)]
     else:
         items = [(f, fn, p, None) for f, fn, p in
-                 catalogue(args.csv, args.game, args.legacy_names, args.version)]
+                 pusher_catalogue(args.csv, args.game, args.legacy_names, args.version)]
     groups = {}
     for folder, fn, p, extra in items:
         key = (holder_key(p, extra) if kind == "holder"
