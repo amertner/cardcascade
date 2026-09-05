@@ -113,6 +113,9 @@ cad/
   fit.py        interference and margins — the reason the assemblies exist
   gltf.py       an assembly -> .glb, for a renderer that can light it
   lazy.py       a module imported on first use; keeps build123d out of --list
+  project.py    a Bambu Studio project written from parts and placements, no donor — spec/PROJECT.md
+  layout.py     the plate scheme, bed, 45-degree packing and tower, lifted from make_cascade
+  cascade.py    a parts.csv row -> its parts under build/ and its project title
   parts/
     pusher.py   done
     box.py      done

@@ -80,12 +80,15 @@ will be a P1P project unless a P1S profile is extracted the way `a1mini` was
 - The `<build>` `<item>` transform is a row-vector 4x3 (`m00 m01 m02 m10 m11
   m12 m20 m21 m22 tx ty tz`); a rotation about Z is `c s 0 -s c 0 0 0 1`. Its
   `tz` is half the object's height, so the object sits on the bed.
-- Plates share **one coordinate space**, a two-column grid at a stride of
-  1.2 x the plate dimension: plate 1 at the origin, 2 at `(1.2 W, 0)`, 3 at
-  `(0, -1.2 D)`, 4 at `(1.2 W, -1.2 D)`. Which plate an instance is on is
-  ALSO written in `model_settings.config` (`<plate><model_instance>`); the two
-  must agree. On a P1's 256 mm plate the stride is 307.2; on an H2C's 330 x
-  320 it is 396 x 384.
+- Plates share **one coordinate space**, a grid at a stride of 1.2 x the
+  plate dimension with `ceil(sqrt(n))` columns for `n` plates — two for 2 to
+  4, three for 5 to 9 — filled row by row, rows going -Y: plate 1 at the
+  origin, 2 at `(1.2 W, 0)`, and with four plates 3 at `(0, -1.2 D)`, with
+  five 3 at `(2.4 W, 0)`. Which plate an instance is on is ALSO written in
+  `model_settings.config` (`<plate><model_instance>`), but Studio believes
+  the POSITION: written on the wrong grid, a five-plate project's lid sat in
+  no plate and the slice stopped with "no object fully inside". On a P1's
+  256 mm plate the stride is 307.2; on an H2C's 330 x 320 it is 396 x 384.
 - A rotated instance is rotated about its own bbox centre and then that
   centre is placed; `make_cascade` works the same way.
 
@@ -114,15 +117,61 @@ both slice the same and `filaments.used_extruders` reads both.
 - The project file is `<Game> <Short name> <Sleeved|Unsleeved> (<model>).3mf`
   (`components.cascade_filename`); FCM's own scheme is exempt.
 
-## What the writer does not decide
+## What the writer does not decide, and `cad/layout.py` does
 
-Placements, plate membership, the bed and the tower position are inputs:
-the writer draws what it is given and refuses nothing about layout. The
-layout — the plate scheme, the bed ladder, the 45 degree strip packing, the
-tower inside both nozzles' reach, the clearance checks — is the next section
-of this work and lives beside it. Until then a layout can be READ off an
-existing project (`project.read`), which is also what a keep-layout mode
-would use.
+Placements, plate membership, the bed and the tower position are inputs to
+the writer: it draws what it is given and refuses nothing about layout. A
+layout can be READ off an existing project (`project.read`), which is what a
+keep-layout mode would use, or MADE by `cad/layout.py`, which is
+`make_cascade --auto-plates` lifted whole — its rules, its numbers and its
+refusals — so that a cascade needs no donor. `tests/test_layout.py` holds
+the two to the same placements on Dominion 168 while both exist. In order:
+
+1. **The bed** — the smallest of `project.BEDS` every object clears once
+   turned 45 degrees, with 8 mm to spare, or the one the caller forces (a
+   warning if something may not fit). parts.csv's `3D printer` column is the
+   caller's business: `Mini`, `Standard`, `Large` name a bed, `Mixed` is P1
+   unsleeved and H2C sleeved (`refresh_cascades.bed_for`). Left to the rule
+   alone, 46 of the 48 shipped cascades land on the printer they shipped on;
+   Dominion 324 Sleeved and Innovation 4 Later Ages Sleeved shipped on a P1P
+   that the 8 mm margin refuses them, which is why the column decides and the
+   rule is the fallback for a blank.
+2. **The plates** — one per role group (box with its pushers, lid, holders,
+   toppers, token holders, half token holders), split where a rotated box
+   leaves no room for flat pushers, and where more thin strips than a plate
+   holds need several. Shipped projects were laid out by hand and often
+   differ here (Dominion's Mat boxes: five plates shipped, six by the rule).
+3. **The packing** — thin strips at 45 degrees along two bed edges from a
+   shared corner, or one centred diagonal band when that holds more; flat
+   objects grid-searched into the free corners; a plate with nothing to
+   rotate in centred shelf rows, widest first; the whole plate nudged off a
+   corner exclude area; then every placement checked — on the bed, off the
+   exclude area, 1 mm clear of its neighbours — and refused otherwise.
+4. **The tower** — inside the intersection of every extruder's printable
+   area, clear of the parts by 15 mm if any spot is, by 5 if not, furthest
+   from the bed's centre. When nothing clears, the plate's contents are slid
+   hard against each edge in turn (the slack a centred layout splits between
+   two sides is enough for a tower on one), then the whole plate is packed a
+   quarter turn round and tried again; a plate that still has no room is
+   REFUSED (Allan, 2026-09-05: rotate the item or move the tower, never leave
+   it colliding — make_cascade warned and left it). Dominion 333 Sleeved on
+   a P1 is the case: its box and pushers in two centred shelf rows leave 34 mm
+   above and below for a 35 mm tower; slid to the top they leave 68, and the
+   tower goes to the bottom-right corner. `tests/test_layout.py` holds every
+   written plate's tower clear of every object by the tight gap.
+
+**One cascade the rules refuse, rightly.** Dominion 650 Sleeved's lid is
+343.9 x 111.3: turned 45 degrees it spans 321.9 against an H2C's 330 x 320,
+and the shipped project has it by hand at 44 degrees, 0.1 mm from one edge
+and 0.3 mm OVER the other. No margin, so no rule; `tests/test_layout.py`
+asserts it is the only refusal. Its shipped project stands, or a keep-layout
+mode carries its placements forward.
+
+**Two findings from writing 50 of them.** Studio's plate grid is not two
+columns but `ceil(sqrt(n))`, above; and on the H2C both filaments ride
+extruder 1 (`filament_map` 1,1 in the profile), so the usable width for a
+two-colour object is 325 and not 330 — the 45 degree rule's 312 stays inside
+it.
 
 ## Verified
 
@@ -131,4 +180,12 @@ parts under `build/` in the shipped project's own layout, and holds the
 result to the shipped file: the same objects with the same parts on the same
 plates at the same positions, the same slots and extruders, `filaments
 --check` clean, `towers` clean, and — where BambuStudio.app is installed — a
-CLI slice of every plate with `return_code` 0.
+CLI slice of every plate with `return_code` 0. Sliced side by side, the
+shipped and the written project print in 3h48/3h52, 1h24/1h23, 4h55/4h59
+and 1h06/1h06 per plate.
+
+`tests/test_layout.py` holds `cad/layout.py` to `make_cascade
+--auto-plates`'s own placements on the same parts, lays out and writes all
+50 cascades (49, and the one refusal above) with towers and MakerWorld
+checks clean, and slices a P1 and an H2C cascade — Dominion 168 Unsleeved
+and 560 Sleeved — with every plate returning 0.

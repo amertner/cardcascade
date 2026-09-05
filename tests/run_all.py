@@ -47,6 +47,7 @@ SUITES = [
     ("test_holder_corpus", True, False),
     ("test_smoke", True, True),
     ("test_project", True, True),
+    ("test_layout", True, True),
 ]
 
 
