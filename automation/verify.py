@@ -40,6 +40,17 @@ wrong part is the wrong SIZE in a way that overflows the bed.
              support looks perfect. See pusher_tabs() for the geometry and
              PIPELINE.md for the rule.
 
+  stamp      a Box, Lid or Pusher must be ENGRAVED with the version its
+             cascade is being built at. The stamp comes from Onshape's `Version`
+             primary variable and the recorded version from
+             onshape_config.expected_version() — two different places, and they
+             drifted: 22 components on disk carry 7.0 lock geometry under a
+             `CC 6.6` stamp. That is the one thing a person holding two pushers
+             can read, and the 7.0 lock spans all three parts, so a wrong stamp
+             is how a 7.0 pusher ends up being printed for a 6.6 lid, where the
+             tabs miss the recesses by 5.6 mm. Fatal on a mismatch, a warning
+             when the line cannot be read.
+
   identity   a new export's mesh hash must not equal one already recorded for a
              DIFFERENT component file, in ANY game (the stale export usually
              comes from the previous run, which is usually a different game).
@@ -475,6 +486,259 @@ def pusher_lock(data):
             "notch": (runs[0][0] - w0, runs[0][1] - w0) if runs else None}
 
 
+# ---------------------------------------------------------------------------
+# The engraved version stamp
+# ---------------------------------------------------------------------------
+#
+# Every Box, Lid and Pusher carries `CC <version>` cut into it, from the
+# Onshape `Version` primary variable (set_variables.build_primary). That string
+# is the ONLY thing a person holding a printed part can read, and the 7.0 lock
+# is a whole-cascade change — "a pusher, a lid and a box must all come from the
+# same version" (LOCK_STANDARD.md) — so the stamp is what stops someone mixing
+# a new pusher into an old lid, where the tabs miss the recesses by 5.6 mm and
+# the part simply will not go in.
+#
+# Nothing checked it, and it went wrong: 36 of the 128 boxes, lids and pushers
+# on disk carry 7.0 lock geometry under a `CC 6.6` stamp, because the CAD's lock
+# moved before the `Version` variable was bumped and provenance records
+# expected_version(), not what the bytes say. The two are set in different places and only this reads
+# both. cad/parts/pusher.py already REFUSES to build that part ("a Primary at
+# '6.6' would get 7.0 tabs under a 'CC 6.6' stamp"); this is the same guard for
+# the Onshape path.
+#
+# Reading it is not OCR. The version is a WORD — `<digit> . <digit>`, with a
+# space either side of it — and Orbitron Bold's digits are told apart by their
+# counters, the enclosed holes:
+#
+#     6   one counter, short (about a quarter of the cap) and low in the glyph
+#     0   one counter, tall (about three fifths of the cap)
+#     7   none
+#     4   one counter, short and high
+#     8   two counters
+#
+# So the pair of digits either side of the period names the version, and the
+# ones that matter here are two low counters (6.6) against none-then-tall
+# (7.0). A signature that several versions share (6.3 and 6.5 both read
+# "low, none") is reported as all of them; the check only ever asks whether the
+# expected version is among them, so the ambiguity costs nothing.
+STAMP_SIGNATURES = {
+    "7.0": ("none", "tall"),
+    "6.6": ("low", "low"),
+    "6.5": ("low", "none"),
+    "6.4": ("low", "high"),
+    "6.3": ("low", "none"),
+}
+
+# The three parts the 7.0 lock spans, and so the three whose stamp is a claim
+# about which lock a person is holding. LOCK_STANDARD.md: "a pusher, a lid and a
+# box must all come from the same version. Holders and toppers carry over."
+STAMPED = ("Box", "Lid", "Pusher")
+
+MARK_MIN, MARK_MAX = 0.05, 12.0    # a glyph is never outside this, in mm
+SPACE_PER_CAP = 0.25               # a word gap, against letter spacing under 0.1
+BASELINE_TOL = 0.15                # two lines sit a full cap apart, so this is safe
+MAX_PLANES = 80                    # bound the plane scan on a 46k-triangle box
+
+
+def _populated_planes(verts, axis, min_hits=40):
+    """Midpoints between the mesh's populated planes along `axis`.
+
+    Sectioning a box every 0.1 mm to find its text is minutes of Python. But an
+    engraved glyph is a slab bounded by two real planes — the face it is cut
+    into and the 0.4 mm floor of the cut — so the midpoints of the planes the
+    mesh actually populates always include one inside it, and there are a few
+    dozen of those rather than a few thousand."""
+    hits = {}
+    for p in verts:
+        z = round(p[axis], 3)
+        hits[z] = hits.get(z, 0) + 1
+    planes = sorted(z for z, n in hits.items() if n >= min_hits)
+    mids = [((a + b) / 2, min(hits[a], hits[b]))
+            for a, b in zip(planes, planes[1:]) if b - a > 0.02]
+    if len(mids) > MAX_PLANES:      # the busiest slabs first — text is dense
+        mids = sorted(sorted(mids, key=lambda m: -m[1])[:MAX_PLANES])
+    return [at for at, _ in mids]
+
+
+def glyph_plane(verts, tris, axis):
+    """The plane through this mesh whose section carries the most glyph-sized
+    loops, or None. Not the outer face: on a pusher the text is cut into the
+    face the tabs stand proud of, 1.5 mm inside the bounding box."""
+    best = (0, None)
+    for at in _populated_planes(verts, axis):
+        n = sum(1 for l in _loops(_section(verts, tris, axis, at))
+                if MARK_MIN < l[1] - l[0] < MARK_MAX
+                and MARK_MIN < l[3] - l[2] < MARK_MAX)
+        if n > best[0]:
+            best = (n, at)
+    return best[1]
+
+
+def _orientations(marks):
+    """The same marks in each of the four in-plane orientations.
+
+    Onshape runs some of these strings along the part's other axis — the box
+    engraves its floor text reading down the depth — and a reader that knows
+    only one baseline direction misses those. Each orientation is chosen so the
+    line's baseline is `w0` and reading order is increasing `u`."""
+    yield marks
+    yield [(-m[1], -m[0], -m[3], -m[2]) for m in marks]
+    yield [(m[2], m[3], m[0], m[1]) for m in marks]
+    yield [(-m[3], -m[2], -m[1], -m[0]) for m in marks]
+
+
+def _lines(marks):
+    """Marks grouped into text lines by baseline. A version line sits a full cap
+    below the product line, so BASELINE_TOL never merges the two."""
+    lines, cluster = [], []
+    for m in sorted(marks, key=lambda m: m[2]):
+        if cluster and m[2] - cluster[-1][2] > BASELINE_TOL:
+            lines.append(cluster)
+            cluster = []
+        cluster.append(m)
+    if cluster:
+        lines.append(cluster)
+    return lines
+
+
+def _dotted(line):
+    """(cap, digit before, digit after) for every `d.d` TOKEN on `line`.
+
+    A period is a small near-square mark sitting ON the baseline — which is what
+    separates it from a digit's counter, since every counter floats above the
+    baseline. The baseline is the level MOST of the line's full-height marks sit
+    on, not the lowest: a rotated neighbouring line (the pusher's detail string
+    runs down the depth) drops one mark 0.15 mm below the rest, and the minimum
+    would move the baseline out from under the period.
+
+    The line is then split into WORDS on its spaces, and only a word of exactly
+    `digit period digit` counts. That is what tells `CC 6.6` from a model code,
+    which is nothing but digits around periods — `S5.15.15.62-Sl` offers three
+    pairs and `M6.21.10.62-Sl` another three, and reading either as a version
+    gives a confident wrong answer. A space measures over a quarter of the cap
+    and letter spacing well under a tenth of it, on every string in the
+    catalogue from the 0.535 mm version line on `Pusher 2x18-Sl` to the 5.484 mm
+    model code on `Box S5.15.15.62-Sl`, so the two never have to be guessed at.
+
+    Reading the version as a word is also what lets the box be read at all: its
+    floor line carries a second word after the number, so a reader that wanted
+    the line to be five marks and nothing else would skip every box."""
+    rough = max(m[3] - m[2] for m in line)
+    levels = {}
+    for m in line:
+        if m[3] - m[2] > 0.8 * rough:
+            levels[round(m[2], 2)] = levels.get(round(m[2], 2), 0) + 1
+    if not levels:
+        return
+    base = max(levels, key=lambda k: levels[k])
+    on_base = sorted((m for m in line if abs(m[2] - base) <= 0.02),
+                     key=lambda m: m[0])
+    if not on_base:
+        return
+    cap = max(m[3] - m[2] for m in on_base)
+    words, word = [], []
+    for m in on_base:
+        if word and m[0] - word[-1][1] > SPACE_PER_CAP * cap:
+            words.append(word)
+            word = []
+        word.append(m)
+    if word:
+        words.append(word)
+    for word in words:
+        if len(word) != 3:
+            continue
+        a, dot, b = word
+        w, h = dot[1] - dot[0], dot[3] - dot[2]
+        if h > 0.35 * cap or abs(w - h) > 0.3 * max(w, h):
+            continue
+        if min(a[3] - a[2], b[3] - b[2]) < 0.8 * cap:
+            continue
+        yield cap, a, b
+
+
+def _counter_class(glyph, cap, marks):
+    """`none`, `low`, `tall`, `high` or `two` for a digit, from its counters.
+
+    Counters arrive from the tessellation as one loop or as several overlapping
+    ones — a `0` at 2.8 mm cap splits in two — so they are merged into spans
+    along the cap axis first, and it is the count of DISJOINT spans that says
+    whether the glyph is an 8."""
+    inner = [m for m in marks if m != glyph
+             and glyph[0] < m[0] and m[1] < glyph[1]
+             and glyph[2] < m[2] and m[3] < glyph[3]]
+    if not inner:
+        return "none"
+    spans = []
+    for lo, hi in sorted((m[2], m[3]) for m in inner):
+        if spans and lo <= spans[-1][1]:
+            spans[-1][1] = max(spans[-1][1], hi)
+        else:
+            spans.append([lo, hi])
+    if len(spans) > 1:
+        return "two"
+    lo, hi = spans[0]
+    height, foot = (hi - lo) / cap, (lo - glyph[2]) / cap
+    if height >= 0.45:
+        return "tall"
+    if height < 0.40 and foot < 0.30:
+        return "low"
+    if height < 0.40:
+        return "high"
+    return "?"
+
+
+def version_stamp(data):
+    """The version engraved on a component, e.g. `7.0`, or None if unreadable.
+
+    A signature shared by several versions comes back as all of them, slash
+    separated (`6.3/6.5`). Two DIFFERENT readings on one part come back as None
+    rather than a guess — a model code carries periods too, and a wrong answer
+    here is worse than no answer."""
+    verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
+    thin = min((max(c) - min(c), a) for a, c in enumerate(zip(*verts)))[1]
+    found = set()
+    for axis in [thin] + [a for a in (2, 1, 0) if a != thin]:
+        at = glyph_plane(verts, tris, axis)
+        if at is None:
+            continue
+        marks = [l[:4] for l in _loops(_section(verts, tris, axis, at))
+                 if MARK_MIN < l[1] - l[0] < MARK_MAX
+                 and MARK_MIN < l[3] - l[2] < MARK_MAX]
+        for oriented in _orientations(marks):
+            for line in _lines(oriented):
+                for cap, before, after in _dotted(line):
+                    sig = (_counter_class(before, cap, oriented),
+                           _counter_class(after, cap, oriented))
+                    hits = frozenset(v for v, s in STAMP_SIGNATURES.items()
+                                     if s == sig)
+                    if hits:
+                        found.add(hits)
+        if found:
+            break
+    return "/".join(sorted(next(iter(found)))) if len(found) == 1 else None
+
+
+def check_stamp(data, want):
+    """(fatal message or None, warning or None) for a component that must be
+    engraved `want`.
+
+    Fatal on a POSITIVE mismatch — the bytes carry a version number that is not
+    the one this cascade is being built at, and no later step can correct that;
+    the part would print with a lie on it. Only a warning when the stamp cannot
+    be read, so a reader that fails on some new layout never blocks an export
+    that has already been paid for."""
+    if want not in STAMP_SIGNATURES:
+        return None, (f"no stamp signature is recorded for version {want!r}, "
+                      f"so the engraved version was not checked — add it to "
+                      f"verify.STAMP_SIGNATURES")
+    got = version_stamp(data)
+    if got is None:
+        return None, "could not read the engraved version stamp"
+    if want in got.split("/"):
+        return None, None
+    return (f"it is engraved CC {got} but is being built at {want}", None)
+
+
 def check_pusher(data, ctx=None):
     """(None, warning message or None) for an exported Pusher.
 
@@ -764,6 +1028,54 @@ def audit_catalogue(root):
           + f"   ({sum(tally.values())} pushers)")
 
 
+def audit_stamps(root, verbose=False):
+    """Read the engraved version off every Box, Lid and Pusher on disk and
+    compare it with the generation the cascades using it are built at. Returns
+    the number that disagree.
+
+    Only the lock trio: those are the three parts 7.0 moved, so a wrong stamp on
+    one of them is what puts a pusher that cannot go into a lid in someone's
+    hands. Holders and toppers carry the stamp too, but they carry over between
+    generations, so their stamp is a record of when they were last exported
+    rather than a claim about the cascade.
+
+    A component shared by cascades at two different generations has no single
+    right answer; plan_exports already reports that as a conflict, and this
+    skips it rather than reporting it twice."""
+    from pathlib import Path
+    import components as C
+    root = Path(root)
+    bad = seen = unread = 0
+    for game, spec in C.GAMES.items():
+        import plan_exports as P
+        plan = P.compute_plan(game, spec, str(root / "automation" / "parts.csv"),
+                              False, frozenset())
+        folder = spec["folder"]
+        for u in plan.unique.values():
+            if u["type"] not in STAMPED or len(u["generations"]) != 1:
+                continue
+            want = next(iter(u["generations"]))
+            for f in sorted(u["files"]):
+                path = root / "individual" / folder / f
+                if not path.exists():
+                    continue
+                seen += 1
+                fatal, warn = check_stamp(path.read_bytes(), want)
+                if fatal:
+                    bad += 1
+                    print(f"    ✗  {folder}/{path.stem:42s} {fatal}")
+                    for name in u["generations"][want]:
+                        print(f"           used by {name}")
+                elif warn:
+                    unread += 1
+                    print(f"    ?  {folder}/{path.stem:42s} {warn}")
+                elif verbose:
+                    print(f"    ok {folder}/{path.stem:42s} CC {want}")
+    print(f"\n  {seen} boxes, lids and pushers checked; {bad} engraved with the "
+          f"wrong version, {unread} unreadable.")
+    return bad
+
+
 if __name__ == "__main__":
     import argparse
     import sys
@@ -773,12 +1085,16 @@ if __name__ == "__main__":
     ap.add_argument("--pushers", action="store_true",
                     help="audit the lock on every Pusher in the repo")
     ap.add_argument("--all", action="store_true",
-                    help="with --pushers, list the passing ones too")
+                    help="with --pushers or --stamps, list the passing ones too")
     ap.add_argument("--catalogue", action="store_true",
                     help="print the five-design lock catalogue worksheet")
     ap.add_argument("--boxes", action="store_true",
                     help="check each Box's rim cutouts against the pusher "
                          "count components.pushers_for computes for it")
+    ap.add_argument("--stamps", action="store_true",
+                    help="read the engraved CC version off every Box, Lid and "
+                         "Pusher and check it against the generation its "
+                         "cascades are built at")
     ap.add_argument("--rises", action="store_true",
                     help="print rise height per pusher and check it is a "
                          "function of riser count within each game — the "
@@ -788,6 +1104,9 @@ if __name__ == "__main__":
     if args.boxes:
         print("  Pusher slots per box, counted from its rim cutouts:")
         sys.exit(1 if audit_box_slots(root) else 0)
+    if args.stamps:
+        print("  Engraved version stamp per box, lid and pusher:")
+        sys.exit(1 if audit_stamps(root, verbose=args.all) else 0)
     if args.rises:
         print("  Rise height per riser, read off each pusher's staircase:")
         sys.exit(1 if audit_rises(root) else 0)
@@ -796,6 +1115,7 @@ if __name__ == "__main__":
         audit_catalogue(root)
         sys.exit(0)
     if not args.pushers:
-        ap.error("nothing to do — try --pushers, --boxes, --catalogue or --rises")
+        ap.error("nothing to do — try --pushers, --boxes, --stamps, "
+                 "--catalogue or --rises")
     print("  Pusher lock (tab count, backed fraction, widest backed strip):")
     sys.exit(1 if audit_pushers(root, verbose=args.all) else 0)

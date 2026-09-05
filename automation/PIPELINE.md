@@ -1121,6 +1121,120 @@ Under a full 6.6 pinning the planner still asks for 7 components (Compile 2,
 Dominion 4, Innovation 1); FCM asks for none, so its pinned cascades are already
 fully rebuildable offline.
 
+### The engraved version is not the recorded version — `verify.py --stamps`
+
+*(Found from a user report: the Dominion 324 Sleeved pusher would not go into
+the lid. It was not a lock defect. The parts are 7.0 lock geometry engraved
+`CC 6.6`.)*
+
+Two different things claim to be a component's version, and until now nothing
+compared them:
+
+| | comes from | who reads it |
+|---|---|---|
+| the RECORDED version | `onshape_config.expected_version()`, i.e. the `Build` column's generation | `provenance`, the staleness check, this file |
+| the ENGRAVED version | Onshape's `Version` primary variable, `set_variables.build_primary` | **a person holding the printed part** |
+
+They drifted. The CAD's lock moved to 7.0 before `Version` was bumped, so
+everything exported in that window carries 7.0 tabs, 7.0 recesses and 7.0 rim
+cutouts under a `CC 6.6` stamp — and provenance, which never looks at the bytes,
+records it as 7.0 quite correctly. **36 of the 128 boxes, lids and pushers on
+disk are in that state**, across 14 cascades in three games — including all six
+components of `324 Card` Un and Sl, and all four published FCM cascades, whose
+`Status` column reads `Pub 7.0`:
+
+| game | cascade | wrong |
+|---|---|---|
+| Compile | `105 Card` Sl | Box, Lid, Pusher |
+| Compile | `210 Card` Un, Sl | Box, Lid |
+| Dominion | `168 Card` Un | Box, Lid |
+| Dominion | `202 Card (Mat)` Un | Box, Lid |
+| Dominion | `246 Card` Un, Sl | Box, Lid, Pusher |
+| Dominion | `324 Card` Un, Sl | Box, Lid, Pusher |
+| FCM | `144 Card` Sl | Box, Lid, Pusher |
+| FCM | `264 Card` Un, Sl | Box, Lid, Pusher |
+| FCM | `198 Card` Un, Sl | Box, Lid, Pusher |
+
+The four rows where only the box and lid are wrong ship a lid stamped `6.6`
+beside a pusher stamped `7.0` in the same project — visibly inconsistent, though
+the parts do fit, both being 7.0. Innovation is clean. Fixing them is
+`refresh_cascades.py --changed Box,Lid,Pusher` scoped to those cascades, which
+re-exports with `Version` at `7.0` and rebuilds the projects; NOT `--use-cache`,
+whose raws carry the same wrong stamp cut into the geometry.
+
+**Coverage: 58 read clean, 36 wrong, 34 unreadable**, and the unreadable are
+almost all boxes — a box's floor carries several strings at several sizes and
+the version word is not always found. That is why an unreadable stamp warns
+rather than refuses: this reader is a guard against a known failure, not a
+proof of correctness, and a component it cannot read is exactly as checked as
+it was before.
+
+**Why it matters is the lock, not the label.** "Old and new parts do not mix, in
+either direction" (`LOCK_STANDARD.md`): at `D = 50.40` a 6.6 lid's recesses sit
+at `±19.10/19.30` from the socket centreline and a 7.0 pusher's tabs at
+`±13.50`, so the tab meets a `3.300` channel where it needs `4.500` and the
+pusher will not go in. The stamp is the ONLY thing that tells the two apart in
+the hand — the parts are otherwise identical to the eye — so a wrong stamp is
+not cosmetic; it is the failure mode itself. Someone who printed 324 before the
+migration has genuine 6.6 parts stamped `CC 6.6`, and reprints one part from a
+download stamped `CC 6.6` that is 7.0.
+
+`cad/parts/pusher.py` already refuses to build this part — *"a Primary at '6.6'
+would get 7.0 tabs under a 'CC 6.6' stamp, the mixed-generation part parts.csv's
+`Build` column exists to prevent"*. The rebuild had the guard; the Onshape path
+did not. `verify.check_stamp` is that guard for the Onshape path, run from
+`export._write` beside the identity guard and for the same reason: a component
+that reaches disk gets a provenance row saying it is current, and the next run
+skips it. Fatal on a mismatch, a warning when the stamp cannot be read — a
+reader that fails on some new layout must never block an export already paid
+for.
+
+**Reading a stamp off a mesh, without OCR.** The line is `C C d . d`, and
+Orbitron Bold's digits are separated by their counters: `6` has one short
+counter low in the glyph, `0` one tall one, `7` none, `4` one short and high,
+`8` two. So the pair either side of the period names the version, and the two
+that matter here — two low counters against none-then-tall — could not be
+further apart. Three things had to be got right:
+
+- **The glyph plane is not the outer face.** On a pusher the text is cut into
+  the face the tabs stand proud of, 1.5 mm inside the bounding box. Sectioning
+  every 0.1 mm to find it is minutes of Python per box; sectioning the midpoints
+  between the planes the MESH POPULATES is a few dozen sections, and an engraved
+  slab is bounded by two such planes by construction.
+- **The baseline is the level most full-height marks sit on, not the lowest.**
+  The pusher's detail string runs down the depth and drops one mark 0.09–0.15 mm
+  below the version line's baseline; taking the minimum moves the baseline out
+  from under the period and the line stops being readable.
+- **A model code is nothing but digits around periods.** `S5.15.15.62-Sl` offers
+  three pairs and `M6.21.10.62-Sl` three more, and reading one gives a confident
+  wrong answer — two Innovation boxes read `6.3/6.5` off their model code before
+  this was fixed. So the line is split into WORDS on its spaces and only a word
+  of exactly `digit period digit` counts. A space measures over a quarter of the
+  cap and letter spacing well under a tenth of it, on every string in the
+  catalogue from the 0.535 mm version line on `Pusher 2x18-Sl` to the 5.484 mm
+  model code on `Box S5.15.15.62-Sl`, so the two never have to be guessed at.
+  Reading the version as a word is also what makes a BOX readable: its floor
+  line carries a second word after the number, so a reader that wanted the line
+  to be five marks and nothing else would skip every box.
+
+A signature two versions share (`6.3` and `6.5` both read low-then-none) comes
+back as both; the check only asks whether the expected version is among them, so
+the ambiguity costs nothing. Two DIFFERENT readings on one part come back as
+unreadable rather than a guess.
+
+**Only Box, Lid and Pusher.** Those are the three parts 7.0 moved, so those are
+the three whose stamp is a claim about which lock is in the hand. Holders and
+toppers carry the stamp too, but they carry over between generations, so theirs
+records when they were last exported rather than what the cascade is.
+
+**`set_variables.build_primary` still hardcodes the literal** — `"7.0"` today —
+rather than taking the cascade's generation. That is right for every row whose
+`Build` is blank, which is all of them but one, and wrong for `Dominion 290 Card
+(Mat)`, pinned at `6.6`: exporting it today would stamp `7.0` on a component
+recorded as `6.6`, the same fault in the other direction. The new check refuses
+that export rather than shipping it, which is the correct outcome but not a
+fixed bug — `build_primary` should take `gen` and send `generation_name(gen)`.
+
 ## Build policies (decided)
 
 - **Incomplete rows are skipped and reported** (never silently dropped). A row

@@ -208,6 +208,16 @@ been printed yet.
 - Every generated project carries exactly **two filament slots: white 1,
   black 2**, and `wall_generator: arachne` (forced by
   `make_cascade.PRINT_SETTINGS` on every path).
+- **A component's ENGRAVED version and its RECORDED version come from different
+  places** — Onshape's `Version` primary (`set_variables.build_primary`) against
+  `onshape_config.expected_version()` — and they have drifted: 36 of the 128 boxes,
+  lids and pushers on disk carry 7.0 lock geometry under a `CC 6.6` stamp, which is
+  how a 7.0 pusher gets printed for a 6.6 lid it cannot enter. The stamp is the
+  only thing a person holding the part can read, so it is not cosmetic.
+  `python3 automation/verify.py --stamps` reads the engraving off every box, lid
+  and pusher and checks it against the cascade's generation; `export._write`
+  refuses a mismatch. `automation/PIPELINE.md`, "The engraved version is not the
+  recorded version".
 - **Never re-save a project in Bambu Studio to fix a MakerWorld rejection** —
   that converts a rejected upload into a failed verification. Use
   `automation/filaments.py --makerworld`.

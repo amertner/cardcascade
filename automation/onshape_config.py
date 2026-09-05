@@ -131,7 +131,11 @@ def is_imported(part_name, component_type):
 # Per-studio design version. Bump the entry for a studio you have edited in
 # Onshape; components exported at an older version go stale and are re-exported
 # (see provenance.py). No API calls — you control these.
-# The embossed version number (set_variables.build_primary) is now 6.6. The Box
+# The embossed version number comes from set_variables.build_primary, NOT from
+# this table, and the two are only equal by hand — see PIPELINE.md, "The
+# engraved version is not the recorded version". verify.check_stamp now reads
+# the engraving off the exported bytes and refuses a component whose stamp
+# disagrees with the generation it is being built at. The Box
 # and Holder studios changed at 6.5, so both are 6.5. The Lid is 6.5 as well, but
 # for a fix that reached exactly ONE file: a singularity in the CAD stopped
 # Onshape extruding the pusher slot out of the lid's foot, so the sleeved FCM 180

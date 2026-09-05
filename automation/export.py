@@ -141,6 +141,30 @@ def _write(data, comp, folder, game, element, mv, when, verify=True, gen=None):
             f"parameter set. Nothing was written.\n"
             f"  The settle wait is now {wait}s — re-run. Use --skip-verify if "
             f"the two components really are identical.")
+    # The engraved version is the other half of the identity guard, and it
+    # comes from somewhere else entirely: the `Version` primary variable
+    # (set_variables.build_primary), where the recorded version comes from
+    # onshape_config.expected_version(). Nothing compared them, and they drifted
+    # — 36 components on disk carry 7.0 lock geometry under a `CC 6.6` stamp,
+    # which is the one thing a person holding two pushers has to tell them
+    # apart. Checked before the write, like the identity guard, for the same
+    # reason: a provenance row would mark the wrong bytes current.
+    stamp_bad, stamp_warn = (V.check_stamp(data, gen)
+                             if verify and gen and comp["type"] in V.STAMPED
+                             else (None, None))
+    if stamp_warn:
+        print(f"    ⚠ {comp['file']}: {stamp_warn}")
+    if stamp_bad:
+        sys.exit(
+            f"\n✗ REFUSING {comp['file']}: {stamp_bad}.\n"
+            f"  The lock spans box, lid and pusher, so the stamp is what stops "
+            f"someone printing a 7.0 pusher for a 6.6 lid — where the tabs miss "
+            f"the recesses by 5.6 mm and the part will not go in. Nothing was "
+            f"written.\n  Set `Version` in set_variables.build_primary to the "
+            f"cascade's generation and export again; the stamp is cut into the "
+            f"geometry, so the cached download in _raw/ carries the same wrong "
+            f"one and --use-cache will not fix it. Use --skip-verify to accept "
+            f"the stamp as it stands.")
     out = P.ROOT / "individual" / folder / comp["file"]
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(data)
