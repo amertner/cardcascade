@@ -363,6 +363,42 @@ for name, fn, p, first in REFS:
             check(f"the end at x={round(xc, 1)}, z={zc} is slotted like the STEP",
                   bands(mine), bands(ref))
 
+    # --- the mouth flare, a DELIBERATE DIVERGENCE ---------------------------
+    # The studio has NO chamfer at the bottom of the slot; `cad/` cuts one, so
+    # that an elephant's foot closes the flare instead of the groove. Asserted
+    # from BOTH ends -- the STEP is square at the base and the build is flared
+    # -- because `tests/test_holder_corpus.py` cannot see this: the flare is
+    # 0.72 mm3 of a 20000 mm3 holder, 0.004%, inside a tolerance that already
+    # carries 0.3 to 0.6% of known length divergence. `spec/HOLDER.md`, "The
+    # mouth of the slot is flared".
+    z0 = holder.base_z(d)
+    cmf = holder.SLOT_MOUTH_CHAMFER
+
+    def slot_w(shape, z):
+        """The groove's width -- the gap between the two bands -- at height z.
+
+        The cell is 0.060 tall and the void is narrowest at its TOP, so this
+        reads the width at z + 0.030 and the expectations below say so.
+        """
+        cell = Box(0.3, dep + 4.0, 0.06).moved(Location((x0 + 2.0, -dep / 2, z)))
+        got = shape & cell
+        if not got or len(got.solids()) != 2:
+            return None
+        lo, hi = sorted((s.bounding_box().min.Y, s.bounding_box().max.Y)
+                        for s in got.solids())
+        return round(hi[0] - lo[1], 3)
+
+    at = 0.070                       # so the reading is taken at base + 0.100
+    check("the STEP's slot is SQUARE at the base",
+          slot_w(ref, z0 + at), round(holder.SLOT_W, 3), 1e-2)
+    check("the build's slot is FLARED at the base",
+          slot_w(mine, z0 + at),
+          round(holder.SLOT_W + 2 * (cmf - (at + 0.03)), 3), 1e-2)
+    check("the build is back to SLOT_W once the flare runs out",
+          slot_w(mine, z0 + cmf + at), round(holder.SLOT_W, 3), 1e-2)
+    check("... and there the STEP and the build agree again",
+          slot_w(mine, z0 + cmf + at), slot_w(ref, z0 + cmf + at), 1e-2)
+
     # --- `Rear lip` ---------------------------------------------------------
     # Everything standing proud of Y = 0 is lip. Compared as COUNT and VOLUME
     # per solid, which catches the chamfer: the base is always LIP_CHAMFER out,

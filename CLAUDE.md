@@ -60,9 +60,18 @@ all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
 and is what the layout module was checked against. Nothing from `build/` has
 been printed yet.
 
-- The Lid's logo is the one place `cad/` **deliberately differs** from
+- The Lid's logo is one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
   sizes. Two constants in `cad/parts/lid.py` are the whole policy.
+- The Holder's **side slot mouth** is another, since 2026-09-05: the bottom
+  `SLOT_MOUTH_CHAMFER` (0.300) of the groove is flared 45 degrees so an
+  elephant's foot closes the chamfer instead of the groove the holder slides
+  on. That edge is the holder's FIRST LAYER and the holder sits on it whenever
+  the cascade is shut. The box's rib gets **no** matching chamfer and
+  deliberately not — its flank is buried in the floor slab until `z = 1.600`,
+  so a chamfer at its base would cut nothing. `spec/HOLDER.md`, "The mouth of
+  the slot is flared"; asserted from both ends in `tests/test_holder.py`,
+  because at 0.004% of a holder's volume the corpus test cannot see it.
 - A mark is either a DRAWING (`logos/<Game>/*.dxf`, or `*.brep` where it is
   lifted from a STEP and a DXF would re-fit its splines; scaled) or GENERATED
   (`cad/marks.py`, built from the font and the geometry hung off it, so its

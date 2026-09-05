@@ -241,6 +241,48 @@ Set against `cad/parts/box.py`, measured independently on the other part:
 Neither was fitted to the other, so this is a real cross-part check and the test
 asserts it as one.
 
+## The mouth of the slot is flared, and that is a DELIBERATE DIVERGENCE
+
+The studio has no chamfer at the bottom of the side slot. `cad/` cuts one:
+`SLOT_MOUTH_CHAMFER = 0.300`, opening the groove to `SLOT_W + 0.600` at the
+base and running out at 45 degrees over the same `0.300`. Added 2026-09-05
+after users reported holders that do not slide.
+
+**Why the bottom and nowhere else.** The holder prints base down -- its
+underside is the engraved face, so that is layer one -- and the slot's bottom
+edge is therefore a first-layer edge. An elephant's foot closes the groove
+exactly there. And "there" is not an idle corner: the holder's base lands on
+the box's inner floor at `z = WallThickness = 1.600` on *every* riser of every
+cascade, which is the position it occupies when the cascade is shut. The same
+flare is the lead-in for dropping the holder onto the rib, which it does from
+above, so the mouth is the leading edge on assembly as well.
+
+**Why the BOX's rib gets no matching chamfer.** It was the obvious other half
+and it is void. The rib spans `z 0..BoxHeight`, so its bottom face IS on the
+bed -- but the floor is `WALL = 1.600` thick, and the rib's flank is buried in
+the floor slab until it emerges at `z = 1.600`, eight layers up at a 0.2 layer
+height. An elephant's foot never reaches it. A chamfer on the rib's base would
+be cut inside the floor and change nothing a holder can touch.
+
+**Why `0.300`.** It is the largest the catalogue takes. The wall either side of
+the slot is `(depth - SLOT_W)/2`, and the shallowest holders --
+`L3.18.6.20-Un` and `M5.6.6.20-Un` at `4.280` deep -- leave `1.190`. Taking
+`0.300` off keeps `0.890` at the base, two full `0.42` extrusions; `0.400`
+would leave 1.9 and `0.500` only 1.6. It is also more than an elephant's foot,
+which runs `0.1` to `0.3`. The 45 degrees is the self-supporting limit, and the
+flare widens DOWNWARD, so nothing about it needs support.
+
+**What it does not touch.** Probed at `x0 + 2.000` on both the deepest and the
+shallowest holder, the groove measures `1.900` at `base + 0.300` and at every
+height above it. The fit surface is unchanged; only the mouth moved.
+
+Note what the corpus test does and does not prove here. The flare is about
+`0.72 mm3` on a holder of some `20000`, so `tests/test_holder_corpus.py` passes
+it at `0.004%` -- well inside a tolerance that already carries `0.3` to `0.6%`
+of known length divergence. That pass is not evidence. The divergence is
+asserted directly instead, from both ends, in `tests/test_holder.py`: the STEP
+has no flare at the base and the build does.
+
 ## `Card holder bottom`: what a 1.000-spaced probe could not see
 
 **Superseded — see "`Card holder bottom` drops the floor `0.200`" below.** Kept

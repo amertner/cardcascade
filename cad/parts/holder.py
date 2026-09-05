@@ -380,9 +380,57 @@ def finger_cutouts(p, d, first, part):
 # so the two parts agree without either having been fitted to the other.
 SLOT_W = 1.900
 
+# The MOUTH of the slot is flared, and this is a DELIBERATE DIVERGENCE: the
+# studio has no such chamfer. The holder prints base down, so the slot's bottom
+# edge is its FIRST LAYER, and an elephant's foot closes the groove there --
+# exactly where the holder sits when the cascade is shut, its base landing on
+# the box's inner floor at z = WallThickness on every riser. The same flare is
+# the lead-in for dropping the holder onto the rib, which it does from above.
+#
+# The BOX's rib gets no matching chamfer, and deliberately not: the rib spans
+# z 0..BoxHeight but the floor is WALL thick, so its flank is not exposed until
+# z = 1.600, eight layers up. A chamfer on the rib's base would be cut inside
+# the floor slab and would do nothing.
+#
+# 0.300 is the largest the catalogue takes. The shallowest holders --
+# `L3.18.6.20-Un` and `M5.6.6.20-Un`, 4.280 deep -- leave (depth - SLOT_W)/2 =
+# 1.190 of wall a side, and 0.300 off that keeps 0.890 at the base, two full
+# 0.42 extrusions. It is also more than an elephant's foot, which runs 0.1 to
+# 0.3. `spec/HOLDER.md`, "The mouth of the slot is flared".
+SLOT_MOUTH_CHAMFER = 0.300
+
+
+def mouth_flare(p, d, first):
+    """The prism that opens the slot's mouth.
+
+    Section in Y-Z: `SLOT_MOUTH_CHAMFER` wider a side than the groove from 1.0
+    below the base up to the base, then back to `SLOT_W` over the same height,
+    so the wall runs out at 45 degrees -- self-supporting, printed base down.
+    Extruded along X the same `END_BLOCK + 1.0` the groove itself is cut with,
+    and returned centred on X = 0 so the caller places it like `tool`.
+    """
+    c = SLOT_MOUTH_CHAMFER
+    yc = -holder_depth(p, d, first) / 2
+    z0 = base_z(d)
+    half = SLOT_W / 2
+    reach = END_BLOCK + 1.0
+    with BuildPart() as prism:
+        with BuildSketch(Plane.YZ):
+            with BuildLine():
+                Polyline((yc - half - c, z0 - 1.0),
+                         (yc + half + c, z0 - 1.0),
+                         (yc + half + c, z0),
+                         (yc + half, z0 + c),
+                         (yc - half, z0 + c),
+                         (yc - half - c, z0),
+                         close=True)
+            make_face()
+        extrude(amount=reach)
+    return prism.part.moved(Location((-reach / 2, 0, 0)))
+
 
 def side_slots(p, d, first, part):
-    """Cut the two end grooves."""
+    """Cut the two end grooves, and flare the mouth of each."""
     x0, x1 = x_span(p, d)
     depth = holder_depth(p, d, first)
     z0 = base_z(d)
@@ -390,10 +438,12 @@ def side_slots(p, d, first, part):
     # END_BLOCK deep, plus 1.0 of overshoot past the end so the cut leaves no
     # coincident face; likewise 1.0 below the base and above the slant.
     tool = Box(END_BLOCK + 1.0, SLOT_W, tall)
+    lead = mouth_flare(p, d, first)
     for x, inward in ((x0, +1), (x1, -1)):
         cx = x + inward * (END_BLOCK / 2 - 0.5)
         part = part - tool.moved(
             Location((cx, -depth / 2, z0 - 1.0 + tall / 2)))
+        part = part - lead.moved(Location((cx, 0, 0)))
     return part
 
 
