@@ -87,7 +87,7 @@ Game-specific additions:
 |---|---|---|
 | Dominion | Token holders per-row (`TokenHolder` column: `full`/`none`) — only sets whose expansions need them. Full holder always; every **merged-slot (Mat)** cascade also gets a HalfTokenHolder (the mat pocket always splits into full + half) | via `labelmaker.py` (not Onshape) |
 | Innovation | **6 Toppers** — same plate, different embedded text (one per expansion + a blank); ONE assembly export per parameter set yields all 6 (see "The topper assembly") | via `labelmaker.py` |
-| Compile | — | **special label with logo → from Onshape**, only when `--labels` given |
+| Compile | — | via `labelmaker.py` since 2026-08-15 (`cc.cfg` `logo=compile_logo_clean.dxf`, commit 0471f01); the Onshape-drawn logo label it replaced was the last component not made locally, and `--labels` now plans nothing |
 | Food Chain Magnate | — | via `labelmaker.py` |
 
 ## Dedup identity keys (what makes a component unique within a game)
@@ -106,7 +106,7 @@ be) the set of Onshape configuration inputs to `--set`, so it does double duty.
 | TokenHolder (Dominion) | `(front capacity, merged, sleeved)` | fits the box's front pocket, so it varies by capacity, Mat-ness and sleeving; file `TokenHolder <cap>-<slv>[ merged]` |
 | HalfTokenHolder (Dominion) | `(front capacity, merged, sleeved)` | Mat-only; same key as the full holder |
 | Toppers (Innovation) | `(expansion, size, cards/slot, sleeved)` | one assembly export → 6 files; shared across Innovation cascades matching all four |
-| Label (Compile) | `(model,)` | logo label; TODO confirm dependency |
+| Label (Compile) | `(model,)` | retired — the logo label is `labelmaker.py`'s since 2026-08-15; kept for the record |
 
 ## Incremental / change detection
 
@@ -1184,8 +1184,9 @@ either supply a standard per-scheme template or extend the layout code.
 
 ## Open questions
 
-1. **TokenHolder / Compile-label** dependencies — which Onshape config inputs
-   drive them (current keys `(size, sleeved)` / `(model,)` are guesses).
+1. **TokenHolder** dependencies — which Onshape config inputs drive it (the
+   current key `(size, sleeved)` is a guess). The Compile label is no longer
+   a question: `labelmaker.py` makes it.
 2. **Onshape element ids** per component part studio (one cached `--list`
    each) — Stage 2 only.
 3. `individual/Compile/` currently has **no pusher files** — assumed

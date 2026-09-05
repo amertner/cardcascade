@@ -27,7 +27,11 @@ GAMES = {
         "folder": "Compile",
         "holder_spans": True,
         "extras": [],
-        "onshape_label": True,   # Compile's logo label comes from Onshape
+        # Compile's logo label came from Onshape until 2026-08-15 (0471f01):
+        # labelmaker.py generates it now from logos/Compile/compile_logo_clean.dxf
+        # (cc.cfg `logo=`), like every other game's labels. Nothing is drawn in
+        # Onshape any more; `--labels` plans nothing.
+        "onshape_label": False,
     },
     "Dominion": {
         "folder": "Dominion",

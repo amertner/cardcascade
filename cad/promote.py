@@ -46,7 +46,8 @@ DEFAULT_OUT = BUILD / "components"
 
 def built_name(item, p, d):
     """The `build/` filename for one planner component, or None for a kind
-    `cad/` does not make (the Onshape-drawn Compile label)."""
+    `cad/` does not make (a `Label`, which the planner only lists under
+    `--labels` and which `labelmaker.py` has made locally since 2026-08-15)."""
     kind = item["type"]
     if kind == "Box":
         return B.box_file(d)
