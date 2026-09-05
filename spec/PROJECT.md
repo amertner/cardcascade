@@ -160,12 +160,17 @@ the two to the same placements on Dominion 168 while both exist. In order:
    tower goes to the bottom-right corner. `tests/test_layout.py` holds every
    written plate's tower clear of every object by the tight gap.
 
-**One cascade the rules refuse, rightly.** Dominion 650 Sleeved's lid is
+**The one cascade at the bed's limit.** Dominion 650 Sleeved's lid is
 343.9 x 111.3: turned 45 degrees it spans 321.9 against an H2C's 330 x 320,
 and the shipped project has it by hand at 44 degrees, 0.1 mm from one edge
-and 0.3 mm OVER the other. No margin, so no rule; `tests/test_layout.py`
-asserts it is the only refusal. Its shipped project stands, or a keep-layout
-mode carries its placements forward.
+and 0.3 mm over the other — and it prints (Allan, 2026-09-05: "fits, just").
+So an object the 45-degree rule refuses takes the angle between 30 and 60
+degrees that leaves the most room, with the margin reduced to whatever is
+left (`layout.fit_angle`), alone on its plate and centred in the USABLE
+area — on the H2C, extruder 1's 325 of the 330, since the profile maps both
+filaments to it and Studio holds an object to its extruder's reach; the
+shipped lid stops at 324.8 for the same reason. The 650's lid lands at
+44.25 degrees, x 0.5..324.5 and y 0.2..319.8, and Studio slices it.
 
 **Two findings from writing 50 of them.** Studio's plate grid is not two
 columns but `ceil(sqrt(n))`, above; and on the H2C both filaments ride
@@ -205,7 +210,13 @@ compared, because the shipped ones are hand-tuned and the cad ones the
 rule's. Legacy object names are read for what they are (`TokenHolder Half`,
 a token holder left as `Part 1`). `tests/test_parallel.py` runs both.
 
-The scorecard on 2026-09-05: 45 shipped projects print the same parts as
-their twins, none differ, and Dominion 650 Sleeved has no twin. The first
-run of it found the topper defect above (every shipped topper prints in two
-slots; the built ones in one), which is what the harness is for.
+The scorecard on 2026-09-05: all 46 shipped projects print the same parts
+as their twins and none differ. The first run of it found the topper defect
+above (every shipped topper prints in two slots; the built ones in one),
+which is what the harness is for. Two decisions from that run, Allan's:
+Dominion 300 Unsleeved shipped with grey in slot 2 and should be black like
+everything else — the twin already is; and **everything is 7.0 going
+forward**, until more revisions happen: the 6.6 holders and pre-7.0 pushers
+in shipped projects are superseded by the twins' 7.0 parts, and the
+`compare` tolerance that lets a 7.0 holder stand 1.6 longer than a 6.6 one
+is the record of that, not a defect.

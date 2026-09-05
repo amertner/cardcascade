@@ -176,26 +176,78 @@ def profile(bed):
     return json.loads((PJ.PROFILES / f"{PJ.BEDS[bed][2]}.config").read_text())
 
 
-def fits(bed, objects):
-    """Does every object clear this bed once turned 45 degrees?"""
+def usable(bed, ps):
+    """(width, depth) an object may occupy on `bed`. The bed, unless the
+    printer declares per-extruder areas and the profile maps every filament
+    to extruder 1 — the H2C, `filament_map` 1,1 — in which case extruder 1's
+    reach: 325 of the 330. Studio holds an object to the reach of the
+    extruder that prints it; the shipped 650 Sleeved lid stops at 324.8."""
+    areas = ps.get("extruder_printable_area") or []
+    if areas and all(str(m) == "1" for m in ps.get("filament_map", [])):
+        pts = [tuple(map(float, q.split("x"))) for q in areas[0].split(",")]
+        return max(x for x, _y in pts), max(y for _x, y in pts)
+    return PJ.BEDS[bed][:2]
+
+
+def fit_angle(w, d, uw, ud):
+    """(angle in degrees, slack) that fits a w x d footprint into uw x ud with
+    the most room to spare, searched between 30 and 60 degrees — for the
+    object whose 45-degree span does not fit. Dominion 650 Sleeved's lid,
+    343.9 x 111.3, spans 321.9 at 45 against an H2C's 320 of depth, and fits
+    at 44 with 0.3 to spare on the 325 of usable width, which is where its
+    shipped project has it (Allan, 2026-09-05: it fits, just, and prints).
+    A negative slack means it does not fit at any angle."""
+    best = None
+    a = 30.0
+    while a <= 60.0 + 1e-9:
+        th = math.radians(a)
+        ex = w * abs(math.cos(th)) + d * abs(math.sin(th))
+        ey = w * abs(math.sin(th)) + d * abs(math.cos(th))
+        slack = min(uw - ex, ud - ey)
+        if best is None or slack > best[1]:
+            best = (a, slack)
+        a += 0.25
+    return best
+
+
+def fits(bed, objects, relaxed=False, ps=None):
+    """Does every object clear this bed once turned 45 degrees, with
+    BED_MARGIN to spare? `relaxed` also accepts an object that fits at SOME
+    angle with the margin reduced to whatever is left, down to nothing — for
+    a bed the row forces, or when no bed passes the rule proper. Not for the
+    ladder's own choice: a Dominion S box fits the A1 mini at 44 degrees with
+    nothing to spare, and the Mini is an explicit choice, never something the
+    ladder lands on (PIPELINE.md, "The Mini bed class")."""
     bw, bd = PJ.BEDS[bed][:2]
     m = min(bw, bd) - BED_MARGIN
-    return all((o.size[0] + o.size[1]) / math.sqrt(2) <= m for o in objects)
+    uw, ud = usable(bed, ps or profile(bed)) if relaxed else (None, None)
+    for o in objects:
+        w, d = o.size[0], o.size[1]
+        if (w + d) / math.sqrt(2) <= m:
+            continue
+        if not relaxed or fit_angle(w, d, uw, ud)[1] < 0:
+            return False
+    return True
 
 
 def choose_bed(objects, forced=None):
-    """The smallest bed every object fits, or `forced` (with a warning if
-    something may not fit — a cascade Allan knows fits a tighter bed)."""
+    """The smallest bed every object fits by the rule proper; failing every
+    bed, the smallest it fits relaxed (the 650 Sleeved's H2C); or `forced` —
+    the row's `3D printer` column — which need only fit relaxed (Dominion 324
+    Sleeved on its P1P, 4.3 mm from the edge) and is refused otherwise."""
     if forced:
         if forced not in PJ.BEDS:
             fail(f"unknown bed {forced!r}; one of {sorted(PJ.BEDS)}")
-        if not fits(forced, objects):
-            print(f"  warning: forced bed {forced} may not fit all parts")
+        if not fits(forced, objects, relaxed=True):
+            fail(f"the forced bed {forced} does not fit every part at any angle")
         return forced
     for bed in PJ.BEDS:                    # smallest first
         if fits(bed, objects):
             return bed
-    fail("no candidate bed fits every part even rotated 45 deg")
+    for bed in PJ.BEDS:
+        if fits(bed, objects, relaxed=True):
+            return bed
+    fail("no candidate bed fits every part at any angle between 30 and 60 deg")
 
 
 # --- the plates ---------------------------------------------------------------
@@ -246,7 +298,7 @@ def plate_groups(objects, bed):
 # --- one plate ----------------------------------------------------------------
 
 
-def pack_plate(objects, idxs, bed, exclude, turn=False):
+def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
     """{index: (theta, cx, cy)} in plate coordinates and [(index, obb)], for
     the objects `idxs` on one plate of `bed`. `exclude` is the bed's exclude
     area as an obb, or None. `turn` packs everything a quarter turn round —
@@ -254,16 +306,37 @@ def pack_plate(objects, idxs, bed, exclude, turn=False):
     by `validate`, which the caller runs once the plate is final."""
     bw, bd = PJ.BEDS[bed][:2]
     side = min(bw, bd)
+    uw, ud = usable(bed, ps or profile(bed))
     quarter = math.pi / 2 if turn else 0.0
     dims = {i: (_dims(objects[i])[::-1] if turn else _dims(objects[i])) for i in idxs}
     rot_ids = [i for i in idxs if max(dims[i]) > side - BIG]
+    # An object whose 45-degree span does not fit takes the angle that does,
+    # with whatever margin is left (fit_angle) — alone on its plate, since the
+    # strip packing below assumes 45 degrees and a shared pitch.
+    tight = {}
     for i in rot_ids:
-        need = sum(dims[i]) / math.sqrt(2)
-        if need > side:
-            fail(f"{objects[i].name} cannot fit the {bw:g}x{bd:g} bed even "
-                 f"rotated 45 deg (diagonal bounding box {need:.1f} mm)")
+        if sum(dims[i]) / math.sqrt(2) > min(uw, ud) - STRIP_MARGIN:
+            ang, slack = fit_angle(dims[i][0], dims[i][1], uw, ud)
+            if slack < 0:
+                fail(f"{objects[i].name} cannot fit the {bw:g}x{bd:g} bed at any "
+                     f"angle between 30 and 60 degrees ({-slack:.1f} mm over)")
+            tight[i] = ang
+    if len(tight) > 1 or (tight and len(rot_ids) > 1):
+        fail(f"{[objects[i].name for i in rot_ids]}: more than one object on the "
+             f"plate needs the bed's whole diagonal")
     placements, placed = {}, []
-    if rot_ids:
+    if tight:
+        (i, ang), = tight.items()
+        w, d = dims[i]
+        th = math.radians(ang)
+        cx, cy = uw / 2, ud / 2                 # centred in the USABLE area
+        placements[i] = (th + quarter, cx, cy)
+        placed.append((i, (cx, cy, w / 2, d / 2, th + quarter)))
+        flat = [j for j in idxs if j != i]
+        if flat:
+            fail(f"{objects[i].name} takes its plate's whole diagonal; "
+                 f"{[objects[j].name for j in flat]} cannot share it")
+    elif rot_ids:
         # strips along two bed edges from a shared corner — a column down the
         # +x edge, then a row along the +y edge — or the centred band when
         # the arms cannot hold this plate's strips. Positions are relative to
@@ -520,7 +593,7 @@ def plate(objects, idxs, bed, ps, exclude, name):
     and the same again. Refuses when nothing works — a plate whose tower
     collides is not a plate to print."""
     for turn in (False, True):
-        where, placed = pack_plate(objects, idxs, bed, exclude, turn=turn)
+        where, placed = pack_plate(objects, idxs, bed, exclude, turn=turn, ps=ps)
         for dx, dy in slides(placed, bed, exclude):
             w2, p2 = shifted(where, placed, dx, dy)
             try:

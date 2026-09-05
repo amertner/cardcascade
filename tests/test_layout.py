@@ -12,10 +12,13 @@ Three tiers:
 2. THE CATALOGUE. Every parts.csv cascade — 50 — is composed (`cad.cascade`)
    from build/, laid out, written, read back and held to the guards: every
    object on its plate, clear of its neighbours, the tower inside every
-   nozzle's reach. Refusals are failures, and so is a missing part.
-3. THE SLICE. Where BambuStudio.app is installed, two of them are sliced —
-   the P1 one above and Dominion 560 Card Sleeved, the H2C one whose two
-   nozzles reach different parts of the bed — and every plate must return 0.
+   nozzle's reach and clear of the parts. Refusals are failures, and so is a
+   missing part.
+3. THE SLICE. Where BambuStudio.app is installed, three are sliced — the P1
+   one above, Dominion 560 Card Sleeved (the H2C, whose two nozzles reach
+   different parts of the bed) and Dominion 650 Card Sleeved (the one whose
+   lid fits the H2C only at 44 degrees with half a millimetre to spare) —
+   and every plate must return 0.
 
     .venv/bin/python -m cad.build --part all
     .venv/bin/python tests/test_layout.py         # 2 min; 6 with the slices
@@ -115,12 +118,11 @@ with tempfile.TemporaryDirectory() as tmp:
         check("same towers", mine[2] == theirs[2], f"{mine[2]} vs {theirs[2]}")
 
     print("\n=== 2. every cascade in the catalogue ===")
-    # Dominion 650 Sleeved is the one cascade the rules refuse, and rightly:
-    # its 343.9 x 111.3 lid spans 321.9 turned 45 degrees against an H2C bed
-    # of 330 x 320, and the shipped project has it by hand at 44 degrees,
-    # 0.1 mm from one edge and 0.3 mm OVER the other. No margin, no rule.
-    # Asserted from both ends: it must refuse, and nothing else may.
-    AT_THE_LIMIT = {"L8.50.10.62.Sl"}
+    # Nothing is refused: Dominion 650 Sleeved, whose 343.9 x 111.3 lid
+    # spans 321.9 turned 45 degrees against an H2C's 320, takes the angle
+    # that fits with the margin reduced to what is left (layout.fit_angle) —
+    # Allan: it fits, just, and prints. Its layout is checked by the slice.
+    AT_THE_LIMIT = set()
     written = {}
     n_ok = 0
     for row, p, d in rows():
@@ -168,12 +170,12 @@ with tempfile.TemporaryDirectory() as tmp:
     for _m, (_o, bed, _n) in written.items():
         beds[bed] = beds.get(bed, 0) + 1
     print(f"  beds: {beds}")
-    check("every cascade but the one at the limit laid out",
+    check("every cascade laid out",
           len(written) == sum(1 for _ in rows()) - len(AT_THE_LIMIT), f"{len(written)}")
 
     if STUDIO.exists():
         print("\n=== 3. Studio slices: a P1 and an H2C cascade ===")
-        for model in ("S4.16.10.32.Un", "L6.40.12.62.Sl"):
+        for model in ("S4.16.10.32.Un", "L6.40.12.62.Sl", "L8.50.10.62.Sl"):
             if model not in written:
                 check(f"{model} written", False)
                 continue

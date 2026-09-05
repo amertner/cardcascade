@@ -37,13 +37,16 @@ row to a Bambu Studio project with no donor, no plan and no API —
 `cad/cascade.py` composes the parts from `build/` by their engraved names,
 `cad/layout.py` lays them out (make_cascade's rules, lifted; `spec/PROJECT.md`),
 `cad/project.py` writes the file from the bed profile, and `filaments`,
-`towers` and (with `--slice`) a Studio slice check it. Every cascade but
-Dominion 650 Sleeved, which is at the H2C's physical limit, comes through.
-It writes to `build/cascades/<Game>/`, beside and not over `cascades/`: the
-two pipelines run in PARALLEL, and **`python -m cad.compare`** is the
-scorecard — 45 of the 46 shipped projects print the same parts as their cad
-twins (`tests/test_parallel.py`), the 46th being the 650 above — while
-`automation/` remains what has shipped every cascade on disk. The older route — `python -m cad.promote` staging built parts under
+`towers` and (with `--slice`) a Studio slice check it. Every cascade
+comes through, Dominion 650 Sleeved at the H2C's limit included (its lid
+fits only at 44 degrees; `layout.fit_angle`). It writes to
+`build/cascades/<Game>/`, beside and not over `cascades/`: the two pipelines
+run in PARALLEL, and **`python -m cad.compare`** is the scorecard — all 46
+shipped projects print the same parts as their cad twins
+(`tests/test_parallel.py`) — while `automation/` remains what has shipped
+every cascade on disk. **Everything is 7.0 going forward** (Allan,
+2026-09-05): a twin's 7.0 holders and pushers supersede the 6.6 and pre-7.0
+ones in a shipped project. The older route — `python -m cad.promote` staging built parts under
 the planner's names for `refresh_cascades.py --components` — still works for
 all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
 and is what the layout module was checked against. Nothing from `build/` has

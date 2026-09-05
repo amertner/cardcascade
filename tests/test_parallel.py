@@ -6,8 +6,8 @@ Writes every cascade with `cad.cascade` (into build/cascades/, the parallel
 tree) and holds each shipped project under `cascades/` to its twin with
 `cad.compare`: the same roles in the same numbers, each object's size within
 the known divergence for its role, both slots used the same way, the tower
-legal, MakerWorld clean. The one cascade without a twin — Dominion 650
-Sleeved, at the H2C's limit (spec/PROJECT.md) — is asserted as the ONLY one.
+legal, MakerWorld clean. Every shipped project must have a twin — Dominion 650
+Sleeved included, at the H2C's limit (spec/PROJECT.md, `layout.fit_angle`).
 
 This is the evidence the design review of 2026-09-05 asked for before the
 Onshape pipeline can be retired: not a feeling, a scorecard.
@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 
 from cad import cascade as CC, compare as CMP   # noqa: E402
 
-AT_THE_LIMIT = {"L8.50.10.62-Sl"}
+AT_THE_LIMIT = set()
 fails = []
 
 
@@ -43,8 +43,7 @@ for row, p, d in CC.catalogue():
     except SystemExit as e:
         refused[d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl")] = str(e)
 print(f"  {n} written, {len(refused)} refused")
-check("only the cascade at the bed's limit is refused", set(refused) == AT_THE_LIMIT,
-      str(refused))
+check("nothing is refused", set(refused) == AT_THE_LIMIT, str(refused))
 
 print("\n=== each shipped project against its twin ===")
 same, missing, differing = [], [], []
@@ -63,7 +62,7 @@ for game, name, diffs in differing:
     print(f"  DIFFERS  {game}/{name}: {'; '.join(diffs)}")
 print(f"  {len(same)} same print, {len(differing)} differing, {len(missing)} without a twin")
 check("every shipped project with a twin prints the same parts", not differing)
-check("the only shipped project without a twin is the one at the limit",
+check("every shipped project has a twin",
       set(missing) == {CMP.model_of(f"x ({m}).3mf") for m in AT_THE_LIMIT}, str(missing))
 check("the shipped catalogue is covered", len(same) + len(missing) >= 46, f"{len(same)}")
 
