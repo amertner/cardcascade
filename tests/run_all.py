@@ -46,6 +46,7 @@ SUITES = [
     ("test_build_meshes", True, False),
     ("test_holder_corpus", True, False),
     ("test_smoke", True, True),
+    ("test_project", True, True),
 ]
 
 
