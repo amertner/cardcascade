@@ -31,6 +31,25 @@ every number in it was measured off the two drawings Allan has already made —
 
 The letters and the geometry hung off them scale with the size; `LINE_WIDTH`
 does not. That is the whole point of building it rather than scaling it.
+
+## Innovation Ultimate
+
+The same wordmark, ring and star, with `Ultimate` under it in Noto Serif Bold
+Italic and its three flourishes: a lead-in of five dashes, a ring with a bar
+and an upright at the end, and a fan of five boxes under the `U`. Every
+number is read off Allan's own `Logo Flourishes` sketch, exported 2026-09-04
+at `#LogoScaleFactor 1` (`logos/Innovation/sketch/Logo Flourishes.dxf`), or
+off the two Ultimate drawings where the sketch does not carry the element (the
+words, the end flourish). What scales and what does not is settled by the two
+drawings — 1.6 apart — agreeing on it: the dashes are `1.500 x 0.600` and the
+ring `r 1.400 / 2.000` at both sizes, the fan's boxes are `0.625 x 1.250` and
+`1.000 x 2.000`. Two positions carry an absolute term as well as a scaled one,
+and the sketch alone cannot separate them; both are stated as `a*n + b`, with
+the `b` a round number of the geometry it sits on. `tests/test_lid.py` holds
+the result to the sketch export region for region.
+
+It is registered TWICE in `GENERATED`, at the two sizes the sketch shipped
+at, so that the lid's ladder keeps the big mark where a lid carried it.
 """
 import math
 from functools import lru_cache
@@ -49,13 +68,19 @@ NOTO_SERIF = str(FONT_DIR / "NotoSerif-Regular.ttf")
 LINE_WIDTH = 0.600
 
 # Each star arm is offset this far off the centre, a slight pinwheel. ABSOLUTE,
-# like the line width: fitted at -0.1039 on both drawings, where the arm length
-# scales by 1.6002 between them. With it the five tips land to 0.0005 and
-# 0.0003; without it they are 0.10 out.
-TWIST = 0.1039
+# like the line width. It is where Allan drew the seed of the `5x at 270`
+# circular pattern — a rectangle whose axis misses the pattern's centre by this
+# much, so every copy misses it by the same. Read off the Logo Flourishes
+# sketch (2026-09-04): one offset fits all five arms' twenty corners to an rms
+# of 0.00002 mm. The mesh fit before it said 0.1039.
+TWIST = 0.1041
 
 # The font size the SMALL Innovation drawing is set at, fitted over its nine
-# clean glyphs to 0.016 mm. The big drawing is 33.3466 = this x 1.59999.
+# clean glyphs to 0.016 mm. The big drawing is 33.3466 = this x 1.59999. The
+# sketch's annulus agrees: its bore of 4.848958 at the big size is the I's
+# half ink width (291 font units) at 33.326, which is this x 1.6 to 0.06 % —
+# one radius read to 0.003 mm is the coarser instrument, so the letters' fit
+# stands and the sketch confirms it rather than replacing it.
 NOMINAL_SIZE = 20.8416
 
 # Everything below is in font units per 1000 em, so it scales with the size.
@@ -64,7 +89,12 @@ SERIF_MID = 693.0            # middle of the I's top serif slab (672..714)
 I_INK = 291.0                # the I's ink width; the annulus bore is half it
 ARM = 119.952                # star arm, centre to tip: 2.500 at NOMINAL_SIZE,
 #                              and 4.0002 measured on the big drawing - x1.6002
-ARM0 = -46.14                # the first arm of the run, reading orientation
+# The first arm of the run, in the READING frame the mark is built in before
+# it is mirrored into the lid. The sketch draws the lid's frame directly, so
+# there its arms read -43.8558, 23.6442, 91.1442, 158.6442 and 226.1442; the
+# mirror maps each to 180 - x, and the run starts at -46.1442. The mesh fit
+# before the sketch said -46.14.
+ARM0 = -46.1442
 ARM_STEP = 67.5              # 5 arms at 270 degrees
 
 
@@ -147,11 +177,144 @@ def _centre(faces):
     return [f.moved(Location((-cx, -cy, 0))) for f in faces]
 
 
+
+# --- Innovation Ultimate, generated -----------------------------------------
+#
+# Everything is in the READING frame relative to the wordmark's anchor — the
+# `I`'s centre in X and the baseline in Y — and in units of `n`, the nominal
+# factor (size / NOMINAL_SIZE), unless marked ABSOLUTE. Read off the sketch
+# export `logos/Innovation/sketch/Logo Flourishes.dxf` (the flourishes, exact,
+# at n = 1.6) and the two Ultimate drawings (the words, both scales).
+
+NOTO_SERIF_BI = str(FONT_DIR / "NotoSerif-BoldItalic.ttf")
+
+# `Ultimate` is Noto Serif Bold Italic at this fraction of the wordmark's size
+# (12.1539 on the small drawing): its ink runs 84.666 on the big drawing and
+# `Text` at this ratio gives 84.669. Placed by its INK's corner, which lands
+# at the same n-multiple on both drawings to 0.0001.
+ULT_RATIO = 0.58316
+ULT_INK_LEFT = 25.2114        # n, right of the I's centre
+ULT_INK_BOTTOM = -12.6196     # n, below the baseline (the baseline is 12.620 n)
+
+# The lead-in: five dashes, ABSOLUTE 1.500 x LINE_WIDTH, their top edge on the
+# bar line 7.500 n below the baseline, at a pitch of 2.8125 n. The run's inner
+# end — the edge nearest the U — sits at 24.0078 n LESS 1.000 from the I's
+# centre; the 1.000 is absolute, and it is what two drawings alone could not
+# separate from the scaled part (spec/LID.md, "measured, not yet built").
+DASH_LEN = 1.500
+DASH_PITCH = 2.8125
+BAR_LINE = -7.500             # n: the dashes' top edge and the bar's
+DASH_INNER = (24.0078, -1.000)   # a*n + b
+
+# The end flourish: a ring of bore RING_R and wall LINE_WIDTH, both ABSOLUTE,
+# a bar from its centre 8.750 n back toward the word on the bar line, and an
+# upright from its bottom tangent up to 3.750 n below the baseline. The bore
+# is cut out of all three — the cross does not reach into it. The ring's
+# centre is 87.6654 n plus one outer radius from the I's centre: its FAR edge
+# is the scaled position, which is how the mark's extent is dimensioned.
+RING_R = 1.400
+RING_X = (87.6654, RING_R + LINE_WIDTH)
+BAR_BACK = 8.750              # n
+UPRIGHT_TOP = -3.750          # n
+
+# The fan under the U: five 0.625 n x 1.250 n boxes, SCALED (1.000 x 2.000
+# on the sketch at n = 1.6), hand-placed — not on one arc — at +-18 and +-37 degrees
+# off the vertical, the outer ones leaning outward. Centres relative to the
+# I's centre and the ULTIMATE baseline, from the sketch at n = 1.6, where
+# Allan fixed their positions (2026-09-04); the cached small drawing has them
+# where the OLD sketch put them.
+FAN_BOX = (0.625, 1.250)      # n
+ULT_BASELINE = -12.620        # n
+FAN = ((28.1492, -2.1871, 0.0),
+       (26.1269, -1.8826, +18.0), (30.1714, -1.8826, -18.0),
+       (24.6009, -1.2408, +37.0), (31.6974, -1.2408, -37.0))
+
+
+def _rect(x0, x1, y0, y1):
+    """A rectangle as a face on Z = 0."""
+    f = Box(x1 - x0, y1 - y0, 1, mode=Mode.PRIVATE).faces() \
+        .sort_by(lambda f: f.center().Z)[-1]
+    return f.moved(Location(((x0 + x1) / 2, (y0 + y1) / 2, -f.center().Z)))
+
+
+def _disc(r, at):
+    f = Cylinder(r, 1, mode=Mode.PRIVATE).faces().sort_by(lambda f: f.center().Z)[-1]
+    return f.moved(Location((at[0], at[1], -f.center().Z)))
+
+
+@lru_cache(maxsize=8)
+def innovation_ultimate(size):
+    """The Innovation Ultimate mark at `size`: the plain mark's wordmark, ring
+    and star, with `Ultimate`, its lead-in, its end flourish and the fan
+    under its U. Same frame and conventions as `innovation_plain`."""
+    n = size / NOMINAL_SIZE
+    u = _units(size)
+    word = Text("Innovation", font_size=size, font_path=NOTO_SERIF,
+                align=(Align.CENTER, Align.MIN))
+    faces = list(word.faces())
+    base = word.bounding_box().min.Y + 10 * u
+    tittle = max(faces, key=lambda f: f.bounding_box().min.Y)
+    letter_I = min(faces, key=lambda f: f.bounding_box().min.X)
+    bbI = letter_I.bounding_box()
+    ix = (bbI.min.X + bbI.max.X) / 2
+
+    out = []
+    for f in faces:
+        if f is letter_I:
+            f = f.fuse(_ring(letter_I, base, u)).clean().faces()[0]
+        elif f is tittle:
+            f = f.fuse(*_star(tittle, u)).clean().faces()[0]
+        out.append(f)
+
+    # `Ultimate`, by its ink corner.
+    ult = Text("Ultimate", font_size=ULT_RATIO * size, font_path=NOTO_SERIF_BI,
+               align=(Align.MIN, Align.MIN))
+    bb = ult.bounding_box()
+    at = Location((ix + ULT_INK_LEFT * n - bb.min.X,
+                   base + ULT_INK_BOTTOM * n - bb.min.Y, 0))
+    out += [f.moved(at) for f in ult.faces()]
+
+    # The lead-in, from its inner end outward (toward the I).
+    inner = ix + DASH_INNER[0] * n + DASH_INNER[1]
+    top = base + BAR_LINE * n
+    for k in range(5):
+        x1 = inner - k * DASH_PITCH * n
+        out.append(_rect(x1 - DASH_LEN, x1, top - LINE_WIDTH, top))
+
+    # The end flourish.
+    cx = ix + RING_X[0] * n + RING_X[1]
+    cy = top - LINE_WIDTH / 2
+    r_out = RING_R + LINE_WIDTH
+    ring = _disc(r_out, (cx, cy))
+    bar = _rect(cx - BAR_BACK * n, cx, cy - LINE_WIDTH / 2, cy + LINE_WIDTH / 2)
+    upright = _rect(cx - LINE_WIDTH / 2, cx + LINE_WIDTH / 2, cy - r_out,
+                    base + UPRIGHT_TOP * n)
+    flourish = ring.fuse(bar, upright).clean().faces()[0]
+    out.append((flourish - _disc(RING_R, (cx, cy))).faces()[0])
+
+    # The fan.
+    base_u = base + ULT_BASELINE * n
+    for dx, dy, ang in FAN:
+        box = _rect(-FAN_BOX[0] * n / 2, FAN_BOX[0] * n / 2,
+                    -FAN_BOX[1] * n / 2, FAN_BOX[1] * n / 2)
+        out.append(box.rotate(Axis.Z, ang).moved(Location((ix + dx * n, base_u + dy * n, 0))))
+
+    shape = _centre(out)
+    return tuple(f.mirror(Plane.YZ) for f in shape)
+
+
 # name -> (builder, the size that is n = 1.0). A generated mark is named with
 # a leading `@` so that `cad/tables.LID_LOGO` can list it beside a filename and
 # nothing has to ask which kind it is.
 GENERATED = {
     "@innovation-plain": (innovation_plain, NOMINAL_SIZE),
+    # The Ultimate mark at its two PUBLISHED sizes — the small drawing's and
+    # the big one's, `#LogoScaleFactor` 1.6 and 1. Two entries rather than one
+    # so that `lid.logo_choice` keeps the ladder the drawings had: a lid that
+    # carried the big mark at its drawn size keeps it, instead of having the
+    # width fraction size the small one up to three quarters of it.
+    "@innovation-ultimate-big": (innovation_ultimate, NOMINAL_SIZE * 1.6),
+    "@innovation-ultimate": (innovation_ultimate, NOMINAL_SIZE),
 }
 
 

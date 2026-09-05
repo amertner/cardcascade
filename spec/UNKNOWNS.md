@@ -14,9 +14,14 @@ Each row says what would settle it, and whether that is a file from Onshape
 
 | constant | where | value | holds on | what would settle it |
 |---|---|---|---|---|
-| `TWIST`, `NOMINAL_SIZE`, `ARM0` | `cad/marks.py` | `0.1039`, `20.8416`, `-46.14` | the two Innovation plain-mark drawings, to 0.019 mm | WORK. The Logo Flourishes sketch is on file (`logos/Innovation/sketch/Logo Flourishes.dxf`, 2026-09-04) and agrees where compared — `LINE_WIDTH` `0.600`, the annulus bore within `0.003` of the font's `I`, arms `0.600 x 3.000`. Reading `TWIST` and `ARM0` off its five arm rectangles, and `NOMINAL_SIZE` off the annulus, replaces three fitted numbers with the sketch's; the same sketch is the material for generating the Ultimate mark instead of drawing it. |
 
-One row is left, and it is work here: a sketch to read.
+Nothing is open. The last row — `TWIST`, `NOMINAL_SIZE` and `ARM0` in
+`cad/marks.py` — closed 2026-09-05 when the Logo Flourishes sketch was read:
+`TWIST` `0.1041` and `ARM0` `-46.1442` are now the sketch's own (one offset
+fits all five arms' twenty corners to `0.00002`), and the annulus confirms
+`NOMINAL_SIZE` to `0.06 %` without bettering the letters' fit
+(`spec/LID.md`, "The Innovation mark, rebuilt"). The same sketch is what the
+generated Ultimate mark is built from.
 
 ## Settled, and where the record is
 
@@ -30,6 +35,6 @@ read off two right-aligned samples in four lines and three fonts
 top plus the topper's rear thickness, `LIP_ROOM_RISE`, the holder's
 `SLANT_STEP`, and `BAND_HALF`, the front opening's `6` from the pocket's end
 plus the pocket's `1.400` inset (`spec/TOPPER.md`); the Ultimate mark's scale-1 export
-(`spec/LID.md`). Design knobs that were never unknowns —
+and the star's `TWIST` and `ARM0` (`spec/LID.md`). Design knobs that were never unknowns —
 `LID_RECESS_STEP`, set on a test print; the text rule's `_LSB_C` and
 `LOGO_MARGIN`; the lid fit's two fractions — are documented where they live.

@@ -578,18 +578,59 @@ error in the rebuild: **the star is hand-placed in Allan's sketches and the
 two drawings disagree with each other** about where it sits by `3.4` font
 units. The letters land within `0.035` at both sizes.
 
-`Ultimate` is NOT rebuilt. It needs the second sketch's left flourish, its two
-runs of dashes and its end circle, none of which is determined by the two
-drawings alone; that mark stays the pair of lifted outlines and its strokes
-still scale with it. `fonts/NotoSerif-BoldItalic.ttf` is bundled ready for it.
+`Ultimate` is rebuilt too — below. Both marks' star constants are now the
+sketch's own: the Logo Flourishes export (2026-09-04) draws the five arms as
+`0.600 x 3.000` rectangles from `1.000` to `4.000` off the centre at the big
+size, and ONE seed offset fits all twenty corners to an rms of `0.00002` —
+`TWIST 0.1041` (the mesh fit said `0.1039`). Its arms read `-43.8558,
+23.6442, 91.1442, 158.6442, 226.1442` in the lid's frame, which the mirror
+into the reading frame makes `ARM0 -46.1442` (the fit said `-46.14`). The
+annulus bore, `4.848958`, is the `I`'s half ink width at `33.326`, which is
+`NOMINAL_SIZE x 1.6` to `0.06 %`: one radius read to `0.003` is a coarser
+instrument than nine glyphs over 174 mm, so the letters' fit stands and the
+sketch confirms it. `spec/UNKNOWNS.md` is empty.
 
-### `Ultimate` — measured, not yet built, and its scale-1 export is broken
+### `Ultimate` — generated, from the corrected sketch
 
-`Lid Innovation 270S.step` is the `#LogoScaleFactor 1` export, taken so that
-`Ultimate` could be rebuilt the way the plain mark was. **Its flourishes come
-out wrong**, and that has to be fixed in Onshape before the rebuild is worth
-doing. Against the cached `S5.15.15.45-Un`, which is the same mark at the same
-factor and is right:
+`cad/marks.innovation_ultimate` builds it (2026-09-05): the plain mark's
+wordmark, ring and star, `Ultimate` in Noto Serif Bold Italic at `0.58316` of
+the wordmark's size with its ink corner `25.2114 n` right of the `I`'s centre
+and `12.6196 n` below the baseline, and the three flourishes below. Held to
+the corrected export at `n = 1.6` (`lid_logo_big.brep`) on all 31 regions to
+`0.030` — the letters' tessellation, as with the plain mark — and to the
+small drawing at `n = 1.0` to `0.019` on every region but the five fan boxes,
+which Allan moved when he fixed the sketch; `tests/test_lid.py` asserts the
+fan DOES differ there. It is registered at both published sizes,
+`@innovation-ultimate-big` and `@innovation-ultimate`, so `lid.logo_choice`
+keeps the ladder the two drawings had: a lid that carried the big mark as
+drawn keeps it (the four `15.15` rows and `S5.10.10.45-Sl` at `1.000`,
+`M5.10.10.45-Sl` and `M5.15.15.62-Sl` at `1.016`), and the rest size the
+small one up by the width fraction (`1.211`, `1.244`, `1.276`), which is
+within `0.001` of what the drawn ladder gave. The strokes no longer scale:
+the fan's boxes do, at `0.625 n x 1.250 n`, and are `0.53` on the smallest
+lid against a `0.200` floor.
+
+The anchors the sketch settled, in `n` (`size / NOMINAL_SIZE`) unless marked
+absolute, all relative to the `I`'s centre and the wordmark's baseline in the
+reading frame:
+
+* the lead-in's five dashes, `1.500 x 0.600` ABSOLUTE, top edge `7.500 n`
+  below the baseline, pitch `2.8125 n`, the run's inner end at
+  `24.0078 n - 1.000` — the `1.000` absolute, and the `b` two drawings could
+  not separate from the `a`;
+* the end flourish: ring bore `1.400`, wall `0.600`, both absolute, its centre
+  `87.6654 n + 2.000` from the `I` — its FAR edge is the scaled position — on
+  the bar's centreline `7.500 n + 0.300` down; the bar `8.750 n` back toward
+  the word and the upright from the bottom tangent to `3.750 n` below the
+  baseline, both `0.600` wide, and the bore cut out of all three;
+* the fan: `0.625 n x 1.250 n` boxes at `+-18` and `+-37` degrees off the
+  vertical leaning outward, hand-placed and NOT on one arc, at
+  `(28.1492, -2.1871)`, `(26.1269 / 30.1714, -1.8826)` and
+  `(24.6009 / 31.6974, -1.2408) n` from the `I`'s centre and the `Ultimate`
+  baseline.
+
+What the earlier, broken scale-1 export got wrong, for the record — against
+the cached `S5.15.15.45-Un`, which was right:
 
 | | cached, correct | the scale-1 export |
 |---|---|---|
@@ -597,16 +638,11 @@ factor and is right:
 | the fan under the `U` | 5 dashes on an arc | **gone** — two have landed in that gap, rotated |
 | stray | — | one `1.000 x 2.000` dash at `y -26.691`, `4.5` below anything else |
 
-Two instances are missing outright and the rest are displaced, so it is a
-corrupted pattern and not a revision. The letters are untouched. So
-`logos/Innovation/lid_logo_big.dxf` stayed the mesh lift of the cached lid until
-the corrected export of 2026-09-04 replaced it with `lid_logo_big.brep` (see
-"What is NOT built yet"), and `Ultimate` stays a drawing whose strokes scale
-with the fit.
-
-What the export IS good for is the letters, and between it and the two good
-drawings the whole line is now measured. When the sketch is fixed, this is
-what a rebuild needs:
+Two instances were missing outright and the rest displaced — a corrupted
+pattern and not a revision; the letters were untouched. The corrected export
+of 2026-09-04 replaced it (`lid_logo_big.brep`), and the "stray" `1.000 x
+2.000` dash at `y -26.691` turned out to be the fan's centre box where the
+fixed sketch puts it. The measurements the rebuild was made from:
 
 * **`Ultimate` is Noto Serif Bold Italic**, default advances, no kerning, at
   `12.1539` on the small drawing — `0.5832` of the wordmark's size. Fitted
@@ -625,10 +661,11 @@ what a rebuild needs:
   arc of `R 6.394` about a point `4.170` below the `Ultimate` baseline, at
   `18` degrees apart through `53..127`.
 
-The one thing two drawings could not settle is where the lead-in run is
+The one thing two drawings could not settle was where the lead-in run is
 anchored in X: its span is exactly `4 * 2.8125 * n + 1.500`, but its position
-decomposes to `a*n + b` with a `b` of `1.0..2.5` that nothing else explains.
-A corrected scale-1 export would settle it.
+decomposes to `a*n + b`. The corrected export puts the run's inner end at
+`24.0078 n - 1.000`, and that is what is built; the sketch's own dimension
+scheme for it is still not known, only its output at both sizes.
 
 ### Dominion's mark WAS 180° out from the other three — turned 2026-09-04
 
@@ -662,9 +699,9 @@ Allan's to settle, not the model's:
   saying Ultimate";
 * ~~whether Dominion's mark is a half turn out, or the other three are~~ —
   Dominion's was, and it is turned (above);
-* the marks that are still outlines — Dominion, Compile, FCM and Innovation
-  `Ultimate` — whose strokes scale with the fit where the generated plain mark
-  holds its own.
+* the marks that are still outlines — Dominion, Compile and FCM — whose
+  strokes scale with the fit where the two generated Innovation marks hold
+  their own.
 
 ## Verified
 
@@ -680,9 +717,9 @@ each game's default mark at the size it was drawn while it checks them —
 `Lid Innovation 130U` is an XS lid the rule now gives the plain mark, and its
 pattern would otherwise be a different mark altogether. The fit is then
 asserted on its own: seven named lids, and two invariants over all 50 — every
-mark inside the flat floor, and none shrunk that did not have to be. The
-generated Innovation mark is checked against both drawings it replaced, region
-for region.
+mark inside the flat floor, and none shrunk that did not have to be. Both
+generated Innovation marks are checked against the drawings they replaced,
+region for region.
 
 Two things worth keeping in mind for the next part:
 

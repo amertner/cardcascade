@@ -490,7 +490,9 @@ def logo_choice(p, d):
     The marks are listed largest first, so the first that fits the flat floor
     as drawn is the biggest that fits. If none does — the lid is smaller than
     every drawing — the last, smallest one is taken and shrunk to fit. A
-    generated mark is one entry, not a ladder: it has no fixed sizes.
+    generated mark has no drawn size of its own, so it is listed once per
+    size it was PUBLISHED at (`marks.GENERATED`): the plain mark once, the
+    Ultimate mark at both of the sizes Allan's sketch shipped.
     """
     names = (TB.LID_LOGO.get(p.GameName) or {}).get(logo_edition(p, d))
     if not names:

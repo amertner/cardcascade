@@ -49,8 +49,9 @@ result has not been printed.
 - A mark is either a DRAWING (`logos/<Game>/*.dxf`, or `*.brep` where it is
   lifted from a STEP and a DXF would re-fit its splines; scaled) or GENERATED
   (`cad/marks.py`, built from the font and the geometry hung off it, so its
-  strokes do not scale). `cad/marks.py` is the one interface over both; only
-  Innovation's plain mark is generated so far. A generated name starts `@`.
+  strokes do not scale). `cad/marks.py` is the one interface over both; both
+  Innovation marks are generated, the Ultimate one at its two published sizes
+  (`spec/LID.md`). A generated name starts `@`.
 
 - The **TokenHolder** is Dominion-only and, alone so far, its 18 cached
   components ARE a regression target rather than a shape reference: the part

@@ -1,4 +1,4 @@
-"""No drawn lid mark is thinner than the cut floor at any scale the fit picks.
+"""No lid mark is thinner than the cut floor at any scale the fit picks.
 
 The lid's mark is a second-filament inlay in a pocket cut into the outer
 face, so it takes the CUT floor of `text.FLOOR_CUT` (Allan, 2026-09-04),
@@ -7,14 +7,16 @@ like the topper's lettering. A DRAWN mark scales its strokes with the fit
 distinct (game, drawing, nominal factor) the catalogue produces is
 rasterised at RES px/mm and its thinnest stroke read off the distance
 transform along the medial axis — the same instrument `cad/text.STROKE`
-was measured with. The generated Innovation mark holds its strokes at
-0.600 by construction and is not rasterised here.
+was measured with. The generated Innovation marks hold their 0.600 strokes
+by construction, but their LETTERS scale, so they are rasterised like the
+rest: the thinnest thing in the Ultimate mark on the smallest lid is a
+hairline of the Bold Italic, not a flourish.
 
-Asserted from both ends: the thinnest stroke at the DRAWN size of each of
-the four drawings is held to the value recorded below, so a redrawn mark
-changes this file, and every fitted scale is held to the floor. Compile's
-is the one that matters — 0.250 at its drawn size, 0.905 of it on the
-smallest lid — and the rest have twice the margin.
+Asserted from both ends: the thinnest stroke at n = 1 of each mark is held
+to the value recorded below, so a redrawn mark changes this file, and every
+fitted scale is held to the floor. Compile's is the one that matters —
+0.250 at its drawn size, 0.905 of it on the smallest lid — and the rest
+have twice the margin.
 
     .venv/bin/python tests/test_lid_marks.py     # about two minutes
 """
@@ -38,8 +40,9 @@ RES = 40                     # px per mm: a stroke reads to 0.025
 DRAWN = {("Compile", "lid_logo.dxf"): 0.250,
          ("Dominion", "lid_logo.dxf"): 0.550,
          ("FCM", "lid_logo.dxf"): 0.492,
-         ("Innovation", "lid_logo.dxf"): 0.600,
-         ("Innovation", "lid_logo_big.brep"): 0.602}
+         ("Innovation", "@innovation-plain"): 0.602,
+         ("Innovation", "@innovation-ultimate"): 0.602,
+         ("Innovation", "@innovation-ultimate-big"): 0.604}
 fails = []
 
 
@@ -77,19 +80,19 @@ scales = {}
 for game, fn, p in B.lid_catalogue():
     d = D.derive(p)
     name, n = lid.logo_choice(p, d)
-    if name and not str(name).startswith("@"):
+    if name:
         scales.setdefault((game, name), {})[round(n, 6)] = fn
 for (game, name), by_n in sorted(scales.items()):
     print(f"  {game:11s} {name:18s} {len(by_n)} scale(s), "
           f"{min(by_n):.3f} .. {max(by_n):.3f}")
-check("every drawn mark in the catalogue has a recorded drawn-size stroke",
+check("every mark in the catalogue has a recorded n = 1 stroke",
       sorted(scales), sorted(DRAWN))
 
-print("\n=== the thinnest stroke, drawn size and every fitted scale ===")
+print("\n=== the thinnest stroke, at n = 1 and every fitted scale ===")
 floor = T.FLOOR_CUT
 for (game, name), by_n in sorted(scales.items()):
     drawn = thinnest(raster(MK.faces(game, name, 1.0)))
-    check(f"{game} {name}: thinnest stroke at the drawn size",
+    check(f"{game} {name}: thinnest stroke at n = 1",
           round(drawn, 3), DRAWN[(game, name)], 0.03)
     worst = None
     for n in sorted(by_n):

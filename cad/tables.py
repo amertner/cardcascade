@@ -61,12 +61,13 @@ LID_LOGO = {
     "Compile": {None: ("lid_logo.dxf",)},
     "Dominion": {None: ("lid_logo.dxf",)},
     "FCM": {None: ("lid_logo.dxf",)},
-    "Innovation": {None: ("lid_logo_big.brep", "lid_logo.dxf"),
-                   # GENERATED, not drawn — `cad/marks.py` builds it from Noto
-                   # Serif and the flourishes, so its 0.600 strokes hold at
-                   # every size the fit picks. The two `lid_logo_plain*.dxf`
-                   # beside it are what it is CHECKED against, not what is
-                   # used: they are the crop this replaced.
+    # Both Innovation marks are GENERATED, not drawn — `cad/marks.py` builds
+    # them from Noto Serif and the Logo Flourishes sketch, so their 0.600
+    # strokes hold at every size the fit picks. The drawings beside them in
+    # `logos/Innovation/` — `lid_logo.dxf` and `lid_logo_big.brep` for the
+    # Ultimate mark, `lid_logo_plain*.dxf` for the plain one — are what they
+    # are CHECKED against, not what is used.
+    "Innovation": {None: ("@innovation-ultimate-big", "@innovation-ultimate"),
                    "plain": ("@innovation-plain",)},
 }
 

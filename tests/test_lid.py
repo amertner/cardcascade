@@ -159,10 +159,15 @@ def socket_walls(solid, x, y0, y1):
 # the artwork itself, the odd/even nesting that makes a counter a hole, the
 # extrusion's direction, and the two Z ranges. The rule the pin replaces is
 # asserted on its own at the bottom of this file.
-# One reference was exported AFTER the rule, with a stated drawing: the
-# corrected Ultimate lid carries `lid_logo_big.brep` at `#LogoScaleFactor 1`,
-# which is also what the rule itself picks for it. The pin says so by name.
+# Innovation's references are pinned BY NAME, because its marks are generated
+# now and the table no longer lists the drawings they were exported with: the
+# XS lid carries the small Ultimate drawing of the OLD sketch (its fan is
+# where the old sketch put it, so the generated mark would not match), and
+# the corrected Ultimate lid carries `lid_logo_big.brep` at `#LogoScaleFactor
+# 1` — lifted from this very STEP, and also what the rule picks for it. The
+# other games' references take the table's last (smallest) drawing at 1.0.
 _EXPORTED_WITH = {
+    "Lid Innovation 130U.step": ("lid_logo.dxf", 1.0),
     "Lid Innovation M5.15.15.45-Un with logo.step": ("lid_logo_big.brep", 1.0),
 }
 _PIN_FN = None
@@ -510,9 +515,12 @@ for model, want_file, want_scale in [
         ("L8.50.10.62-Sl", "lid_logo.dxf", 1.655),
         # shallower than the mark is drawn: shrunk to clear the outer round
         ("S4.7.7.20-Un", "lid_logo.dxf", 0.908),
-        # Innovation's two editions, and its two drawings of each
-        ("S5.15.15.45-Un", "lid_logo_big.brep", 1.000),
-        ("S5.10.10.32-Un", "lid_logo.dxf", 1.210),
+        # Innovation's Ultimate mark, generated at its two published sizes:
+        # the big one held where it fits as published, the small one sized
+        # up by the width fraction where it does not (1.211, not the drawn
+        # ladder's 1.210: the generated mark's 0.600 of stroke does not scale)
+        ("S5.15.15.45-Un", "@innovation-ultimate-big", 1.000),
+        ("S5.10.10.32-Un", "@innovation-ultimate", 1.211),
         # the generated plain mark: held at its drawn size on the XS lid,
         # which is already wider than the width fraction allows, and sized to
         # that fraction on the S one
@@ -591,6 +599,52 @@ w1, _ = marks.extent("Innovation", "@innovation-plain", 1.0)
 w2, _ = marks.extent("Innovation", "@innovation-plain", 2.0)
 check("the strokes do not scale", round(2 * w1 - w2, 3),
       round(marks.LINE_WIDTH, 3), 1e-3)
+
+# --- the generated Ultimate mark -------------------------------------------
+# Against the corrected sketch export at n = 1.6 (`lid_logo_big.brep`, exact
+# from the STEP of 2026-09-04) every one of the 31 regions must land; against
+# the small drawing at n = 1.0 everything must land EXCEPT the fan under the
+# U, which Allan moved when he fixed the sketch — the small drawing is lifted
+# from a lid printed before that, so it has the fan where the OLD sketch put
+# it. Asserted from both ends: the fan must differ there, or the drawing is
+# not the one this says it is.
+print("\n=== the generated Innovation Ultimate mark ===")
+for n, ref, fan_moved in ((1.6, "lid_logo_big.brep", False),
+                          (1.0, "lid_logo.dxf", True)):
+    drawn = art.logo("Innovation", ref)
+    built = marks.faces("Innovation", "@innovation-ultimate", n)
+    if not drawn:
+        check(f"Ultimate n={n}: {ref} present", False, True)
+        continue
+    b, l = boxes(built), boxes(drawn)
+    check(f"Ultimate n={n}: one region per drawn region", len(b), len(l))
+    if len(b) != len(l):
+        continue
+    # pair each built region with the nearest drawn one by centre
+    pairs, free = [], list(range(len(l)))
+    for x in b:
+        i = min(free, key=lambda i: abs((x[0] + x[1]) - (l[i][0] + l[i][1]))
+                + abs((x[2] + x[3]) - (l[i][2] + l[i][3])))
+        free.remove(i)
+        pairs.append((x, l[i]))
+    check(f"Ultimate n={n}: the same holes", [x[5] for x, _y in pairs],
+          [y[5] for _x, y in pairs])
+    fan_area = 0.625 * 1.250 * n * n
+    fan = [(x, y) for x, y in pairs if abs(x[4] - fan_area) < 0.01]
+    rest = [(x, y) for x, y in pairs if abs(x[4] - fan_area) >= 0.01]
+    check(f"Ultimate n={n}: five fan boxes", len(fan), 5)
+    worst = max(max(abs(x[i] - y[i]) for i in range(4)) for x, y in rest)
+    check(f"Ultimate n={n}: worst region edge outside the fan",
+          round(worst, 3), 0.0, 0.035)
+    worst_fan = max(max(abs(x[i] - y[i]) for i in range(4)) for x, y in fan)
+    if fan_moved:
+        check(f"Ultimate n={n}: the fan is where the OLD sketch had it",
+              worst_fan > 0.3, True)
+    else:
+        check(f"Ultimate n={n}: the fan is where the sketch has it",
+              round(worst_fan, 3), 0.0, 0.035)
+    print(f"       worst region edge {worst:.4f} mm outside the fan, "
+          f"{worst_fan:.4f} on it, over {len(b)} regions")
 
 print(f"\n{'FAILED: ' + ', '.join(fails) if fails else 'all checks passed'}")
 sys.exit(1 if fails else 0)
