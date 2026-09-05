@@ -29,10 +29,15 @@ The archive is written with a fixed timestamp so that rebuilding unchanged
 source gives a byte-identical file, and `build.py` can tell a real change from a
 re-run.
 """
+import os
 import re
 import zipfile
 
 TOLERANCE = 0.01        # RELATIVE deflection, see above
+# OCCT meshes a shape's faces on its own thread pool. Inside cad.build's
+# process pool that is ten shapes times ten threads on ten cores, so a worker
+# turns it off (CARDCASCADE_MESH_SERIAL=1); on its own a part keeps it.
+PARALLEL = os.environ.get("CARDCASCADE_MESH_SERIAL") != "1"
 ANGULAR = 0.2           # radians
 _EPOCH = (1980, 1, 1, 0, 0, 0)
 
@@ -152,7 +157,7 @@ def triangulate(shape, tolerance=TOLERANCE, angular=ANGULAR):
     # That iterator costs 0.18 ms a triangle through OCP — 250 times the
     # indexed read — and was the whole of the meshing time: 6 s of a box's 15
     # and 17 of a Compile lid's 31, all of it in a for-loop header.
-    BRepMesh_IncrementalMesh(shape.wrapped, tolerance, True, angular, True)
+    BRepMesh_IncrementalMesh(shape.wrapped, tolerance, True, angular, PARALLEL)
     index, out_v, out_t = {}, [], []
     for face in shape.faces():
         loc = TopLoc_Location()

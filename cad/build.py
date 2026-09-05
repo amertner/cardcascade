@@ -537,14 +537,14 @@ def _job(spec):
             and stamp_path(out_dir, f, fn).exists()
             and stamp_path(out_dir, f, fn).read_text() == spec["stamp"]
             for f, fn in targets):
-        return [{"path": out_dir / f / fn, "folder": f, "filename": fn,
+        return [{"path": out_dir / f / fn, "folder": f, "filename": fn, "kind": kind,
                  "bytes": (out_dir / f / fn).stat().st_size,
                  "skipped": True, "changed": False, "new": False}
                 for f, fn in targets]
     folder, fn = targets[0]
     t0 = time.perf_counter()
     r = _build(kind, p, extra, out_dir, folder, fn)
-    r.update(folder=folder, filename=fn, skipped=False,
+    r.update(folder=folder, filename=fn, skipped=False, kind=kind,
              seconds=time.perf_counter() - t0)
     out = [r]
     data = r["path"].read_bytes()
@@ -563,8 +563,24 @@ def _job(spec):
     return out
 
 
+# What a job costs, roughly, in seconds of one core — for ordering ONE pool
+# over every kind longest first, so the last box or Compile lid is not
+# started when everything else has finished and nine cores sit idle. A lid
+# costs what its mark costs (2 s for Dominion's 459 edges, 13 for Compile's
+# 1885), a box its sixteen cuts and its floor text, the rest is small.
+COST = {"lid": 8.0, "box": 7.0, "pusher": 3.0, "holder": 1.5, "topper": 1.0,
+        "tokenholder": 1.0}
+LID_COST = {"Compile": 13.0, "Innovation": 7.0, "FCM": 4.0, "Dominion": 2.5}
+
+
+def cost(spec):
+    if spec["kind"] == "lid":
+        return LID_COST.get(spec["p"].GameName, COST["lid"])
+    return COST[spec["kind"]]
+
+
 def run_jobs(specs, jobs):
-    """Every spec through `_job`, in catalogue order, `jobs` at a time."""
+    """Every spec through `_job`, in the order given, `jobs` at a time."""
     if jobs <= 1 or len(specs) <= 1:
         return [_job(s) for s in specs]
     import concurrent.futures as cf
@@ -663,6 +679,22 @@ def main(argv=None):
     kinds = KINDS if args.part == "all" else (args.part,)
     src = source_hash()
     t_all = time.perf_counter()
+    # One pool over every kind, longest jobs first: six pools in sequence each
+    # paid ten worker start-ups and idled through its own tail (205 s for the
+    # catalogue against 125 s of CPU per core). The per-kind report below is
+    # unchanged; only the order of work is.
+    pooled = {}
+    if not args.list and len(kinds) > 1:
+        every = []
+        for kind in kinds:
+            _items, specs = specs_for(kind, args, src)
+            every += specs
+        every.sort(key=cost, reverse=True)
+        t_pool = time.perf_counter()
+        for group in run_jobs(every, args.jobs):
+            for r in group:
+                pooled.setdefault(r["kind"], []).append(r)
+        pool_seconds = time.perf_counter() - t_pool
     for kind in kinds:
         items, specs = specs_for(kind, args, src)
         if args.list:
@@ -676,7 +708,10 @@ def main(argv=None):
             print(f"\n  {len(items)} {NOUN[kind]}\n")
             continue
         t0 = time.perf_counter()
-        results = [r for group in run_jobs(specs, args.jobs) for r in group]
+        if pooled:
+            results = pooled.get(kind, [])
+        else:
+            results = [r for group in run_jobs(specs, args.jobs) for r in group]
         results.sort(key=lambda r: (r["folder"], r["filename"]))
         for r in results:
             print(_row(kind, r))
@@ -694,10 +729,13 @@ def main(argv=None):
               f"{sum(1 for r in results if r['changed'])} changed), "
               f"{len(results) - built} unchanged and skipped, "
               f"{sum(r['bytes'] for r in results) / 1e6:.1f} MB, "
-              f"{time.perf_counter() - t0:.0f} s with {args.jobs} job(s), "
-              f"in {args.out}\n")
+              + (f"{sum(r.get('seconds', 0.0) for r in results):.0f} s of build"
+                 if pooled else f"{time.perf_counter() - t0:.0f} s with {args.jobs} job(s)")
+              + f", in {args.out}\n")
     if not args.list and len(kinds) > 1:
-        print(f"  all {len(kinds)} kinds in {(time.perf_counter() - t_all) / 60:.1f} min")
+        print(f"  all {len(kinds)} kinds in {(time.perf_counter() - t_all) / 60:.1f} min: "
+              f"one pool of {args.jobs} over {sum(len(v) for v in pooled.values())} "
+              f"files, {pool_seconds:.0f} s")
     return 0
 
 
