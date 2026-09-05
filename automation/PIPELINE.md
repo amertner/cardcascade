@@ -1180,6 +1180,17 @@ the unreadable pile. The re-export scope was right for the wrong reason.
 unreadable stamp still warns rather than refuses — the reader is a guard against
 a known failure, not a proof of correctness, and a component it cannot read is
 exactly as checked as it was before — but there are none left to warn about.
+With all fourteen cascades re-exported, `--stamps` reports **128 checked, 0
+engraved with the wrong version, 0 unreadable**.
+
+**It has to be quick enough to run.** The plane scan is ~50 planes per axis per
+component, and `_section` walked all 58k triangles of a box every time: 4.4 s a
+box, twenty minutes for the catalogue, which is not a check anyone runs. A
+triangle spans a fraction of a millimetre, so `_slicer` bins them by their
+extent along the axis and each plane query sees a few dozen instead of sixty
+thousand; and `_axis_order` tries Z first, since every engraved string in the
+catalogue lies in a plane normal to it, rather than scanning the thin axis in
+full and finding nothing. Together: 0.5 s a box, **51 s for all 128**.
 
 **Why it matters is the lock, not the label.** "Old and new parts do not mix, in
 either direction" (`LOCK_STANDARD.md`): at `D = 50.40` a 6.6 lid's recesses sit

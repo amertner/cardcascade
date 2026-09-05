@@ -540,6 +540,46 @@ BASELINE_TOL = 0.15                # two lines sit a full cap apart, so this is 
 MAX_PLANES = 80                    # bound the plane scan on a 46k-triangle box
 
 
+def _slicer(verts, tris, axis, bins=256):
+    """A `section(at)` that only visits the triangles crossing `at`.
+
+    `_section` walks every triangle, which is fine once and not fifty times: the
+    plane scan below is ~50 planes per axis per component, and over the
+    catalogue that was minutes of Python for the boxes alone. A triangle spans a
+    fraction of a millimetre, so binning them by their extent along the axis
+    puts a few dozen in front of each query instead of sixty thousand."""
+    lo = min(v[axis] for v in verts)
+    hi = max(v[axis] for v in verts)
+    width = ((hi - lo) or 1.0) / bins
+    buckets = [[] for _ in range(bins + 1)]
+    for t in tris:
+        zs = (verts[t[0]][axis], verts[t[1]][axis], verts[t[2]][axis])
+        first = max(int((min(zs) - lo) / width), 0)
+        last = min(int((max(zs) - lo) / width), bins)
+        for k in range(first, last + 1):
+            buckets[k].append(t)
+
+    def section(at):
+        k = int((at - lo) / width)
+        return _section(verts, buckets[k], axis, at) if 0 <= k <= bins else []
+    return section
+
+
+def _axis_order(verts):
+    """Which axis to look for text on first.
+
+    Every engraved string in the catalogue lies in a plane normal to Z — the
+    pusher's face, the lid's underside, the box's floor — so Z first, then the
+    thinnest axis, then the rest. Before this a box scanned Y in full, found
+    nothing, and only then reached Z."""
+    thin = min((max(c) - min(c), a) for a, c in enumerate(zip(*verts)))[1]
+    order = []
+    for a in (2, thin, 0, 1):
+        if a not in order:
+            order.append(a)
+    return order
+
+
 def _populated_planes(verts, axis, min_hits=40):
     """Midpoints between the mesh's populated planes along `axis`.
 
@@ -561,17 +601,18 @@ def _populated_planes(verts, axis, min_hits=40):
 
 
 def glyph_plane(verts, tris, axis):
-    """The plane through this mesh whose section carries the most glyph-sized
-    loops, or None. Not the outer face: on a pusher the text is cut into the
-    face the tabs stand proud of, 1.5 mm inside the bounding box."""
-    best = (0, None)
+    """(plane, marks) for the section through this mesh carrying the most
+    glyph-sized loops, or (None, []). Not the outer face: on a pusher the text
+    is cut into the face the tabs stand proud of, 1.5 mm inside the bbox."""
+    section = _slicer(verts, tris, axis)
+    best = (0, None, [])
     for at in _populated_planes(verts, axis):
-        n = sum(1 for l in _loops(_section(verts, tris, axis, at))
-                if MARK_MIN < l[1] - l[0] < MARK_MAX
-                and MARK_MIN < l[3] - l[2] < MARK_MAX)
-        if n > best[0]:
-            best = (n, at)
-    return best[1]
+        marks = [l[:4] for l in _loops(section(at))
+                 if MARK_MIN < l[1] - l[0] < MARK_MAX
+                 and MARK_MIN < l[3] - l[2] < MARK_MAX]
+        if len(marks) > best[0]:
+            best = (len(marks), at, marks)
+    return best[1], best[2]
 
 
 def _orientations(marks):
@@ -701,15 +742,11 @@ def version_stamp(data):
     rather than a guess — a model code carries periods too, and a wrong answer
     here is worse than no answer."""
     verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
-    thin = min((max(c) - min(c), a) for a, c in enumerate(zip(*verts)))[1]
     found = set()
-    for axis in [thin] + [a for a in (2, 1, 0) if a != thin]:
-        at = glyph_plane(verts, tris, axis)
+    for axis in _axis_order(verts):
+        at, marks = glyph_plane(verts, tris, axis)
         if at is None:
             continue
-        marks = [l[:4] for l in _loops(_section(verts, tris, axis, at))
-                 if MARK_MIN < l[1] - l[0] < MARK_MAX
-                 and MARK_MIN < l[3] - l[2] < MARK_MAX]
         for oriented in _orientations(marks):
             for line in _lines(oriented):
                 for cap, before, after in _dotted(line):
