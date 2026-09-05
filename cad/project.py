@@ -25,6 +25,7 @@ import uuid
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NamedTuple
 
 from . import mesh3mf
 from .refuse import refuse
@@ -35,13 +36,25 @@ import filaments as FIL                                  # noqa: E402
 
 PROFILES = ROOT / "automation" / "profiles"
 
-# The print beds, smallest first, each with the profile that IS a project's
-# settings on it (spec/PROJECT.md). A copy of make_cascade.BED_TABLE for as
-# long as both exist; tests/test_project.py holds the two equal.
+class Bed(NamedTuple):
+    """A print bed: its size, the profile under `automation/profiles/` that
+    IS a project's settings on it (spec/PROJECT.md), and Studio's name."""
+    width: float
+    depth: float
+    profile: str
+    model: str
+
+    @property
+    def size(self):
+        return self.width, self.depth
+
+
+# Smallest first. A copy of make_cascade.BED_TABLE for as long as both
+# exist; tests/test_project.py holds the two equal.
 BEDS = {
-    "mini": (180.0, 180.0, "a1mini", "Bambu Lab A1 mini"),
-    "p1":   (256.0, 256.0, "p1p", "Bambu Lab P1P"),
-    "h2c":  (330.0, 320.0, "h2c", "Bambu Lab H2C"),
+    "mini": Bed(180.0, 180.0, "a1mini", "Bambu Lab A1 mini"),
+    "p1":   Bed(256.0, 256.0, "p1p", "Bambu Lab P1P"),
+    "h2c":  Bed(330.0, 320.0, "h2c", "Bambu Lab H2C"),
 }
 PLATE_STRIDE = 1.2          # plates sit on a grid at 1.2 x the plate size
 
@@ -161,7 +174,7 @@ def plate_origin(bed, plate, n_plates):
     the plate whose cell it sits in — a five-plate project written on a
     two-column grid puts plate 3 where Studio has plate 4, and the slice
     stops with "no object fully inside" (found on Dominion 560 Sleeved)."""
-    w, d = BEDS[bed][0], BEDS[bed][1]
+    w, d = BEDS[bed].size
     cols = plate_columns(n_plates)
     col, row = (plate - 1) % cols, (plate - 1) // cols
     return col * PLATE_STRIDE * w, -row * PLATE_STRIDE * d
@@ -215,11 +228,11 @@ def mesh_model(mesh_id, part):
 def settings(bed, n_plates, towers, filaments=FILAMENTS):
     """`project_settings.config`: the bed's profile, the colours in cascade
     order, PRINT_SETTINGS forced, one tower coordinate per plate."""
-    ps = json.loads((PROFILES / f"{BEDS[bed][2]}.config").read_text())
+    ps = json.loads((PROFILES / f"{BEDS[bed].profile}.config").read_text())
     have = [c.upper() for c in ps.get("filament_colour", [])]
     want = [c.upper() for c in filaments]
     if sorted(have) != sorted(want):
-        refuse(f"profile {BEDS[bed][2]} carries filaments {have}, not {want}")
+        refuse(f"profile {BEDS[bed].profile} carries filaments {have}, not {want}")
     order = [have.index(c) for c in want]
     if order != list(range(len(order))):
         # `remap` turns every per-filament array with the colours, the flush
@@ -480,7 +493,7 @@ def read(path):
     caller can tell whether a replacement part still fits the slot."""
     zf = zipfile.ZipFile(path)
     ps = json.loads(zf.read("Metadata/project_settings.config"))
-    bed = next((k for k, v in BEDS.items() if v[3] == ps.get("printer_model")), None)
+    bed = next((k for k, v in BEDS.items() if v.model == ps.get("printer_model")), None)
     if bed is None:
         # the P1S is a P1P's bed with a lid on it
         area = ps.get("printable_area", [])

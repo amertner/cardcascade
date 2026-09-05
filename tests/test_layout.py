@@ -110,7 +110,7 @@ print("=== 0. the tower's preferred spot, on every bed ===")
 for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
                     ("h2c", (15.0, 264.0))):
     _ps = LY.profile(_bed)
-    _bw, _bd = PJ.BEDS[_bed][:2]
+    _bw, _bd = PJ.BEDS[_bed].size
     _x, _y = LY.start_spot(_bed)
     check(f"{_bed}: start_spot is {_want}", (_x, _y) == _want, f"{(_x, _y)}")
     _w = float(_ps.get("prime_tower_width", 35))

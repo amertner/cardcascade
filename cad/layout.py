@@ -43,6 +43,7 @@ What is decided here, in order:
 """
 import json
 import math
+from typing import NamedTuple
 
 from . import project as PJ
 from .refuse import refuse
@@ -85,20 +86,33 @@ def role(name):
 
 
 # --- oriented boxes ------------------------------------------------------------
-# (cx, cy, half x, half y, theta): the footprint of a placed object.
+
+
+class Obb(NamedTuple):
+    """The footprint of a placed object: its centre, its half sizes along its
+    own axes, and its turn about Z in radians."""
+    cx: float
+    cy: float
+    hx: float
+    hy: float
+    theta: float
+
+    def moved(self, dx, dy):
+        return self._replace(cx=self.cx + dx, cy=self.cy + dy)
 
 
 def _proj(o, ax):
-    c, s = math.cos(o[4]), math.sin(o[4])
-    mid = o[0] * ax[0] + o[1] * ax[1]
-    r = o[2] * abs(c * ax[0] + s * ax[1]) + o[3] * abs(-s * ax[0] + c * ax[1])
+    """The interval an oriented box covers along the unit axis `ax`."""
+    c, s = math.cos(o.theta), math.sin(o.theta)
+    mid = o.cx * ax[0] + o.cy * ax[1]
+    r = o.hx * abs(c * ax[0] + s * ax[1]) + o.hy * abs(-s * ax[0] + c * ax[1])
     return mid - r, mid + r
 
 
 def sat_overlap(a, b, gap=0.0):
     """Do two oriented boxes come within `gap` of each other?"""
     for o in (a, b):
-        c, s = math.cos(o[4]), math.sin(o[4])
+        c, s = math.cos(o.theta), math.sin(o.theta)
         for ax in ((c, s), (-s, c)):
             a0, a1 = _proj(a, ax)
             b0, b1 = _proj(b, ax)
@@ -108,14 +122,16 @@ def sat_overlap(a, b, gap=0.0):
 
 
 def rect_obb(x0, y0, x1, y1):
-    return ((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, 0.0)
+    """An axis-aligned rectangle as an Obb."""
+    return Obb((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, 0.0)
 
 
 def obb_aabb(o):
-    c, s = math.cos(o[4]), math.sin(o[4])
-    rx = o[2] * abs(c) + o[3] * abs(s)
-    ry = o[2] * abs(s) + o[3] * abs(c)
-    return o[0] - rx, o[1] - ry, o[0] + rx, o[1] + ry
+    """(x0, y0, x1, y1) of the axis-aligned box round an oriented one."""
+    c, s = math.cos(o.theta), math.sin(o.theta)
+    rx = o.hx * abs(c) + o.hy * abs(s)
+    ry = o.hx * abs(s) + o.hy * abs(c)
+    return o.cx - rx, o.cy - ry, o.cx + rx, o.cy + ry
 
 
 # --- 45-degree strips ---------------------------------------------------------
@@ -174,7 +190,7 @@ def strip_capacity(bed, longest, depth, gap):
 
 
 def profile(bed):
-    return json.loads((PJ.PROFILES / f"{PJ.BEDS[bed][2]}.config").read_text())
+    return json.loads((PJ.PROFILES / f"{PJ.BEDS[bed].profile}.config").read_text())
 
 
 def usable(bed, ps):
@@ -187,7 +203,7 @@ def usable(bed, ps):
     if areas and all(str(m) == "1" for m in ps.get("filament_map", [])):
         pts = [tuple(map(float, q.split("x"))) for q in areas[0].split(",")]
         return max(x for x, _y in pts), max(y for _x, y in pts)
-    return PJ.BEDS[bed][:2]
+    return PJ.BEDS[bed].size
 
 
 def fit_angle(w, d, uw, ud):
@@ -219,7 +235,7 @@ def fits(bed, objects, relaxed=False, ps=None):
     ladder's own choice: a Dominion S box fits the A1 mini at 44 degrees with
     nothing to spare, and the Mini is an explicit choice, never something the
     ladder lands on (PIPELINE.md, "The Mini bed class")."""
-    bw, bd = PJ.BEDS[bed][:2]
+    bw, bd = PJ.BEDS[bed].size
     m = min(bw, bd) - BED_MARGIN
     uw, ud = usable(bed, ps or profile(bed)) if relaxed else (None, None)
     for o in objects:
@@ -266,7 +282,7 @@ def _gap(obj):
 def plate_groups(objects, bed):
     """[(plate name, [object indices])] in PLATE_SCHEME order, empty groups
     skipped, with the two splits described in the module docstring."""
-    bw, bd = PJ.BEDS[bed][:2]
+    bw, bd = PJ.BEDS[bed].size
     side = min(bw, bd)
     groups = []
     for label, roles in PLATE_SCHEME:
@@ -305,7 +321,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
     area as an obb, or None. `turn` packs everything a quarter turn round —
     the fallback when the tower has nowhere to go. Placements are validated
     by `validate`, which the caller runs once the plate is final."""
-    bw, bd = PJ.BEDS[bed][:2]
+    bw, bd = PJ.BEDS[bed].size
     side = min(bw, bd)
     uw, ud = usable(bed, ps or profile(bed))
     quarter = math.pi / 2 if turn else 0.0
@@ -332,7 +348,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
         th = math.radians(ang)
         cx, cy = uw / 2, ud / 2                 # centred in the USABLE area
         placements[i] = (th + quarter, cx, cy)
-        placed.append((i, (cx, cy, w / 2, d / 2, th + quarter)))
+        placed.append((i, Obb(cx, cy, w / 2, d / 2, th + quarter)))
         flat = [j for j in idxs if j != i]
         if flat:
             refuse(f"{objects[i].name} takes its plate's whole diagonal; "
@@ -381,7 +397,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
             w, d = dims[i]
             cx, cy = rel[i][0] + dx, rel[i][1] + dy
             placements[i] = (ROT + quarter, cx, cy)
-            placed.append((i, (cx, cy, w / 2, d / 2, ROT + quarter)))
+            placed.append((i, Obb(cx, cy, w / 2, d / 2, ROT + quarter)))
         # everything else grid-searched into the free corners, largest first
         flat = sorted((i for i in idxs if i not in rot_ids),
                       key=lambda i: -dims[i][0] * dims[i][1])
@@ -391,7 +407,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
             while spot is None and cy >= EDGE + d / 2:
                 cx = EDGE + w / 2
                 while cx <= bw - EDGE - w / 2:
-                    cand = (cx, cy, w / 2, d / 2, quarter)
+                    cand = Obb(cx, cy, w / 2, d / 2, quarter)
                     if not (exclude and sat_overlap(cand, exclude, GAP)) \
                        and not any(sat_overlap(cand, ob, GAP) for _, ob in placed):
                         spot = cand
@@ -400,8 +416,8 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
                 cy -= GRID
             if spot is None:
                 refuse(f"no room left for {objects[i].name}")
-            placements[i] = (quarter, spot[0], spot[1])
-            placed.append((i, (spot[0], spot[1], w / 2, d / 2, quarter)))
+            placements[i] = (quarter, spot.cx, spot.cy)
+            placed.append((i, spot))
     else:
         # shelf rows, widest first, the rows centred on the plate
         order = sorted(idxs, key=lambda i: -dims[i][0] * dims[i][1])
@@ -434,7 +450,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
                 d = dims[i][1]
                 cx, cy = x0 + w / 2, y0 + depth / 2
                 placements[i] = (quarter, cx, cy)
-                placed.append((i, (cx, cy, w / 2, d / 2, quarter)))
+                placed.append((i, Obb(cx, cy, w / 2, d / 2, quarter)))
                 x0 += w + GAP
             y0 += depth + (rgaps[j] if j < len(rgaps) else 0.0)
 
@@ -456,7 +472,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
             elif not left and x1 > ex_x0 - CLEARANCE and x0 < ex_x1:
                 dx = min(dx, ex_x0 - CLEARANCE - x1 - 0.5)
         if dx and 0 <= min_x0 + dx and max_x1 + dx <= bw:
-            placed = [(i, (ob[0] + dx,) + ob[1:]) for i, ob in placed]
+            placed = [(i, ob.moved(dx, 0.0)) for i, ob in placed]
             for i, _ in placed:
                 th, x, y = placements[i]
                 placements[i] = (th, x + dx, y)
@@ -467,7 +483,7 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
 def misfit(objects, placed, bed, exclude):
     """Why this plate is not legal — the first placed object off the bed, in
     the exclude area or within CLEARANCE of a neighbour — or None."""
-    bw, bd = PJ.BEDS[bed][:2]
+    bw, bd = PJ.BEDS[bed].size
     for k, (i, ob) in enumerate(placed):
         x0, y0, x1, y1 = obb_aabb(ob)
         if x0 < -1e-6 or y0 < -1e-6 or x1 > bw + 1e-6 or y1 > bd + 1e-6:
@@ -491,7 +507,7 @@ def validate(objects, placed, bed, exclude):
 def shifted(placements, placed, dx, dy):
     """The same plate moved by (dx, dy)."""
     return ({i: (th, x + dx, y + dy) for i, (th, x, y) in placements.items()},
-            [(i, (ob[0] + dx, ob[1] + dy) + ob[2:]) for i, ob in placed])
+            [(i, ob.moved(dx, dy)) for i, ob in placed])
 
 
 def slides(placed, bed, exclude):
@@ -499,7 +515,7 @@ def slides(placed, bed, exclude):
     unmoved first, then hard against each of the four edges (clear of the
     exclude area by CLEARANCE) — the slack a centred layout splits between
     two sides is enough for a tower on one of them."""
-    bw, bd = PJ.BEDS[bed][:2]
+    bw, bd = PJ.BEDS[bed].size
     x0 = min(obb_aabb(ob)[0] for _, ob in placed)
     y0 = min(obb_aabb(ob)[1] for _, ob in placed)
     x1 = max(obb_aabb(ob)[2] for _, ob in placed)
@@ -560,7 +576,7 @@ def start_spot(bed):
     the corner search as before, to the (265, 0) its four published projects
     were verified at), and gives the mini a spot 15 mm from one edge and 21 from
     the other."""
-    return (15.0, PJ.BEDS[bed][1] - 56.0)
+    return (15.0, PJ.BEDS[bed].depth - 56.0)
 
 
 def tower(ps, bed, placed, exclude, start=None):
@@ -568,7 +584,7 @@ def tower(ps, bed, placed, exclude, start=None):
     clear, else the legal spot furthest from the bed's centre that clears the
     parts by WIPE_GAP, else by TIGHT_GAP — or None when no spot clears."""
     start = start or start_spot(bed)
-    bw, bd = PJ.BEDS[bed][:2]
+    bw, bd = PJ.BEDS[bed].size
     w = float(ps.get("prime_tower_width", 35))
     tx0, ty0, tx1, ty1 = tower_bounds(ps)
 
