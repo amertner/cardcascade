@@ -129,9 +129,10 @@ been printed yet.
   The booleans are the cost now: a box's 16 cuts, a lid's mark pocket.
   Artwork lifted from a STEP has far fewer edges than the same mark lifted
   from a cached mesh, so a STEP is worth asking for.
-- Tests: `.venv/bin/python tests/run_all.py` runs every suite below in order
-  and says which failed (`--quick` skips the slow ones, `--only holder,lock`
-  picks). One at a time: `python3 tests/test_derive.py` and
+- Tests: `.venv/bin/python tests/run_all.py` runs every suite below — several
+  at a time within a core budget, longest first, so 33 minutes of suites take
+  about 8 — and says which failed (`--quick` skips the slow ones, `--only
+  holder,lock` picks, `--jobs 1` runs them one at a time in table order). One at a time: `python3 tests/test_derive.py` and
   `python3 tests/test_lock.py` (pure arithmetic, system python is fine; the
   second holds the three copies of the C1-C5 table to each other),
   `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported

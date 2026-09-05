@@ -69,7 +69,7 @@ blender -b -P render/cascade.py -- tmp/cascade.glb --view hero --samples 256
 automation/refresh_cascades.py --game Dominion --name 168 --sleeving un \
     --components build/components --out build/cascades --auto   # make_cascade with a donor
 
-.venv/bin/python tests/run_all.py                # every suite, ~20 min; --quick, --only
+.venv/bin/python tests/run_all.py                # every suite, concurrently: ~8 min; --quick, --only, --jobs 1
 .venv/bin/python tests/test_pusher.py            # source vs the two STEPs
 .venv/bin/python tests/test_pusher_regression.py # build/ vs individual/
 .venv/bin/python tests/test_box.py               # source vs the nine STEPs
