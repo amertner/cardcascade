@@ -295,14 +295,18 @@ def topper_catalogue(csv=CSV, game=None, model=None):
 
 
 def build_topper(p, expansion, out_dir, folder, filename):
-    """Build one topper and write the 3MF. One body, named as the corpus does."""
+    """Build one topper and write the 3MF: the body named as the corpus does,
+    and — for a named expansion — its lettering as `Part 2`, `Part 3`, ...
+    beside it, the second-filament inlays a print needs, as the Lid's logo
+    regions are written (`topper.inlays`)."""
     from .parts import topper as topper_part
-    part = topper_part.build(p, None, expansion)
+    part, inlays = topper_part.build_all(p, None, expansion)
     path = out_dir / folder / filename
     before = path.read_bytes() if path.exists() else None
-    meshed = mesh3mf.write(path, [("Topper", part)])
+    bodies = [("Topper", part)] + [(f"Part {i}", s) for i, s in enumerate(inlays, start=2)]
+    meshed = mesh3mf.write(path, bodies)
     _, verts, tris = meshed[0]
-    return {"path": path, "verts": len(verts), "tris": len(tris),
+    return {"path": path, "verts": len(verts), "tris": len(tris), "bodies": len(bodies),
             "volume": part.volume, "bytes": path.stat().st_size,
             "changed": before is not None and before != path.read_bytes(),
             "new": before is None}

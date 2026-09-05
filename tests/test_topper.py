@@ -407,6 +407,40 @@ for tag, fn, pp, word in NAMED:
           round(T.ENGRAVE, 3), 1e-3)
     check(f"{tag}: ... and stand 0.010 proud of the face",
           round(T.Z_BASE - min(b.min.Z for b in boxes), 3), 0.010, 1e-3)
+    # OUR inlays — what `cad.build` writes beside the body since 2026-09-05 —
+    # against the STEP's, solid for solid: the same count, each within 0.05
+    # of its box (the letters' tessellation, as the lid's marks are held)
+    mine_in = T.inlays(pp, dd, word)
+    check(f"{tag}: one inlay solid per STEP inlay", len(mine_in), len(ins))
+    if len(mine_in) == len(ins):
+        def box6(q):
+            b = q.bounding_box()
+            return (b.min.X, b.min.Y, b.min.Z, b.max.X, b.max.Y, b.max.Z)
+
+        def nearest(q, pool):
+            b = box6(q)
+            return min(pool, key=lambda r: ((box6(r)[0] + box6(r)[3]) - (b[0] + b[3])) ** 2
+                       + ((box6(r)[1] + box6(r)[4]) - (b[1] + b[4])) ** 2)
+        pen = T.text_origin_x(pp, dd)
+        m_mine = [q for q in mine_in if q.bounding_box().max.X < pen]
+        t_mine = [q for q in mine_in if q.bounding_box().max.X >= pen]
+        worst_mark = max((max(abs(a - b) for a, b in zip(box6(q), box6(nearest(q, m_sol))))
+                          for q in m_mine), default=0.0)
+        worst_text = max((max(abs(a - b) for a, b in zip(box6(q), box6(nearest(q, t_sol))))
+                          for q in t_mine), default=0.0)
+        # the marks are drawn geometry and land exactly; the letters are the
+        # vendored font against Onshape's rendering of it, within 0.07 at
+        # these sizes (the `g` alone differs by 0.00459 em) — except where
+        # the em is RAISED to the cut floor (`font_size`), the two 10-card
+        # unsleeved rows, whose letters are deliberately larger than the STEP's
+        raised = T.font_size(pp, dd) > T.cap_band(pp, dd) / T.BAND_EM + 1e-9
+        check(f"{tag}: the mark's inlays land on the STEP's", round(worst_mark, 3), 0.0, 0.01)
+        if raised:
+            check(f"{tag}: letters raised to the floor stand LARGER than the STEP's",
+                  worst_text > 0.05, True)
+        else:
+            check(f"{tag}: the letters' inlays land on the STEP's to 0.07",
+                  round(worst_text, 3), 0.0, 0.07)
     # the mark's box: its width and its TOP edge, which every expansion fills
     mx0, my0, mx1, my1 = T.mark_box(pp, dd)
     check(f"{tag}: the mark box is calLogoSidelength wide",

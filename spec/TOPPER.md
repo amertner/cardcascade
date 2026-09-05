@@ -549,6 +549,12 @@ it tempting to assume: the pocket runs `Z 48.450..49.260` on all three
 references. The STEP's separate inlay solids are `0.810` tall too, but sit at
 `48.440..49.250` — so they stand `0.010` proud of the underside and leave
 `0.010` clear at the pocket's top, the same trick the Lid's logo inlays use.
+`topper.inlays` builds them the same way from the same sketch, and since
+2026-09-05 `cad.build` writes them beside the body as `Part 2`, `Part 3`, ...
+— until then the built topper was ONE body, a name cut as an empty pocket
+with nothing to fill it, which `cad.compare` found the moment a cad project
+was held to a shipped one (every shipped topper prints in two slots).
+`tests/test_topper.py` holds our inlays to the STEP's solid for solid.
 
 with
 

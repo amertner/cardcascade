@@ -662,8 +662,10 @@ assert tuple(sorted(MARKS)) == TB.TOPPER_EXPANSIONS, \
     "cad/tables.TOPPER_EXPANSIONS is the catalogue's copy of MARKS' keys"
 
 
-def expansion_name(p, d, expansion):
-    """`Expansion Name` — the mark and the word, as the solid to subtract."""
+def name_and_mark(p, d, expansion):
+    """`Expansion Name`'s sketch — the mark and the word, placed on the
+    underside in the reading frame — from which both the cut and the inlays
+    are extruded."""
     def place(sketch, x, y):
         """Reading frame at the origin -> the underside, at (x, y)."""
         return Pos(x, y, 0) * sketch.mirror(Plane.XZ)
@@ -675,11 +677,31 @@ def expansion_name(p, d, expansion):
     if mark is not None:
         sk = sk + place(mark(d.calLogoSidelength),
                         (mx0 + mx1) / 2, (my0 + my1) / 2)
+    return sk
+
+
+def expansion_name(p, d, expansion):
+    """`Expansion Name` — the mark and the word, as the solid to subtract."""
     # Dropped OVERSHOOT below the underside so no face of the tool is
     # coincident with the face it cuts. Without it OCCT quietly leaves 0.713
     # of the 19.294 behind and warns only "Boolean operation unable to clean".
     return Pos(0, 0, Z_BASE - ENGRAVE_OVERSHOOT) * extrude(
-        sk, amount=ENGRAVE + ENGRAVE_OVERSHOOT)
+        name_and_mark(p, d, expansion), amount=ENGRAVE + ENGRAVE_OVERSHOOT)
+
+
+def inlays(p, d, expansion):
+    """The lettering as the SECOND-FILAMENT solids a print needs: one per
+    region of the mark and the word, ENGRAVE tall, standing INLAY_PROUD below
+    the underside so they leave that much clear at the pocket's top — the
+    same trick the Lid's logo inlays use, and what every hand-exported STEP
+    and cached topper carries beside its body. A topper written without
+    them prints its name as an empty pocket; `cad.compare` found the built
+    files that way on 2026-09-05."""
+    if expansion == "Blank":
+        return []
+    solid = Pos(0, 0, Z_BASE - INLAY_PROUD) * extrude(name_and_mark(p, d, expansion),
+                                                    amount=ENGRAVE)
+    return sorted(solid.solids(), key=lambda q: (q.bounding_box().min.X, q.bounding_box().min.Y))
 
 
 EXPANSIONS = ("Blank", "Artifacts", "Cities", "Echoes", "Figures", "Unseen")
@@ -710,6 +732,13 @@ def build(p, d=None, expansion="Blank"):
     return part - expansion_name(p, d, expansion)         # Expansion Name
 
 
+def build_all(p, d=None, expansion="Blank"):
+    """(the Topper BODY, its lettering inlays) — what a topper file carries."""
+    if d is None:
+        d = D.derive(p)
+    return build(p, d, expansion), inlays(p, d, expansion)
+
+
 # NB `Solid.volume` is NOT the metric to check a NAMED topper with. OCCT's
 # GProp over-reports a body carrying this many small BSpline faces: the M10-Un
 # Unseen body reads 4101.406 where `blank - named` says it must be 4100.663,
@@ -738,6 +767,7 @@ BAND_EM = 0.7202
 # 0.010 clear at the pocket's top — the same trick the Lid's logo inlays use.
 ENGRAVE = 0.810
 ENGRAVE_OVERSHOOT = 0.500   # below the face, so the cut has no coincident face
+INLAY_PROUD = 0.010         # the inlays stand this far below the underside (spec/TOPPER.md)
 MARK_GAP = 1.000           # the mark box's left edge, past calLogoSidelength/2
 TEXT_GAP = 3.000           # the sketch's `+3mm`, past calLogoSidelength*3/2
 
