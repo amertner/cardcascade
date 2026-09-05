@@ -244,11 +244,12 @@ def cached_holder(p, d, folder, first=False):
     return {"slot": walls[0][1], "width": float(x_hi - x_lo)}
 
 
-def interference(p, d, state):
+def interference(p, d, state, tokens=False):
     """[(a, b, mm3)] for every pair of SOURCE-built parts, placed.
 
-    Box, Lid, Pusher and TokenHolder — the whole of the lock mechanism, and the
-    only parts `cad/` can hand a B-rep for. Anything non-zero is a defect.
+    Box, Lid, Pusher and — where the row ships one, `tokens` — the
+    TokenHolder: the whole of the lock mechanism, and the only parts `cad/`
+    can hand a B-rep for. Anything non-zero is a defect.
     """
     from .parts import box as bp, lid as lp, pusher as pp, token_holder as tp
     solids = [("Box", bp.build(p), A.box(p, d))]
@@ -262,7 +263,7 @@ def interference(p, d, state):
                    for k in A.pushers(p, d)]
         if state == A.CLOSED_LID:
             solids.append(("Lid", lp.build(p), A.lid_closed(p, d)))
-    if p.GameName == "Dominion":
+    if tokens:
         solids.append(("TokenHolder", tp.build(p, False), A.token_holder(p, d)))
 
     placed = [(n, pl.location() * s) for n, s, pl in solids]
@@ -274,8 +275,9 @@ def interference(p, d, state):
     return out
 
 
-def report(p, d, folder, state, solids=True):
-    """Print one cascade's fit in one state. True if everything passed."""
+def report(p, d, folder, state, solids=True, tokens=False):
+    """Print one cascade's fit in one state. True if everything passed.
+    `tokens` says whether the row ships a token holder to check."""
     print(f"\n{folder}/{d.calModelName}  [{state}]")
     cached = cached_holders(p, d, folder)
     margins = list(lid_margins(p, d))
@@ -289,7 +291,7 @@ def report(p, d, folder, state, solids=True):
     ok = all(m.ok for m in margins)
     if solids:
         print("  -- interference, source-built parts --")
-        for a, b, v in interference(p, d, state):
+        for a, b, v in interference(p, d, state, tokens):
             flag = "ok " if v <= 1e-6 else "HIT"
             if v > 1e-6:
                 ok = False
@@ -311,10 +313,11 @@ def main(argv=None):
     rows = assemble.catalogue(args.csv, args.game, args.model)
     states = A.STATES if args.state == "all" else (args.state,)
     ok = True
-    for folder, p, _tokens, _sn in rows:
+    for folder, p, tokens, _sn in rows:
         d = D.derive(p)
         for state in states:
-            ok &= report(p, d, folder, state, solids=not args.no_solids)
+            ok &= report(p, d, folder, state, solids=not args.no_solids,
+                         tokens=tokens)
     print("\nPASS" if ok else "\nFAIL")
     return 0 if ok else 1
 

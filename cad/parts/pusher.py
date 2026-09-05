@@ -145,8 +145,10 @@ def build(p, text=True):
                      if abs(e.center().X - k * inc) < 1e-6
                      and abs(e.length) > r * 2
                      and min(abs(e.center().Z), abs(e.center().Z - L.PLATE)) < 1e-6]
-            if edges:
-                fillet(edges, radius=r)
+            if len(edges) != 2:
+                raise ValueError(f"riser {k}: expected its two Z edges to round, "
+                                 f"found {len(edges)}")
+            fillet(edges, radius=r)
 
         # Tabs — flush with the leading edge, standing TAB_PROUD off the front
         # face only, at the centreline +- s.

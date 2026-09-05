@@ -336,9 +336,11 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     if args.assembly:
-        named = [v for v in (args.view or []) if v in VIEWS]
-        if args.view and not named:
-            ap.error(f"--assembly takes NAMED views: {', '.join(VIEWS)}")
+        named = args.view or []
+        unknown = [v for v in named if v not in VIEWS]
+        if unknown:
+            ap.error(f"--assembly takes NAMED views ({', '.join(VIEWS)}), "
+                     f"not {unknown}")
         if args.contact:
             print(f"  {assembly_contact(args.files, args.contact, named or (HERO,))}")
             return 0

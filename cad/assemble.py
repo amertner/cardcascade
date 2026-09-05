@@ -237,13 +237,11 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
         for mesh in topper_meshes(p, d, folder, TOPPERS[j % len(TOPPERS)]):
             add(mesh, [pl])
 
-    # The token holder is the FULL one: a merged cascade ships a HALF as well,
-    # but the two are alternatives for one slot, not both at once — see
-    # `assembly.token_holder`. A row with no `TokenHolder` gets neither.
+    # The token holder is the FULL one: a merged row ships a HALF as well, but
+    # the two are alternatives for one slot, not both at once, and the
+    # placement is the same either way — `assembly.token_holder`. A row with
+    # no `TokenHolder` gets neither.
     if take_tokens and p.GameName == "Dominion":
-        # A merged row ships a HALF as well, and the two are alternatives for
-        # one slot rather than both at once — `assembly.token_holder`. Same
-        # placement either way; only the mesh differs.
         add(token_holder_mesh(p, d, out_dir, folder,
                               half=half and bool(p.MatPocket)),
             [A.token_holder(p, d)])
