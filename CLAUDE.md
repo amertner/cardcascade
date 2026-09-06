@@ -105,13 +105,20 @@ been printed yet.
   `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
   A version is an opaque STRING — `7.1`, and possibly `7.1.1` or `7.1B` later —
   so nothing parses one: order is the position in `RELEASES`, and `HISTORICAL`
-  names the older versions still asked about (`6.6`). **7.1 carries two
+  names the older versions still asked about (`6.6`). **7.1 carries three
   changes**: the Lid cuts one socket per pusher (four Innovation M lids lose
-  their unused MIDDLE socket), and **every cascade takes TWO pushers** at any
+  their unused MIDDLE socket); **every cascade takes TWO pushers** at any
   size, which restates 24 boxes — a slot, a divider and a pair of rim cutouts
-  gone, the thumb cutout moved, one Pusher fewer in the project. A **7.0**
-  build still cuts three and still reproduces every STEP and cached mesh,
-  which is the point of the mechanism. Both flags reach the Lid, so
+  gone, the thumb cutout moved, one Pusher fewer in the project; and the Box's
+  **floor is SOLID but for the pusher gaps** (`box_solid_floor`, 2026-09-06),
+  cut away only where the Lid's socket blocks come up through it, which costs
+  3 to 28 cm3 of filament and 4 to 33 minutes a box. That one has an OPEN
+  ISSUE recorded with it: the lid's floor branding stands 0.600 proud under the
+  new floor and the branding has deliberately not been moved yet
+  (`spec/BOX.md`, "The floor is solid but for the pusher gaps"). A **7.0**
+  build still cuts three pushers and one floor rectangle and still reproduces
+  every STEP and cached mesh, which is the point of the mechanism. The flags
+  overlap — two reach the Lid, the third reads its sockets — so
   `tests/test_revisions.py` turns them on ONE AT A TIME to keep them separable.
   **Read `rear_thumb_x` rather than re-deriving it** — its offset is measured
   from the SECOND cavity's left edge, and hand-deriving it invents collisions

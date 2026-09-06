@@ -352,6 +352,107 @@ The `1.000` is the front pocket's back wall, measured as a panel at
 lives in `box.FRONT_DIVIDER` until the Front pocket group is written and can own
 it.
 
+**All of that is the 7.0 statement.** From 7.1 the same rectangle is cut only
+where the lid's sockets come up through it and the rest of the floor stays —
+the next section, and `box.floor_cuts` is where the two meet.
+
+## The floor is solid but for the pusher gaps — a 7.1 RELEASE CHANGE
+
+**A carried box is held by its floor, and from 7.1 there is one to hold**
+(Allan, 2026-09-06). `box_solid_floor` keeps everything between the pusher
+channels: the one rectangle above becomes one channel per lid socket, and the
+rest of the card area is `1.600` of floor. It ties the front pocket's divider
+panel to the inner back wall across the whole width, which is the stiffness the
+change is for. A 7.0 build still cuts the single rectangle and still reproduces
+every reference STEP (`tests/test_box.py`) and all 48 cached boxes
+(`tests/test_box_corpus.py`, off `build/v7.0`) with the flag in place, which is
+what makes this a release change and not a divergence (`cad/revisions.py`;
+`spec/REVISIONS.md`).
+
+**What has to stay open is the LID SOCKET, not the pusher.** In play the box's
+floor sits on the lid's floor (`assembly.lid_under`) and the pusher stands in a
+socket BLOCK standing `lid.SOCKET_H` = `5.000` proud of it, `#calFootTotalWidth`
+= `9.200` wide and `calPusherTotalDepth - 0.400` long. That block, not the
+`3.000` plate, is what comes up through the floor. `box.pusher_gaps` therefore
+reads `lid.socket_centres` rather than re-deriving the placement — the Box
+depends on the Lid here, by a deferred import, the way `assembly.py` depends on
+both — and the gaps follow the release for free: whatever sockets a lid has, at
+whatever count, there is a channel for each. An interior socket (the middle one
+a 7.0 lid still has) gets an island channel; the outer two do not.
+
+Two things follow from the lid's own numbers and neither is a choice:
+
+```
+clearance   SOLID_FLOOR_CLEAR = 1.000 around the block, which must exceed the
+            0.700 of side play the box has in the lid — it is the same fit
+depth       the FULL card area. The socket is calPusherTotalDepth - 0.400 long
+            and centred in a card area calPusherTotalDepth + 1.800 deep, so
+            clearing the block leaves 1.100 at each end and 0.100 once the
+            clearance is off it — not floor either
+outer end   OPEN. The outermost blocks stop 0.650 (left) and 1.250 (right)
+            inside the card area's own edge — constant across all 50 boxes,
+            the 0.300 the socket set is anchored off the LEFT wall by showing
+            up as the difference. Less the clearance, what would be left
+            outboard of a channel is -0.350 and 0.250: past the edge already
+            on one side and under a 0.420 extrusion on the other, so neither
+            is floor that could print
+```
+
+so a channel is `10.850` wide on the left and `11.450` on the right, running
+front divider to back wall, and the solid floor is what is between them.
+
+### What it costs
+
+Geometry exact, print time modelled — 8 layers of `0.200` make the `1.600`
+floor, and `bottom_shell_layers 3` + `top_shell_layers 5` = 8, so the slab is
+solid shell throughout with no sparse infill in it. At the project's own speeds
+(`105 / 250x6 / 200` mm/s, `0.42` line) and 80% of nominal for acceleration and
+travel:
+
+| | smallest (`XS5.15.10.32-Un`) | median | largest (`L8.50.10.62-Sl`) |
+|---|---|---|---|
+| filament | `3.0 cm3`, 3.8 g | `9.4 cm3`, 11.8 g | `27.5 cm3`, 34.6 g |
+| against the box | +3.4% | +6.7% | +12.0% |
+| print time | +3.6 min | +11 min | +33 min |
+
+Rebuilding the whole catalogue costs `527 cm3` / 664 g / 10.5 h. The percentage
+is against the box's own material volume measured off the cached meshes in
+`individual/`; a box is 1.600 wall at two loops, so its printed mass is close
+to its volume. In RELATIVE print time the increase is smaller than the filament
+percentage — a big flat solid area runs at `21 mm3/s`, under the `25` flow cap,
+where the walls that make up the rest of the box do not.
+
+### The open issue: the Lid's floor branding is underneath
+
+**Unresolved on purpose (Allan, 2026-09-06): prototype the floor, leave the
+branding.** `lid.floor_text` fuses `ProductName`, the version, the three
+model/game/capacity lines and the staircase onto the lid's INNER floor,
+standing `lid.LOGO_PROUD` = `0.600` proud. Today that is all under the open
+hole. With the floor solid it is under the new slab: on `S4.16.10.32-Sl` the
+logo block spans `x -44.9..-1.1` and the text block ends at `+44.9`, inside a
+floor that spans `+-59.7`, and the staircase runs forward from `y -11.3`
+against a card area starting at `-12.4`. So in the PLAY state the box lands on
+`0.600` of raised lettering instead of on the lid's floor: it sits that much
+high, rocks on the glyphs, and wears them.
+
+**It is all 50 boxes and none of it falls in a channel.** Measured by taking
+each lid's `text_block` and `logo_block` solids into the box's frame
+(`assembly.lid_under`) and asking where they land: every one of the 50 is on
+branding, from `113.6 mm3` of it (`XS5.15.10.32-Un`, whose staircase is
+suppressed and which carries the word alone) to `1094.4 mm3`
+(`S9.21.10.62-Sl`, nine risers of staircase), and not one solid falls inside a
+pusher channel or clear of the card area. So there is no size that escapes it
+and no partial fix in the channels' placement.
+
+It is not caught by `tests/test_assembly.py`, whose margin tier measures the
+lid's walls, the pushers and the holders and not the floor's face, so it is
+recorded here and in `spec/REVISIONS.md` rather than left to a test. Three ways
+out, none taken yet: pocket the new floor's underside over the branding
+footprint (it is `1.600` thick, so `1.000` would be left, over a large bridge);
+move the branding out of the card area's footprint; or engrave it into the lid
+floor instead of embossing it. The third is the cheapest and the one to price
+first.
+
 ## `Pusher holder & Rear Storage`, measured
 
 Constant on every reference unless stated. Offsets from `#BoxDepth/2`:

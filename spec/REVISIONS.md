@@ -89,11 +89,23 @@ Its geometry changes, in the order they were made:
   moves their thumb cutout, and ships one Pusher fewer in each of their
   projects. The Lid follows through the flag above, so nothing has three
   sockets at 7.1. `spec/BOX.md`, "Two pusher slots, at every size".
+* **`box_solid_floor`** — the Box's floor is cut away only where the Lid's
+  pusher sockets come up through it: one full-depth channel per socket, the
+  outer two open to the ends of the card area, and solid floor between them.
+  Every box in the catalogue changes. It reads `lid.socket_centres` rather than
+  re-deriving the socket placement, so it follows the two flags above without
+  naming either. Costs `3.0` to `27.5 cm3` of filament (+3.4% to +12% of a box)
+  and 4 to 33 minutes a box. **Its open issue is recorded with it**: the lid's
+  floor branding stands `0.600` proud under the new floor, so in the play state
+  the box lands on the lettering rather than on the lid's floor. Deliberately
+  left for now (Allan, 2026-09-06) — `spec/BOX.md`, "The floor is solid but for
+  the pusher gaps".
 
-**The two are separable and the tests keep them so.** Both reach the Lid, so
-comparing 7.0 with 7.1 shows 28 lids changing and says nothing about which flag
-did what; `tests/test_revisions.py` turns one flag on at a time against a 7.0
-Derived to isolate them. That technique is the reason a `Rev` is a record of
+**The flags are separable and the tests keep them so.** Two of them reach the
+Lid, so comparing 7.0 with 7.1 shows 28 lids changing and says nothing about
+which flag did what; the third reads the Lid's sockets, so it moves when they
+do. `tests/test_revisions.py` turns one flag on at a time against a 7.0 Derived
+to isolate them. That technique is the reason a `Rev` is a record of
 independent booleans rather than a version number to compare against.
 
 ## What a release moves besides its flags

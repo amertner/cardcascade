@@ -131,6 +131,18 @@ a Box footprint of `BoxWidth` by `box_depth + 4.500` (the sketch box plus
 `REAR_DEPTH`): **0.700 a side** in width and **0.400 total** in depth. The Box's
 floor sits on the Lid's floor.
 
+**Which is what the 7.1 solid floor has to live with, and does not yet.** The
+Box's floor is open across the whole card area at 7.0, so the Lid's socket
+blocks and its `0.600` of proud floor branding both stand in a hole. From 7.1
+(`rev.box_solid_floor`) the floor is cut only where the sockets come up —
+`box.pusher_gaps` reads `lid.socket_centres`, so the sockets are cleared by
+construction — but the branding is NOT, and the box lands on the lettering
+rather than on the lid's floor: all 50 cascades, `113.6` to `1094.4 mm3` of it.
+Deliberately unresolved (Allan, 2026-09-06); `spec/BOX.md`, "The open issue:
+the Lid's floor branding is underneath". The margin tier does not see it —
+`fit.lid_margins` measures the walls and the closing groove, not the floor's
+face — so it is recorded rather than tested.
+
 ### Pusher, stored — hung in the rear storage
 
 The part is turned on edge and upright: its **rise runs up the box's Z**, its

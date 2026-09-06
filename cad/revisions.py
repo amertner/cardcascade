@@ -71,6 +71,19 @@ class Rev:
                 "M lids lose their unused MIDDLE socket",
     })
 
+    box_solid_floor: bool = field(metadata={
+        "since": "7.1",
+        "spec": "spec/BOX.md, 'The floor is solid but for the pusher gaps'",
+        "what": "the Box's floor is cut away only where the Lid's pusher "
+                "sockets come up through it — one full-depth channel per "
+                "socket, open to the end of the card area — instead of one "
+                "rectangle across the whole of it, so the box carries a solid "
+                "floor between the channels. Every box in the catalogue "
+                "changes; it depends on `lid.socket_centres` and so follows "
+                "`lid_socket_per_pusher` and `two_pushers` without naming "
+                "them",
+    })
+
 
 # A version is a STRING and not a number (Allan, 2026-09-06). It is usually
 # short and usually looks numeric — `7.0`, `7.1` — but it may be `7.1.1` or

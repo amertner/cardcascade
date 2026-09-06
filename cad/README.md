@@ -325,11 +325,11 @@ differs from a reference is a bug.
 
 **7. A RELEASE change is not a divergence, and it lives in one place.**
 A divergence is `cad/` against Onshape at the SAME version, forever. A release
-change is `cad/` 7.0 against `cad/` 7.1 — the Lid's one socket per pusher is
-the first — and it lives in `cad/revisions.py`, reaching a part as a NAMED
-flag on the Derived (`d.rev.lid_socket_per_pusher`), never as a version
-comparison. A build at the older release must keep reproducing `individual/`
-exactly, which is why every test that compares against a reference pins its
+change is `cad/` 7.0 against `cad/` 7.1 — the Lid's one socket per pusher was
+the first and the Box's solid floor the third — and it lives in
+`cad/revisions.py`, reaching a part as a NAMED flag on the Derived
+(`d.rev.lid_socket_per_pusher`), never as a version comparison. A build at the
+older release must keep reproducing `individual/` exactly, which is why every test that compares against a reference pins its
 release through `tests/reference.py` rather than taking the default: the
 default is 7.1 and will move again. `spec/REVISIONS.md` is the record and
 `tests/test_revisions.py` asserts every flag at both releases.

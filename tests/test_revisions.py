@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import derive as D, lock as L, params, revisions as R   # noqa: E402
+from cad import assembly as A                                    # noqa: E402
 from cad.refuse import Refused                                   # noqa: E402
 from cad.parts import box as box_part, lid                       # noqa: E402
 import reference as REF                                          # noqa: E402
@@ -229,6 +230,108 @@ for v in ("7.0", "7.1"):
            for f in [thumb_faults(at(r, s, v))] if f}
     check(f"{v}: the thumb is clear of every divider, in the run, inside the walls",
           bad, {})
+
+
+# --- 7.1: the floor is solid but for the pusher gaps ------------------------
+print("\n=== 7.1  box_solid_floor ===")
+asserted.add("box_solid_floor")
+
+
+def only_floor_flag(d):
+    """`d` with THIS flag on and every other release change off.
+
+    The channels are cut around `lid.socket_centres`, so the flag moves with
+    `lid_socket_per_pusher` and `two_pushers` — which is why it is priced with
+    those off, against a 7.0 lid's own sockets. That the channel count follows
+    the socket count is asserted below rather than assumed.
+    """
+    return D.Derived(dict(d.items()),
+                     R.Rev(**{f.name: f.name == "box_solid_floor"
+                              for f in R.flags()}))
+
+
+# Every box in the catalogue changes, and the invariant is the same on all of
+# them: at 7.0 ONE span across the whole card area, with the flag one channel
+# per lid socket, each clearing its block and the outer two open to the edge.
+wrong = {}
+for r in rows():
+    for slv in (0, 1):
+        da = at(r, slv, "7.0")
+        db = only_floor_flag(da)
+        w = box_part.bottom_slot(da)[0]
+        span = [(round(-w / 2, 6), round(w / 2, 6))]
+        cuts = box_part.floor_cuts(db)
+        why = []
+        if [(round(a, 6), round(b, 6)) for a, b in box_part.floor_cuts(da)] != span:
+            why.append("7.0 is not one span across the card area")
+        if len(cuts) != lid.socket_count(db):
+            why.append(f"{len(cuts)} channels for {lid.socket_count(db)} sockets")
+        for (a, b), x in zip(cuts, lid.socket_centres(db)):
+            if a > x - da.calFootTotalWidth / 2 or b < x + da.calFootTotalWidth / 2:
+                why.append(f"channel {a:.3f}..{b:.3f} does not clear its block")
+        if round(cuts[0][0], 6) != span[0][0] or round(cuts[-1][1], 6) != span[0][1]:
+            why.append("an outer channel does not run out to the edge")
+        if sum(b - a for a, b in cuts) >= w:
+            why.append("nothing is left standing")
+        if why:
+            wrong[da.calModelName] = why
+check("every box: one span at 7.0, one channel per socket with the flag", wrong, {})
+
+# What a channel is cut to, in both directions, is decided by what CLEARING the
+# socket block would leave standing — and in both directions that is less than
+# one 0.420 extrusion, which is why the channel takes the lot.
+LINE_W = 0.420
+
+# In DEPTH: the socket is centred in the card area with 1.100 at each end, so
+# 0.100 of it once the clearance is off. Hence a full-depth channel.
+depth_ends = {(round(lid.socket_span(dd)[0] + A.LID_Y
+                     - (box_part.bottom_slot(dd)[2]
+                        - box_part.bottom_slot(dd)[1] / 2), 3),
+               round(box_part.bottom_slot(dd)[2] + box_part.bottom_slot(dd)[1] / 2
+                     - (lid.socket_span(dd)[1] + A.LID_Y), 3))
+              for r in rows() for s in (0, 1) for dd in [at(r, s, "7.1")]}
+check("the socket is centred in the card area, 1.100 of floor at each end",
+      sorted(depth_ends), [(1.1, 1.1)])
+check("and 0.100 of it once the clearance is off, so the channel is full depth",
+      1.1 - box_part.SOLID_FLOOR_CLEAR < LINE_W, True)
+
+# ACROSS: the outermost block stops 0.650 (left) / 1.250 (right) inside the
+# card area's own edge — constant over the catalogue, the 0.300 the socket set
+# is anchored off the LEFT wall by being the difference between the two ends —
+# so what a channel would leave outboard is -0.350 and 0.250. Hence an outer
+# channel open to the edge.
+residues = {round(box_part.bottom_slot(at(r, s, "7.1"))[0] / 2
+                  - abs(lid.socket_centres(at(r, s, "7.1"))[e])
+                  - at(r, s, "7.1").calFootTotalWidth / 2, 3)
+            for r in rows() for s in (0, 1) for e in (0, -1)}
+check("the outer blocks stop 0.650 / 1.250 inside the edge, on every box",
+      sorted(residues), [0.65, 1.25])
+check("so what the clearance leaves outboard is -0.350 / 0.250",
+      sorted(round(v - box_part.SOLID_FLOOR_CLEAR, 3) for v in residues),
+      [-0.35, 0.25])
+check("and neither could print",
+      max(residues) - box_part.SOLID_FLOOR_CLEAR < LINE_W, True)
+
+# The size of the change, from the solid. The flag adds floor and nothing else,
+# so the difference IS the slab: the card area less the channels, WALL thick.
+row_4a5e = next(r for r in rows()
+                if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
+d_flr = at(row_4a5e, 0, "7.0")
+d_sol = only_floor_flag(d_flr)
+w, depth, _y = box_part.bottom_slot(d_flr)
+slab = (w * depth - sum(b - a for a, b in box_part.pusher_gaps(d_sol)) * depth) \
+    * box_part.WALL
+plain, solid = box_part.build(d_flr), box_part.build(d_sol)
+print(f"  ({d_flr.calModelName}: the floor slab = {slab:.2f} mm3)")
+check("the flag adds exactly the floor between the channels",
+      round(body(solid) - body(plain) - slab, 3), 0.0, 0.02)
+check("the flag leaves one solid, not several", len(solid.solids()), 1)
+# It cuts nothing above the floor: the box is the 7.0 box plus that slab, so
+# every other feature has to be untouched, and the envelope is the cheap
+# witness of it.
+check("and changes nothing outside the floor",
+      [round(v, 3) for v in solid.bounding_box().size],
+      [round(v, 3) for v in plain.bounding_box().size])
 
 
 # --- the two witnesses, at every release ------------------------------------

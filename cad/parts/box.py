@@ -132,6 +132,73 @@ def bottom_slot(d):
     return width, y_back - y_front, (y_front + y_back) / 2
 
 
+# The floor is SOLID but for the pusher gaps — a 7.1 RELEASE CHANGE
+# (`rev.box_solid_floor`; spec/BOX.md, spec/REVISIONS.md). A carried box is
+# held by its floor, and from 7.1 there is one to hold: everything between the
+# channels stays.
+#
+# What has to stay OPEN is not the pusher but the LID SOCKET it stands in. In
+# play the box's floor sits on the lid's floor (`assembly.lid_under`) and the
+# socket is a block `#calFootTotalWidth` wide standing `SOCKET_H` proud of that
+# floor, so it is the block and not the 3.000 plate that comes up through here.
+# `lid.socket_centres` is where that placement lives and this reads it rather
+# than re-deriving it: the Box now depends on the Lid the way `assembly.py`
+# does, by a deferred import, because a second copy of the rule is exactly what
+# `derive.py`'s one-formula rule exists to prevent. Reading it also makes the
+# gaps follow the release: whatever sockets the lid has, at whatever count,
+# there is a channel for each.
+#
+# Two consequences of the lid's own numbers, and neither is a choice:
+#
+# * a channel runs the FULL DEPTH of the card area. The socket is
+#   `calPusherTotalDepth - 0.400` long in a card area `calPusherTotalDepth +
+#   1.800` deep and centred in it, so clearing the block leaves `1.100` of
+#   floor at each end — and `0.100` once `SOLID_FLOOR_CLEAR` is off it, which
+#   is not floor. Cutting the full depth also keeps the boolean a plain prism;
+# * the FIRST and LAST channel are OPEN AT THEIR OUTER END. The outermost
+#   blocks stop `0.650` (left) and `1.250` (right) inside the opening's own
+#   edge, on every box in the catalogue — the `0.300` the socket set is
+#   anchored off the LEFT wall by (`lid.socket_centres`) is the difference
+#   between the two ends. Take `SOLID_FLOOR_CLEAR` off those and what would be
+#   left outboard of a channel is `-0.350` and `0.250`: the left one is
+#   already past the edge and the right one is well under a `0.420` extrusion,
+#   so neither is floor that could print. The outer channels therefore run out
+#   to the ends of the card area, and only an INTERIOR socket — the middle one
+#   a 7.0 lid still has — gets an island channel.
+SOLID_FLOOR_CLEAR = 1.000    # around a socket block, and it must exceed the
+#                              0.700 of side play the box has in the lid
+
+
+def pusher_gaps(d):
+    """(x0, x1) of each channel the floor keeps open, left to right.
+
+    `SOLID_FLOOR_CLEAR` around each of the lid's socket blocks, with the outer
+    end of the first and last opened out to the card area's own edge: what the
+    clearance leaves outboard there is -0.350 and 0.250, which is not floor,
+    it is a sliver under one extrusion.
+    """
+    from . import lid as lid_part          # deferred: lid.py imports this one
+    half = d.calFootTotalWidth / 2 + SOLID_FLOOR_CLEAR
+    edge = bottom_slot(d)[0] / 2
+    out = [(x - half, x + half) for x in lid_part.socket_centres(d)]
+    out[0] = (-edge, out[0][1])
+    out[-1] = (out[-1][0], edge)
+    return out
+
+
+def floor_cuts(d):
+    """The X spans cut clean through the floor, left to right.
+
+    The whole card area at 7.0 — `bottom_slot`, one rectangle, which is what
+    every reference STEP and cached mesh has — and only `pusher_gaps` from 7.1.
+    The one place the release change reaches the geometry.
+    """
+    if d.rev.box_solid_floor:
+        return pusher_gaps(d)
+    edge = bottom_slot(d)[0] / 2
+    return [(-edge, edge)]
+
+
 # `Add depth to back`. The rear storage stands 4.500 proud of the sketch box —
 # half of the 6.100 depth offset — and is where the pushers are stowed. In
 # section, as offsets from #BoxDepth/2 (constant on all six references):
@@ -1168,12 +1235,15 @@ def build(d):
     Derived with it flipped.
     """
     part = shell(d)
-    w, depth, y = bottom_slot(d)
+    _w, depth, y = bottom_slot(d)
     # Cut Z from below the floor up to exactly WALL, so the boolean is clean
     # underneath and nothing above the floor is touched — the tree cuts this
     # before the sliders and dividers exist, and this keeps that true whatever
-    # order the code ends up in.
-    part = part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
+    # order the code ends up in. One span at 7.0 and one per pusher gap from
+    # 7.1 (`floor_cuts`), which is the whole of the release change here.
+    for x0, x1 in floor_cuts(d):
+        part = part - Box(x1 - x0, depth, WALL + 1).moved(
+            Location(((x0 + x1) / 2, y, (WALL - 1) / 2)))
     part = rear_storage(d, part)
     part = lower_front(d, part)
     part = round_top_corners(d, part)
