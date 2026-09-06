@@ -24,6 +24,7 @@ Three tiers:
     .venv/bin/python tests/test_layout.py         # 2 min; 6 with the slices
 """
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -190,7 +191,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 if pl.plate != k:
                     continue
                 w, dd, _h = back.sizes[oid]
-                ob = (pl.x, pl.y, w / 2, dd / 2, __import__("math").radians(pl.angle))
+                ob = LY.Obb(pl.x, pl.y, w / 2, dd / 2, math.radians(pl.angle))
                 if LY.sat_overlap(tower_obb, ob, LY.TIGHT_GAP - 1e-6):
                     problems.append(f"plate {k} tower within {LY.TIGHT_GAP} of an object")
                     break
