@@ -58,13 +58,14 @@ Two suffixes turn up in the tables below:
 
 * **-30** as in **S2.40.12-30**: the first slider is a different depth from the
   rest (30 cards instead of 12), for a set with one unusually thick pile.
-* **-M** as in **M4.21.10-M**: the box has a *mat pocket*. Two of the front
-  compartments are merged into one wide one to hold player mats, so it holds two
-  fewer piles than the numbers alone suggest.
+* **-M** as in **M4.21.10-M**: two front compartments are merged into one wide
+  one to hold player mats instead of cards, so the box holds two fewer piles
+  than the numbers alone suggest.
 
 On the files themselves you'll also see two more fields - the side label width in
-mm, and Un or Sl for unsleeved or sleeved - so a full name looks like
-`M6.21.10.45.Un`. I've left those off the tables to keep them readable.
+mm, and Un or Sl for unsleeved or sleeved - so the full names of those two are
+`M6.21.10.45-Un` and `M4.21.10.45-M-Sl`. I've left both off the tables to keep
+them readable.
 
 ## The tables
 
