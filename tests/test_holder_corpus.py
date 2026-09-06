@@ -77,7 +77,9 @@ import reference as REF                                        # noqa: E402
 from cad import text as TX                                 # noqa: E402
 from cad.parts import holder                               # noqa: E402
 
-BUILD = ROOT / "build"
+# The tree for the release this file asserts, not the current one
+# (`tests/reference.py`): build `--version 7.0` before running it.
+BUILD = REF.tree()
 INDIV = ROOT / "individual"
 FOLDER = {"Compile": "Compile", "Dominion": "Dominion", "FCM": "FCM",
           "Innovation": "Innovation"}

@@ -23,6 +23,22 @@ revisions table — putting them there would make the table read as a mixed bag
 of switches instead of a release history. That was asked and settled (Allan,
 2026-09-06).
 
+## A version is a STRING
+
+Short, usually numeric-looking — `7.0`, `7.1` — but it may be `7.1.1` or
+`7.1B` or anything else that fits on a part, so nothing parses it (Allan,
+2026-09-06). A release's ORDER is its position in `RELEASES`, which is the only
+place the line's order is stated, and `HISTORICAL` names the older versions
+still asked about by name (`6.6`, which `tests/test_holder_corpus.py` prices
+its engraving at). Anything else is refused: with opaque strings there is no
+arithmetic that tells a real old release from a typo, so the answer is a list.
+
+One consequence to know before choosing a version: the engraved-stamp reader
+can only read a `digit . digit` word (`verify._dotted`), so a version of any
+other shape — `7.1.1`, `7.1B` — is checkable by its METADATA alone. That is a
+limit on the reader, not on the version, and it is why the metadata witness
+exists at all.
+
 ## The two rules that keep it generalisable
 
 **A part asks a NAMED question and never compares versions.** `d.rev.<flag>`,
@@ -60,13 +76,25 @@ that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
 be told from an Onshape-exported one on the shelf — and, since the version goes
 into the project name and title, in the file too.
 
-Its one geometry change:
+Its geometry changes, in the order they were made:
 
 * **`lid_socket_per_pusher`** — the Lid cuts one pusher socket per pusher the
   cascade ships (`box.pusher_slot_count`) instead of Onshape's plain size rule,
   so the four Innovation M lids lose their unused MIDDLE socket. Four lids and
   no others; the outer pair does not move, so no pusher and no margin changes.
   `spec/LID.md`, "The middle socket is gone".
+* **`two_pushers`** — every cascade takes TWO pushers, whatever its size, where
+  Onshape gave 3 to every M and L box that is not Innovation. It restates 24 of
+  the 50 boxes — one fewer rear storage slot, divider and pair of rim cutouts —
+  moves their thumb cutout, and ships one Pusher fewer in each of their
+  projects. The Lid follows through the flag above, so nothing has three
+  sockets at 7.1. `spec/BOX.md`, "Two pusher slots, at every size".
+
+**The two are separable and the tests keep them so.** Both reach the Lid, so
+comparing 7.0 with 7.1 shows 28 lids changing and says nothing about which flag
+did what; `tests/test_revisions.py` turns one flag on at a time against a 7.0
+Derived to isolate them. That technique is the reason a `Rev` is a record of
+independent booleans rather than a version number to compare against.
 
 ## What a release moves besides its flags
 
@@ -117,7 +145,10 @@ whose other parts are Onshape 7.0 exports.
 ## Defaults, and why the tests pin
 
 `revisions.CURRENT` is **7.1**: a plain `cad.build` or `cad.cascade` builds the
-current release (Allan, 2026-09-06). That makes the default a moving target by
+current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
+are the exception that proves the rule: they pin **7.0**, because what they
+regress against is the shipped tree, which the Onshape pipeline built at 7.0 —
+and from 7.1 a twin is MEANT to print differently, two pushers against three. That makes the default a moving target by
 design, so **every test that compares against a reference pins the release it
 means** — `tests/reference.py`, `VERSION = "7.0"`, a literal and not
 `revisions.CURRENT`. `tests/test_holder_corpus.py` had already been pricing its

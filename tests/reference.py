@@ -36,6 +36,20 @@ VERSION = "7.0"
 _VERSION_AT = [f.name for f in fields(params.Primary)].index("Version")
 
 
+def tree():
+    """Where a build AT the reference release lives — `build/v7.0`.
+
+    Pinning the Primary is only half of pinning a release. A test that derives
+    at 7.0 and then reads a written 3MF out of `build/` is comparing a 7.0
+    expectation with a CURRENT-release file, and from 7.1 that is a real
+    difference: a 7.1 box has two rear storage slots where a 7.0 one has three
+    (`spec/REVISIONS.md`). So a corpus test reads the tree for the release it
+    asserts, which `cad.build --part all --version 7.0` writes.
+    """
+    from cad import build as B
+    return B.out_for(VERSION)
+
+
 def primary(*args, **kw):
     """`params.Primary`, at the reference release unless the caller names one."""
     if len(args) > _VERSION_AT or "Version" in kw:

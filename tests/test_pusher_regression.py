@@ -38,13 +38,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "automation"))
 
 import verify as V                                   # noqa: E402
 from cad import build as B, derive as D, lock as L, mesh3mf   # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import pusher                         # noqa: E402
 
-BUILD = ROOT / "build"
+# The tree for the release this file asserts, not the current one
+# (`tests/reference.py`): build `--version 7.0` before running it.
+BUILD = REF.tree()
 INDIV = ROOT / "individual"
 fails = []
 

@@ -60,7 +60,11 @@ REGRESSION check rather than a bid for trust — all 46 shipped projects print
 the same parts as their cad twins (`tests/test_parallel.py`), and a difference
 there means look at the change, not at whether the rebuild is ready.
 `cascades/` is what has been printed to date and stays as it is until a
-cascade is next cut from `cad/`. **Everything is 7.0 going forward** (Allan,
+cascade is next cut from `cad/`. **`cad.compare` and `tests/test_parallel.py`
+pin 7.0** for that reason: the shipped tree is 7.0, and from 7.1 a twin is
+MEANT to print differently (two pushers against three), so comparing the
+current release against it would report the intended change as failures.
+`cad.build --part all --version 7.0` writes the tree they need. **Everything is 7.0 going forward** (Allan,
 2026-09-05): a twin's 7.0 holders and pushers supersede the 6.6 and pre-7.0
 ones in a shipped project. **7.1 is the cad-built release and the DEFAULT**
 (Allan, 2026-09-06): the same 7.0 LOCK (`lock.SAME_LOCK`) under a `CC 7.1`
@@ -99,13 +103,19 @@ been printed yet.
   against Onshape at the same version, forever; a release change is `cad/` 7.0
   against `cad/` 7.1. It reaches a part as a NAMED flag on the Derived —
   `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
-  The first and so far only one: from **7.1** the Lid cuts one pusher socket
-  per pusher the cascade ships instead of Onshape's size rule, so the four
-  Innovation M lids (`M5.15.15` and `M5.10.10`, each sleeved and un) lose their
-  unused MIDDLE socket. The outer pair does NOT move — the socket span is the
-  card slots' and not the sockets' — so no pusher and no margin changes.
-  A **7.0** build still cuts three and still reproduces every STEP and cached
-  mesh, which is the point of the mechanism.
+  A version is an opaque STRING — `7.1`, and possibly `7.1.1` or `7.1B` later —
+  so nothing parses one: order is the position in `RELEASES`, and `HISTORICAL`
+  names the older versions still asked about (`6.6`). **7.1 carries two
+  changes**: the Lid cuts one socket per pusher (four Innovation M lids lose
+  their unused MIDDLE socket), and **every cascade takes TWO pushers** at any
+  size, which restates 24 boxes — a slot, a divider and a pair of rim cutouts
+  gone, the thumb cutout moved, one Pusher fewer in the project. A **7.0**
+  build still cuts three and still reproduces every STEP and cached mesh,
+  which is the point of the mechanism. Both flags reach the Lid, so
+  `tests/test_revisions.py` turns them on ONE AT A TIME to keep them separable.
+  **Read `rear_thumb_x` rather than re-deriving it** — its offset is measured
+  from the SECOND cavity's left edge, and hand-deriving it invents collisions
+  that are not there.
 - The Holder's **side slot mouth** is another, since 2026-09-05: the bottom
   `SLOT_MOUTH_CHAMFER` (0.300) of the groove is flared 45 degrees so an
   elephant's foot closes the chamfer instead of the groove the holder slides

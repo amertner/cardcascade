@@ -33,6 +33,12 @@ import zipfile
 from pathlib import Path
 
 from . import layout as LY, project as PJ
+from .revisions import RELEASES
+
+# What everything under `cascades/` was built at: the Onshape pipeline's
+# generation. NOT `revisions.CURRENT`, and deliberately a literal — the
+# current release moves and the shipped tree does not.
+REF_VERSION = "7.0"
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automation"))
@@ -41,6 +47,20 @@ import towers                                            # noqa: E402
 
 SHIPPED = ROOT / "cascades"
 CAD = ROOT / "build" / "cascades"
+
+
+def cad_dir(version=None):
+    """Where the twins for a RELEASE are, `build/cascades` for the current one.
+
+    Which release to compare against is not a detail: everything under
+    `cascades/` was built by the Onshape pipeline at 7.0, and a later release
+    is MEANT to differ from it — 7.1 ships two pushers where a 7.0 box has
+    three (`spec/REVISIONS.md`). So the claim this module can make forever is
+    "a 7.0 build still prints what shipped", and comparing a 7.1 twin with a
+    7.0 project reports real, intended differences.
+    """
+    from . import build as B
+    return (CAD if version is None else B.out_for(version) / "cascades")
 # size tolerance per role, mm — the known divergences between the cached
 # parts and the rebuilt ones (spec/HOLDER.md: 30 of 50 shipped holders are
 # 6.6, 1.5 shorter than a 7.0; the rest match to 0.05)
@@ -136,12 +156,18 @@ def main(argv=None):
     ap.add_argument("--game")
     ap.add_argument("--name", help="part of the project name")
     ap.add_argument("--strict", action="store_true")
+    ap.add_argument("--version", default=REF_VERSION, choices=RELEASES,
+                    help=f"which release's twins to compare against (default "
+                         f"{REF_VERSION}, the release everything under "
+                         f"cascades/ was built at — a later one is MEANT to "
+                         f"differ)")
     args = ap.parse_args(argv)
+    CAD_AT = cad_dir(args.version)
     games = [args.game] if args.game else sorted(p.name for p in SHIPPED.iterdir()
-                                                 if p.is_dir() and (CAD / p.name).exists())
+                                                 if p.is_dir() and (CAD_AT / p.name).exists())
     same = missing = differing = 0
     for game in games:
-        shipped, cad = by_model(SHIPPED / game), by_model(CAD / game)
+        shipped, cad = by_model(SHIPPED / game), by_model(CAD_AT / game)
         for code, s_path in sorted(shipped.items()):
             if args.name and args.name.lower() not in s_path.name.lower():
                 continue

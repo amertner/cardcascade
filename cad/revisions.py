@@ -52,6 +52,17 @@ class Rev:
     cannot drift apart.
     """
 
+    two_pushers: bool = field(metadata={
+        "since": "7.1",
+        "spec": "spec/BOX.md, 'Two pusher slots, at every size'",
+        "what": "every cascade takes TWO pushers, whatever its size: "
+                "`#calPusherSlots` is 2 rather than 2-for-Innovation-and-S-"
+                "else-3, so 24 boxes lose a rear storage slot, its divider "
+                "and its rim cutouts, their thumb cutout centres, and their "
+                "projects ship one Pusher fewer. The Lid follows through "
+                "`lid_socket_per_pusher`",
+    })
+
     lid_socket_per_pusher: bool = field(metadata={
         "since": "7.1",
         "spec": "spec/LID.md, 'The middle socket is gone'",
@@ -61,16 +72,37 @@ class Rev:
     })
 
 
-def key(version):
-    """`\"7.10\"` sorts after `\"7.9\"`: compare numbers, not strings."""
-    try:
-        return tuple(int(x) for x in str(version).split("."))
-    except ValueError:
-        refuse(f"malformed version {version!r}; expected digits and dots")
+# A version is a STRING and not a number (Allan, 2026-09-06). It is usually
+# short and usually looks numeric — `7.0`, `7.1` — but it may be `7.1.1` or
+# `7.1B` or anything else short enough to engrave, so NOTHING here parses it.
+# The order of a release is its position in `RELEASES`, which is the only
+# place the line's order is stated; a version that is not on the line has no
+# position and no flags.
+#
+# One consequence, recorded because it is easy to trip over: the engraved
+# stamp reader can only read a `digit . digit` word (`verify._dotted`), so a
+# version of any other shape — `7.1.1`, `7.1B` — is checkable by its METADATA
+# alone. That is a limit on the reader, not on the version.
+
+
+def position(version):
+    """Where `version` sits on the line, or None if it is not on it."""
+    return RELEASES.index(version) if version in RELEASES else None
 
 
 def at_least(version, since):
-    return key(version) >= key(since)
+    """Is `version` at or after the release `since` shipped in?
+
+    `since` is always a release on the line. `version` may be a historical one
+    that predates it — `tests/test_holder_corpus.py` prices its engraving at
+    `6.6` — and a version off the line is BEFORE it by construction: `of`
+    admits nothing else.
+    """
+    here, there = position(version), position(since)
+    if there is None:
+        refuse(f"{since!r} is not a release; a flag's `since` must be one of "
+               f"{', '.join(RELEASES)}")
+    return here is not None and here >= there
 
 
 def check(version):
@@ -88,23 +120,34 @@ def check(version):
     return version
 
 
+# Versions that predate the line and are still asked about by name. A cached
+# component or a reference STEP may carry one — `tests/test_holder_corpus.py`
+# prices its engraving at `6.6` — and it correctly gets none of the line's
+# flags. Naming them is what lets `of` refuse everything else: with versions
+# as opaque strings there is no arithmetic that can tell a real old release
+# from a typo, so the answer is a list, and a new one is admitted deliberately.
+HISTORICAL = ("6.3", "6.4", "6.5", "6.6")
+
+
 def of(version):
     """The `Rev` for a version: every change introduced at or before it.
 
-    This is NOT `check` — it takes any version on the line's own scale, because
-    a HISTORICAL one is a real thing to ask about. `tests/test_holder_corpus.py`
-    prices the cached engraving at `Version="6.6"`, which predates every change
-    here and correctly gets none of them; refusing it would make the corpus
-    unable to describe its own references.
+    This is NOT `check`: it also takes a HISTORICAL version, which is a real
+    thing to ask about — refusing `6.6` would leave the corpus unable to
+    describe its own references — and gives it no flags, because every change
+    here shipped after it.
 
-    A version NEWER than the newest release is refused, though, and the
-    asymmetry is deliberate: history is a fact, but the future is a typo, and
-    silently handing `7.15` every flag is how a part gets built to a release
-    that does not exist. What a CLI may BUILD is narrower still — `check`.
+    Anything else is refused. A version is an opaque string, so a typo cannot
+    be told from a release by looking at it; the line and `HISTORICAL` are the
+    whole of what is known, and building `7.15` as if it were current is how a
+    part gets stamped with a release that does not exist. What a CLI may BUILD
+    is narrower still — `check`.
     """
-    if key(version) > key(RELEASES[-1]):
-        refuse(f"version {version!r} is after the newest release "
-               f"{RELEASES[-1]!r}; add it to cad/revisions.RELEASES first")
+    if version not in RELEASES and version not in HISTORICAL:
+        refuse(f"unknown version {version!r}; cad/ builds "
+               f"{', '.join(RELEASES)} and knows the older "
+               f"{', '.join(HISTORICAL)} by name — add it to "
+               f"cad/revisions.RELEASES first")
     return Rev(**{f.name: at_least(version, f.metadata["since"])
                   for f in fields(Rev)})
 

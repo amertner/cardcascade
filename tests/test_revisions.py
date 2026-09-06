@@ -56,8 +56,16 @@ def at(row, sleeved, version):
 
 # --- the line itself --------------------------------------------------------
 print("=== the release line ===")
-check("RELEASES is ordered oldest first",
-      list(R.RELEASES), sorted(R.RELEASES, key=R.key))
+# A version is an opaque STRING (7.1.1, 7.1B, ...), so the line's order is the
+# tuple's order and nothing can check it against arithmetic. What CAN be
+# checked is that the tuple is a well-formed line and that nothing is on it
+# twice or in two places at once.
+check("no release is listed twice", len(set(R.RELEASES)), len(R.RELEASES))
+check("no version is both a release and a historical one",
+      sorted(set(R.RELEASES) & set(R.HISTORICAL)), [])
+check("position is the tuple's own order",
+      [R.position(v) for v in R.RELEASES], list(range(len(R.RELEASES))))
+check("a version off the line has no position", R.position("6.6"), None)
 check("CURRENT is in RELEASES", R.CURRENT in R.RELEASES, True)
 check("the reference release is one cad/ can build", REF.VERSION in R.RELEASES, True)
 # Every release must declare its LOCK, because `pusher.build` refuses one that
@@ -86,10 +94,27 @@ asserted.add("lid_socket_per_pusher")
 # The four Innovation M lids, named. Any other row in the catalogue must be
 # IDENTICAL across the two releases: the flag changes these and nothing else.
 CHANGED = {"M5.15.15.45.Un", "M5.15.15.62.Sl", "M5.10.10.32.Un", "M5.10.10.45.Sl"}
+
+
+def only_lid_flag(d):
+    """`d` with THIS flag on and every other release change off.
+
+    7.1 carries two changes and they both reach the Lid: `two_pushers` drops
+    the box to two, and the socket count follows it. Comparing 7.0 with 7.1
+    therefore shows 28 lids changing and says nothing about which flag did
+    what. Turning on one flag at a time is what isolates them, and it is the
+    same technique that prices the socket block below.
+    """
+    return D.Derived(dict(d.items()),
+                     R.Rev(**{f.name: f.name == "lid_socket_per_pusher"
+                              for f in R.flags()}))
+
+
 moved, same = set(), 0
 for row in rows():
     for sleeved in (0, 1):
-        d70, d71 = at(row, sleeved, "7.0"), at(row, sleeved, "7.1")
+        d70 = at(row, sleeved, "7.0")
+        d71 = only_lid_flag(d70)
         n70, n71 = lid.socket_count(d70), lid.socket_count(d71)
         if n70 == n71:
             same += 1
@@ -146,6 +171,64 @@ check("and the whole 7.0 -> 7.1 difference is that block plus the digits",
 check("the digits are ink, not geometry (under 2 mm3)", abs(digits) < 2.0, True)
 check("the two releases write the same number of solids",
       len(lid.build(d70).solids()), len(lid.build(d71).solids()))
+
+
+# --- 7.1: every cascade takes two pushers -----------------------------------
+print("\n=== 7.1  two_pushers ===")
+asserted.add("two_pushers")
+# 24 of the 50 lose their third slot: 16 Dominion, 6 FCM, 2 Compile. Innovation
+# and every S box were on two already, so the count is the assertion.
+dropped, kept = [], 0
+for row in rows():
+    for sleeved in (0, 1):
+        d70, d71 = at(row, sleeved, "7.0"), at(row, sleeved, "7.1")
+        n70, n71 = box_part.pusher_slot_count(d70), box_part.pusher_slot_count(d71)
+        check_quiet = n71 == 2
+        if not check_quiet:
+            fails.append(f"{d71.calModelName}: 7.1 has {n71} pusher slots, not 2")
+        if n70 == n71:
+            kept += 1
+        else:
+            dropped.append((d70.calModelName, d70.GameName, n70, n71))
+check("every cascade takes two pushers at 7.1",
+      sorted({box_part.pusher_slot_count(at(r, s, "7.1"))
+              for r in rows() for s in (0, 1)}), [2])
+check("24 of them had three at 7.0", len(dropped), 24)
+check("and 7.0 still gives 3 to every M and L that is not Innovation",
+      sorted({(g, n70) for _m, g, n70, _n71 in dropped}),
+      [("Compile", 3), ("Dominion", 3), ("FCM", 3)])
+print(f"  ({kept} cascades were on two already)")
+
+# The Lid follows on its own — one socket per pusher — so nothing anywhere has
+# three sockets at 7.1. That is the two flags agreeing, and it is the thing a
+# future change could quietly break.
+check("no lid has three sockets at 7.1",
+      sorted({lid.socket_count(at(r, s, "7.1")) for r in rows() for s in (0, 1)}), [2])
+
+# The thumb cutout MOVES, because calFingerHoleOffset is written in terms of
+# the slot count, and three things must stay true of it. Through the part's own
+# `rear_thumb_x` — whose offset is measured from the SECOND cavity's left edge,
+# not the left inner wall, and re-deriving it by hand invents collisions that
+# are not there (spec/BOX.md). An invariant at both releases, not a snapshot.
+def thumb_faults(d):
+    left = -box_part.box_width(d) / 2 + box_part.WALL
+    inner = box_part.box_width(d) / 2 - box_part.WALL
+    run = left + box_part.pusher_slot_count(d) * D.back_slot_pitch(d) + box_part.DIVIDER_W
+    t, r = box_part.rear_thumb_x(d), D.ThumbCutoutRadius
+    out = []
+    if any(t - r < b and a < t + r for a, b in box_part.storage_dividers(d)):
+        out.append("over a divider")
+    if t - r < run:
+        out.append("outside the empty run")
+    if t + r > inner or t - r < left:
+        out.append("past an end wall")
+    return out
+
+for v in ("7.0", "7.1"):
+    bad = {at(r, s, v).calModelName: f for r in rows() for s in (0, 1)
+           for f in [thumb_faults(at(r, s, v))] if f}
+    check(f"{v}: the thumb is clear of every divider, in the run, inside the walls",
+          bad, {})
 
 
 # --- the two witnesses, at every release ------------------------------------

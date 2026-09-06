@@ -65,6 +65,8 @@ SUITES = [
     ("test_smoke", True, True, 4, 60),
     ("test_project", True, True, 4, 60),
     ("test_layout", True, True, 4, 160),
+    # test_parallel needs the 7.0 tree (build/v7.0), not the default one:
+    # it regresses against what shipped. `cad.build --part all --version 7.0`.
     ("test_parallel", True, True, 2, 70),
 ]
 

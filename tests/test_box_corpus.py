@@ -53,7 +53,9 @@ import probe                                                   # noqa: E402
 from probe import EPS                                          # noqa: E402
 
 INDIV = ROOT / "individual"
-BUILD = ROOT / "build"
+# The tree for the release this file asserts, not the current one
+# (`tests/reference.py`): build `--version 7.0` before running it.
+BUILD = REF.tree()
 FOLDER = {"Compile": "Compile", "Dominion": "Dominion", "FCM": "FCM",
           "Innovation": "Innovation"}
 fails = []

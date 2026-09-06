@@ -90,6 +90,9 @@ def derive(p):
     record and nothing below `derive` handles a Primary."""
     v = dataclasses.asdict(p)
     g = p.GameName
+    # The RELEASE, resolved once at the top because one variable below depends
+    # on it (`calPusherSlots`). It rides on the Derived too, for the features.
+    rev = REV.of(p.Version)
 
     v["BoxHeight"] = 115.0 if g == "Colours" else 105.0
     v["LidHeight"] = 55.0 if g == "Colours" else 40.0
@@ -112,12 +115,24 @@ def derive(p):
     # TokenHolder still share exactly one transcription. See spec/DERIVED.md.
     v["BoxWidth"] = 2 * WallThickness + 11.1 + v["calSlotwidth"] * p.HorizontalSlots
     # `#calPusherSlots` is the second sketch variable: how many pushers the
-    # rear storage takes. 2 for every Innovation box (`isOnlyTwoPusherSlots`,
-    # below, is the studio's own answer) and for an S box, else 3. Here for
-    # the same reason `#BoxWidth` is — the Box, the Lid and the assembly all
-    # read it, and it was being re-derived in `parts/box.py` with its own
-    # `GameName == "Innovation"`, a second copy of the rule this file owns.
-    v["calPusherSlots"] = 2 if (g == "Innovation" or p.HorizontalSlots <= 3) else 3
+    # rear storage takes. Here for the same reason `#BoxWidth` is — the Box,
+    # the Lid and the assembly all read it, and it was being re-derived in
+    # `parts/box.py` with its own `GameName == "Innovation"`, a second copy of
+    # the rule this file owns.
+    #
+    # It depends on the RELEASE, and it is the one variable in this file that
+    # does (`cad/revisions.py`):
+    #
+    #   before 7.1  Onshape's own rule — 2 for every Innovation box
+    #               (`isOnlyTwoPusherSlots`, below, is the studio's answer)
+    #               and for an S box, else 3;
+    #   7.1 and on  TWO, at every size and for every game (Allan).
+    #
+    # The 24 boxes that had three lose a slot, its divider and its rim
+    # cutouts; their thumb cutout centres, because `calFingerHoleOffset` is
+    # written in terms of this; and their projects ship one Pusher fewer.
+    v["calPusherSlots"] = 2 if rev.two_pushers else (
+        2 if (g == "Innovation" or p.HorizontalSlots <= 3) else 3)
     v["calSlotDepth"] = v["calCardThickness"] * p.CardsPerSlidingSlot
     v["calFirstSlotDepth"] = (v["calSlotDepth"] if p.isFirstSlidingSlotOverride == 0
                               else v["calCardThickness"] * p.FirstSlidingSlotCards)
@@ -239,7 +254,7 @@ def derive(p):
                                  13.5 if ptd >= 34.8 else
                                  8.5 if ptd >= 24.8 else
                                  5.1 if ptd >= 18.0 else 3.1)
-    return Derived(v, REV.of(p.Version))
+    return Derived(v, rev)
 
 
 

@@ -157,11 +157,55 @@ says otherwise.
 | variable | seen as | reading |
 |---|---|---|
 | `#dBackSlotWidth` | `37.6 mm` on `M4.21.10.45-Sl` | **`= calPusherTotalDepth + 4.000`, confirmed** — the stored pusher's own depth plus 2.00 of clearance a side. It is the PITCH between rear storage slots; see below |
-| `#calPusherSlots` | `3` on the same box | 2 for S and for all Innovation, 3 for M and L. Counted independently off all 48 boxes' rim cutouts (`2 × slots + 1` section loops) and it agrees everywhere — see below |
+| `#calPusherSlots` | `3` on the same box | Onshape's rule is 2 for S and for all Innovation, 3 for M and L — counted independently off all 48 boxes' rim cutouts (`2 × slots + 1` section loops) and it agrees everywhere. **From 7.1 it is 2 at every size**; see "Two pusher slots, at every size" below |
 | `#calFingerHoleOffset` | `162.5 mm` on the same box | **`= (calPusherSlots - 1 + (HorizontalSlots - calPusherSlots)/2) * calSlotwidth`** (Allan). Step right one slot width per pusher slot after the first, then centre the remainder. `cad/parts/box.py` |
 | `#HoleAreaHeight` | `68.5 mm` | front-pocket slit height |
 | `#LogoHeight` | `2.74 mm` | the Logo text's cap height, as `#LogoTextHeight` is the Pusher's |
 | `#SharpEdges` | query | the edge set `Smooth box edges` fillets |
+
+## Two pusher slots, at every size — a 7.1 RELEASE CHANGE
+
+**Every cascade takes TWO pushers from 7.1** (Allan, 2026-09-06), where
+Onshape's rule gave 3 to every M and L box that is not Innovation. It is a
+release change and not a divergence: a 7.0 build still cuts three and still
+reproduces all 48 cached boxes (`cad/revisions.py`, flag `two_pushers`;
+`spec/REVISIONS.md`).
+
+It restates **24 of the 50** boxes — 16 Dominion, 6 FCM, 2 Compile; Innovation
+and every S box were on two already — and on each of them:
+
+* one fewer rear storage slot, its `Divider`, and its pair of rim cutouts;
+* the empty run right of the last divider grows by one pitch, which the
+  geometry already handles: `rear_storage` cuts that run empty from the floor
+  up, so nothing is left standing as a slab;
+* the `Thumb Cutout in back` MOVES, because `#calFingerHoleOffset` is written
+  in terms of `#calPusherSlots`. At two slots the expression centres the
+  remainder, so the thumb lands at `x = -5.55` on every box in the catalogue;
+* the project ships one Pusher fewer, and the Lid one socket fewer — the Lid
+  follows on its own, since `lid.socket_count` is `box.pusher_slot_count`
+  from 7.1 (`spec/LID.md`).
+
+### The thumb still lands where it should, and that had to be checked
+
+`#calFingerHoleOffset` shrinks by half a slot width when the count drops to 2,
+so the thumb moves left on all 24. Three things had to stay true and all three
+do, at BOTH releases and on all 50 boxes:
+
+* it is clear of every `Divider` — the wall a pusher hangs on, and the only
+  thing the cut can damage, since it runs from the slot band BACKWARDS through
+  the outer wall and an empty slot cavity is void already;
+* it is inside the empty run right of the last divider, which is what
+  `rear_storage` cuts away from the floor up;
+* it is inside the end walls.
+
+`tests/test_revisions.py` asserts all three at 7.0 and 7.1, through the part's
+own `rear_thumb_x` and `storage_dividers`.
+
+**Read `rear_thumb_x`, do not re-derive it.** The offset is measured from the
+left edge of the SECOND storage cavity — `+ #dBackSlotWidth + 1.600` — not
+from the left inner wall, and a hand-derivation that misses that puts the
+thumb a whole pitch to the left and invents collisions that are not there.
+That is exactly what happened while this change was being planned, twice.
 
 ## `components.pushers_for` disagreed with the CAD on Innovation XS — fixed
 
