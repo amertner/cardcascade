@@ -30,6 +30,7 @@ source gives a byte-identical file, and `build.py` can tell a real change from a
 re-run.
 """
 import re
+import sys
 import zipfile
 
 TOLERANCE = 0.01        # RELATIVE deflection, see above
@@ -195,26 +196,48 @@ def serial_meshing():
     PARALLEL = False
 
 
-def model_xml(parts):
-    """The 3dmodel.model for [(name, verts_mm, tris)], one object per part."""
-    objects, items = [], []
-    for i, (name, verts, tris) in enumerate(parts, start=1):
-        body = "".join(
-            f'     <vertex x="{x / 1000:.8f}" y="{y / 1000:.8f}" '
-            f'z="{z / 1000:.8f}"/>\n' for x, y, z in verts)
-        body += "    </vertices>\n    <triangles>\n"
-        body += "".join(f'     <triangle v1="{a}" v2="{b}" v3="{c}"/>\n'
-                        for a, b, c in tris)
-        objects.append(f'  <object id="{i}" name="{name}" type="model">\n'
-                       f'   <mesh>\n    <vertices>\n{body}'
-                       f'    </triangles>\n   </mesh>\n  </object>\n')
-        items.append(f'<item objectid="{i}" '
-                     f'transform="1 0 0 0 1 0 0 0 1 0 0 0"/>')
+def _mesh_object(i, name, verts, tris):
+    """One `<object>` carrying a mesh, its coordinates in metres."""
+    body = "".join(
+        f'     <vertex x="{x / 1000:.8f}" y="{y / 1000:.8f}" '
+        f'z="{z / 1000:.8f}"/>\n' for x, y, z in verts)
+    body += "    </vertices>\n    <triangles>\n"
+    body += "".join(f'     <triangle v1="{a}" v2="{b}" v3="{c}"/>\n'
+                    for a, b, c in tris)
+    return (f'  <object id="{i}" name="{name}" type="model">\n'
+            f'   <mesh>\n    <vertices>\n{body}'
+            f'    </triangles>\n   </mesh>\n  </object>\n')
+
+
+def _model(objects, build):
+    """A 3dmodel.model document round `objects` and `build`, both XML."""
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<model unit="meter" xml:lang="en-US" xmlns="http://schemas.'
             'microsoft.com/3dmanufacturing/core/2015/02">\n'
-            ' <resources>\n' + "".join(objects) + ' </resources>\n'
-            ' <build>' + "".join(items) + '</build>\n</model>\n')
+            ' <resources>\n' + objects + ' </resources>\n'
+            ' <build>' + build + '</build>\n</model>\n')
+
+
+def model_xml(parts):
+    """The 3dmodel.model for [(name, verts_mm, tris)], one object per part,
+    each a build item at the identity."""
+    objects = "".join(_mesh_object(i, name, verts, tris)
+                      for i, (name, verts, tris) in enumerate(parts, start=1))
+    items = "".join(f'<item objectid="{i}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>'
+                    for i in range(1, len(parts) + 1))
+    return _model(objects, items)
+
+
+def _write_zip(path, xml):
+    """The three-member archive every 3MF here is, with a fixed timestamp."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, text in (("[Content_Types].xml", CONTENT_TYPES),
+                           ("_rels/.rels", RELS),
+                           ("3D/3dmodel.model", xml)):
+            info = zipfile.ZipInfo(name, _EPOCH)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, text)
 
 
 def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True):
@@ -235,41 +258,42 @@ def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True):
             raise MeshFault(f"{path.name} {name}: {unpaired} unpaired edges "
                             f"(an open boundary) — not written")
         if doubled or unpaired:
-            import sys
             print(f"  WARNING {path.name} {name}: {unpaired} unpaired, "
                   f"{doubled} doubled edges", file=sys.stderr)
-    xml = model_xml(meshed)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, text in (("[Content_Types].xml", CONTENT_TYPES),
-                           ("_rels/.rels", RELS),
-                           ("3D/3dmodel.model", xml)):
-            info = zipfile.ZipInfo(name, _EPOCH)
-            info.compress_type = zipfile.ZIP_DEFLATED
-            z.writestr(info, text)
+    _write_zip(path, model_xml(meshed))
     return meshed
 
 
-def read(path):
-    """[(name, verts in mm, tris)] from a component 3MF — the inverse of
-    `write`, and the same shape `verify._meshes` reads. Used by `cad/render.py`
-    and by the regression test, so nothing has to re-derive the unit scale."""
+def _objects(path):
+    """{id: (name, verts in mm, tris, [(component id, transform)])} for every
+    `<object>` in a 3MF's model, and the file's unit scale — the one parser
+    under `read` and `read_assembly`."""
     with zipfile.ZipFile(path) as z:
         text = z.read("3D/3dmodel.model").decode()
     scale = {"meter": 1000.0, "millimeter": 1.0}[
         re.search(r'unit="(\w+)"', text).group(1)]
-    out = []
-    for om in re.finditer(r'<object id="\d+"([^>]*)>(.*?)</object>', text, re.S):
-        attrs, body = om.groups()
+    out = {}
+    for om in re.finditer(r'<object id="(\d+)"([^>]*)>(.*?)</object>', text, re.S):
+        oid, attrs, body = om.groups()
         name = re.search(r'name="([^"]*)"', attrs)
         verts = [(float(a) * scale, float(b) * scale, float(c) * scale)
                  for a, b, c in re.findall(
                      r'<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"', body)]
         tris = [(int(a), int(b), int(c)) for a, b, c in re.findall(
             r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', body)]
-        if verts and tris:
-            out.append((name.group(1) if name else None, verts, tris))
-    return out
+        comps = [(int(c), [float(n) for n in t.split()]) for c, t in
+                 re.findall(r'<component objectid="(\d+)" transform="([^"]+)"', body)]
+        out[int(oid)] = (name.group(1) if name else None, verts, tris, comps)
+    return out, scale
+
+
+def read(path):
+    """[(name, verts in mm, tris)] from a component 3MF — the inverse of
+    `write`, and the same shape `verify._meshes` reads. Used by `cad/render.py`
+    and by the regression test, so nothing has to re-derive the unit scale."""
+    objects, _scale = _objects(path)
+    return [(name, verts, tris) for name, verts, tris, _comps in objects.values()
+            if verts and tris]
 
 
 # --- assemblies -----------------------------------------------------------
@@ -293,29 +317,15 @@ def read(path):
 def assembly_xml(parts, instances, name="Assembly"):
     """`parts` is [(name, verts_mm, tris)]; `instances` is
     [(part_index, placement)], placement having `.as_3mf()`."""
-    objects = []
-    for i, (part_name, verts, tris) in enumerate(parts, start=1):
-        body = "".join(
-            f'     <vertex x="{x / 1000:.8f}" y="{y / 1000:.8f}" '
-            f'z="{z / 1000:.8f}"/>\n' for x, y, z in verts)
-        body += "    </vertices>\n    <triangles>\n"
-        body += "".join(f'     <triangle v1="{a}" v2="{b}" v3="{c}"/>\n'
-                        for a, b, c in tris)
-        objects.append(f'  <object id="{i}" name="{part_name}" type="model">\n'
-                       f'   <mesh>\n    <vertices>\n{body}'
-                       f'    </triangles>\n   </mesh>\n  </object>\n')
+    objects = "".join(_mesh_object(i, part_name, verts, tris)
+                      for i, (part_name, verts, tris) in enumerate(parts, start=1))
     top = len(parts) + 1
     comps = "".join(
         f'    <component objectid="{k + 1}" transform="{pl.as_3mf()}"/>\n'
         for k, pl in instances)
-    objects.append(f'  <object id="{top}" name="{name}" type="model">\n'
-                   f'   <components>\n{comps}   </components>\n  </object>\n')
-    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<model unit="meter" xml:lang="en-US" xmlns="http://schemas.'
-            'microsoft.com/3dmanufacturing/core/2015/02">\n'
-            ' <resources>\n' + "".join(objects) + ' </resources>\n'
-            f' <build><item objectid="{top}" '
-            'transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build>\n</model>\n')
+    objects += (f'  <object id="{top}" name="{name}" type="model">\n'
+                f'   <components>\n{comps}   </components>\n  </object>\n')
+    return _model(objects, f'<item objectid="{top}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>')
 
 
 def write_assembly(path, parts, instances, name="Assembly",
@@ -329,15 +339,7 @@ def write_assembly(path, parts, instances, name="Assembly",
             meshed.append((part_name, *shape))
         else:
             meshed.append((part_name, *triangulate(shape, tolerance, angular)))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        for fn, text in (("[Content_Types].xml", CONTENT_TYPES),
-                         ("_rels/.rels", RELS),
-                         ("3D/3dmodel.model",
-                          assembly_xml(meshed, instances, name))):
-            info = zipfile.ZipInfo(fn, _EPOCH)
-            info.compress_type = zipfile.ZIP_DEFLATED
-            z.writestr(info, text)
+    _write_zip(path, assembly_xml(meshed, instances, name))
     return meshed
 
 
@@ -345,24 +347,7 @@ def read_assembly(path):
     """[(name, verts in mm, tris)] with every instance PLACED — the shape the
     renderer wants. A file with no `<components>` reads as its own objects, so
     this works on a component 3MF too."""
-    with zipfile.ZipFile(path) as z:
-        text = z.read("3D/3dmodel.model").decode()
-    scale = {"meter": 1000.0, "millimeter": 1.0}[
-        re.search(r'unit="(\w+)"', text).group(1)]
-    meshes = {}
-    for om in re.finditer(r'<object id="(\d+)"([^>]*)>(.*?)</object>',
-                          text, re.S):
-        oid, attrs, body = om.groups()
-        nm = re.search(r'name="([^"]*)"', attrs)
-        verts = [(float(a) * scale, float(b) * scale, float(c) * scale)
-                 for a, b, c in re.findall(
-                     r'<vertex x="([^"]+)" y="([^"]+)" z="([^"]+)"', body)]
-        tris = [(int(a), int(b), int(c)) for a, b, c in re.findall(
-            r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"', body)]
-        comps = [(int(c), [float(n) for n in t.split()]) for c, t in
-                 re.findall(r'<component objectid="(\d+)" transform="([^"]+)"',
-                            body)]
-        meshes[int(oid)] = (nm.group(1) if nm else None, verts, tris, comps)
+    meshes, scale = _objects(path)
 
     # A mesh that something instances is emitted through its instances, never
     # also on its own: otherwise every component would render twice, once at
