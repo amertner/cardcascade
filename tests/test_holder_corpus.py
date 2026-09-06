@@ -70,8 +70,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import build as B, derive as D, mesh3mf, params   # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad import text as TX                                 # noqa: E402
 from cad.parts import holder                               # noqa: E402
 
@@ -130,7 +132,7 @@ def catalogue():
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = REF.from_row(row, sleeved)
             d = D.derive(p)
             for first in ((False, True) if p.isFirstSlidingSlotOverride
                           else (False,)):

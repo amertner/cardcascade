@@ -164,15 +164,20 @@ socket stands at lid `z 1.600..6.600`, so the leading edge goes down into it and
 the rise runs up through the Box's `bottom_slot`. Confirmed reachable: on
 Dominion `S4.16.10`, socket centres are ±63.0 against a floor slot 137.100 wide.
 
-Innovation is the one asymmetry, and it is settled: a lid gets 3 sockets from
-M up (`lid.socket_count` is the plain size rule) while the cascade ships **2**
-pushers (`isOnlyTwoPusherSlots`), and **the middle socket is the unused one**
-(Allan). The open state uses the OUTER PAIR — `socket_centres`' `k = 0` and
-`k = 2`. Only the two Innovation M rows are affected, `M5.15.15` and
-`M5.10.10`; every S and XS Innovation lid has two sockets already. The socket
-itself is to be dropped from the Lid eventually, at a cost `spec/LID.md`
-records; until it is, the assembly renders will show it empty, which is the
-honest picture of what ships.
+Innovation was the one asymmetry, and **at 7.1 it is gone from the part**
+rather than worked around here. A 7.0 lid takes 3 sockets from M up (Onshape's
+size rule) while the cascade ships **2** pushers (`isOnlyTwoPusherSlots`), so
+the open state used the OUTER PAIR and the middle socket stood empty in every
+render. From 7.1 `lid.socket_count` is `box.pusher_slot_count` and the middle
+one is cut (`spec/LID.md`, "The middle socket is gone"; `spec/REVISIONS.md`),
+so `play_sockets` is the identity: every socket holds a pusher, at BOTH
+releases. It can be the identity at 7.0 too because the count is the lid's own
+— a 7.0 Innovation M lid still has three sockets and the assembly still fills
+two of them, the outer pair, exactly as before.
+
+`cad.assemble` and `cad.fit` therefore take `--version`: the mechanism has to
+be checkable at each release, and an empty middle socket in a 7.0 render is the
+honest picture of what is on the shelf.
 
 ### Holder
 

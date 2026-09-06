@@ -24,8 +24,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import mesh3mf, params, derive as D, text as TX   # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import token_holder as TH                   # noqa: E402
 
 CACHE = ROOT / "individual" / "Dominion"
@@ -67,7 +69,7 @@ def primary_for(name):
     m = re.match(r"(Half)?TokenHolder (\d+)-(Sl|Un)( merged)?\.3mf", name)
     half, cap, slv, merged = bool(m.group(1)), m.group(2), m.group(3), bool(m.group(4))
     letter = LETTER[(cap, merged)]
-    p = params.Primary(SLOTS[letter], 6, int(cap), 10, 0, 10,
+    p = REF.primary(SLOTS[letter], 6, int(cap), 10, 0, 10,
                        1 if slv == "Sl" else 0, 1 if merged else 0,
                        "Dominion", "6.6")
     return p, half

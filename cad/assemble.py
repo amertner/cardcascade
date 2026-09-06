@@ -44,6 +44,7 @@ from . import derive as D
 from . import mesh3mf
 from . import params
 from .lazy import lazy
+from .revisions import CURRENT, RELEASES
 
 pusher_part = lazy(".parts.pusher", __package__)
 
@@ -251,14 +252,18 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
     return parts, instances
 
 
-def catalogue(csv=CSV, game=None, model=None):
+def catalogue(csv=CSV, game=None, model=None, version=CURRENT):
     """[(folder, Derived, tokens, short name)] — every cascade, both sleevings.
 
     `tokens` is parts.csv's own `TokenHolder` column, which is per ROW and not
     derivable from the geometry: only the sets whose expansions need one carry
-    it (`plan_exports.compose`)."""
+    it (`plan_exports.compose`).
+
+    `version` is the RELEASE assembled, because a release can change a part —
+    a 7.1 Lid has one socket per pusher where a 7.0 one has three
+    (`cad/revisions.py`) — so the mechanism has to be checkable at each."""
     out = []
-    for row, p in params.cascades(csv, game):
+    for row, p in params.cascades(csv, game, version):
         d = D.derive(p)
         if not B.model_matches(d, model):
             continue
@@ -276,6 +281,10 @@ def main(argv=None):
     ap.add_argument("--state", choices=A.STATES + ("all",), default=A.CLOSED)
     ap.add_argument("--out", default=ROOT / "build", type=Path)
     ap.add_argument("--csv", default=CSV, type=Path)
+    ap.add_argument("--version", default=CURRENT, choices=RELEASES,
+                    help=f"the release to assemble (default {CURRENT}); a "
+                         "release can change a part, so the mechanism is "
+                         "checkable at each (cad/revisions.py)")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--holder", choices=("cached", "source"), default="cached",
                     help="where the Holder comes from. Cached by default, "
@@ -286,7 +295,7 @@ def main(argv=None):
                          "of the FULL — they are alternatives for one slot")
     args = ap.parse_args(argv)
 
-    rows = catalogue(args.csv, args.game, args.model)
+    rows = catalogue(args.csv, args.game, args.model, args.version)
     states = A.STATES if args.state == "all" else (args.state,)
     if args.list:
         for folder, d, _tk, _sn in rows:

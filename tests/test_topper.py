@@ -20,17 +20,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import math                                             # noqa: E402
 
 from build123d import import_step, Plane, Box, Pos       # noqa: E402
 from cad import build as B, params, derive as D, text as TX          # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import holder as H, topper as T           # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
 # Innovation `4 Later Ages 5 Expansions` unsleeved, M5.10.10.32-Un. The
 # unfilleted export is at this parameter set, and so is every logo sketch.
-P = params.Primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation")
+P = REF.primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation")
 
 fails = []
 
@@ -166,7 +168,7 @@ print("\n=== against the rolled-back exports (M15-Sl, a SECOND parameter set) ==
 # frame. That transform is itself a measurement: a 180-degree turn about X
 # through (y = -depth, z = Z_BASE) puts every body on the same envelope exactly.
 from build123d import Rot                                 # noqa: E402
-Q = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
+Q = REF.primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dq = D.derive(Q)
 dpq = T.depth(dq)
 
@@ -311,7 +313,7 @@ print("\n=== a size-S blank, filleted, against build() ===")
 # blank reference and the first at size S: three horizontal slots, so
 # BAND_HALF and LIP_ROOM_RISE are read on a third parameter set. It is in
 # the part frame, not the pre-flip one the M rollbacks arrive in.
-S15UN = params.Primary(3, 5, 15, 15, 0, 15, 0, 0, "Innovation")
+S15UN = REF.primary(3, 5, 15, 15, 0, 15, 0, 0, "Innovation")
 s_ref = import_step(str(STEP_DIR / "Topper Blank S5.15.15.45-Un.step")).solids()[0]
 s_mine = T.build(D.derive(S15UN))
 sb, mb = s_ref.bounding_box(), s_mine.bounding_box()
@@ -348,11 +350,11 @@ print("\n=== `Expansion Name`: where the mark and the name go ===")
 # Every filleted STEP: all five expansions at M15-Sl, plus two more Unseens at
 # other parameter sets so no rule below rests on one configuration. A STEP's
 # engraving differences out of the blank exactly, so all of this is measured.
-M15SL = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
-S15SL = params.Primary(3, 5, 15, 15, 0, 15, 1, 0, "Innovation")   # size S
+M15SL = REF.primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
+S15SL = REF.primary(3, 5, 15, 15, 0, 15, 1, 0, "Innovation")   # size S
 NAMED = [
     ("Unseen M10-Un", "Topper Unseen M5.10.10.32-Un.step",
-     params.Primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation"), "Unseen"),
+     REF.primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation"), "Unseen"),
     # Size S — three horizontal slots — exported 2026-09-04: the third
     # parameter set for BAND_HALF and LIP_ROOM_RISE, and the second size for
     # Artifacts' and Cities' vertex placement.
@@ -360,7 +362,7 @@ NAMED = [
     ("Cities S15-Sl", "Topper Cities S5.15.15.62-Sl.step", S15SL, "Cities"),
     ("Figures S15-Sl", "Topper Figures S5.15.15.62-Sl.step", S15SL, "Figures"),
     ("Unseen M15-Un", "Topper Unseen M5.15.15.45-Un.step",
-     params.Primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation"), "Unseen"),
+     REF.primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation"), "Unseen"),
     ("Artifacts M15-Sl", "Topper Artifacts M5.15.15.62-Sl.step", M15SL, "Artifacts"),
     ("Cities M15-Sl", "Topper Cities M5.15.15.62-Sl.step", M15SL, "Cities"),
     ("Echoes M15-Sl", "Topper Echoes M5.15.15.62-Sl.step", M15SL, "Echoes"),
@@ -645,7 +647,7 @@ ONSHAPE_G = g_lo - 0.00459
 worst = None
 for row in params.load_rows(ROOT / "automation" / "parts.csv"):
     for sleeved in (0, 1):
-        pp = params.from_row(row, sleeved)
+        pp = REF.from_row(row, sleeved)
         if pp.GameName != "Innovation":
             continue
         dd = D.derive(pp)
@@ -656,7 +658,7 @@ check("the g clears the face on every row, Onshape's deeper g included",
       round(worst, 3) > 0.0, True)
 check("... with 0.212 to spare at the tightest", round(worst, 3), 0.212, 1e-3)
 # and the rule it depends on: the bottom margin is TWICE the top
-pp = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
+pp = REF.primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dd = D.derive(pp)
 _x, rear_f, front_f = T.face_datum(dd)
 led = T.logo_edge_dist(dd)
@@ -668,7 +670,7 @@ check("... which is what makes the band depth - 2r - 3 * LogoEdgeDist",
 
 print("\n=== it is Innovation-only ===")
 check("build() refuses a non-Innovation game",
-      refuses(lambda: T.build(D.derive(params.Primary(4, 5, 15, 10, 0, 10, 0, 0,
+      refuses(lambda: T.build(D.derive(REF.primary(4, 5, 15, 10, 0, 10, 0, 0,
                                                       "Dominion")))), True)
 
 print("\nPASS" if not fails else f"\nFAIL ({len(fails)}): " + ", ".join(fails[:6]))

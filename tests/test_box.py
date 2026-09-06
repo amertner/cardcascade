@@ -23,41 +23,42 @@ sys.path.insert(0, str(ROOT))
 
 from build123d import import_step, Box, Location   # noqa: E402
 from cad import build, params, derive as D, lock as L, text as TX  # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import box                         # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
 REFS = [
     ("Compile 105 Sl", "Box Compile 105S.step",
-     params.Primary(3, 4, 7, 7, 0, 7, 1, 0, "Compile")),
+     REF.primary(3, 4, 7, 7, 0, 7, 1, 0, "Compile")),
     ("Dominion 244 Sl", "Box Dominion 244S.step",
-     params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")),
+     REF.primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")),
     ("Dominion 202 Sl (Mat)", "Box Dominion 202S Merged.step",
-     params.Primary(4, 4, 21, 10, 0, 10, 1, 1, "Dominion")),
+     REF.primary(4, 4, 21, 10, 0, 10, 1, 1, "Dominion")),
     ("Dominion 650 Sl", "Box Dominion 650S.step",
-     params.Primary(5, 8, 50, 10, 0, 10, 1, 0, "Dominion")),
+     REF.primary(5, 8, 50, 10, 0, 10, 1, 0, "Dominion")),
     # Not a parts.csv row — scratch parameters Allan exported as an extra
     # reference. Kept because it is the smallest box and the only C2 lock.
     ("FCM 72 Sl (scratch)", "Box FCM 72S.step",
-     params.Primary(3, 3, 6, 6, 0, 6, 1, 0, "FCM")),
+     REF.primary(3, 3, 6, 6, 0, 6, 1, 0, "FCM")),
     # The only reference with a first-riser override, so the only one that can
     # tell calFirstSliderDistance (20.4) from calSliderDistance (9.6) — the
     # same gap the Dominion 246 STEP closed for the Pusher.
     ("Dominion 246 Sl", "Box Dominion 246S.step",
-     params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
+     REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
     # The three Allan exported once the first six showed what they could not
     # reach. Every one of the first six is SLEEVED, so half the catalogue had
     # nothing behind it.
     ("Dominion 244 Un", "Box Dominion 244U.step",
-     params.Primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
+     REF.primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
     # Innovation, XS and unsleeved at once — the only game with no reference,
     # the only size (HorizontalSlots 2) with none, and it is the exception that
     # takes 2 pusher slots where its size would otherwise take 3.
     ("Innovation 130 Un", "Box Innovation 130U.step",
-     params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
+     REF.primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
     # Nine risers: the RisingSliders > 8 branch of the logo margin, the lowest
     # rise in the catalogue (9.667, clamped) and the pusher rest at its floor.
     ("Dominion 333 Sl", "Box Dominion 333S.step",
-     params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
+     REF.primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
 ]
 fails = []
 
@@ -687,7 +688,7 @@ for name, fn, p in REFS:
               round(TX.ink(txt)[0] / TX.ink(txt)[1], 2), 0.05)
 
 print("\n=== #calFingerHoleOffset ===")
-_p = params.Primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
+_p = REF.primary(4, 4, 21, 10, 0, 10, 1, 0, "Dominion")     # M4.21.10.45-Sl
 check("matches the value in the feature tree",
       round(box.finger_hole_offset(D.derive(_p)), 3), 162.500, 1e-3)
 
@@ -700,13 +701,13 @@ print("\n=== the RisingSliders > 8 branch ===")
 # to the card area, so the logo block stops growing.
 _lens = []
 for _r in (8, 9, 10, 12):
-    _p = params.Primary(3, _r, 21, 10, 0, 10, 1, 0, "Dominion")
+    _p = REF.primary(3, _r, 21, 10, 0, 10, 1, 0, "Dominion")
     _d = D.derive(_p)
     _yf, _yb = box.card_area(_d)
     _lens.append(round(_yb - _yf - box.LOGO_FRONT_INSET - box.logo_margin(_d), 3))
 check("the logo block is frozen past eight risers", len(set(_lens)), 1)
 check("... at the length it had at eight", _lens[0], 64.000, 1e-3)
-_p = params.Primary(3, 7, 21, 10, 0, 10, 1, 0, "Dominion")
+_p = REF.primary(3, 7, 21, 10, 0, 10, 1, 0, "Dominion")
 check("and below eight the margin is the plain 2.500",
       round(box.logo_margin(D.derive(_p)), 3), round(box.LOGO_FRONT_INSET, 3), 1e-9)
 
@@ -726,22 +727,22 @@ if not nl_path.exists():
     print(f"  FAIL — reference {nl_path.name} not present")
 else:
     nl_ref = import_step(str(nl_path)).solids()[0]
-    nl_p = next(params.from_row(r, 1) for r in params.load_rows(ROOT / "automation" / "parts.csv")
-                if D.derive(params.from_row(r, 1)).calModelName.startswith("S5.15.15"))
+    nl_p = next(REF.from_row(r, 1) for r in params.load_rows(ROOT / "automation" / "parts.csv")
+                if D.derive(REF.from_row(r, 1)).calModelName.startswith("S5.15.15"))
     nl_d = D.derive(nl_p)
     check("the catalogue row has the flag ON", nl_d.isLabelHoldersOnBox, 1)
     # The OPTION: parts.csv's `Label holders` column becomes
     # `Primary.LabelHolders`, and derive folds it into the flag. Off by the
     # column, off in the Derived, and named apart on disk.
     nl_row = next(r for r in params.load_rows(ROOT / "automation" / "parts.csv")
-                  if D.derive(params.from_row(r, 1)).calModelName.startswith("S5.15.15"))
-    nl_p0 = params.from_row({**nl_row, "Label holders": "FALSE"}, 1)
+                  if D.derive(REF.from_row(r, 1)).calModelName.startswith("S5.15.15"))
+    nl_p0 = REF.from_row({**nl_row, "Label holders": "FALSE"}, 1)
     check("`Label holders` FALSE reaches the Primary", nl_p0.LabelHolders, 0)
     nl_d0 = D.derive(nl_p0)
     check("... and turns the flag off", nl_d0.isLabelHoldersOnBox, 0)
     check("... and names the box apart", build.box_file(nl_d0),
           build.box_file(nl_d).replace(".3mf", " no label holders.3mf"))
-    check("a blank column leaves them on", params.from_row(nl_row, 1).LabelHolders, 1)
+    check("a blank column leaves them on", REF.from_row(nl_row, 1).LabelHolders, 1)
     nl_mine = box.build(D.derive(nl_p0))
     rb, mb = nl_ref.bounding_box(), nl_mine.bounding_box()
     for ax in "XYZ":
@@ -796,7 +797,7 @@ print("\n=== HOLE_CLEAR ===")
 clipped = {}
 for row in params.load_rows(ROOT / "automation" / "parts.csv"):
     for sleeved in (0, 1):
-        q = params.from_row(row, sleeved)
+        q = REF.from_row(row, sleeved)
         e = D.derive(q)
         a, b = box.hanging_holes(e), box.hole_openings(e)
         if a != b:

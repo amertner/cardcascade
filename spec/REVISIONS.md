@@ -1,0 +1,135 @@
+# Revisions — the release line, and what changed at each one
+
+`cad/revisions.py` is the code; this is the record. It answers one question:
+**what does a cascade built at 7.0 have that one built at 7.1 does not, and
+why?**
+
+## A REVISION CHANGE is not a DIVERGENCE
+
+The distinction is the whole point of the mechanism, and getting it wrong is
+what the mechanism prevents.
+
+| | DIVERGENCE | REVISION CHANGE |
+|---|---|---|
+| what it is | `cad/` against **Onshape**, at the same version | `cad/` 7.0 against `cad/` 7.1 |
+| how long | permanent | from its release on |
+| lives in | the part, recorded in `spec/` | `cad/revisions.py`, recorded here |
+| asserted by | the part's own test, both ends (`cad/README.md`, decision 6) | `tests/test_revisions.py`, both releases |
+
+The four standing DIVERGENCES are the Box's hanging holes stopping at the slot
+band, its `CC` where the sketch says `Rev`, the XS box's single fastener, and
+the Lid's fitted logo. They apply at 7.0 and 7.1 alike and they are NOT in the
+revisions table — putting them there would make the table read as a mixed bag
+of switches instead of a release history. That was asked and settled (Allan,
+2026-09-06).
+
+## The two rules that keep it generalisable
+
+**A part asks a NAMED question and never compares versions.** `d.rev.<flag>`,
+never `d.Version >= "7.1"`. The flag name is what this file records and what a
+reader greps for; a version comparison is invisible to both. Adding the next
+change is one field in `revisions.Rev`, one `if` in the part, and one case in
+`tests/test_revisions.py`.
+
+**The line is monotonic.** A change introduced at 7.1 is in every release after
+it — that is what a release line means. Undoing one later is a NEW flag with
+its own `since`, not a hole in the table.
+
+## How a release reaches a part
+
+`Primary.Version` -> `derive` -> `d.rev`, a frozen record of one boolean per
+change, riding on the `Derived`. That keeps the rule the rebuild already has:
+every feature below `derive` takes the `Derived` alone. `rev` is deliberately
+NOT one of the studio's variables — Onshape has no counterpart for it — so it
+is a slot on `Derived` beside `_v` rather than a key inside it.
+
+## The releases
+
+### 7.0 — the Onshape generation
+
+What every reference STEP in `spec/reference/` and every cached mesh in
+`individual/` was exported at, and what every shipped cascade under
+`cascades/` is. A 7.0 build must reproduce them exactly, forever; that is what
+the corpus tests assert, and `tests/reference.py` is why they keep asserting it
+when the default moves.
+
+### 7.1 — the cad-built release
+
+The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
+that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
+be told from an Onshape-exported one on the shelf — and, since the version goes
+into the project name and title, in the file too.
+
+Its one geometry change:
+
+* **`lid_socket_per_pusher`** — the Lid cuts one pusher socket per pusher the
+  cascade ships (`box.pusher_slot_count`) instead of Onshape's plain size rule,
+  so the four Innovation M lids lose their unused MIDDLE socket. Four lids and
+  no others; the outer pair does not move, so no pusher and no margin changes.
+  `spec/LID.md`, "The middle socket is gone".
+
+## What a release moves besides its flags
+
+**The stamp.** Every part engraves `CC <version>`, so a 7.1 part differs from
+a 7.0 one in ink even where no flag touched it — `1.44 mm3` on the Innovation M
+lid, which is the `0` against the `1`. `tests/test_revisions.py` separates the
+two deliberately: it prices the FLAG by building a 7.0 `Derived` carrying 7.1's
+`Rev` (same ink, one socket fewer) and the STAMP as what is left. A tolerance
+wide enough to swallow both would hide a second change.
+
+**The tree.** Filenames carry no version — a NAME is an identity
+(`components.tracked_name`) — so two releases written to one tree overwrite
+each other part for part. `cad.build --out` therefore follows `--version` by
+default: `build/` for the current release, `build/v<version>/` for any other.
+`cad.cascade --components` follows the same rule, and `cad.promote` reads the
+LOCK GENERATION's tree, because what it stages goes into a shipped cascade
+whose other parts are Onshape 7.0 exports.
+
+## Defaults, and why the tests pin
+
+`revisions.CURRENT` is **7.1**: a plain `cad.build` or `cad.cascade` builds the
+current release (Allan, 2026-09-06). That makes the default a moving target by
+design, so **every test that compares against a reference pins the release it
+means** — `tests/reference.py`, `VERSION = "7.0"`, a literal and not
+`revisions.CURRENT`. `tests/test_holder_corpus.py` had already been pricing its
+engraving at an explicit `Version="6.6"` long before the default moved, which
+is the same idea; this generalises it.
+
+A test that does not pin is a test that re-baselines itself the next time the
+default moves — the one failure a regression corpus must not have.
+
+## The current release is the one being ITERATED
+
+`CURRENT` is not a finished thing. The way this repo is worked (Allan,
+2026-09-06) is: **sit at a version for a while, accumulate changes in it, then
+lock it and release it.** So while 7.1 is current, a new design change is a
+field with `since: "7.1"` — it joins the release being built rather than
+opening a new one — and only when 7.1 is locked and shipped does the next
+change become `since: "7.2"`.
+
+Nothing in the mechanism resists that: a build's stamp hashes the Primary and
+every source file, so adding a flag to the current release rebuilds exactly the
+parts it touches and nothing else. What DOES matter is the moment of locking,
+because a released version is a promise about parts that exist on a shelf:
+
+* before the lock, `since: "<current>"` and the parts are rebuilt in place;
+* after it, the released version's geometry is frozen the way 7.0's is —
+  anything further is `since: "<next>"`, and `tests/test_revisions.py` keeps
+  asserting the locked one from then on.
+
+The reference corpus is the model for what a locked release looks like: 7.0 is
+locked, `tests/reference.py` pins it, and a 7.0 build must reproduce
+`individual/` forever.
+
+## Adding the next release
+
+1. Add it to `RELEASES`, set `CURRENT` if it is the new default, and add it to
+   `lock.SAME_LOCK` if it keeps the 7.0 lock. Leaving it out of `SAME_LOCK` is
+   a loud failure (`pusher.build` refuses it) rather than a quiet wrong stamp.
+2. For each change: a field in `revisions.Rev` with its `since` and `spec`, and
+   an `if d.rev.<flag>` in the part.
+3. A case in `tests/test_revisions.py`, asserting the old release still has the
+   old behaviour. Its coverage check names any flag with no case.
+4. A section here.
+5. `verify.py --stamps` still does not know 7.1's glyph signature and reads a
+   7.1 part as unreadable — needed to PUBLISH a release, not to build one.

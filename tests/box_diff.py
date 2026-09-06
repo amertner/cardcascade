@@ -32,20 +32,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from build123d import Box, Location, import_step
 from cad import params, derive as D
+import reference as REF                                        # noqa: E402
 from cad.parts import box
 
 SLABS = 8
 REFS = {
- "Compile105S": ("Box Compile 105S.step",         params.Primary(3,4,7,7,0,7,1,0,"Compile")),
- "Dom244S":     ("Box Dominion 244S.step",        params.Primary(4,4,21,10,0,10,1,0,"Dominion")),
- "Dom202SM":    ("Box Dominion 202S Merged.step", params.Primary(4,4,21,10,0,10,1,1,"Dominion")),
- "Dom650S":     ("Box Dominion 650S.step",        params.Primary(5,8,50,10,0,10,1,0,"Dominion")),
- "FCM72S":      ("Box FCM 72S.step",              params.Primary(3,3,6,6,0,6,1,0,"FCM")),
+ "Compile105S": ("Box Compile 105S.step",         REF.primary(3,4,7,7,0,7,1,0,"Compile")),
+ "Dom244S":     ("Box Dominion 244S.step",        REF.primary(4,4,21,10,0,10,1,0,"Dominion")),
+ "Dom202SM":    ("Box Dominion 202S Merged.step", REF.primary(4,4,21,10,0,10,1,1,"Dominion")),
+ "Dom650S":     ("Box Dominion 650S.step",        REF.primary(5,8,50,10,0,10,1,0,"Dominion")),
+ "FCM72S":      ("Box FCM 72S.step",              REF.primary(3,3,6,6,0,6,1,0,"FCM")),
  # The build TARGET: same box as Dom246S with `Smooth box edges` suppressed, so
  # the diff is not polluted by the 0.600 fillet.
  "Dom246S_raw": ("Box Dominion 246S without final fillet.step",
-                 params.Primary(3,2,40,12,1,30,1,0,"Dominion")),
- "Dom246S":     ("Box Dominion 246S.step",        params.Primary(3,2,40,12,1,30,1,0,"Dominion")),
+                 REF.primary(3,2,40,12,1,30,1,0,"Dominion")),
+ "Dom246S":     ("Box Dominion 246S.step",        REF.primary(3,2,40,12,1,30,1,0,"Dominion")),
 }
 
 

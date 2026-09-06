@@ -294,20 +294,20 @@ def lid_under(d):
 # --- the play state: pushers in the lid, holders on their treads ------------
 
 def play_sockets(d):
-    """Which of the lid's sockets the cascade's pushers stand in.
+    """Which of the lid's sockets the cascade's pushers stand in: all of them.
 
-    A lid gets `lid.socket_count` sockets — the plain size rule — while the
-    cascade ships `box.pusher_slot_count`. They agree everywhere except an
-    Innovation M, whose lid has three and whose cascade has two, and there the
-    unused one is the MIDDLE (Allan): `spec/LID.md` records that it is to be
-    dropped from the Lid eventually. So the pushers take the OUTER pair.
+    It used to be a rule with a special case. A lid took its socket count from
+    the plain size rule and an Innovation M got three where its cascade ships
+    two, so the pushers took the OUTER pair and the middle socket stood empty
+    in every render. Since 2026-09-06 `lid.socket_count` IS
+    `box.pusher_slot_count` and the middle one is cut — the two parts agree, so
+    every socket is filled and the mapping is the identity.
+
+    The pushers land in the same places they did: the socket span does not
+    depend on the count (`lid.socket_centres`).
     """
     from .parts import lid as lid_part
-    n_sock = lid_part.socket_count(d)
-    n_push = box_part.pusher_slot_count(d)
-    if n_push >= n_sock:
-        return list(range(n_sock))
-    return [0, n_sock - 1] if n_push == 2 else list(range(n_push))
+    return list(range(lid_part.socket_count(d)))
 
 
 def pusher_socketed(d, socket):

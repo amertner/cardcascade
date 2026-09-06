@@ -32,9 +32,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "automation"))
 
 from cad import cascade as CC, derive as D, layout as LY, params, project as PJ  # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.refuse import Refused                                                   # noqa: E402
 import filaments as FIL                                                          # noqa: E402
 import towers                                                                    # noqa: E402
@@ -66,7 +68,7 @@ def rows():
         if (row.get("Status") or "").strip() == "Parked":
             continue
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = REF.from_row(row, sleeved)
             yield row, D.derive(p)
 
 

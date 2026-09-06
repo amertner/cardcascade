@@ -33,6 +33,7 @@ from pathlib import Path
 from . import assembly as A
 from . import derive as D
 from . import lock as L
+from . import revisions as R
 from .parts import box as box_part
 from .parts import holder as holder_part
 from .parts import lid as lid_part
@@ -305,12 +306,15 @@ def main(argv=None):
     ap.add_argument("--model")
     ap.add_argument("--state", choices=A.STATES + ("all",), default=A.CLOSED)
     ap.add_argument("--csv", default=CSV, type=Path)
+    ap.add_argument("--version", default=R.CURRENT, choices=R.RELEASES,
+                    help=f"the release to measure (default {R.CURRENT}); a "
+                         "release can change a part (cad/revisions.py)")
     ap.add_argument("--no-solids", action="store_true",
                     help="margins only — seconds, where a B-rep pass is minutes")
     args = ap.parse_args(argv)
 
     from . import assemble
-    rows = assemble.catalogue(args.csv, args.game, args.model)
+    rows = assemble.catalogue(args.csv, args.game, args.model, args.version)
     states = A.STATES if args.state == "all" else (args.state,)
     ok = True
     for folder, d, tokens, _sn in rows:

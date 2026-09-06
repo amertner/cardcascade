@@ -45,6 +45,7 @@ SUITES = [
     ("test_derive", False, False, 1, 1),
     ("test_lock", False, False, 1, 1),
     ("test_names", False, False, 1, 1),
+    ("test_revisions", False, False, 1, 30),
     ("test_text_floors", False, False, 1, 9),
     ("test_pusher", False, False, 1, 60),
     ("test_box", False, True, 1, 280),

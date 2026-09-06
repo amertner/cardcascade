@@ -17,15 +17,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from build123d import import_step, Plane, Box, Location   # noqa: E402
 from cad import params, derive as D, text as TX      # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import token_holder as TH             # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
 # Dominion `324 Card` sleeved. 4 horizontal slots, so the size letter is M and
 # the underside reads `CC 7.0 M21.Sl` — which is what the STEP has engraved.
-P = params.Primary(4, 6, 21, 10, 0, 10, 1, 0, "Dominion")
+P = REF.primary(4, 6, 21, 10, 0, 10, 1, 0, "Dominion")
 REFS = [("FULL", False, "TokenHolder M6.21.10.62-Sl.step"),
         ("HALF", True, "HalfTokenHolder M6.21.10.62-Sl.step")]
 
@@ -172,9 +174,9 @@ print("\n=== two more HALF references, 2026-09-04 ===")
 # of ink in an 8.100 part), so it is the exact record of that divergence:
 # the reference's ink runs to the part's own edge and ours does not.
 MORE = [("HALF Un", "HalfTokenHolder M6.21.10.45-Un.step",
-         params.Primary(4, 6, 21, 10, 0, 10, 0, 0, "Dominion"), False),
+         REF.primary(4, 6, 21, 10, 0, 10, 0, 0, "Dominion"), False),
         ("HALF merged Sl", "HalfTokenHolder M4.21.10.45-M-Sl.step",
-         params.Primary(4, 4, 21, 10, 0, 10, 1, 1, "Dominion"), True)]
+         REF.primary(4, 4, 21, 10, 0, 10, 1, 1, "Dominion"), True)]
 for name, fn, q, clipped in MORE:
     dq = D.derive(q)
     ref = import_step(str(STEP_DIR / fn)).solids()[0]
@@ -227,7 +229,7 @@ for name, fn, q, clipped in MORE:
 
 print("\n=== it is Dominion-only, and says so ===")
 try:
-    TH.build(D.derive(params.Primary(4, 6, 21, 10, 0, 10, 1, 0, "Innovation")))
+    TH.build(D.derive(REF.primary(4, 6, 21, 10, 0, 10, 1, 0, "Innovation")))
     check("a non-Dominion Primary is refused", False, True)
 except ValueError:
     check("a non-Dominion Primary is refused", True, True)

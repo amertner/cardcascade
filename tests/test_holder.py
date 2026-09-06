@@ -29,9 +29,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from build123d import import_step, Box, Location, GeomType   # noqa: E402
 from cad import params, derive as D, text as TX      # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import holder, box                    # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -47,14 +49,14 @@ def row_params(short_name, sleeved):
     """
     for row in _ROWS:
         if row.get("Short name") == short_name:
-            return params.from_row(row, sleeved)
+            return REF.from_row(row, sleeved)
     raise KeyError(short_name)
 
 
-P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
-P333 = params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
-PINN_SL = params.Primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
-PINN_UN = params.Primary(4, 5, 10, 10, 0, 10, 0, 0, "Innovation")
+P246 = REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
+P333 = REF.primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
+PINN_SL = REF.primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
+PINN_UN = REF.primary(4, 5, 10, 10, 0, 10, 0, 0, "Innovation")
 REFS = [
     ("Dominion 246 Sl", "Holder S2.40.12-30.45-Sl.step", P246, False),
     # The same row's first riser: same box, deeper holder. calFirstSliderDistance

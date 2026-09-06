@@ -10,6 +10,15 @@ them to the placement rules: the envelope, the socket count, where the sockets
 sit in X and Y, the closing groove, and where the floor's two engraved blocks
 are anchored.
 
+## It reads the corpus at the corpus's own release
+
+Every cached lid was exported at 7.0, so this file builds at 7.0
+(`tests/reference.py`) whatever `cad/` currently defaults to. A later release
+may cut a lid differently — 7.1 gives it one pusher socket per pusher and drops
+the unused middle one of an Innovation M (`cad/revisions.py`) — and none of
+that belongs here: `tests/test_revisions.py` asserts what a release changes,
+and this file asserts that 7.0 still reproduces the cache.
+
 ## The corpus is a MIXED generation, exactly as the pushers are
 
 A lid's recess step says which: `1.700` is 7.0 and `1.800` is the pre-7.0
@@ -40,8 +49,10 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import mesh3mf, params, derive as D, lock as L, text as TX  # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import lid                                 # noqa: E402
 
 EPS = 0.013            # see the module docstring: never probe down a diagonal
@@ -122,7 +133,7 @@ def catalogue():
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = REF.from_row(row, sleeved)
             d = D.derive(p)
             name = (d.calModelName.replace(".Sl", "-Sl").replace(".Un", "-Un")
                     .replace("/", "-"))
@@ -248,6 +259,7 @@ for game in GAMES:
 
 print(f"\n  {seen['7.0']} lids at 7.0, asserted;  {seen['6.6']} still pre-7.0, "
       f"moved onto the catalogue")
+
 if skipped:
     print(f"  skipped (no parts.csv row): {', '.join(skipped)}")
 print(f"\n{'FAILED: ' + '; '.join(fails) if fails else 'all checks passed'}")

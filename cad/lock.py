@@ -10,21 +10,29 @@ Every dimension is a constant across all 32 pushers. A design is one number:
 `s`, the distance from the pusher's centreline to each tab's centre.
 """
 
-# The catalogue IS the 7.0 lock, and cad/ builds only 7.0 — see cad/README.md,
-# "One generation". A pre-7.0 pusher put its tabs at a fixed inset from the two
-# depth edges (4.20 front, 4.00 back, notch always) and nothing here reproduces
-# that; `pusher.build` refuses rather than stamp the wrong version on it.
+# The catalogue IS the 7.0 lock, and cad/ builds only that lock — see
+# cad/README.md, "One generation". A pre-7.0 pusher put its tabs at a fixed
+# inset from the two depth edges (4.20 front, 4.00 back, notch always) and
+# nothing here reproduces that; `pusher.build` refuses rather than stamp the
+# wrong version on it.
 GENERATION = "7.0"
-# Every version whose GEOMETRY is GENERATION's: a stamp bump with no change to
-# the parts. 7.1 is the first cad/-built release (2026-09-05), the same 7.0
-# geometry under a `CC 7.1` stamp so a cad-built cascade can be told from an
-# Onshape-exported 7.0 one on the shelf.
-SAME_GEOMETRY = ("7.0", "7.1")
+# Every RELEASE whose LOCK is GENERATION's. This is about the lock and nothing
+# else: a release in this tuple gets 7.0 tabs, sockets and cutouts, which says
+# NOTHING about the rest of its geometry — 7.1 shares the lock with 7.0 and
+# cuts a different number of pusher sockets (`cad/revisions.py`). It was called
+# SAME_GEOMETRY while the two claims happened to coincide, and the name became
+# false the moment a release changed a part.
+#
+# A new release must be admitted here deliberately: leave it out and
+# `pusher.build` refuses it rather than stamping the wrong version on 7.0 tabs,
+# which is the right way round. `tests/test_revisions.py` holds the two lists
+# to each other.
+SAME_LOCK = ("7.0", "7.1")
 
 
-def geometry_of(version):
+def lock_generation(version):
     """The lock generation a version's parts are built to."""
-    return GENERATION if version in SAME_GEOMETRY else version
+    return GENERATION if version in SAME_LOCK else version
 
 # Sizes that do not move (LOCK_STANDARD.md).
 PUSHER_TOTAL = 4.500      # plate + tab proudness

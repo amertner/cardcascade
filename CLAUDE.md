@@ -46,15 +46,22 @@ shipped projects print the same parts as their cad twins
 (`tests/test_parallel.py`) — while `automation/` remains what has shipped
 every cascade on disk. **Everything is 7.0 going forward** (Allan,
 2026-09-05): a twin's 7.0 holders and pushers supersede the 6.6 and pre-7.0
-ones in a shipped project. **7.1 is the cad-built release**: the same 7.0
-geometry under a `CC 7.1` stamp (`lock.SAME_GEOMETRY`), so a cad-built
-cascade can be told from an Onshape-exported one on the shelf — and, since the
-version went into the project name, in the file too (`... Sleeved v7.1 (...)`).
-A set at a version goes in its own tree — `cad.build --version 7.1 --out build/v7.1`,
-then `cad.cascade --version 7.1 --components build/v7.1 --publish` — and the
-defaults stay 7.0, which is what every
-reference STEP and cached mesh is stamped. `verify.py --stamps` does not
-know 7.1's glyph signature yet and reads a 7.1 part as unreadable. The older route — `python -m cad.promote` staging built parts under
+ones in a shipped project. **7.1 is the cad-built release and the DEFAULT**
+(Allan, 2026-09-06): the same 7.0 LOCK (`lock.SAME_LOCK`) under a `CC 7.1`
+stamp, so a cad-built cascade can be told from an Onshape-exported one on the
+shelf — and, since the version went into the project name, in the file too
+(`... Sleeved v7.1 (...)`). It is NOT the same geometry: 7.1 is where the Lid
+drops its middle pusher socket, and `cad/revisions.py` is the one place a
+release change lives. **A release's parts go in their own tree and the default
+follows the version** — `build/` is the current release, `build/v7.0/` is
+anything else, so `cad.build --version 7.0` needs no `--out` and two releases
+cannot overwrite each other under identical filenames. `cad.cascade
+--components` and `cad.promote` follow the same rule (promote reads the 7.0
+tree, because what it stages joins Onshape parts in a shipped cascade).
+**Every test that compares against a reference pins 7.0** through
+`tests/reference.py`; the default is a moving target by design.
+`verify.py --stamps` does not know 7.1's glyph signature yet and reads a 7.1
+part as unreadable. The older route — `python -m cad.promote` staging built parts under
 the planner's names for `refresh_cascades.py --components` — still works for
 all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
 and is what the layout module was checked against. Nothing from `build/` has
@@ -63,6 +70,18 @@ been printed yet.
 - The Lid's logo is one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
   sizes. Two constants in `cad/parts/lid.py` are the whole policy.
+- **A RELEASE change is NOT a divergence**, and `cad/revisions.py` is the one
+  place a release change lives (`spec/REVISIONS.md`). A divergence is `cad/`
+  against Onshape at the same version, forever; a release change is `cad/` 7.0
+  against `cad/` 7.1. It reaches a part as a NAMED flag on the Derived —
+  `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
+  The first and so far only one: from **7.1** the Lid cuts one pusher socket
+  per pusher the cascade ships instead of Onshape's size rule, so the four
+  Innovation M lids (`M5.15.15` and `M5.10.10`, each sleeved and un) lose their
+  unused MIDDLE socket. The outer pair does NOT move — the socket span is the
+  card slots' and not the sockets' — so no pusher and no margin changes.
+  A **7.0** build still cuts three and still reproduces every STEP and cached
+  mesh, which is the point of the mechanism.
 - The Holder's **side slot mouth** is another, since 2026-09-05: the bottom
   `SLOT_MOUTH_CHAMFER` (0.300) of the groove is flared 45 degrees so an
   elephant's foot closes the chamfer instead of the groove the holder slides
@@ -147,6 +166,10 @@ been printed yet.
   holder,lock` picks, `--jobs 1` runs them one at a time in table order). One at a time: `python3 tests/test_derive.py` and
   `python3 tests/test_lock.py` (pure arithmetic, system python is fine; the
   second holds the three copies of the C1-C5 table to each other),
+  `.venv/bin/python tests/test_revisions.py` (what each RELEASE changes,
+  asserted at both releases — the four Innovation M lids and nothing else, the
+  flag priced apart from the `CC <v>` stamp; a new flag with no case there
+  fails its coverage check),
   `.venv/bin/python tests/test_pusher.py` (source vs the hand-exported
   STEPs — a missing reference is a FAILURE, not a skip),
   `.venv/bin/python tests/test_pusher_regression.py` (the written 3MFs vs

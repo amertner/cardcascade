@@ -12,6 +12,7 @@ No component module may recompute any of this. Read it from `Derived`.
 """
 import dataclasses
 
+from . import revisions as REV
 from . import tables as T
 
 # --- constants (studio variables with literal values) ----------------------
@@ -55,10 +56,16 @@ class Derived:
     still the record of what Onshape computes, and the one a future part or a
     test will want. Do not prune them for tidiness.
     """
-    __slots__ = ("_v",)
+    __slots__ = ("_v", "rev")
 
-    def __init__(self, v):
+    def __init__(self, v, rev=None):
         object.__setattr__(self, "_v", dict(v))
+        # `rev` is NOT a studio variable and so is not in `_v`: it is what the
+        # RELEASE being built says about the design (`cad/revisions.py`), the
+        # one thing below `derive` that Onshape has no counterpart for. It
+        # rides on the Derived so that every feature still takes `d` alone.
+        object.__setattr__(self, "rev", rev if rev is not None
+                           else REV.of(v.get("Version", REV.CURRENT)))
 
     def __getattr__(self, k):
         try:
@@ -232,7 +239,7 @@ def derive(p):
                                  13.5 if ptd >= 34.8 else
                                  8.5 if ptd >= 24.8 else
                                  5.1 if ptd >= 18.0 else 3.1)
-    return Derived(v)
+    return Derived(v, REV.of(p.Version))
 
 
 

@@ -10,8 +10,8 @@ is an input; everything else is computed in `derive.py`.
 from dataclasses import dataclass
 import csv
 
-from .lock import GENERATION
 from .refuse import refuse
+from .revisions import CURRENT
 
 # parts.csv "Game" -> the GameName the Onshape model expects. FCM is the one
 # that differs (set_variables.py passes the short code, not "Food Chain
@@ -35,7 +35,13 @@ class Primary:
     isSleeved: int
     MatPocket: int
     GameName: str
-    Version: str = GENERATION
+    # The RELEASE this part is built to. It picks the geometry (through
+    # `derive` -> `d.rev`, `cad/revisions.py`) as well as the `CC <v>` stamp,
+    # so a caller that means an older release must SAY so: everything that
+    # compares against `individual/` or a reference STEP passes "7.0", and
+    # `tests/test_holder_corpus.py` has priced its engraving at an explicit
+    # `Version="6.6"` since long before this default moved.
+    Version: str = CURRENT
     # cad/ only — see the module docstring. 1 is what every shipped box has;
     # 0 leaves the front and side label holders off (`box.label_holders`).
     LabelHolders: int = 1
@@ -46,7 +52,7 @@ def _int(row, col, default=0):
     return int(v) if v else default
 
 
-def from_row(row, sleeved, version=GENERATION):
+def from_row(row, sleeved, version=CURRENT):
     """One parts.csv row + a sleeving -> Primary. Mirrors build_primary().
 
     A malformed row names itself: a number that will not parse or a Game the
@@ -103,7 +109,7 @@ def game_code(name):
     refuse(f"unknown game {name!r}; one of {sorted(GAME_NAME.values())}")
 
 
-def cascades(csv_path, game=None, version=GENERATION):
+def cascades(csv_path, game=None, version=CURRENT):
     """[(row, Primary)] for every row at both sleevings, `game` filtered —
     the one row selector every CLI's --game goes through."""
     code = game_code(game) if game else None

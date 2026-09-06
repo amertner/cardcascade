@@ -156,7 +156,8 @@ On `Lid Dominion 246S` those are `148.000 / 122.995 / 82.995 / 40.000`, and
 ### Where the sockets sit
 
 ```
-count   2 for XS and S, 3 for M and L
+count   one per pusher the cascade ships (box.pusher_slot_count); Onshape
+        counts by size instead — 2 for XS and S, 3 for M and L
 X       first block's LEFT edge = the left inner wall
                                   + #calSlotwidth/2 + #calSliderSpaceLeftRight/2
         then the set spans (HorizontalSlots - 1) * calSlotwidth
@@ -185,28 +186,60 @@ is not centred on the lid: it leaves `35.450` at the left and `36.050` at the
 right. That `0.300` of asymmetry is the `x = -0.300` this file carried as a
 measured constant until the sketch turned up.
 
-**The count is the plain size rule and NOT `isOnlyTwoPusherSlots`.** An
+### The middle socket is gone — a 7.1 RELEASE CHANGE
+
+**Onshape counts the sockets by SIZE and not by `isOnlyTwoPusherSlots`.** An
 Innovation M lid carries three sockets where its Box has two rear storage slots
 and its cascade ships two pushers (`spec/BOX.md` records the same variable
 being the box's answer). It is Onshape's own inconsistency between the two
-parts, and `cad/` reproduces the lid as it is rather than tidying it.
+parts, and the unused socket is the MIDDLE one: the two pushers use the outer
+pair, so `socket_centres`' `k = 1` was dead material in every Innovation M lid.
 
-**The unused one is the MIDDLE one, and it should eventually go** (Allan,
-2026-09-03). It is not a spare that happens to be free: the two pushers use the
-outer pair, so `socket_centres`' `k = 1` is dead material in every Innovation M
-lid. Not done here, because it is a real geometry change and it is not free:
+**From 7.1 `cad/` cuts one socket per pusher** (Allan, 2026-09-06):
+`socket_count` is `box.pusher_slot_count`, which is `isOnlyTwoPusherSlots` —
+the variable that was always the right answer for this — so the two parts agree
+instead of disagreeing. It restates **four** lids and no others in the
+catalogue:
 
-* it restates **four** lids — `M5.15.15` and `M5.10.10`, each sleeved and un —
-  and no other row in the catalogue, S and XS Innovation being on two already;
-* `tests/test_lid_corpus.py` currently **asserts** the three against the cached
-  meshes, so the test has to gain the divergence on both sides, the way
-  `cad/README.md`'s sixth decision requires;
-* every shipped Innovation M cascade's lid goes stale the moment it lands, so
-  it wants a version bump to carry it rather than a quiet re-cut.
+| lid | 7.0 (and Onshape) | 7.1 |
+|---|---|---|
+| `M5.15.15.45-Un`, `M5.15.15.62-Sl` | 3 sockets | 2 |
+| `M5.10.10.32-Un`, `M5.10.10.45-Sl` | 3 sockets | 2 |
 
-The rule it becomes is `box.pusher_slot_count`'s — `isOnlyTwoPusherSlots`, the
-variable that was always the right answer for this — which makes the two parts
-agree instead of disagreeing.
+Every S and XS Innovation lid was on two already, and every other game's lid
+has as many pushers as sockets, so nothing else moves.
+
+**It is a RELEASE CHANGE and not a divergence**, which is the difference
+`cad/revisions.py` exists to keep: a **7.0** build still cuts three and still
+reproduces the STEP and all 44 cached lids exactly, forever. The flag is
+`rev.lid_socket_per_pusher`, the part reads it by NAME and never compares
+versions, and `tests/test_revisions.py` asserts both releases. The lid was the
+first part to need this, and the mechanism is general — `spec/REVISIONS.md`.
+
+**Dropping the middle one costs nothing else.** Three things had to be true
+and all three are:
+
+* **the outer pair does not move.** `socket_centres` places the FIRST socket
+  and steps the rest across `(HorizontalSlots - 1) * calSlotwidth`, a span that
+  is the card slots' and not the sockets'; at `n = 2` the step IS the span, so
+  the pair lands exactly where the outer pair of three landed —
+  `[-100.8, -0.3, 100.2]` becomes `[-100.8, 100.2]`. No pusher moves and no
+  margin changes; `cad.fit --state play` measures `0.0000 mm3` on both.
+* **the block is free-standing.** On these lids it spans `x -4.9 .. 4.3`, clear
+  of the staircase's `-34.3` and the text block's `+80`, so it fuses to the
+  floor and to nothing else. `tests/test_revisions.py` prices it by building a
+  7.0 Derived carrying 7.1's flags — same part, same `CC 7.0` ink, one socket
+  fewer — and the difference is `1241.70 mm3` to `0.000`. The remaining
+  `1.44 mm3` between a real 7.0 and a real 7.1 lid is the version digits, and
+  it is asserted separately so the two can never be confused.
+* **the change is asserted at BOTH releases**, not merely at the new one: 7.0
+  keeps three sockets and keeps matching the corpus, 7.1 has two, and exactly
+  four lids differ between them.
+
+The four shipped Innovation M cascades keep their three-socket lids: they are
+Onshape 7.0 exports, and this reaches them only when they are next cut from
+`cad/` at 7.1. The studio has NOT been changed to match (Allan, cad-only for
+now).
 
 **`x = -0.300` was measured before it was derived**, and it is worth keeping
 the story: it is constant on every lid, and nothing in the derived set produces

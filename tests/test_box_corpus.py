@@ -47,6 +47,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import build as B, derive as D, lock as L, params    # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import box                                      # noqa: E402
 import probe                                                   # noqa: E402
 from probe import EPS                                          # noqa: E402
@@ -71,7 +72,7 @@ def catalogue():
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved, col in ((0, "Unsl Model"), (1, "Sleeved model")):
-            p = params.from_row(row, sleeved)
+            p = REF.from_row(row, sleeved)
             d = D.derive(p)
             model = (row.get(col) or "").strip().replace("/", "-")
             cached = f"Box {model}{' merged' if p.MatPocket else ''}.3mf"

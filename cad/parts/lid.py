@@ -80,17 +80,31 @@ KEY_RIB_LEN = 5.000          # along the channel, on the centreline
 
 
 def socket_count(d):
-    """2 sockets for XS and S, 3 for M and L.
+    """How many pusher sockets the floor carries, and it depends on the RELEASE.
 
-    NB this is the plain size rule and NOT `isOnlyTwoPusherSlots`: an
-    Innovation M lid carries three sockets where its box has two rear storage
-    slots and its cascade ships two pushers. Measured on all 48 lids —
-    `spec/LID.md` records it as Onshape's own inconsistency, reproduced here.
+    * **7.0** — Onshape's rule, which counts by SIZE: `2 if HorizontalSlots
+      <= 3 else 3`. It agrees with the box everywhere but the four Innovation
+      M lids, whose box has two rear storage slots and whose cascade ships two
+      pushers against the lid's three sockets.
+    * **7.1 and after** — one socket per pusher the cascade ships, so the
+      unused MIDDLE socket of those four is gone. `isOnlyTwoPusherSlots` was
+      always the right variable for this, and the two parts now agree instead
+      of disagreeing (Allan, 2026-09-06).
 
-    The MIDDLE socket of those three is the unused one and is to be removed
-    eventually (Allan) — four lids, and it wants a version bump and a
-    two-sided test, so `spec/LID.md` holds the decision and its cost.
+    A REVISION CHANGE, not a divergence: a 7.0 build still reproduces the
+    STEP and all 44 cached lids exactly. `cad/revisions.py` owns the flag,
+    `spec/LID.md` ("The middle socket is gone") owns the reasoning, and
+    `tests/test_revisions.py` asserts both releases.
+
+    Dropping the middle costs nothing else. `socket_centres` places the FIRST
+    socket and steps the rest across the same span, so at `n = 2` the step IS
+    the span and the outer pair lands exactly where it did at `n = 3`: no
+    pusher moves, no margin moves, and the block that goes is free-standing —
+    on those lids it spans `x -4.9..4.3`, clear of the staircase's `-34.3` and
+    the text block's `+80`.
     """
+    if d.rev.lid_socket_per_pusher:
+        return box_part.pusher_slot_count(d)
     return 2 if d.HorizontalSlots <= 3 else 3
 
 
@@ -110,6 +124,11 @@ def socket_centres(d):
     the left and `36.050` at the right, so its centre lands `0.300` to the left
     of the lid's. This file carried that `-0.300` as a measured constant until
     the sketch turned up — see spec/LID.md, "What the fit got wrong".
+
+    The SPAN is the same at either count, because it is the card slots' and not
+    the sockets': at `n = 2` the step is the whole span, so the pair sits where
+    a three-socket set's outer pair sat. That is what makes dropping the middle
+    socket cost nothing (`socket_count`).
     """
     n = socket_count(d)
     span = (d.HorizontalSlots - 1) * d.calSlotwidth

@@ -24,9 +24,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from build123d import Compound, GeomType, import_step   # noqa: E402
 from cad import art, build, marks, params, derive as D, lock as L  # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad import tables as TB, text as TX                    # noqa: E402
 from cad.parts import lid                       # noqa: E402
 
@@ -36,24 +38,24 @@ REFS = [
     # and Pusher are both referenced too — so the lock can be followed across
     # all three parts of one design.
     ("Dominion 246 Sl", "Lid Dominion 246S with logo.step",
-     params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
+     REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
     # M: three sockets, and unsleeved.
     ("Dominion 244 Un", "Lid Dominion 244U.step",
-     params.Primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
+     REF.primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
     # R = 9 — past the logo block's eight-riser branch — and a C5 lock.
     ("Dominion 333 Sl", "Lid Dominion 333S.step",
-     params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
+     REF.primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
     # XS: the narrowest lid in the catalogue, two horizontal slots.
     ("Innovation 130 Un", "Lid Innovation 130U.step",
-     params.Primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
+     REF.primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
     # The Ultimate mark at scale 1, exported 2026-09-04 with the U's underline
     # boxes corrected — the drawing `lid_logo_big.brep` is lifted from THIS
     # STEP's inlays, so the inlay checks hold it region for region.
     ("Innovation M5.15.15 Un (Ultimate)", "Lid Innovation M5.15.15.45-Un with logo.step",
-     params.Primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation")),
+     REF.primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation")),
     # A second GAME's card size, and the only reference whose lock is C4.
     ("Compile 126 Sl", "Lid Compile 126S.step",
-     params.Primary(3, 5, 7, 7, 0, 7, 1, 0, "Compile")),
+     REF.primary(3, 5, 7, 7, 0, 7, 1, 0, "Compile")),
 ]
 # The logo pattern's pocket in the underside of the floor. Deferred with the
 # pattern itself; measured here only so the volume gap can be accounted for.
@@ -243,22 +245,30 @@ for name, fn, P in REFS:
     check("socket back edge SOCKET_BACK in from the lid's back",
           round(d.calLidDepth / 2 - y1, 3), round(lid.SOCKET_BACK, 3), 1e-6)
     side = round(lid.SOCKET_H * (y1 - y0), 2)     # a socket block's own side
+
+    # This file builds at the REFERENCE release (7.0, `tests/reference.py`),
+    # where the socket count is Onshape's own size rule and the build and the
+    # STEP agree exactly — including the three sockets of an Innovation M,
+    # whose cascade ships two pushers. 7.1 cuts one socket per pusher and drops
+    # the middle one; that is a RELEASE change, and `tests/test_revisions.py`
+    # asserts both ends of it. Nothing here should know about it.
+    want_c = lid.socket_centres(d)
     for who, solid in (("STEP ", ref), ("build", mine)):
         xs = sorted(k[0] for k, a in planes(solid, 0).items()
                     if abs(a - side) < 1e-2)
         check(f"{who}: one block per socket, calFootTotalWidth wide", len(xs),
-              2 * lid.socket_count(D.derive(P)))
-        if len(xs) != 2 * lid.socket_count(D.derive(P)):
+              2 * len(want_c))
+        if len(xs) != 2 * len(want_c):
             continue
         check(f"{who}: socket centres",
               [round((a + b) / 2, 3) for a, b in zip(xs[0::2], xs[1::2])],
-              [round(x, 3) for x in lid.socket_centres(d)])
+              [round(x, 3) for x in want_c])
         check(f"{who}: block width",
               sorted({round(b - a, 3) for a, b in zip(xs[0::2], xs[1::2])}),
               [round(d.calFootTotalWidth, 3)])
         rib = lid.KEY_RIB_LEN if L.has_notch(s) else 0.0
         want_chan = round(lid.SOCKET_H * ((y1 - y0) - rib), 2)
-        for x in lid.socket_centres(d):
+        for x in want_c:
             got = socket_walls(solid, x, y0, y1)
             want = {
                 round(x - d.calFootTotalWidth / 2, 3): side,
@@ -474,6 +484,11 @@ for name, fn, P in REFS:
     # To 1 mm3 in 6e4. What is left is the engraving's 0.31 % advance and the
     # artwork's DXF round trip, both documented in spec/LID.md; every feature
     # on the part is now built.
+    #
+    # The dropped middle socket is PRICED rather than tolerated: `lid.socket`
+    # builds the very block the STEP has and the build does not, so the whole
+    # difference has to be that block and nothing else. A second change hiding
+    # behind the divergence would show up here.
     check("reference - build, the whole body", round(ref.volume - mine.volume, 2),
           0.0, 1.0)
 

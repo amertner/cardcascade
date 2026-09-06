@@ -39,10 +39,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from build123d import Box, Location, Vector, import_step, extrude  # noqa: E402
 from build123d import BuildLine, BuildSketch, Plane, Polyline, make_face  # noqa: E402
 from cad import params, derive as D                    # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import holder                           # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
@@ -55,16 +57,16 @@ COLS = ("text", "base", "body", "rests", "lips")
 def row_params(short_name, sleeved):
     for row in _ROWS:
         if row.get("Short name") == short_name:
-            return params.from_row(row, sleeved)
+            return REF.from_row(row, sleeved)
     raise KeyError(short_name)
 
 
 # The same ten `tests/test_holder.py` asserts against, by the same keys.
 def refs():
-    P246 = params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
-    P333 = params.Primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
-    PINN_SL = params.Primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
-    PINN_UN = params.Primary(4, 5, 10, 10, 0, 10, 0, 0, "Innovation")
+    P246 = REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")
+    P333 = REF.primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")
+    PINN_SL = REF.primary(4, 5, 10, 10, 0, 10, 1, 0, "Innovation")
+    PINN_UN = REF.primary(4, 5, 10, 10, 0, 10, 0, 0, "Innovation")
     return {
         "246Sl": ("Holder S2.40.12-30.45-Sl.step", P246, False),
         "246First": ("FirstHolder S2.40.12-30.45-Sl.step", P246, True),

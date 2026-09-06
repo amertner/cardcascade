@@ -38,9 +38,16 @@ sys.path.insert(0, str(ROOT / "automation"))
 
 import components as C                                  # noqa: E402
 import plan_exports as P                                # noqa: E402
-from . import build as B, derive as D, params           # noqa: E402
+from . import build as B, derive as D, lock as L, params  # noqa: E402
+from . import revisions as R                            # noqa: E402
 
+# The tree promotion reads, and it is the LOCK GENERATION's and not the
+# current release's: what is staged goes into a shipped cascade whose other
+# parts are Onshape 7.0 exports. Build it with
+# `cad.build --part all --version 7.0` — which writes `build/v7.0/` — before
+# promoting. See `stage`'s comment on the pinned Primary.
 BUILD = ROOT / "build"
+SOURCE = BUILD if L.GENERATION == R.CURRENT else BUILD / f"v{L.GENERATION}"
 DEFAULT_OUT = BUILD / "components"
 
 
@@ -80,14 +87,23 @@ def stage(games, out, model=None, name=None, dry=False):
                 continue
             if name and name.lower() not in casc["ctx"]["short_name"].lower():
                 continue
-            p = params.from_row(casc["row"], 1 if casc["sleeved"] == "Sl" else 0)
+            # PINNED to the lock generation, and not the current release: a
+            # promoted part is staged under the PLANNER's name for
+            # `refresh_cascades.py --components`, so it lands in a cascade
+            # whose other parts are Onshape's and whose recorded generation is
+            # 7.0. Stamping the current release on it would put a `CC 7.1`
+            # part in a 7.0 cascade — exactly the drift `verify.py --stamps`
+            # exists to catch (`automation/PIPELINE.md`, "The engraved version
+            # is not the recorded version").
+            p = params.from_row(casc["row"], 1 if casc["sleeved"] == "Sl" else 0,
+                                version=L.GENERATION)
             d = D.derive(p)
             for item in casc["components"]:
                 fn = built_name(item, d)
                 if fn is None:
                     unmade.append(f"{folder}/{item['file']} ({casc['name']})")
                     continue
-                src = BUILD / folder / fn
+                src = SOURCE / folder / fn
                 dst = out / folder / item["file"]
                 prior = plan_for.get(dst)
                 if prior is not None and prior != src:
@@ -135,7 +151,7 @@ def main():
     verb = "would stage" if args.dry_run else "staged"
     print(f"{verb} {len(staged)} component(s) under {args.out}")
     for src, dst in staged:
-        print(f"  {str(src.relative_to(BUILD)):40s} -> {dst.relative_to(args.out)}")
+        print(f"  {str(src.relative_to(SOURCE)):40s} -> {dst.relative_to(args.out)}")
     if unmade:
         print(f"\nnot built by cad/ ({len(unmade)}) — these stay Onshape's:")
         for u in unmade:

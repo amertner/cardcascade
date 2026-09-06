@@ -33,7 +33,7 @@ import zipfile
 from pathlib import Path
 
 from . import build as B, derive as D, layout as LY, params, project as PJ, tables as TB
-from .lock import GENERATION
+from .revisions import CURRENT, RELEASES
 from .refuse import Refused, refuse
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -175,7 +175,7 @@ def row_stamp(row):
 
 
 def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=None,
-              version=GENERATION):
+              version=CURRENT):
     """[(row, d)] for the cascades selected."""
     sizes = [x.strip().upper() for x in size.split(",")] if size else None
     out = []
@@ -248,17 +248,22 @@ def main(argv=None):
                          "MakerWorld rejection needs (never re-save one in "
                          "Studio; automation/filaments.py --makerworld)")
     ap.add_argument("--csv", default=CSV, type=Path)
-    ap.add_argument("--components", default=BUILD, type=Path,
-                    help="where the parts are (build/)")
-    ap.add_argument("--version", default=GENERATION,
-                    help="the version the parts are stamped with; the parts under "
-                         "--components must have been built at it (cad.build --version)")
+    ap.add_argument("--components", type=Path,
+                    help="where the parts are (default: the tree cad.build "
+                         "writes for --version)")
+    ap.add_argument("--version", default=CURRENT, choices=RELEASES,
+                    help=f"the release to compose (default {CURRENT}); the parts "
+                         "under --components must have been built at it "
+                         "(cad.build --version), and by default they are the "
+                         "same tree cad.build wrote")
     ap.add_argument("--build", action="store_true", help="run cad.build --part all first")
     ap.add_argument("--slice", action="store_true", help="slice every project with BambuStudio")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args(argv)
 
-    out = args.out or (DIST / args.version if args.publish else OUT)
+    args.components = args.components or B.out_for(args.version)
+    out = args.out or (DIST / args.version if args.publish else
+                       args.components / "cascades")
     rows = catalogue(args.csv, args.game, args.model, args.size, args.sleeving, args.name,
                      args.version)
     if args.list:

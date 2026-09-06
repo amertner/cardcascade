@@ -29,14 +29,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from build123d import import_step, Plane, Location, Vector, Mesher
 from cad import params, lock as L, text as T, derive as D
+import reference as REF                                        # noqa: E402
 from cad.parts import pusher
 
 REF_DIR = Path(__file__).resolve().parent.parent / "spec" / "reference"
 REFS = [
     ("Compile 105 Card Sl", REF_DIR / "Pusher S4.7.7.32-Sl.step",
-     params.Primary(3, 4, 7, 7, 0, 7, 1, 0, "Compile", "7.0")),
+     REF.primary(3, 4, 7, 7, 0, 7, 1, 0, "Compile", "7.0")),
     ("Dominion 246 Card Sl", REF_DIR / "Pusher S2.40.12-30.45-Sl.step",
-     params.Primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion", "7.0")),
+     REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion", "7.0")),
 ]
 fails = []
 
@@ -195,7 +196,7 @@ rows = params.load_rows(Path(__file__).resolve().parent.parent / "automation/par
 seen = {}
 for r in rows:
     for slv in (0, 1):
-        q = params.from_row(r, slv)
+        q = REF.from_row(r, slv)
         seen.setdefault((q.GameName, q.RisingSliders, q.CardsPerSlidingSlot,
                          q.FirstSlidingSlotCards if q.isFirstSlidingSlotOverride
                          else 0, slv), q)

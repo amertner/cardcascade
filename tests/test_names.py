@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "automation"))
 
-from cad import cascade as CC, params                # noqa: E402
+from cad import cascade as CC, params, revisions as R  # noqa: E402
 import components as C                               # noqa: E402
 import onshape_config as OC                          # noqa: E402
 import plan_exports as P                             # noqa: E402
@@ -132,16 +132,20 @@ one = [(row, d) for row, d in rows if d.calModelName.startswith("S4.16.10.32")
        and not d.isSleeved][0]
 check("a cad title is the same rule at p.Version",
       CC.title(*one) + ".3mf",
-      C.cascade_filename("Dominion", "168 Card", "Un", "S4.16.10.32-Un", "7.0"))
-check("every cad title carries a version",
+      C.cascade_filename("Dominion", "168 Card", "Un", "S4.16.10.32-Un", R.CURRENT))
+check("every cad title carries a version, and it is the default release",
       sorted({t.split(" v")[1][:3] for t in
-              (CC.title(row, d) for row, d in rows)}), ["7.0"])
+              (CC.title(row, d) for row, d in rows)}), [R.CURRENT])
 check("cad names 50 distinct projects",
       len({CC.title(row, d) for row, d in rows}), len(rows))
+# The two releases are named EXPLICITLY, not one of them by default: the
+# default moves (it is 7.1 now and was 7.0), and a test that took it would
+# compare a set with itself the moment it did. `spec/REVISIONS.md`.
+at70 = CC.catalogue(version="7.0")
 at71 = CC.catalogue(version="7.1")
 check("a 7.1 set is titled apart from the 7.0 one",
       {CC.title(row, d) for row, d in at71}
-      & {CC.title(row, d) for row, d in rows}, set())
+      & {CC.title(row, d) for row, d in at70}, set())
 
 print("\n=== a name is an identity, a version is a release ===")
 check("the cad file name carries no version",
@@ -154,10 +158,10 @@ check("--publish puts it back, and is the title plus the suffix",
       CC.filename(*one, versioned=True), CC.title(*one) + ".3mf")
 check("so a 7.1 publish is 50 files apart from a 7.0 one",
       {CC.filename(row, d, True) for row, d in at71}
-      & {CC.filename(row, d, True) for row, d in rows}, set())
+      & {CC.filename(row, d, True) for row, d in at70}, set())
 check("while the two write the SAME 50 names into the repo",
       {CC.filename(row, d) for row, d in at71},
-      {CC.filename(row, d) for row, d in rows})
+      {CC.filename(row, d) for row, d in at70})
 check("cad and refresh_cascades agree on the tracked name",
       CC.filename(*one),
       RC.project_name("Dominion", {"ctx": {"short_name": "168 Card", "label": ""},

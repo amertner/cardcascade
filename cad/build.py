@@ -59,6 +59,7 @@ from . import derive as D
 from . import mesh3mf
 from . import params
 from . import lock as L
+from . import revisions as R
 from . import tables as TB
 from .refuse import Refused, refuse
 
@@ -118,7 +119,7 @@ def lid_file(d):
     return "Lid " + model_stem(d.calModelName) + ".3mf"
 
 
-def lid_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
+def lid_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct lid, deduplicated."""
     out = {}
     for _row, p in params.cascades(csv, game, version):
@@ -185,7 +186,7 @@ def holder_file(d, first=False):
     return f"{kind} {model_stem(d.calModelName)}.3mf"
 
 
-def holder_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
+def holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary, first)] — every distinct holder.
 
     A row with a first-riser override yields TWO: the standard holder and the
@@ -255,7 +256,7 @@ def topper_shape_key(d):
 # the cache, which is where that would show up.
 SINGLE_SET = "one expansion"
 
-def topper_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
+def topper_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct topper.
 
     Innovation only, single-set cascades excluded: the blank and every
@@ -297,7 +298,7 @@ def build_topper(d, expansion, path):
     return write_component(path, bodies)
 
 
-def box_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
+def box_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct box, deduplicated.
 
     Boxes do NOT share across games or sleeving, and `calModelName` separates
@@ -319,7 +320,7 @@ def build_box(d, _extra, path):
     return write_component(path, [("Box", box_part.build(d))])
 
 
-def pusher_catalogue(csv=CSV, game=None, legacy=False, version=L.GENERATION):
+def pusher_catalogue(csv=CSV, game=None, legacy=False, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct pusher, deduplicated.
 
     The key is the full one: the game, the riser count, the cards per slot, the
@@ -373,7 +374,7 @@ def token_holder_file(d, half, legacy=False):
 
 
 def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False,
-                           version=L.GENERATION):
+                           version=R.CURRENT):
     """[(folder, filename, Primary, half)] — every distinct token holder.
 
     A row asks for one through parts.csv's `TokenHolder` column (`full` or
@@ -434,6 +435,20 @@ def build_pusher(d, _extra, path):
 # rebuilt file is `changed` only when its bytes moved.
 
 STAMP_DIR = ".stamps"
+
+
+def out_for(version):
+    """Where a release's parts go: `build/` for the current one, and
+    `build/v<version>/` for any other.
+
+    Filenames carry no version (`components.tracked_name`'s rule: a NAME is an
+    identity), so two releases written to one tree overwrite each other part
+    for part, and the stamps — which DO hash the version, through the Primary
+    — would then rebuild the lot on every alternation. Separating them is the
+    whole of the fix, and it is a default rather than a flag you must remember.
+    """
+    R.check(version)
+    return ROOT / "build" if version == R.CURRENT else ROOT / "build" / f"v{version}"
 
 
 def source_hash():
@@ -593,7 +608,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--game", help="Compile / Dominion / FCM / Innovation")
-    ap.add_argument("--out", default=str(ROOT / "build"), type=Path)
+    ap.add_argument("--out", type=Path,
+                    help="where the parts go (default: build/ for the current "
+                         f"release, build/v<version>/ for any other, so two "
+                         "releases cannot land in one tree under the same "
+                         "filenames)")
     ap.add_argument("--csv", default=CSV, type=Path)
     ap.add_argument("--legacy-names", action="store_true",
                     help="use plan_exports' names (drops the first-riser axis)")
@@ -605,13 +624,14 @@ def main(argv=None):
                                     "this, e.g. S2.40.12-30.45-Sl")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1,
                     help="parallel builds (default: every core); 1 is serial")
-    ap.add_argument("--version", default=L.GENERATION,
-                    help="the version the parts are stamped with (default "
-                         f"{L.GENERATION}); any of lock.SAME_GEOMETRY builds the same "
-                         "geometry — pair it with --out to keep two sets apart")
+    ap.add_argument("--version", default=R.CURRENT, choices=R.RELEASES,
+                    help=f"the release to build (default {R.CURRENT}); what "
+                         "differs between releases is cad/revisions.py, and "
+                         "--out follows the version unless you set it")
     ap.add_argument("--force", action="store_true",
                     help="rebuild even where the stamp says nothing changed")
     args = ap.parse_args(argv)
+    args.out = args.out or out_for(args.version)
     try:
         return run(args)
     except Refused as e:

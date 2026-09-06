@@ -28,8 +28,10 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import build as B, mesh3mf, params, derive as D  # noqa: E402
+import reference as REF                                        # noqa: E402
 from cad.parts import topper as T                         # noqa: E402
 
 EPS = 0.013            # see the module docstring: never probe down a diagonal
@@ -100,7 +102,7 @@ def catalogue():
         if B.SINGLE_SET in (row.get("Set/Extension") or "").lower():
             continue
         for sleeved in (0, 1):
-            p = params.from_row(row, sleeved)
+            p = REF.from_row(row, sleeved)
             if p.GameName != "Innovation":
                 continue
             d = D.derive(p)
