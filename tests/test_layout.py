@@ -124,10 +124,18 @@ for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
           _legal == (_bed != "h2c"), f"legal={_legal}")
 # and an empty plate takes it, or the H2C's known corner
 for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
-                    ("h2c", (265.0, 0.0))):
+                    ("h2c", (261.0, 4.0))):
     check(f"{_bed}: an empty plate's tower is {_want}",
           LY.tower(LY.profile(_bed), _bed, [], None) == _want,
           f"{LY.tower(LY.profile(_bed), _bed, [], None)}")
+# The mini's Lid plate: its 152.9 x 52.1 lid, centred, ends 7.95 mm below the
+# preferred spot, inside WIPE_GAP, so the plate takes the corner search — which
+# found (0, 0) first, all four corners tying for distance from the centre, and
+# Studio refuses a tower within 1 mm of the mini's near edges (layout.tower).
+_lid = LY.rect_obb(90 - 152.9 / 2, 90 - 52.1 / 2, 90 + 152.9 / 2, 90 + 52.1 / 2)
+_at = LY.tower(LY.profile("mini"), "mini", [(0, _lid)], None)
+check(f"mini: the Lid plate's tower is inset, {(LY.TOWER_INSET, LY.TOWER_INSET)}",
+      _at == (LY.TOWER_INSET, LY.TOWER_INSET), f"{_at}")
 
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
@@ -184,8 +192,14 @@ with tempfile.TemporaryDirectory() as tmp:
         # the tower clears every object on its plate by at least TIGHT_GAP —
         # the collision make_cascade used to warn about and leave in place
         ps_w = float(LY.profile(bed).get("prime_tower_width", 35))
+        bx0, by0, bx1, by1 = LY.tower_bounds(LY.profile(bed))
         for k, plate in enumerate(back.plates, start=1):
             tx, ty = plate.tower
+            # and it keeps TOWER_INSET inside its rectangle: a flush origin is
+            # where Studio's -104 lives (layout.tower)
+            if (tx < bx0 + LY.TOWER_INSET or ty < by0 + LY.TOWER_INSET
+                    or tx + ps_w > bx1 - LY.TOWER_INSET or ty + ps_w > by1 - LY.TOWER_INSET):
+                problems.append(f"plate {k} tower ({tx:g}, {ty:g}) on an edge")
             tower_obb = LY.rect_obb(tx, ty, tx + ps_w, ty + ps_w)
             for oid, pl in back.placements.items():
                 if pl.plate != k:

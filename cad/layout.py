@@ -34,8 +34,11 @@ What is decided here, in order:
    of the A1 mini, so the mini took the corner fallback on every plate and
    Studio refused to slice it). Otherwise: inside the intersection of every
    extruder's printable area (the H2C's two nozzles reach different parts of
-   the bed, and both purge into it), and clear of the parts by WIPE_GAP if any
-   spot is, else TIGHT_GAP, preferring the spot furthest from the bed's centre.
+   the bed, and both purge into it) and TOWER_INSET inside that rectangle's
+   every edge (Studio refuses a tower whose origin is within 1 mm of the A1
+   mini's x = 0 or y = 0, and takes one at 2; `tower`), and clear of the parts
+   by WIPE_GAP if any spot is, else TIGHT_GAP, preferring the spot furthest
+   from the bed's centre.
    When no spot clears, the plate's contents are slid to each edge in turn to
    open the opposite one, then turned 90 degrees and tried again; a plate
    that still has no room for its tower is REFUSED, not warned about (Allan,
@@ -60,6 +63,7 @@ GRID = 4.0            # grid-search step
 ROT = math.pi / 4
 WIPE_GAP = 15.0       # tower clearance from printed parts, preferred
 TIGHT_GAP = 5.0       # tower clearance when nothing clears WIPE_GAP
+TOWER_INSET = 4.0     # the tower keeps this far inside its rectangle's every edge
 BIG = 20.0            # an object longer than bed - BIG is turned 45 degrees
 THIN = 30.0           # a strip is thinner than this
 
@@ -583,19 +587,47 @@ def start_spot(bed):
     Deriving it from the bed's depth keeps `(15.0, 200.0)` exactly on the P1,
     leaves the H2C alone (x = 15 is outside ITS x0 = 25, so it falls through to
     the corner search as before, to the (265, 0) its four published projects
-    were verified at), and gives the mini a spot 15 mm from one edge and 21 from
-    the other."""
+    were verified at — (261, 4) since TOWER_INSET), and gives the mini a spot
+    15 mm from one edge and 21 from the other.
+
+    That was half the fix. The mini's LID plate never takes this spot — its
+    lid, centred, ends 7.95 mm below it, inside WIPE_GAP — so that plate still
+    fell through to the corner search, and the corner search itself allowed
+    (0, 0). TOWER_INSET is the other half; `tower` records the evidence."""
     return (15.0, PJ.BEDS[bed].depth - 56.0)
 
 
 def tower(ps, bed, placed, exclude, start=None):
     """Where the plate's prime tower goes: `start_spot` if it is legal and
     clear, else the legal spot furthest from the bed's centre that clears the
-    parts by WIPE_GAP, else by TIGHT_GAP — or None when no spot clears."""
+    parts by WIPE_GAP, else by TIGHT_GAP — or None when no spot clears.
+
+    Legal is TOWER_INSET inside `tower_bounds`, on every side. A tower's
+    `(x, y)` is its origin corner, and Studio's geometry spills a little below
+    and left of it: the A1 mini's Lid plate, sliced on 2026-09-06 with its
+    tower at (0, 0), (0.5, 0.5), (1, 1), (1, 4) and (4, 1), was refused every
+    time with -104 ("G-code outside of the printable area ... wipe tower,
+    brim, or skirt"), and at (2, 2), (3, 3) and (4, 4) it sliced clean. The
+    far edges tolerated a tower flush against them — (145, 4) and (4, 145)
+    sliced, the nominal 35 ending exactly at 180 — so the near edges are the
+    ones that matter, and the far ones are inset the same so that the front
+    and back corners still tie for distance from the centre and the scan's
+    first, at the front of the bed where every shipped fallback sits, is the
+    one taken (inset the near edges alone and the grid's last step is the
+    further corner, which sent the H2C's fallback to the back of the bed;
+    (4, 4) on the mini, (261, 4) on the H2C, whose x range is not symmetric
+    about its bed's centre and whose right corner wins outright). 4 mm is a
+    GRID step, twice the threshold; it moves the H2C's corner fallback from
+    (265, 0) to (261, 4), which its slice check covers. Before this the
+    corner search allowed a flush corner and found one first, which put the
+    mini's Lid plate at (0, 0): `start_spot` is inside WIPE_GAP of a centred
+    mini lid, so that plate always fell through."""
     start = start or start_spot(bed)
     bw, bd = PJ.BEDS[bed].size
     w = float(ps.get("prime_tower_width", 35))
     tx0, ty0, tx1, ty1 = tower_bounds(ps)
+    tx0, ty0, tx1, ty1 = (tx0 + TOWER_INSET, ty0 + TOWER_INSET,
+                          tx1 - TOWER_INSET, ty1 - TOWER_INSET)
 
     def free(x, y, gap):
         if x < tx0 or y < ty0 or x + w > tx1 or y + w > ty1:

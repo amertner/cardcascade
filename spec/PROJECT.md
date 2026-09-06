@@ -155,9 +155,16 @@ the two to the same placements on Dominion 168 while both exist. In order:
    rotate in centred shelf rows, widest first; the whole plate nudged off a
    corner exclude area; then every placement checked — on the bed, off the
    exclude area, 1 mm clear of its neighbours — and refused otherwise.
-4. **The tower** — inside the intersection of every extruder's printable
-   area, clear of the parts by 15 mm if any spot is, by 5 if not, furthest
-   from the bed's centre. When nothing clears, the plate's contents are slid
+4. **The tower** — 4 mm inside the intersection of every extruder's
+   printable area (Studio refuses a tower whose origin is within 1 mm of the
+   A1 mini's x = 0 or y = 0 and takes one at 2; the far edges it tolerates
+   flush, and they are inset the same only so that the four corners keep
+   tying and the front one is taken. The mini's Lid plate, whose centred
+   lid puts the preferred spot inside the 15 mm gap, fell to a flush (0, 0)
+   corner and would not slice — `layout.TOWER_INSET`, found 2026-09-06; the
+   H2C's corner fallback moved from (265, 0) to (261, 4) with it), clear of
+   the parts by 15 mm if any spot is, by 5 if not, furthest from the bed's
+   centre. When nothing clears, the plate's contents are slid
    hard against each edge in turn (the slack a centred layout splits between
    two sides is enough for a tower on one), then the whole plate is packed a
    quarter turn round and tried again; a plate that still has no room is
