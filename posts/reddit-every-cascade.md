@@ -15,21 +15,30 @@ decides whether it will work for you: card width. Print it for whatever you like
 
 **1. Card width.** This is the one that either works or doesn't. Every design is
 cut for a specific card width, and a card that is too wide simply will not go in.
-Going the other way is fine: a narrower card sits in a wider slot quite happily,
-it just has a bit of side-to-side play. The three widths in the catalogue are:
+Going the other way is fine: a narrower card sits in a wider compartment quite
+happily, it just has a bit of side-to-side play.
 
-* **60 mm** - Dominion and Food Chain Magnate. This is the "euro" card, around
-  59 x 91 mm.
-* **64 mm** - Innovation. This covers the standard/poker card, 63.5 x 88 mm.
-* **65 mm** - Compile, the widest in the catalogue.
+In the CAD each game has a single card width, and the card compartment in the
+sliding holders is cut 1.4 mm wider than that. So the real number - the widest
+card that will physically go in - is:
 
-Those are the widths the slots are cut to, with a little slack built in, so
-measure your own cards and compare against the number rather than against the
-game name.
+|Group|Designed for|Card width|Compartment, unsleeved|Compartment, sleeved|
+|:-|:-|-:|-:|-:|
+|A|Dominion, FCM|60 mm|61.4 mm|63.4 mm|
+|B|Innovation|64 mm|65.4 mm|67.4 mm|
+|C|Compile|65 mm|66.4 mm|68.4 mm|
 
-Every design also comes in a sleeved version, which adds 2 mm to the width. So a
-*sleeved* Innovation box is cut for 66 mm and will take an unsleeved poker card
-with room to spare.
+Group A is the "euro" card, around 59 x 91 mm. Groups B and C comfortably take
+the standard/poker card at 63.5 x 88 mm.
+
+**One trap worth knowing about:** a poker-sized card does *not* fit a Group A
+box, not even the sleeved version. 63.5 mm of card against a 63.4 mm
+compartment - it misses by a tenth of a millimetre. If your cards are
+poker-sized, you want Group B or C, and an unsleeved Group B box (65.4 mm) will
+take them with room to spare.
+
+Measure your own cards rather than trusting the game name, and compare against
+the compartment column.
 
 **2. Card height.** Every Cascade in the catalogue is built around a 92 mm card,
 and the pocket is 88.5 mm deep, so the top few mm of the card always stands proud
@@ -77,7 +86,7 @@ Cascade in mm; every one of them is 106.6 mm tall. **Bed** is the print bed you 
 = A1 mini (180 mm), 256 = P1P/P1S/X1C/A1, 350 = H2C/H2D. Where two are listed,
 the unsleeved version fits the smaller bed and the sleeved one doesn't.
 
-**Group A - cards up to 60 mm wide (62 mm sleeved), 92 mm tall**
+**Group A - cards up to 61.4 mm wide (63.4 mm in the sleeved boxes)**
 
 |Model|Game|Cards|Piles|Front / slider|Closed size, unsl / sleeved|Bed|Originally for|
 |:-|:-|-:|-:|:-|:-|:-|:-|
@@ -97,7 +106,7 @@ the unsleeved version fits the smaller bed and the sleeved one doesn't.
 |**L6.40.12**|Dominion|560|35|40 / 12|334x71 / 344x95.7|350|The whole Dominion base set|
 |**L8.50.10**|Dominion|650|45|50 / 10|334x82.7 / 344x111.3|350|Dominion's biggest sets|
 
-**Group B - cards up to 64 mm wide (66 mm sleeved), 92 mm tall**
+**Group B - cards up to 65.4 mm wide (67.4 mm in the sleeved boxes)**
 
 |Model|Game|Cards|Piles|Front / slider|Closed size, unsl / sleeved|Bed|Originally for|
 |:-|:-|-:|-:|:-|:-|:-|:-|
@@ -108,7 +117,7 @@ the unsleeved version fits the smaller bed and the sleeved one doesn't.
 |**S5.15.15**|Innovation|270|18|15 / 15|220x62.1 / 226x84.6|256|Innovation Ultimate, 3 ages|
 |**M5.15.15**|Innovation|360|24|15 / 15|287x62.1 / 295x84.6|256 / 350|Innovation Ultimate, 4 ages|
 
-**Group C - cards up to 65 mm wide (67 mm sleeved), 92 mm tall**
+**Group C - cards up to 66.4 mm wide (68.4 mm in the sleeved boxes)**
 
 |Model|Game|Cards|Piles|Front / slider|Closed size, unsl / sleeved|Bed|Originally for|
 |:-|:-|-:|-:|:-|:-|:-|:-|
