@@ -316,168 +316,185 @@ def plate_groups(objects, bed):
 
 
 def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
-    """{index: (theta, cx, cy)} in plate coordinates and [(index, obb)], for
-    the objects `idxs` on one plate of `bed`. `exclude` is the bed's exclude
-    area as an obb, or None. `turn` packs everything a quarter turn round —
-    the fallback when the tower has nowhere to go. Placements are validated
-    by `validate`, which the caller runs once the plate is final."""
+    """[(index, Obb)] in plate coordinates for the objects `idxs` on one
+    plate of `bed` — step 3 of the module docstring. `exclude` is the bed's
+    exclude area as an Obb, or None. `turn` packs everything a quarter turn
+    round, the fallback when the tower has nowhere to go. Nothing here
+    validates: the caller runs `misfit` once the plate is final."""
     bw, bd = PJ.BEDS[bed].size
-    side = min(bw, bd)
     uw, ud = usable(bed, ps or profile(bed))
     quarter = math.pi / 2 if turn else 0.0
     dims = {i: (_dims(objects[i])[::-1] if turn else _dims(objects[i])) for i in idxs}
-    rot_ids = [i for i in idxs if max(dims[i]) > side - BIG]
-    # An object whose 45-degree span does not fit takes the angle that does,
-    # with whatever margin is left (fit_angle) — alone on its plate, since the
-    # strip packing below assumes 45 degrees and a shared pitch.
-    tight = {}
-    for i in rot_ids:
-        if sum(dims[i]) / math.sqrt(2) > min(uw, ud) - STRIP_MARGIN:
-            ang, slack = fit_angle(dims[i][0], dims[i][1], uw, ud)
-            if slack < 0:
-                refuse(f"{objects[i].name} cannot fit the {bw:g}x{bd:g} bed at any "
-                       f"angle between 30 and 60 degrees ({-slack:.1f} mm over)")
-            tight[i] = ang
-    if len(tight) > 1 or (tight and len(rot_ids) > 1):
-        refuse(f"{[objects[i].name for i in rot_ids]}: more than one object on the "
-               f"plate needs the bed's whole diagonal")
-    placements, placed = {}, []
-    if tight:
-        (i, ang), = tight.items()
+    rot_ids = [i for i in idxs if max(dims[i]) > min(bw, bd) - BIG]
+    diagonal = _whole_diagonal(objects, idxs, dims, rot_ids, uw, ud, bw, bd)
+    if diagonal:
+        i, angle = diagonal
         w, d = dims[i]
-        th = math.radians(ang)
-        cx, cy = uw / 2, ud / 2                 # centred in the USABLE area
-        placements[i] = (th + quarter, cx, cy)
-        placed.append((i, Obb(cx, cy, w / 2, d / 2, th + quarter)))
-        flat = [j for j in idxs if j != i]
-        if flat:
-            refuse(f"{objects[i].name} takes its plate's whole diagonal; "
-                   f"{[objects[j].name for j in flat]} cannot share it")
+        # centred in the USABLE area
+        placed = [(i, Obb(uw / 2, ud / 2, w / 2, d / 2, math.radians(angle) + quarter))]
     elif rot_ids:
-        # strips along two bed edges from a shared corner — a column down the
-        # +x edge, then a row along the +y edge — or the centred band when
-        # the arms cannot hold this plate's strips. Positions are relative to
-        # a local origin and centred on the plate afterwards.
-        sr = sorted(rot_ids, key=lambda i: -dims[i][1])
-        longest = max(max(dims[i]) for i in sr)
-        deep = max(min(dims[i]) for i in sr)
-        gap = _gap(objects[sr[0]])
-
-        def pitch(prev_d, i):
-            """Centre-to-centre separation two neighbouring strips need
-            ACROSS their width."""
-            return prev_d / 2 + _gap(objects[i]) + dims[i][1] / 2
-
-        rel, prev = {}, None
-        if strip_arms(side, longest, deep, gap) >= len(sr):
-            arm, cy = strip_arm(side, longest, deep, gap), 0.0
-            for i in sr[:arm]:
-                if prev is not None:
-                    cy -= pitch(prev, i) * math.sqrt(2)
-                rel[i] = (0.0, cy)
-                prev = dims[i][1]
-            cx, prev = 0.0, dims[sr[0]][1]
-            for i in sr[arm:]:
-                cx -= pitch(prev, i) * math.sqrt(2)
-                rel[i] = (cx, 0.0)
-                prev = dims[i][1]
-        else:
-            n_hat, cn = (-1 / math.sqrt(2), 1 / math.sqrt(2)), 0.0
-            for i in sr:
-                if prev is not None:
-                    cn += pitch(prev, i)
-                rel[i] = (n_hat[0] * cn, n_hat[1] * cn)
-                prev = dims[i][1]
-        ins = {i: strip_inset(*dims[i]) for i in sr}
-        dx = bw / 2 - (min(rel[i][0] - ins[i] for i in sr)
-                       + max(rel[i][0] + ins[i] for i in sr)) / 2
-        dy = bd / 2 - (min(rel[i][1] - ins[i] for i in sr)
-                       + max(rel[i][1] + ins[i] for i in sr)) / 2
-        for i in sr:
-            w, d = dims[i]
-            cx, cy = rel[i][0] + dx, rel[i][1] + dy
-            placements[i] = (ROT + quarter, cx, cy)
-            placed.append((i, Obb(cx, cy, w / 2, d / 2, ROT + quarter)))
-        # everything else grid-searched into the free corners, largest first
+        placed = _strips(objects, rot_ids, dims, bw, bd, quarter)
         flat = sorted((i for i in idxs if i not in rot_ids),
                       key=lambda i: -dims[i][0] * dims[i][1])
         for i in flat:
-            w, d = dims[i]
-            spot, cy = None, bd - EDGE - d / 2
-            while spot is None and cy >= EDGE + d / 2:
-                cx = EDGE + w / 2
-                while cx <= bw - EDGE - w / 2:
-                    cand = Obb(cx, cy, w / 2, d / 2, quarter)
-                    if not (exclude and sat_overlap(cand, exclude, GAP)) \
-                       and not any(sat_overlap(cand, ob, GAP) for _, ob in placed):
-                        spot = cand
-                        break
-                    cx += GRID
-                cy -= GRID
-            if spot is None:
-                refuse(f"no room left for {objects[i].name}")
-            placements[i] = (quarter, spot.cx, spot.cy)
-            placed.append((i, spot))
+            placed.append((i, _corner_spot(objects[i], dims[i], bw, bd, quarter,
+                                           exclude, placed)))
     else:
-        # shelf rows, widest first, the rows centred on the plate
-        order = sorted(idxs, key=lambda i: -dims[i][0] * dims[i][1])
-        rows, cur, cur_w = [], [], 0.0
-        for i in order:
-            w = dims[i][0]
-            if cur and cur_w + GAP + w > bw - 2 * EDGE:
-                rows.append(cur)
-                cur, cur_w = [], 0.0
-            cur.append(i)
-            cur_w += (GAP if cur_w else 0.0) + w
-        if cur:
+        placed = _shelves(objects, idxs, dims, bw, bd, quarter)
+    return _nudged_off(placed, exclude, bw)
+
+
+def _whole_diagonal(objects, idxs, dims, rot_ids, uw, ud, bw, bd):
+    """(index, angle) of the one object whose 45-degree span does not fit the
+    usable area and so takes the angle that does (`fit_angle`), with whatever
+    margin is left — alone on its plate, since the strip packing assumes 45
+    degrees and a shared pitch; or None. Refuses an object that fits at no
+    angle, a plate that would need two such, and one such with company."""
+    tight = {}
+    for i in rot_ids:
+        if sum(dims[i]) / math.sqrt(2) > min(uw, ud) - STRIP_MARGIN:
+            angle, slack = fit_angle(dims[i][0], dims[i][1], uw, ud)
+            if slack < 0:
+                refuse(f"{objects[i].name} cannot fit the {bw:g}x{bd:g} bed at any "
+                       f"angle between 30 and 60 degrees ({-slack:.1f} mm over)")
+            tight[i] = angle
+    if not tight:
+        return None
+    if len(tight) > 1 or len(rot_ids) > 1:
+        refuse(f"{[objects[i].name for i in rot_ids]}: more than one object on the "
+               f"plate needs the bed's whole diagonal")
+    (i, angle), = tight.items()
+    company = [objects[j].name for j in idxs if j != i]
+    if company:
+        refuse(f"{objects[i].name} takes its plate's whole diagonal; "
+               f"{company} cannot share it")
+    return i, angle
+
+
+def _strips(objects, rot_ids, dims, bw, bd, quarter):
+    """[(index, Obb)] for the thin strips, at 45 degrees along two bed edges
+    from a shared corner — a column down the +x edge, then a row along the
+    +y edge — or in the centred band when the arms cannot hold this plate's
+    strips. Positions are relative to a local origin and centred on the
+    plate afterwards."""
+    side = min(bw, bd)
+    sr = sorted(rot_ids, key=lambda i: -dims[i][1])
+    longest = max(max(dims[i]) for i in sr)
+    deep = max(min(dims[i]) for i in sr)
+    gap = _gap(objects[sr[0]])
+
+    def pitch(prev_d, i):
+        """Centre-to-centre separation two neighbouring strips need
+        ACROSS their width."""
+        return prev_d / 2 + _gap(objects[i]) + dims[i][1] / 2
+
+    rel, prev = {}, None
+    if strip_arms(side, longest, deep, gap) >= len(sr):
+        arm, cy = strip_arm(side, longest, deep, gap), 0.0
+        for i in sr[:arm]:
+            if prev is not None:
+                cy -= pitch(prev, i) * math.sqrt(2)
+            rel[i] = (0.0, cy)
+            prev = dims[i][1]
+        cx, prev = 0.0, dims[sr[0]][1]
+        for i in sr[arm:]:
+            cx -= pitch(prev, i) * math.sqrt(2)
+            rel[i] = (cx, 0.0)
+            prev = dims[i][1]
+    else:
+        n_hat, cn = (-1 / math.sqrt(2), 1 / math.sqrt(2)), 0.0
+        for i in sr:
+            if prev is not None:
+                cn += pitch(prev, i)
+            rel[i] = (n_hat[0] * cn, n_hat[1] * cn)
+            prev = dims[i][1]
+    ins = {i: strip_inset(*dims[i]) for i in sr}
+    dx = bw / 2 - (min(rel[i][0] - ins[i] for i in sr)
+                   + max(rel[i][0] + ins[i] for i in sr)) / 2
+    dy = bd / 2 - (min(rel[i][1] - ins[i] for i in sr)
+                   + max(rel[i][1] + ins[i] for i in sr)) / 2
+    return [(i, Obb(rel[i][0] + dx, rel[i][1] + dy, dims[i][0] / 2, dims[i][1] / 2,
+                    ROT + quarter))
+            for i in sr]
+
+
+def _corner_spot(obj, dims_i, bw, bd, quarter, exclude, placed):
+    """Where a flat object goes on a plate of strips: grid-searched from the
+    top-left corner, row by row, to the first spot GAP clear of the exclude
+    area and of everything placed so far. Refuses when there is none."""
+    w, d = dims_i
+    cy = bd - EDGE - d / 2
+    while cy >= EDGE + d / 2:
+        cx = EDGE + w / 2
+        while cx <= bw - EDGE - w / 2:
+            cand = Obb(cx, cy, w / 2, d / 2, quarter)
+            if not (exclude and sat_overlap(cand, exclude, GAP)) \
+               and not any(sat_overlap(cand, ob, GAP) for _, ob in placed):
+                return cand
+            cx += GRID
+        cy -= GRID
+    refuse(f"no room left for {obj.name}")
+
+
+def _shelves(objects, idxs, dims, bw, bd, quarter):
+    """[(index, Obb)] for a plate with nothing to rotate: shelf rows, widest
+    first, the rows centred on the plate."""
+    order = sorted(idxs, key=lambda i: -dims[i][0] * dims[i][1])
+    rows, cur, cur_w = [], [], 0.0
+    for i in order:
+        w = dims[i][0]
+        if cur and cur_w + GAP + w > bw - 2 * EDGE:
             rows.append(cur)
+            cur, cur_w = [], 0.0
+        cur.append(i)
+        cur_w += (GAP if cur_w else 0.0) + w
+    if cur:
+        rows.append(cur)
 
-        def row_gap_role(row):
-            rs = {role(objects[i].name) for i in row}
-            r = rs.pop() if len(rs) == 1 else None
-            return r if r in ("Holder", "FirstHolder", "Topper") else None
+    def row_gap_role(row):
+        rs = {role(objects[i].name) for i in row}
+        r = rs.pop() if len(rs) == 1 else None
+        return r if r in ("Holder", "FirstHolder", "Topper") else None
 
-        # the tight gap between rows only when BOTH rows are the same strip
-        # kind (topper to topper), else GAP
-        rgaps = [STRIP_GAP if row_gap_role(a) and row_gap_role(a) == row_gap_role(b) else GAP
-                 for a, b in zip(rows, rows[1:])]
-        depths = [max(dims[i][1] for i in r) for r in rows]
-        y0 = (bd - (sum(depths) + sum(rgaps))) / 2
-        for j, (row, depth) in enumerate(zip(rows, depths)):
-            widths = [dims[i][0] for i in row]
-            x0 = (bw - (sum(widths) + GAP * (len(row) - 1))) / 2
-            for i, w in zip(row, widths):
-                d = dims[i][1]
-                cx, cy = x0 + w / 2, y0 + depth / 2
-                placements[i] = (quarter, cx, cy)
-                placed.append((i, Obb(cx, cy, w / 2, d / 2, quarter)))
-                x0 += w + GAP
-            y0 += depth + (rgaps[j] if j < len(rgaps) else 0.0)
+    # the tight gap between rows only when BOTH rows are the same strip
+    # kind (topper to topper), else GAP
+    rgaps = [STRIP_GAP if row_gap_role(a) and row_gap_role(a) == row_gap_role(b) else GAP
+             for a, b in zip(rows, rows[1:])]
+    depths = [max(dims[i][1] for i in r) for r in rows]
+    y0 = (bd - (sum(depths) + sum(rgaps))) / 2
+    placed = []
+    for j, (row, depth) in enumerate(zip(rows, depths)):
+        widths = [dims[i][0] for i in row]
+        x0 = (bw - (sum(widths) + GAP * (len(row) - 1))) / 2
+        for i, w in zip(row, widths):
+            placed.append((i, Obb(x0 + w / 2, y0 + depth / 2, w / 2, dims[i][1] / 2, quarter)))
+            x0 += w + GAP
+        y0 += depth + (rgaps[j] if j < len(rgaps) else 0.0)
+    return placed
 
-    # nudge the whole plate off a corner exclude area if centring clipped it
-    # (a near-bed-width box on a P1P, whose 18 x 28 bottom-left corner is
-    # reserved): shift in x away from it by just enough, if all stays on the bed
-    if exclude and placed:
-        ex_x0, ex_y0, ex_x1, ex_y1 = obb_aabb(exclude)
-        min_x0 = min(obb_aabb(ob)[0] for _, ob in placed)
-        max_x1 = max(obb_aabb(ob)[2] for _, ob in placed)
-        left = (ex_x0 + ex_x1) / 2 < bw / 2
-        dx = 0.0
-        for _, ob in placed:
-            x0, y0, x1, y1 = obb_aabb(ob)
-            if y0 >= ex_y1 + CLEARANCE or y1 <= ex_y0 - CLEARANCE:
-                continue
-            if left and x0 < ex_x1 + CLEARANCE and x1 > ex_x0:
-                dx = max(dx, ex_x1 + CLEARANCE - x0 + 0.5)
-            elif not left and x1 > ex_x0 - CLEARANCE and x0 < ex_x1:
-                dx = min(dx, ex_x0 - CLEARANCE - x1 - 0.5)
-        if dx and 0 <= min_x0 + dx and max_x1 + dx <= bw:
-            placed = [(i, ob.moved(dx, 0.0)) for i, ob in placed]
-            for i, _ in placed:
-                th, x, y = placements[i]
-                placements[i] = (th, x + dx, y)
 
-    return placements, placed
+def _nudged_off(placed, exclude, bw):
+    """The plate shifted in x off a corner exclude area if centring clipped
+    it (a near-bed-width box on a P1P, whose 18 x 28 bottom-left corner is
+    reserved) — by just enough, and only if everything stays on the bed."""
+    if not (exclude and placed):
+        return placed
+    ex_x0, ex_y0, ex_x1, ex_y1 = obb_aabb(exclude)
+    min_x0 = min(obb_aabb(ob)[0] for _, ob in placed)
+    max_x1 = max(obb_aabb(ob)[2] for _, ob in placed)
+    left = (ex_x0 + ex_x1) / 2 < bw / 2
+    dx = 0.0
+    for _, ob in placed:
+        x0, y0, x1, y1 = obb_aabb(ob)
+        if y0 >= ex_y1 + CLEARANCE or y1 <= ex_y0 - CLEARANCE:
+            continue
+        if left and x0 < ex_x1 + CLEARANCE and x1 > ex_x0:
+            dx = max(dx, ex_x1 + CLEARANCE - x0 + 0.5)
+        elif not left and x1 > ex_x0 - CLEARANCE and x0 < ex_x1:
+            dx = min(dx, ex_x0 - CLEARANCE - x1 - 0.5)
+    if dx and 0 <= min_x0 + dx and max_x1 + dx <= bw:
+        return [(i, ob.moved(dx, 0.0)) for i, ob in placed]
+    return placed
 
 
 def misfit(objects, placed, bed, exclude):
@@ -504,10 +521,9 @@ def validate(objects, placed, bed, exclude):
         refuse(reason)
 
 
-def shifted(placements, placed, dx, dy):
+def shifted(placed, dx, dy):
     """The same plate moved by (dx, dy)."""
-    return ({i: (th, x + dx, y + dy) for i, (th, x, y) in placements.items()},
-            [(i, ob.moved(dx, dy)) for i, ob in placed])
+    return [(i, ob.moved(dx, dy)) for i, ob in placed]
 
 
 def slides(placed, bed, exclude):
@@ -627,10 +643,10 @@ def layout(objects, bed=None):
                         max(p[0] for p in ex), max(p[1] for p in ex)) if ex else None)
     plates, placements = [], []
     for k, (name, idxs) in enumerate(plate_groups(objects, bed), start=1):
-        where, placed, at = plate(objects, idxs, bed, ps, exclude, name)
+        placed, at = plate(objects, idxs, bed, ps, exclude, name)
         plates.append(PJ.Plate(name, at))
-        for i, (th, cx, cy) in where.items():
-            placements.append(PJ.Placement(i, k, cx, cy, math.degrees(th)))
+        placements += [PJ.Placement(i, k, ob.cx, ob.cy, math.degrees(ob.theta))
+                       for i, ob in placed]
     return bed, plates, placements
 
 
@@ -640,13 +656,13 @@ def plate(objects, idxs, bed, ps, exclude, name):
     and the same again. Refuses when nothing works — a plate whose tower
     collides is not a plate to print."""
     for turn in (False, True):
-        where, placed = pack_plate(objects, idxs, bed, exclude, turn=turn, ps=ps)
-        for dx, dy in slides(placed, bed, exclude):
-            w2, p2 = shifted(where, placed, dx, dy)
-            if misfit(objects, p2, bed, exclude):
+        packed = pack_plate(objects, idxs, bed, exclude, turn=turn, ps=ps)
+        for dx, dy in slides(packed, bed, exclude):
+            placed = shifted(packed, dx, dy)
+            if misfit(objects, placed, bed, exclude):
                 continue
-            at = tower(ps, bed, p2, exclude)
+            at = tower(ps, bed, placed, exclude)
             if at is not None:
-                return w2, p2, at
+                return placed, at
     refuse(f"plate {name}: no room for the prime tower, as packed or turned "
            f"a quarter round")
