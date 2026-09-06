@@ -195,7 +195,7 @@ def pusher_rest(p, d):
     return min(PUSHER_REST_CAP, d.BoxHeight - d.calPusherTotalHeight - 0.5)
 
 
-def _except(lo, hi, blocks):
+def _interval_minus(lo, hi, blocks):
     """`[lo, hi]` with every interval in `blocks` taken out of it."""
     out = [(lo, hi)]
     for a, b in blocks:
@@ -357,7 +357,7 @@ def rear_storage(p, d, part):
     for x_lo, x_hi in hole_openings(p, d):
         for z_lo, z_hi in hole_rows():
             cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y0, z_lo, z_hi))
-            for a, e in _except(x_lo, x_hi, divs):
+            for a, e in _interval_minus(x_lo, x_hi, divs):
                 cuts.append(slab(a, e, BD / 2 - WALL, y1, z_lo, z_hi))
     # The rim cutouts — the box's half of the pusher lock, at each slot's
     # centreline +- s. They cut the 1.300 back wall only; the outer wall is
@@ -504,7 +504,7 @@ POCKET_CUT_TOP = 87.500                     # where `Angled cutout` lands
 # `Thumb and Lip`. The finger hole through the divider panel, one per
 # horizontal slot, and the lip behind it.
 THUMB_R = D.ThumbCutoutRadius     # 12.000, the studio constant
-THUMB_Z = 87.500                  # the height the angled cutout reaches, too
+THUMB_Z = POCKET_CUT_TOP          # the same measured 87.500: the angled cutout's top
 THUMB_FILLET = 0.400              # `Fillet thumb hole`, on BOTH panel faces
 
 
@@ -794,8 +794,9 @@ LABEL_GROOVE_IN = 1.300    # inset where the slot's own chamfer meets the wall
 LABEL_OPEN_IN = 4.000      # inset of the opening cut clean through
 LABEL_ROOT = 0.800         # how far the pad reaches INTO the wall
 
-FRONT_LABEL_WIDE = 156.400   # the front label itself; the holder is 3.600 more
+FRONT_LABEL_WIDE = 156.400   # the front label itself; the holder is LABEL_HOLDER_EXTRA more
 FRONT_LABEL_NARROW = 62.000  # ... where the wide one will not fit
+LABEL_HOLDER_EXTRA = 3.600   # a label holder is its label plus this, 1.800 of frame each end
 SIDE_LABEL_EXTRA = 3.800   # + calSideLabelWidth
 SIDE_LABEL_Y = 2.250       # the same centre the closing bump uses
 
@@ -884,10 +885,6 @@ def fastener_centres(p, d):
     return (-length / 6, length / 6)
 
 
-# A label holder is its label plus this, 1.800 of frame at each end.
-LABEL_HOLDER_EXTRA = 3.600
-
-
 def front_label_len(p, d):
     """Overall length of the front label holder — the label plus 3.600.
 
@@ -938,7 +935,7 @@ ENGRAVE = 0.400            # the same depth the Pusher's text uses
 TEXT_INSET = 3.000         # cap top, in from the side floor's inner edge —
 #                            `#calSlotwidth/2 - 3mm` on the -X sketch
 MODEL_GAP = 3.000          # between the two -X lines, baseline to cap top
-LOGO_MARGIN = 2.500        # the +X text box, off the FRONT of the card area
+LOGO_FRONT_INSET = 2.500   # the +X text box, off the FRONT of the card area
 MODEL_MARGIN = 6.900       # the -X block measured, total. Its sketch box is
 #                            5.000 like the +X one, but the text does not fill
 #                            it; Allan: the size "is a bit arbitrary, I just
@@ -959,7 +956,7 @@ def logo_margin(p, d):
     size it had at eight. He experimented with ten and twelve; one catalogue row
     reaches the branch, Dominion's `333 Card` at `S9.21.10`.
     """
-    return LOGO_MARGIN + max(0, p.RisingSliders - 8) * d.calSliderDistance
+    return LOGO_FRONT_INSET + max(0, p.RisingSliders - 8) * d.calSliderDistance
 
 
 def card_area(p, d):
@@ -1011,8 +1008,8 @@ def floor_text(p, d, part):
                                   -1))
         x = x - cap - MODEL_GAP           # next line, one gap further out
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
-    start = y_front + LOGO_MARGIN
-    logo_len = span - LOGO_MARGIN - logo_margin(p, d)
+    start = y_front + LOGO_FRONT_INSET
+    logo_len = span - LOGO_FRONT_INSET - logo_margin(p, d)
     logo_size = T.floored(T.fit_size(d.ProductName, logo_len))
     _fits(d.ProductName, logo_size, span)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight

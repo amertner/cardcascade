@@ -356,7 +356,7 @@ is not.
 **So `cad/` stops them at the slot band.** The back wall keeps the complete
 lattice, and so does the fill below the pusher rest; the dividers stay solid
 from the floor to `Top of back`. `box.storage_dividers` names the ranges and
-`box._except` takes them out of each hole. On `Box Dominion 244S` it adds
+`box._interval_minus` takes them out of each hole. On `Box Dominion 244S` it adds
 `960 mm³` — `0.6 %`.
 
 This is the **first place `cad/` is knowingly not the reference**, so it is

@@ -281,14 +281,22 @@ def box_trail(font=LOGO_FONT):
     return f["hmtx"][f.getBestCmap()[ord(" ")]][0] / f["head"].unitsPerEm / 4
 
 
+def box_run(txt, font=LOGO_FONT):
+    """How far the RIGHT edge of an Onshape text box sits from the pen
+    origin, per em: the advance less the last glyph's right bearing — where
+    the ink stops — plus `box_trail`. The Holder's capacity line and the
+    TokenHolder's engraving are both right-aligned on this."""
+    return metrics(txt, font)[0] - right_bearing(txt, font) + box_trail(font)
+
+
 @lru_cache(maxsize=256)
 def right_bearing(txt, font=LOGO_FONT):
     """The LAST glyph's right side bearing, per em — its advance less its ink.
 
     The counterpart of `metrics`' left bearing, and needed for the same reason:
     a rule that places the end of the ink cannot be checked without it, and
-    recovering it from rendered ink needs a glyph assumed symmetric. The
-    TokenHolder's engraving is the caller — `parts/token_holder.TRAIL`.
+    recovering it from rendered ink needs a glyph assumed symmetric.
+    `box_run` is the caller.
     """
     f = _ttf(font)
     upm = f["head"].unitsPerEm

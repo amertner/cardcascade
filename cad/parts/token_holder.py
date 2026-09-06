@@ -38,11 +38,11 @@ reference STEPs have the same 231 faces and 644 edges. `spec/TOKENHOLDER.md`
 has the arithmetic.
 """
 from build123d import (
-    Align, Box, BuildPart, BuildSketch, Cylinder, GeomType, Location, Plane,
-    Pos, Rot, extrude, fillet,
+    Align, Box, Cylinder, GeomType, Location, Plane, Pos, Rot, fillet,
 )
 
 from .. import derive as D
+from ..geom import text_solid
 from .. import text as T
 
 # The part is the slot inset this far on all four sides — the clearance that
@@ -99,8 +99,7 @@ TEXT_INSET = 10.000        # the text box's left edge, from Allan's sketch
 # sample; 0.0765 is inside every one of those and is the same rule that gives
 # the Holder's Open Sans number. It is a constant of the LAYOUT, not the
 # string, which is what said it was not a fudge. Compare `text._LSB_C`, its
-# counterpart at the leading edge.
-TRAIL = T.box_trail(T.LOGO_FONT)
+# counterpart at the leading edge. `text.box_run` applies it, in `text_size`.
 
 
 def width(d):
@@ -170,15 +169,11 @@ def text_size(p, d, half):
     changes. `tests/test_token_holder_corpus.py` asserts both halves.
     """
     txt = text_line(p, d)
-    adv = T.metrics(txt, T.LOGO_FONT)[0]
-    rsb = T.right_bearing(txt, T.LOGO_FONT)
-
-    # Width: the ink runs from TEXT_INSET + lsb to (width - TEXT_INSET) - TRAIL,
-    # so the span the em has to fill is the advance less the last glyph's right
-    # bearing (which is where the ink actually stops) plus TRAIL. Read out of
-    # the font rather than off rendered ink: `T.ink` at size 1.0 is a rendered
+    # Width: the text box runs from TEXT_INSET to width - TEXT_INSET, and the
+    # em has to put the box's right edge there (`T.box_run`). Read out of the
+    # font rather than off rendered ink: `T.ink` at size 1.0 is a rendered
     # bounding box and is out by enough to move the em in the fourth decimal.
-    by_width = (width(d) - 2 * TEXT_INSET) / (adv - rsb + TRAIL)
+    by_width = (width(d) - 2 * TEXT_INSET) / T.box_run(txt, T.LOGO_FONT)
 
     by_depth = (depth(p, d, half) / 2 - CLEARANCE) / cap_reach(txt)
     # And no smaller than the cut floor (`cad/text.py`, "floors"): 4.93 em is
@@ -304,26 +299,19 @@ def branding(p, d, half):
     what an underside engraving has to be. Onshape sketched this on the bottom
     face, whose outward normal is -Z, and a right-handed sketch on that face
     runs (+X, -Y). Built +Y and it is legible from the wrong side.
-    """
-    from build123d import Text, mirror
 
+    Placed by the PEN ORIGIN (`geom.text_solid`), as the Holder's `engrave`
+    is: X so the text box's origin lands TEXT_INSET in from the part's left
+    edge (the ink starts one left bearing later, which is where every
+    reference has it), and Y so the CAP BAND — not the ink — centres on the
+    part's depth. The cap band's centre is the part's centre on every
+    reference; the ink's is not, because `l` reaches past the caps on one
+    side only. Mirroring in Y keeps the X order and turns the glyphs over,
+    so the ink hangs BELOW the baseline.
+    """
     txt = text_line(p, d)
     em = text_size(p, d, half)
-    lsb = T.metrics(txt, T.LOGO_FONT)[1]
-    with BuildPart() as cut:
-        with BuildSketch(Plane.XY):
-            Text(txt, font_size=em, font_path=T.LOGO_FONT,
-                 align=(Align.MIN, Align.MIN))
-        extrude(amount=ENGRAVE)
-    # Mirroring in Y keeps the X order and turns the glyphs over, which is the
-    # underside's orientation; the ink then hangs BELOW the baseline at y = 0.
-    flipped = mirror(cut.part, about=Plane.XZ)
-    # `Text` aligns on its INK, so place the ink's own corner: X so the text
-    # box's origin lands TEXT_INSET in from the part's left edge (the ink
-    # starts one left bearing later, which is where every reference has it),
-    # and Y so the CAP BAND — not the ink — centres on the part's depth. The
-    # cap band's centre is the part's centre on every reference; the ink's is
-    # not, because `l` reaches past the caps on one side only.
-    x = CLEARANCE + TEXT_INSET + lsb * em
+    x = CLEARANCE + TEXT_INSET
     baseline = -CLEARANCE - depth(p, d, half) / 2 + T.CAP * em / 2
-    return flipped.moved(Location((x, baseline, 0)))
+    return text_solid(txt, T.LOGO_FONT, em, ENGRAVE).mirror(Plane.XZ).moved(
+        Location((x, baseline, 0)))

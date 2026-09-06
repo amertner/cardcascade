@@ -630,8 +630,8 @@ TEXT_GAP = 4.000           # the least space left between the two blocks
 # advance the build sat 0.0130 em left of every one), then confirmed to the
 # same four decimals by Allan's right-aligned sample, and finally derived: the
 # rule that gives the TokenHolder's Orbitron number gives this one, 0.0649,
-# within the 0.0004 the sample can tell.
-CAP_TRAIL = T.box_trail(T.DETAIL_FONT)
+# within the 0.0004 the sample can tell. `text.box_run` applies it, in
+# `engraving`.
 
 
 def text_blocks(p, d, first):
@@ -711,13 +711,11 @@ def engraving(p, d, first):
     baseline = -(depth - T.CAP * size) / 2
     z = base_z(d)
     # The name is left-aligned on its pen origin, exact to 0.0004 against
-    # every reference. The capacity is right-aligned: its ink stops CAP_TRAIL
-    # short of the inset, and the pen origin is that less the ink's own run
-    # (advance less the last right bearing), both read from the font.
-    cap_adv = T.metrics(cap, T.DETAIL_FONT)[0]
-    cap_rsb = T.right_bearing(cap, T.DETAIL_FONT)
-    cap_pen = (x1 - END_BLOCK - TEXT_INSET
-               - (CAP_TRAIL + cap_adv - cap_rsb) * size)
+    # every reference. The capacity is right-aligned: its text box's right
+    # edge is on the inset, and the pen origin is one box run back from it
+    # (`T.box_run` — the ink's own run plus the box's trailing quarter space,
+    # all read from the font).
+    cap_pen = x1 - END_BLOCK - TEXT_INSET - T.box_run(cap, T.DETAIL_FONT) * size
     return [engrave(txt, font, size, xa, baseline).moved(Location((0, 0, z)))
             for txt, font, xa in ((name, T.LOGO_FONT, x0 + END_BLOCK + TEXT_INSET),
                                   (cap, T.DETAIL_FONT, cap_pen))]

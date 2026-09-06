@@ -703,12 +703,12 @@ for _r in (8, 9, 10, 12):
     _p = params.Primary(3, _r, 21, 10, 0, 10, 1, 0, "Dominion")
     _d = D.derive(_p)
     _yf, _yb = box.card_area(_p, _d)
-    _lens.append(round(_yb - _yf - box.LOGO_MARGIN - box.logo_margin(_p, _d), 3))
+    _lens.append(round(_yb - _yf - box.LOGO_FRONT_INSET - box.logo_margin(_p, _d), 3))
 check("the logo block is frozen past eight risers", len(set(_lens)), 1)
 check("... at the length it had at eight", _lens[0], 64.000, 1e-3)
 _p = params.Primary(3, 7, 21, 10, 0, 10, 1, 0, "Dominion")
 check("and below eight the margin is the plain 2.500",
-      round(box.logo_margin(_p, D.derive(_p)), 3), round(box.LOGO_MARGIN, 3), 1e-9)
+      round(box.logo_margin(_p, D.derive(_p)), 3), round(box.LOGO_FRONT_INSET, 3), 1e-9)
 
 
 # --- isLabelHoldersOnBox = 0: the branch no catalogue row can reach ----------
