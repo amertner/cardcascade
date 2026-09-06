@@ -148,6 +148,47 @@ check("the two releases write the same number of solids",
       len(lid.build(d70).solids()), len(lid.build(d71).solids()))
 
 
+# --- the two witnesses, at every release ------------------------------------
+# A release is claimed twice by a written part: engraved on the plastic, and
+# stated in the file's metadata. Nothing else in the suite reads either, and a
+# stamp signature that has not been recorded for a new release fails silently —
+# `check_stamp` only warns — so it is asserted here, where the release line is.
+print("\n=== the release is readable off a written part ===")
+import tempfile                                                  # noqa: E402
+from cad import build as B, mesh3mf                              # noqa: E402
+
+sys.path.insert(0, str(ROOT / "automation"))
+import verify as V                                               # noqa: E402
+
+check("every release has a stamp signature recorded",
+      sorted(v for v in R.RELEASES if v in V.STAMP_SIGNATURES),
+      sorted(R.RELEASES))
+# 7.1's is ("none", "none") and cannot be told from 7.2's; that is WHY the
+# metadata exists, and it is asserted rather than left as a comment.
+check("7.1's signature is the counterless pair",
+      V.STAMP_SIGNATURES["7.1"], ("none", "none"))
+
+with tempfile.TemporaryDirectory() as tmp:
+    written = {}
+    for v, dd in (("7.0", d70), ("7.1", d71)):
+        path = Path(tmp) / f"Lid {dd.calModelName}.3mf"
+        body_shape = max(lid.build(dd).solids(), key=lambda s: s.volume)
+        mesh3mf.write(path, [("Lid", body_shape)],
+                      metadata=B.component_metadata(dd, path))
+        written[v] = path.read_bytes()
+
+    for v, data in written.items():
+        check(f"{v}: the metadata states it", V.version_metadata(data), v)
+        check(f"{v}: the engraving reads it",
+              v in (V.version_stamp(data) or "").split("/"), True)
+        check(f"{v}: both witnesses agree with the release",
+              V.check_stamp(data, v), (None, None))
+    # And a part from one release is REFUSED against the other, which is the
+    # whole point: 7.0's glyph differs, and 7.1's metadata is exact.
+    for v, other in (("7.0", "7.1"), ("7.1", "7.0")):
+        fatal, _warn = V.check_stamp(written[v], other)
+        check(f"a {v} part is refused as {other}", fatal is not None, True)
+
 # --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",

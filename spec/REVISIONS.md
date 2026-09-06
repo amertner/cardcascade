@@ -77,6 +77,35 @@ two deliberately: it prices the FLAG by building a 7.0 `Derived` carrying 7.1's
 `Rev` (same ink, one socket fewer) and the STAMP as what is left. A tolerance
 wide enough to swallow both would hide a second change.
 
+**Two witnesses to the release, because one is not enough.** Reading the
+engraved version back is not OCR: it is a signature over the COUNTERS of the
+two digits either side of the period (`verify.STAMP_SIGNATURES`), and at 7.1
+that stops being sufficient. `7` has no counter and neither has `1`, so 7.1
+reads `("none", "none")` — and so would 7.2, 7.3, 7.5 and 7.7. The counters
+cannot separate them and no better reader will: those glyphs differ in their
+strokes, not in their holes.
+
+So every component `cad.build` writes now STATES its release in the file as
+well, as `CardCascade:Version` metadata under a declared namespace, beside a
+human `Title` and `Description` Studio will show. The two witnesses answer
+different questions and neither replaces the other:
+
+| | the ENGRAVING | the METADATA |
+|---|---|---|
+| who can read it | anyone holding the printed part | anything reading the file |
+| how exact | ambiguous from 7.1 on | exact |
+| what it guards | a 7.x pusher going into a 6.6 lid | which release wrote this file |
+
+`verify.check_stamp` holds both to the release AND to each other: a positive
+mismatch from either is fatal, and so is the two disagreeing, which means the
+file is not self-consistent whatever the cascade wanted. Only when NEITHER can
+be read is it a warning. An Onshape export carries no metadata and is checked
+by its glyph exactly as before.
+
+`verify.py --stamps --tree build` is the release-time check: every component in
+a cad tree must state one release, and the Box, Lid and Pusher must be engraved
+with it too.
+
 **The tree.** Filenames carry no version — a NAME is an identity
 (`components.tracked_name`) — so two releases written to one tree overwrite
 each other part for part. `cad.build --out` therefore follows `--version` by
@@ -131,5 +160,6 @@ locked, `tests/reference.py` pins it, and a 7.0 build must reproduce
 3. A case in `tests/test_revisions.py`, asserting the old release still has the
    old behaviour. Its coverage check names any flag with no case.
 4. A section here.
-5. `verify.py --stamps` still does not know 7.1's glyph signature and reads a
-   7.1 part as unreadable — needed to PUBLISH a release, not to build one.
+5. A stamp signature in `verify.STAMP_SIGNATURES`, and then
+   `verify.py --stamps --tree build` before publishing. Adding the signature
+   may not be enough on its own: see below.

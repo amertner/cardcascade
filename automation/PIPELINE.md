@@ -1,5 +1,23 @@
 # Card Cascade Onshape export pipeline
 
+> **LEGACY as of 2026-09-06.** `cad/` is the authoritative pipeline (Allan):
+> new work, changed geometry and releases go through `cad.build` /
+> `cad.cascade`, and `cad/README.md` and `spec/` are the live design records.
+> This one stays runnable and this file stays accurate, for two reasons and no
+> others:
+>
+> * **legacy** — it built every project under `cascades/`, so anything on a
+>   shelf or on MakerWorld came from here, and a question about a shipped
+>   cascade is answered here;
+> * **verification** — `individual/` and `spec/reference/` are the regression
+>   corpus that keeps a 7.0 build honest (`tests/reference.py`), and
+>   `cad.compare` scores every shipped project against its cad twin.
+>
+> What that changes in practice: do not spend API calls to make `cad/` agree
+> with the Onshape studio — the studio is no longer the thing a divergence has
+> to justify itself against (`cad/README.md`, decisions 6 and 7). Do not delete
+> any of it either.
+
 Goal: from a spreadsheet of cascade parameters, scripted-export the CAD
 components each cascade needs from Onshape as `.3mf`, **deduplicating** shared
 components so the tiny Onshape API budget is spent only on parts that are
@@ -1286,12 +1304,25 @@ So the two are separated:
 | tracked file name (`cascades/`, `build/cascades/`) | **no** — `components.tracked_name` | git, the pipeline |
 | 3MF `Title` | **yes** | Studio, anyone who opens the file |
 | the engraving on box, lid and pusher | **yes** | a person holding the part |
+| component 3MF metadata (`CardCascade:Version`) | **yes** — `cad.build` only | anything reading the file |
 | published file name (`build/dist/<version>/`) | **yes** — `cad.cascade --publish` | someone holding a download |
 
 **Nothing is lost by taking it out of the tracked name**, and that is what makes
 this safe rather than merely convenient: the version stays recoverable from the
-artefact three ways, one of which — the engraving — is the only one that
+artefact four ways, one of which — the engraving — is the only one that
 survives being printed, and `verify.py --stamps` now reads it in 51 seconds.
+
+**The metadata row is the cad path's second witness, and it exists because the
+engraving stopped being sufficient.** Reading the engraving back is a signature
+over the counters of the two digits (`verify.STAMP_SIGNATURES`), and from 7.1
+that cannot separate a release from its neighbours: `7` and `1` both have no
+counter, so 7.1, 7.2, 7.3, 7.5 and 7.7 all read `("none", "none")`. `cad.build`
+therefore writes `CardCascade:Version` into every component, `check_stamp`
+holds the two witnesses to the release and to EACH OTHER, and
+`verify.py --stamps --tree build` audits a whole release that way. An Onshape
+export carries no such metadata and is checked by its glyph exactly as before —
+which is the point of calling it a second witness rather than a replacement.
+`spec/REVISIONS.md`, "Two witnesses to the release".
 
 **The `Title` is new on the Onshape path.** It was EMPTY on every shipped
 project: the donor's, never set. So before this the version really did live in

@@ -521,13 +521,38 @@ def pusher_lock(data):
 # (7.0). A signature that several versions share (6.3 and 6.5 both read
 # "low, none") is reported as all of them; the check only ever asks whether the
 # expected version is among them, so the ambiguity costs nothing.
+#
+# 7.1 is where that stops being free. `1` has no counter and neither has `7`,
+# so 7.1 reads ("none", "none") — and so would 7.2, 7.3, 7.5 and 7.7, every
+# one of them a plausible next release. The counters cannot separate them and
+# no refinement of this reader will: the glyphs differ in their strokes, not in
+# their holes. Measured on a real build, not assumed:
+#
+#     build/Innovation/Lid M5.15.15.45-Un.3mf        7.1 -> ("none", "none")
+#     build/v7.0/Innovation/Lid M5.15.15.45-Un.3mf   7.0 -> ("none", "tall")
+#
+# That is why `check_stamp` now reads the METADATA too. The glyph says what a
+# person will read off the plastic — the thing that stops a 7.x pusher going
+# into a 6.6 lid — and the metadata says exactly which release wrote the file.
+# Neither replaces the other, and a disagreement is the file lying to itself.
 STAMP_SIGNATURES = {
+    "7.1": ("none", "none"),
     "7.0": ("none", "tall"),
     "6.6": ("low", "low"),
     "6.5": ("low", "none"),
     "6.4": ("low", "high"),
     "6.3": ("low", "none"),
 }
+
+# Metadata that names the release. `CardCascade:Version` is what `cad.build`
+# writes into every component under its own declared namespace
+# (`cad/mesh3mf.VERSION_KEY`); `Title` is where a PROJECT carries it, as
+# `... Sleeved v7.1 (M5.15.15.45-Un)` (`cad.cascade.title`,
+# `refresh_cascades.project_title`). An Onshape component export carries
+# neither, which is not a fault: it is why this is a second witness and not a
+# replacement.
+META_VERSION_KEY = "CardCascade:Version"
+META_TITLE_VERSION = re.compile(r"\bv(\d+(?:\.\d+)+)\b")
 
 # The three parts the 7.0 lock spans, and so the three whose stamp is a claim
 # about which lock a person is holding. LOCK_STANDARD.md: "a pusher, a lid and a
@@ -762,22 +787,70 @@ def version_stamp(data):
     return "/".join(sorted(next(iter(found)))) if len(found) == 1 else None
 
 
+def version_metadata(data):
+    """The release a 3MF states in its METADATA, or None if it states none.
+
+    Two places, in order of authority: `CardCascade:Version`, which
+    `cad.build` writes into every component it makes and which is exact; and a
+    project's `Title`, which carries `v7.1` in the middle of a name. An Onshape
+    export has neither and comes back None — the caller then has only the
+    glyph, which is what it always had.
+
+    This is TEXT, so it cannot be confused by tessellation, orientation or a
+    model code that happens to contain a period — and it cannot be read off a
+    printed part, which is why it is a second witness and never the only one.
+    """
+    text = _model_text(data)
+    m = re.search(rf'<metadata name="{re.escape(META_VERSION_KEY)}">'
+                  r"([^<]*)</metadata>", text)
+    if m and m.group(1).strip():
+        return m.group(1).strip()
+    m = re.search(r'<metadata name="Title">([^<]*)</metadata>', text)
+    if m:
+        t = META_TITLE_VERSION.search(m.group(1))
+        if t:
+            return t.group(1)
+    return None
+
+
 def check_stamp(data, want):
     """(fatal message or None, warning or None) for a component that must be
     engraved `want`.
 
-    Fatal on a POSITIVE mismatch — the bytes carry a version number that is not
-    the one this cascade is being built at, and no later step can correct that;
-    the part would print with a lie on it. Only a warning when the stamp cannot
-    be read, so a reader that fails on some new layout never blocks an export
-    that has already been paid for."""
+    TWO witnesses, and they answer different questions. The GLYPH is what a
+    person holding the plastic reads, and it is the thing that stops a 7.x
+    pusher being put into a 6.6 lid — but its signature cannot separate 7.1
+    from 7.2 (see STAMP_SIGNATURES). The METADATA names the release exactly,
+    and is written by whatever made the file.
+
+    Fatal on a POSITIVE mismatch from either — the bytes carry a version that
+    is not the one this cascade is being built at, no later step can correct
+    it, and the part would print with a lie on it — and fatal when the two
+    disagree with each other, which means the file is not self-consistent
+    whatever the cascade wanted. Only a warning when NEITHER can be read, so a
+    reader that fails on some new layout never blocks an export already paid
+    for.
+    """
+    meta = version_metadata(data)
+    if meta is not None and meta != want:
+        return (f"its metadata says CC {meta} but it is being built at {want}",
+                None)
     if want not in STAMP_SIGNATURES:
+        # The metadata still stands on its own: a release with no signature
+        # recorded is checkable the moment cad/ wrote the file.
+        if meta == want:
+            return None, None
         return None, (f"no stamp signature is recorded for version {want!r}, "
                       f"so the engraved version was not checked — add it to "
                       f"verify.STAMP_SIGNATURES")
     got = version_stamp(data)
     if got is None:
+        if meta == want:
+            return None, None      # the metadata answered; the glyph is silent
         return None, "could not read the engraved version stamp"
+    if meta is not None and meta not in got.split("/"):
+        return (f"it is engraved CC {got} but its metadata says CC {meta} — "
+                f"the file disagrees with itself", None)
     if want in got.split("/"):
         return None, None
     return (f"it is engraved CC {got} but is being built at {want}", None)
@@ -1147,6 +1220,86 @@ def audit_stamps(root, verbose=False):
     return bad
 
 
+def audit_tree(tree, want=None, verbose=False):
+    """Read both witnesses off every component in a cad BUILD tree and hold
+    them to each other and to one release. Returns the number that disagree.
+
+    `audit_stamps` above audits `individual/`, where the right version comes
+    from the cascades a component is used by. A cad tree is simpler and
+    stricter: everything in it was written by one `cad.build --version`, so
+    every part must state that release and be engraved with it. That is the
+    check to run before publishing a release — nothing else reads a 7.1 part
+    and says so.
+
+    `want` defaults to what the tree itself says, taken from the metadata: a
+    tree with two releases in it is the failure, not an ambiguity to resolve.
+    """
+    from pathlib import Path
+    tree = Path(tree)
+    # Everything a build tree holds that is not a component of THIS release:
+    # the stamp sidecars, the projects and their published copies, the
+    # assemblies — and `v<version>/`, which is another release's tree living
+    # inside this one (`build.out_for`) and is audited by naming it.
+    def mine(f):
+        parts = f.relative_to(tree).parts
+        return not (any(x in (".stamps", "cascades", "dist", "assemblies",
+                              "components") for x in parts)
+                    or any(x[:1] == "v" and x[1:2].isdigit() for x in parts))
+
+    files = sorted(f for f in tree.rglob("*.3mf") if mine(f))
+    if not files:
+        print(f"  no components under {tree} — build one first "
+              f"(python -m cad.build --part all)")
+        return 0
+    stated = {}
+    for f in files:
+        stated.setdefault(version_metadata(f.read_bytes()), []).append(f)
+    if want is None:
+        named = {v: fs for v, fs in stated.items() if v is not None}
+        if len(named) > 1:
+            print(f"  {tree} holds more than one release: "
+                  + ", ".join(f"{v} ({len(fs)} files)" for v, fs in sorted(named.items())))
+            return sum(len(fs) for fs in named.values())
+        if not named:
+            print(f"  no component under {tree} states a release in its "
+                  f"metadata — it was written before cad.build wrote one, so "
+                  f"pass --version to say what to check against")
+            return 0
+        want = next(iter(named))
+    print(f"  {len(files)} components under {tree}, against CC {want}")
+    bad = unread = glyphed = 0
+    for f in files:
+        rel = f.relative_to(tree)
+        data = f.read_bytes()
+        # BOTH witnesses on the lock trio, because those three are what a wrong
+        # stamp actually costs someone — a pusher that will not enter a lid.
+        # The metadata alone on the rest: a holder or a topper carries over
+        # between releases, so its engraving is a record of when it was last
+        # built rather than a claim about the lock, and reading a glyph off all
+        # 258 files would cost a couple of minutes to say so.
+        if f.stem.split()[0] in STAMPED:
+            fatal, warn = check_stamp(data, want)
+            glyphed += 1
+        else:
+            meta = version_metadata(data)
+            fatal = (None if meta == want else
+                     f"its metadata says CC {meta} but the tree is CC {want}"
+                     if meta else None)
+            warn = None if meta else "states no release in its metadata"
+        if fatal:
+            bad += 1
+            print(f"    ✗  {str(rel):52s} {fatal}")
+        elif warn:
+            unread += 1
+            print(f"    ?  {str(rel):52s} {warn}")
+        elif verbose:
+            print(f"    ok {str(rel):52s} CC {want}")
+    print(f"\n  {len(files)} components checked against CC {want} "
+          f"({glyphed} of them by engraving as well as metadata); "
+          f"{bad} disagree, {unread} unreadable.")
+    return bad
+
+
 if __name__ == "__main__":
     import argparse
     import sys
@@ -1166,6 +1319,14 @@ if __name__ == "__main__":
                     help="read the engraved CC version off every Box, Lid and "
                          "Pusher and check it against the generation its "
                          "cascades are built at")
+    ap.add_argument("--tree", metavar="DIR",
+                    help="with --stamps, audit a cad BUILD tree instead of "
+                         "individual/ (e.g. build, build/v7.0): every "
+                         "component's metadata and engraving must agree with "
+                         "each other and name one release")
+    ap.add_argument("--version", metavar="V",
+                    help="with --stamps --tree, the release to check against "
+                         "(default: the one the tree's own metadata states)")
     ap.add_argument("--rises", action="store_true",
                     help="print rise height per pusher and check it is a "
                          "function of riser count within each game — the "
@@ -1175,6 +1336,8 @@ if __name__ == "__main__":
     if args.boxes:
         print("  Pusher slots per box, counted from its rim cutouts:")
         sys.exit(1 if audit_box_slots(root) else 0)
+    if args.stamps and args.tree:
+        sys.exit(1 if audit_tree(args.tree, args.version, args.all) else 0)
     if args.stamps:
         print("  Engraved version stamp per box, lid and pusher:")
         sys.exit(1 if audit_stamps(root, verbose=args.all) else 0)

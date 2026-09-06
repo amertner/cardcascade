@@ -5,20 +5,34 @@ labels. Everything here generates printable 3MF projects.
 
 ## Three toolchains — work out which one you're in first
 
-| | Labels | Cascades (the boxes) | The rebuild |
+| | Labels | **Cascades — `cad/`, AUTHORITATIVE** | Onshape — LEGACY |
 |---|---|---|---|
-| Entry point | `labelmaker.py` | `automation/refresh_cascades.py` | `python -m cad.build`, then `python -m cad.cascade` |
-| Geometry from | build123d, generated locally | Onshape, exported via API | build123d, generated locally |
+| Entry point | `labelmaker.py` | `python -m cad.build`, then `python -m cad.cascade` | `automation/refresh_cascades.py` |
+| Geometry from | build123d, generated locally | build123d, generated locally | Onshape, exported via API |
 | Config | `cc.cfg` | `automation/parts.csv` | `automation/parts.csv` |
-| Read first | `README.md` | `automation/PIPELINE.md` | `cad/README.md`, `spec/` |
-| Output | `cascades/<Game>/labels/` | `cascades/<Game>/` | `build/<Game>/` parts, `build/cascades/<Game>/` projects (gitignored) |
+| Read first | `README.md` | `cad/README.md`, `spec/` | `automation/PIPELINE.md` |
+| Output | `cascades/<Game>/labels/` | `build/<Game>/` parts, `build/cascades/<Game>/` projects (gitignored) | `cascades/<Game>/` |
+
+**`cad/` is the authority as of 2026-09-06** (Allan). A new cascade, a
+changed part and a release all go through `cad.build` / `cad.cascade`; that is
+where the geometry is decided and where a change belongs.
+
+**`automation/` is LEGACY and VERIFICATION**, and both words matter. Legacy:
+it is what shipped every project under `cascades/`, so it stays runnable and
+its decisions stay recorded — but it is not where new work goes, and the
+Onshape studio is no longer the source of truth a divergence has to justify
+itself against. Verification: `individual/` and `spec/reference/` are the
+regression corpus that keeps 7.0 honest (`tests/reference.py`), `verify.py`
+reads both pipelines' output, and `cad.compare` scores every shipped project
+against its cad twin. Do NOT delete either; do not spend API calls to make
+`cad/` agree with Onshape, because agreement is no longer the goal.
 
 **Read the relevant doc before editing any of them.** `PIPELINE.md` in
 particular records decisions and their reasoning; it is the design record, not
-a summary. `cad/README.md` and `spec/` are the same kind of thing for the
-rebuild.
+a summary — now for a pipeline in maintenance. `cad/README.md`, `spec/` and
+`spec/REVISIONS.md` are the live ones.
 
-### The rebuild is partial — don't assume it covers a part
+### What `cad/` covers
 
 `cad/` replaces the Onshape geometry with build123d source, so a cascade can be
 generated with **zero API calls**. **Pusher**, **Box**, **Lid**,
@@ -40,11 +54,13 @@ row to a Bambu Studio project with no donor, no plan and no API —
 `towers` and (with `--slice`) a Studio slice check it. Every cascade
 comes through, Dominion 650 Sleeved at the H2C's limit included (its lid
 fits only at 44 degrees; `layout.fit_angle`). It writes to
-`build/cascades/<Game>/`, beside and not over `cascades/`: the two pipelines
-run in PARALLEL, and **`python -m cad.compare`** is the scorecard — all 46
-shipped projects print the same parts as their cad twins
-(`tests/test_parallel.py`) — while `automation/` remains what has shipped
-every cascade on disk. **Everything is 7.0 going forward** (Allan,
+`build/cascades/<Game>/`, beside and not over `cascades/`. The parallel run is
+over: `cad/` is the authority and **`python -m cad.compare`** is now a
+REGRESSION check rather than a bid for trust — all 46 shipped projects print
+the same parts as their cad twins (`tests/test_parallel.py`), and a difference
+there means look at the change, not at whether the rebuild is ready.
+`cascades/` is what has been printed to date and stays as it is until a
+cascade is next cut from `cad/`. **Everything is 7.0 going forward** (Allan,
 2026-09-05): a twin's 7.0 holders and pushers supersede the 6.6 and pre-7.0
 ones in a shipped project. **7.1 is the cad-built release and the DEFAULT**
 (Allan, 2026-09-06): the same 7.0 LOCK (`lock.SAME_LOCK`) under a `CC 7.1`
@@ -60,8 +76,16 @@ cannot overwrite each other under identical filenames. `cad.cascade
 tree, because what it stages joins Onshape parts in a shipped cascade).
 **Every test that compares against a reference pins 7.0** through
 `tests/reference.py`; the default is a moving target by design.
-`verify.py --stamps` does not know 7.1's glyph signature yet and reads a 7.1
-part as unreadable. The older route — `python -m cad.promote` staging built parts under
+**A part now says its release TWICE** and `verify.py --stamps` reads both: the
+engraved `CC 7.1` (`STAMP_SIGNATURES`, now including 7.1) and a
+`CardCascade:Version` metadata string `cad.build` writes into every component
+(`mesh3mf.write(metadata=...)`). The glyph is what a person holding the plastic
+reads and it CANNOT tell 7.1 from 7.2 — both are two counterless digits — so
+the metadata is the exact witness and the glyph the physical one; either
+disagreeing with the release, or with the other, is fatal.
+`verify.py --stamps --tree build` audits a cad tree that way (metadata on all
+258 parts, engraving as well on the Box/Lid/Pusher trio) and is the check to
+run before publishing a release. The older route — `python -m cad.promote` staging built parts under
 the planner's names for `refresh_cascades.py --components` — still works for
 all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
 and is what the layout module was checked against. Nothing from `build/` has
@@ -231,6 +255,9 @@ been printed yet.
   has the running total). Every export path defaults to a 0-call dry run —
   keep it that way, and never re-fetch what `individual/<Game>/_raw/` can
   re-split. Deduplication is why the budget works, not an optimisation.
+  Since `cad/` became authoritative there is **no routine reason to spend a
+  call at all**: a geometry question is answered by building it, and the
+  corpus answers a question about what shipped.
 - **`cd` is blocked by a hook.** Use absolute paths, `git -C`, `PYTHONPATH=`.
 - Paths contain spaces — quote them.
 - Label generation takes minutes per game. Run it in the background.
@@ -243,7 +270,8 @@ been printed yet.
   outer size. The box is lid − 2.00 mm on both axes. `verify.check_lid` holds
   a lid to 0.2 mm of its row; `check_box`'s depth tolerance is 1.2 mm and
   proves much less.
-- **The CAD is the authority on a box's model code**, not `parts.csv`.
+- **The CAD is the authority on a box's model code**, not `parts.csv` — and
+  the CAD now means `derive.calModelName`, not the Onshape studio.
 - A **Lid 3MF carries more than the lid**: the logo pattern's inlays are
   separate objects in it (up to 31), and the lid body is the biggest one. The
   same is true of the hand-exported Lid STEPs, and `cad.build` writes them the
@@ -260,7 +288,10 @@ been printed yet.
   only thing a person holding the part can read, so it is not cosmetic.
   `python3 automation/verify.py --stamps` reads the engraving off every box, lid
   and pusher and checks it against the cascade's generation (~50 s for all 128);
-  `export._write` refuses a mismatch. A box engraves its version down the depth, so the reader
+  `export._write` refuses a mismatch. `--stamps --tree build` audits a cad
+  RELEASE tree instead, where a part states its version in metadata as well and
+  both witnesses must agree (`--tree build/v7.0` for another release, and a
+  `v<n>/` tree nested in another is skipped, not mixed in). A box engraves its version down the depth, so the reader
   turns the plane — with ROTATIONS, never a transpose, which reads the line
   backwards and turns `7.0` into `0.7`. `automation/PIPELINE.md`, "The engraved version is not the
   recorded version".

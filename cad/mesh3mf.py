@@ -209,23 +209,49 @@ def _mesh_object(i, name, verts, tris):
             f'    </triangles>\n   </mesh>\n  </object>\n')
 
 
-def _model(objects, build):
-    """A 3dmodel.model document round `objects` and `build`, both XML."""
+# Our own metadata namespace, declared the way Bambu Studio declares its
+# `BambuStudio:` one in a project's root model. 3MF reserves the unprefixed
+# metadata names (Title, Description, Application, ...) and requires anything
+# else to carry a declared prefix, so a custom key needs both halves of this.
+NS_PREFIX = "CardCascade"
+NS_URI = "urn:cardcascade:3mf:2026"
+# The metadata names this writes and `verify.version_metadata` reads back.
+VERSION_KEY = f"{NS_PREFIX}:Version"
+
+
+def _xesc(text):
+    return (str(text).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _model(objects, build, metadata=None):
+    """A 3dmodel.model document round `objects` and `build`, both XML.
+
+    `metadata` is {name: value}, written as `<metadata>` children of `<model>`,
+    which is where the spec puts them and BEFORE `<resources>`, which is the
+    order it requires. Every reader in this repo takes its meshes by regex and
+    ignores them (`mesh3mf.read`, `verify._meshes`), so this is additive.
+    """
+    meta = "".join(f' <metadata name="{_xesc(k)}">{_xesc(v)}</metadata>\n'
+                   for k, v in (metadata or {}).items() if v is not None)
+    ns = (f' xmlns:{NS_PREFIX}="{NS_URI}"'
+          if any(k.startswith(f"{NS_PREFIX}:") for k in (metadata or {})) else "")
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<model unit="meter" xml:lang="en-US" xmlns="http://schemas.'
-            'microsoft.com/3dmanufacturing/core/2015/02">\n'
-            ' <resources>\n' + objects + ' </resources>\n'
+            f'microsoft.com/3dmanufacturing/core/2015/02"{ns}>\n'
+            + meta
+            + ' <resources>\n' + objects + ' </resources>\n'
             ' <build>' + build + '</build>\n</model>\n')
 
 
-def model_xml(parts):
+def model_xml(parts, metadata=None):
     """The 3dmodel.model for [(name, verts_mm, tris)], one object per part,
     each a build item at the identity."""
     objects = "".join(_mesh_object(i, name, verts, tris)
                       for i, (name, verts, tris) in enumerate(parts, start=1))
     items = "".join(f'<item objectid="{i}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>'
                     for i in range(1, len(parts) + 1))
-    return _model(objects, items)
+    return _model(objects, items, metadata)
 
 
 def _write_zip(path, xml):
@@ -240,7 +266,8 @@ def _write_zip(path, xml):
             z.writestr(info, text)
 
 
-def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True):
+def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True,
+          metadata=None):
     """Write [(name, shape)] to `path` as a component 3MF. Returns the meshes.
 
     Every body is checked with `faults` first. An open boundary raises
@@ -249,6 +276,10 @@ def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True):
     A doubled edge (a line contact) is reported on stderr and written, since
     it prints; `tests/test_build_meshes.py` lists both over all of `build/`.
     `strict=False` writes regardless, for looking at a broken body.
+
+    `metadata` is {name: value} written into the model element — what
+    `cad.build` uses to state the RELEASE in the file itself, so the engraved
+    stamp has a second, independent witness (`verify.version_metadata`).
     """
     meshed = [(name, *triangulate(shape, tolerance, angular))
               for name, shape in parts]
@@ -260,7 +291,7 @@ def write(path, parts, tolerance=TOLERANCE, angular=ANGULAR, strict=True):
         if doubled or unpaired:
             print(f"  WARNING {path.name} {name}: {unpaired} unpaired, "
                   f"{doubled} doubled edges", file=sys.stderr)
-    _write_zip(path, model_xml(meshed))
+    _write_zip(path, model_xml(meshed, metadata))
     return meshed
 
 

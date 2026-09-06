@@ -130,13 +130,39 @@ def lid_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     return [out[k] for k in sorted(out)]
 
 
-def write_component(path, bodies, **extra):
+def component_metadata(d, path):
+    """What a written component says about ITSELF, in its 3MF metadata.
+
+    The engraved `CC <v>` is the only thing a person holding the part can read,
+    and reading it back is not OCR but a signature over the digits' counters
+    (`verify.STAMP_SIGNATURES`) — which cannot tell `7.1` from `7.2`, both
+    being two counterless digits. So the release goes in the file as TEXT as
+    well, and `verify.check_stamp` holds the two to each other: the glyph says
+    what a person will read off the plastic, the metadata says exactly which
+    release wrote it, and a disagreement is the file lying to itself.
+    `spec/REVISIONS.md`, "What a release moves besides its flags".
+
+    `Title`, `Description` and `Application` are 3MF's own reserved names, so
+    Studio shows them; the version is under our declared namespace, so it is
+    machine-read rather than parsed out of prose.
+    """
+    return {"Title": path.stem,
+            "Application": "Card Cascade cad.build",
+            "Description": f"{d.calModelName} at CC {d.Version}",
+            mesh3mf.VERSION_KEY: d.Version}
+
+
+def write_component(path, bodies, d, **extra):
     """Mesh `bodies` [(name, shape)] into the component 3MF at `path` and
     report on it: sizes, whether the bytes moved, and any `extra` a kind
     wants in its printed row. The first body is the part; the rest are its
-    second-filament inlays."""
+    second-filament inlays.
+
+    `d` is the Derived the bodies were built from, and it is required rather
+    than optional so no kind can be added that writes a part without saying
+    which release wrote it (`component_metadata`)."""
     before = path.read_bytes() if path.exists() else None
-    meshed = mesh3mf.write(path, bodies)
+    meshed = mesh3mf.write(path, bodies, metadata=component_metadata(d, path))
     return {"path": path, "volume": bodies[0][1].volume, "bodies": len(bodies),
             "verts": sum(len(v) for _n, v, _t in meshed),
             "tris": sum(len(t) for _n, _v, t in meshed),
@@ -164,7 +190,7 @@ def build_lid(d, _extra, path):
                                       round(s.bounding_box().min.X, 6),
                                       round(s.bounding_box().min.Y, 6))),
         start=2)]
-    return write_component(path, bodies)
+    return write_component(path, bodies, d)
 
 
 def holder_file(d, first=False):
@@ -217,7 +243,7 @@ def build_holder(d, first, path):
     """
     from .parts import holder as holder_part
     part = holder_part.build(d, first)
-    return write_component(path, [("FirstHolder" if first else "Holder", part)])
+    return write_component(path, [("FirstHolder" if first else "Holder", part)], d)
 
 
 def topper_file(d, expansion="Blank"):
@@ -295,7 +321,7 @@ def build_topper(d, expansion, path):
     from .parts import topper as topper_part
     part, inlays = topper_part.build_all(d, expansion)
     bodies = [("Topper", part)] + [(f"Part {i}", s) for i, s in enumerate(inlays, start=2)]
-    return write_component(path, bodies)
+    return write_component(path, bodies, d)
 
 
 def box_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
@@ -317,7 +343,7 @@ def build_box(d, _extra, path):
     """Build one box and write the 3MF. Boxes are NOT placed in an assembly
     offset — the part studio's origin is the assembly's."""
     from .parts import box as box_part
-    return write_component(path, [("Box", box_part.build(d))])
+    return write_component(path, [("Box", box_part.build(d))], d)
 
 
 def pusher_catalogue(csv=CSV, game=None, legacy=False, version=R.CURRENT):
@@ -407,7 +433,7 @@ def build_token_holder(d, half, path):
     """
     from .parts import token_holder
     name = "HalfTokenHolder" if half else "TokenHolder"
-    return write_component(path, [(name, token_holder.build(d, half))])
+    return write_component(path, [(name, token_holder.build(d, half))], d)
 
 
 def build_pusher(d, _extra, path):
@@ -415,7 +441,7 @@ def build_pusher(d, _extra, path):
     from build123d import Location
     from .parts import pusher
     part = pusher.build(d).moved(Location(pusher.assembly_offset(d)))
-    return write_component(path, [("Pusher", part)], depth=d.calPusherTotalDepth,
+    return write_component(path, [("Pusher", part)], d, depth=d.calPusherTotalDepth,
                            rise=d.calHeightIncrement,
                            cls=L.lock_class(d.calPusherTotalDepth)[0])
 

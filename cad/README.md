@@ -1,17 +1,25 @@
-# The parametric cascade model — design record
+# The parametric cascade model — THE design record
 
-Rebuilding the Onshape cascade geometry as build123d source, so that a cascade
-is generated from `parts.csv` with **zero API calls** and the design is in git.
+The cascade geometry as build123d source, so that a cascade is generated from
+`parts.csv` with **zero API calls** and the design is in git.
 
-`automation/PIPELINE.md` describes the toolchain this replaces. Everything
-downstream of a component `.3mf` — `make_cascade.py`, `verify.py`,
-`filaments.py`, `towers.py`, `refresh_cascades.py` — is unchanged and unaware.
+**This is the authoritative pipeline as of 2026-09-06** (Allan). It began as a
+rebuild of the Onshape model and is now the model: new work, changed geometry
+and releases go through `cad.build` / `cad.cascade`, and this file and `spec/`
+are where the design lives. `automation/PIPELINE.md` describes the pipeline it
+replaced, which stays runnable for legacy and verification — it built
+everything under `cascades/`, and `individual/` plus `spec/reference/` are the
+corpus that keeps a 7.0 build honest. Everything downstream of a component
+`.3mf` — `make_cascade.py`, `verify.py`, `filaments.py`, `towers.py`,
+`refresh_cascades.py` — is unchanged and unaware.
 
 **Every part is written: the Pusher, the Box, the Lid, the TokenHolder, the
 Holder and the Topper** — the Lid including its logo pattern for all four
 games, the TokenHolder in both its configurations, the Topper for all six
-expansions. The Onshape path is still the one that builds a cascade: nothing
-has yet turned `build/` into a shipped project.
+expansions. Nothing built here has been PRINTED yet, which is a different
+statement from what is authoritative: `cascades/` is the record of what shipped
+under the old pipeline, and each of those is superseded the next time it is cut
+from `cad/`.
 
 The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
 is FITTED to the lid — the biggest mark that fits, sized to a proportion of
