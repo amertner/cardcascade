@@ -58,11 +58,15 @@ def shifted(mesh, by):
     return (name, [(x + dx, y + dy, z + dz) for x, y, z in verts], tris)
 
 
+def _body(objects):
+    """The part among a component's objects: the biggest — a Lid carries its
+    logo inlays as separate objects, and its body dwarfs them."""
+    return max(objects, key=lambda o: len(o[1]))
+
+
 def _one(path):
-    """The single object in a component 3MF, or the biggest of them — a Lid
-    carries its logo inlays as separate objects and the body is the largest."""
-    objs = mesh3mf.read(path)
-    return max(objs, key=lambda o: len(o[1]))
+    """The body in a component 3MF."""
+    return _body(mesh3mf.read(path))
 
 
 def _all(path):
@@ -82,41 +86,40 @@ def _all(path):
     `Topper Cities Part 7` — and the body keeps its own name.
     """
     objects = mesh3mf.read(path)
-    body = max(objects, key=lambda o: len(o[1]))[0]
+    body = _body(objects)[0]
     return [(n if n == body else f"{body} {n}", v, t) for n, v, t in objects]
 
 
-def lid_meshes(p, d, out_dir, folder):
-    path = out_dir / folder / B.lid_file(d)
+def _built(path, build, p, extra=None):
+    """`path` under build/, built by `build` (a `cad.build` builder) first if
+    it is not there yet."""
     if not path.exists():
-        B.build_lid(p, out_dir, folder, path.name)
-    return _all(path)
+        build(p, extra, path)
+    return path
+
+
+def lid_meshes(p, d, out_dir, folder):
+    return _all(_built(out_dir / folder / B.lid_file(d), B.build_lid, p))
 
 
 def token_holder_mesh(p, d, out_dir, folder, half=False):
-    path = out_dir / folder / B.token_holder_file(d, half)
-    if not path.exists():
-        B.build_token_holder(p, half, out_dir, folder, path.name)
-    return _one(path)
+    return _one(_built(out_dir / folder / B.token_holder_file(d, half),
+                       B.build_token_holder, p, half))
 
 
 def box_mesh(p, d, out_dir, folder):
-    path = out_dir / folder / B.box_file(d)
-    if not path.exists():
-        B.build_box(p, out_dir, folder, path.name)
-    return _one(path)
+    return _one(_built(out_dir / folder / B.box_file(d), B.build_box, p))
 
 
 def pusher_mesh(p, d, out_dir, folder):
-    path = out_dir / folder / B.pusher_file(p)
-    if not path.exists():
-        B.build_pusher(p, out_dir, folder, path.name)
+    path = _built(out_dir / folder / B.pusher_file(p), B.build_pusher, p)
     ox, oy, oz = pusher_part.assembly_offset(d)
     return shifted(_one(path), (-ox, -oy, -oz))
 
 
-class MissingHolder(Exception):
-    """No cached holder for this row, and no source one to fall back on.
+class MissingCached(Exception):
+    """No cached component in `individual/` for this row — a holder with no
+    source one to fall back on, or a topper.
 
     Not a bug and not rare: `Holder M-21-r6-Un (first)` has never been exported
     from Onshape, so the two `M6.21.10-12` cascades have no first-riser holder
@@ -127,9 +130,11 @@ class MissingHolder(Exception):
 
 
 def holder_file(p, d, first=False):
-    """`plan_exports.holder`'s name. Compile and Innovation holders SPAN the
-    box, so they are keyed on the horizontal count; the rest are per-slot and
-    keyed on the size letter and the front capacity."""
+    """`plan_exports.holder`'s name for the CACHED holder in `individual/` —
+    NOT `build.holder_file`, which names the rebuilt one by its model code.
+    Compile and Innovation holders SPAN the box, so they are keyed on the
+    horizontal count; the rest are per-slot and keyed on the size letter and
+    the front capacity."""
     slv = "Sl" if p.isSleeved else "Un"
     if p.GameName in ("Compile", "Innovation"):
         return (f"Holder {p.HorizontalSlots}x{p.CardsPerSlidingSlot}"
@@ -154,7 +159,7 @@ def holder_mesh(p, d, folder, first=False, source=False):
         return (name, *mesh3mf.triangulate(part))
     path = ROOT / "individual" / folder / holder_file(p, d, first)
     if not path.exists():
-        raise MissingHolder(
+        raise MissingCached(
             f"no cached {path.name} in individual/{folder}")
     return _one(path)
 
@@ -169,15 +174,6 @@ TOPPERS = ("Cities", "Echoes", "Artifacts", "Figures", "Unseen", "Blank")
 NO_TOPPERS = {"Single Set", "Single Mini"}
 
 
-def topper_file(p, d, expansion):
-    """`plan_exports.compose`'s name: `Topper Cities S15-Un.3mf`. Keyed on the
-    cards per slot as well as the size, because a topper's depth is 2.000 plus
-    a card thickness per card and a 15-card one will not fit a 10-card slot."""
-    slv = "Sl" if p.isSleeved else "Un"
-    return (f"Topper {expansion} {d.calSizeLetter}"
-            f"{p.CardsPerSlidingSlot}-{slv}.3mf")
-
-
 def topper_meshes(p, d, folder, expansion):
     """Every object in a topper: the body AND its lettering.
 
@@ -187,9 +183,9 @@ def topper_meshes(p, d, folder, expansion):
     left is the POCKETS the letters sit in, which read as text in a shaded
     render and are not text at all: they would print as bare recesses.
     """
-    path = ROOT / "individual" / folder / topper_file(p, d, expansion)
+    path = ROOT / "individual" / folder / B.topper_file(p, d, expansion)
     if not path.exists():
-        raise MissingHolder(f"no cached {path.name} in individual/{folder}")
+        raise MissingCached(f"no cached {path.name} in individual/{folder}")
     return _all(path)
 
 
@@ -309,7 +305,7 @@ def main(argv=None):
                                             half=args.half,
                                             holder_source=args.holder == "source",
                                             short_name=short_name)
-            except MissingHolder as e:
+            except MissingCached as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break
             stem = B.model_stem(d.calModelName)
