@@ -309,18 +309,19 @@ def slot_x(p, d):
     return [d.calSlotwidth * k for k in range(p.HorizontalSlots)]
 
 
-def _arc(a, c, b):
-    """A quarter arc from `a` to `b` about centre `c`, as a ThreePointArc.
+def _arc(start, centre, end):
+    """A quarter arc from `start` to `end` about `centre`, as a ThreePointArc
+    through the arc's midpoint.
 
     Given explicitly rather than with a signed RadiusArc: which side a radius
     arc takes is exactly the thing that would silently invert a fillet.
     """
-    import math as _m
-    ux, uz = (a[0] - c[0]) + (b[0] - c[0]), (a[1] - c[1]) + (b[1] - c[1])
-    n = _m.hypot(ux, uz)
-    r = _m.hypot(a[0] - c[0], a[1] - c[1])
-    mid = (c[0] + r * ux / n, c[1] + r * uz / n)
-    return ThreePointArc(a, mid, b)
+    ux, uz = ((start[0] - centre[0]) + (end[0] - centre[0]),
+              (start[1] - centre[1]) + (end[1] - centre[1]))
+    n = math.hypot(ux, uz)
+    r = math.hypot(start[0] - centre[0], start[1] - centre[1])
+    mid = (centre[0] + r * ux / n, centre[1] + r * uz / n)
+    return ThreePointArc(start, mid, end)
 
 
 def front_removal(p, d):
@@ -662,91 +663,6 @@ assert tuple(sorted(MARKS)) == TB.TOPPER_EXPANSIONS, \
     "cad/tables.TOPPER_EXPANSIONS is the catalogue's copy of MARKS' keys"
 
 
-def name_and_mark(p, d, expansion):
-    """`Expansion Name`'s sketch — the mark and the word, placed on the
-    underside in the reading frame — from which both the cut and the inlays
-    are extruded."""
-    def place(sketch, x, y):
-        """Reading frame at the origin -> the underside, at (x, y)."""
-        return Pos(x, y, 0) * sketch.mirror(Plane.XZ)
-
-    mx0, my0, mx1, my1 = mark_box(p, d)
-    sk = place(name_sketch(p, d, expansion),
-               text_origin_x(p, d), baseline_y(p, d))
-    mark = MARKS.get(expansion)
-    if mark is not None:
-        sk = sk + place(mark(d.calLogoSidelength),
-                        (mx0 + mx1) / 2, (my0 + my1) / 2)
-    return sk
-
-
-def expansion_name(p, d, expansion):
-    """`Expansion Name` — the mark and the word, as the solid to subtract."""
-    # Dropped OVERSHOOT below the underside so no face of the tool is
-    # coincident with the face it cuts. Without it OCCT quietly leaves 0.713
-    # of the 19.294 behind and warns only "Boolean operation unable to clean".
-    return Pos(0, 0, Z_BASE - ENGRAVE_OVERSHOOT) * extrude(
-        name_and_mark(p, d, expansion), amount=ENGRAVE + ENGRAVE_OVERSHOOT)
-
-
-def inlays(p, d, expansion):
-    """The lettering as the SECOND-FILAMENT solids a print needs: one per
-    region of the mark and the word, ENGRAVE tall, standing INLAY_PROUD below
-    the underside so they leave that much clear at the pocket's top — the
-    same trick the Lid's logo inlays use, and what every hand-exported STEP
-    and cached topper carries beside its body. A topper written without
-    them prints its name as an empty pocket; `cad.compare` found the built
-    files that way on 2026-09-05."""
-    if expansion == "Blank":
-        return []
-    solid = Pos(0, 0, Z_BASE - INLAY_PROUD) * extrude(name_and_mark(p, d, expansion),
-                                                    amount=ENGRAVE)
-    return sorted(solid.solids(), key=lambda q: (q.bounding_box().min.X, q.bounding_box().min.Y))
-
-
-EXPANSIONS = TB.TOPPERS
-
-
-def build(p, d=None, expansion="Blank"):
-    """One Topper, in the Onshape tree's own order.
-
-    `Blank` carries no name and no logo. The other five are the same body with
-    `Expansion Name` engraved — the name and the mark from `MARKS`. Asking for
-    an expansion `MARKS` does not know raises rather than quietly writing a
-    topper with a name and no mark.
-    """
-    if p.GameName != "Innovation":
-        raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
-    if expansion not in EXPANSIONS:
-        raise ValueError(f"no such Innovation expansion: {expansion!r}")
-    if d is None:
-        d = D.derive(p)
-    part = wedge(p, d) - inner_hole(p, d)                 # Main topper
-    part = part - front_removal(p, d)                     # Remove .. front
-    part = part + dividers(p, d)                          # Divider, More
-    part = part + holder_tabs(p, d)                       # Tab-to-attach
-    part = part - lip_rooms(p, d)                         # Room for Lips ..
-    part = top_and_front_edges(p, d, part)                # Top and front edges
-    if expansion == "Blank":
-        return part
-    return part - expansion_name(p, d, expansion)         # Expansion Name
-
-
-def build_all(p, d=None, expansion="Blank"):
-    """(the Topper BODY, its lettering inlays) — what a topper file carries."""
-    if d is None:
-        d = D.derive(p)
-    return build(p, d, expansion), inlays(p, d, expansion)
-
-
-# NB `Solid.volume` is NOT the metric to check a NAMED topper with. OCCT's
-# GProp over-reports a body carrying this many small BSpline faces: the M10-Un
-# Unseen body reads 4101.406 where `blank - named` says it must be 4100.663,
-# and the hand-exported STEP of the same part reads 4100.698 with the same kind
-# of error in it. The tessellated volume agrees to 0.0014% and the engraving
-# differenced back out agrees to 0.03%, so `tests/test_topper.py` uses those.
-# An hour went into "fixing" a boolean that was correct all along.
-
 # ---------------------------------------------------------------------------
 # `Expansion Name` — the mark and the expansion's name, engraved in the
 # UNDERSIDE. The placement and all five marks; see spec/TOPPER.md.
@@ -905,3 +821,89 @@ def name_sketch(p, d, word):
     with BuildSketch() as sk:
         Text(word, font_size=size, font_path=FONT, align=(Align.MIN, Align.MIN))
     return sk.sketch.moved(Location((lsb * size, lo * size, 0)))
+
+
+def name_and_mark(p, d, expansion):
+    """`Expansion Name`'s sketch — the mark and the word, placed on the
+    underside in the reading frame — from which both the cut and the inlays
+    are extruded."""
+    def place(sketch, x, y):
+        """Reading frame at the origin -> the underside, at (x, y)."""
+        return Pos(x, y, 0) * sketch.mirror(Plane.XZ)
+
+    mx0, my0, mx1, my1 = mark_box(p, d)
+    sk = place(name_sketch(p, d, expansion),
+               text_origin_x(p, d), baseline_y(p, d))
+    mark = MARKS.get(expansion)
+    if mark is not None:
+        sk = sk + place(mark(d.calLogoSidelength),
+                        (mx0 + mx1) / 2, (my0 + my1) / 2)
+    return sk
+
+
+def expansion_name(p, d, expansion):
+    """`Expansion Name` — the mark and the word, as the solid to subtract."""
+    # Dropped OVERSHOOT below the underside so no face of the tool is
+    # coincident with the face it cuts. Without it OCCT quietly leaves 0.713
+    # of the 19.294 behind and warns only "Boolean operation unable to clean".
+    return Pos(0, 0, Z_BASE - ENGRAVE_OVERSHOOT) * extrude(
+        name_and_mark(p, d, expansion), amount=ENGRAVE + ENGRAVE_OVERSHOOT)
+
+
+def inlays(p, d, expansion):
+    """The lettering as the SECOND-FILAMENT solids a print needs: one per
+    region of the mark and the word, ENGRAVE tall, standing INLAY_PROUD below
+    the underside so they leave that much clear at the pocket's top — the
+    same trick the Lid's logo inlays use, and what every hand-exported STEP
+    and cached topper carries beside its body. A topper written without
+    them prints its name as an empty pocket; `cad.compare` found the built
+    files that way on 2026-09-05."""
+    if expansion == "Blank":
+        return []
+    solid = Pos(0, 0, Z_BASE - INLAY_PROUD) * extrude(name_and_mark(p, d, expansion),
+                                                    amount=ENGRAVE)
+    return sorted(solid.solids(), key=lambda q: (q.bounding_box().min.X, q.bounding_box().min.Y))
+
+
+EXPANSIONS = TB.TOPPERS
+
+
+def build(p, d=None, expansion="Blank"):
+    """One Topper, in the Onshape tree's own order.
+
+    `Blank` carries no name and no logo. The other five are the same body with
+    `Expansion Name` engraved — the name and the mark from `MARKS`. Asking for
+    an expansion `MARKS` does not know raises rather than quietly writing a
+    topper with a name and no mark.
+    """
+    if p.GameName != "Innovation":
+        raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
+    if expansion not in EXPANSIONS:
+        raise ValueError(f"no such Innovation expansion: {expansion!r}")
+    if d is None:
+        d = D.derive(p)
+    part = wedge(p, d) - inner_hole(p, d)                 # Main topper
+    part = part - front_removal(p, d)                     # Remove .. front
+    part = part + dividers(p, d)                          # Divider, More
+    part = part + holder_tabs(p, d)                       # Tab-to-attach
+    part = part - lip_rooms(p, d)                         # Room for Lips ..
+    part = top_and_front_edges(p, d, part)                # Top and front edges
+    if expansion == "Blank":
+        return part
+    return part - expansion_name(p, d, expansion)         # Expansion Name
+
+
+def build_all(p, d=None, expansion="Blank"):
+    """(the Topper BODY, its lettering inlays) — what a topper file carries."""
+    if d is None:
+        d = D.derive(p)
+    return build(p, d, expansion), inlays(p, d, expansion)
+
+
+# NB `Solid.volume` is NOT the metric to check a NAMED topper with. OCCT's
+# GProp over-reports a body carrying this many small BSpline faces: the M10-Un
+# Unseen body reads 4101.406 where `blank - named` says it must be 4100.663,
+# and the hand-exported STEP of the same part reads 4100.698 with the same kind
+# of error in it. The tessellated volume agrees to 0.0014% and the engraving
+# differenced back out agrees to 0.03%, so `tests/test_topper.py` uses those.
+# An hour went into "fixing" a boolean that was correct all along.

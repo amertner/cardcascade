@@ -224,7 +224,6 @@ def assembly_contact(paths, target, views=(HERO,), cell=760, cols=4):
     Dominion's was found upside down (spec/LID.md). `cols` is rounded down
     to a multiple of the view count so an assembly's views sit in one row.
     """
-    from PIL import ImageDraw
     if isinstance(views, str):
         views = (views,)
     cols = max(len(views), cols - cols % len(views))
@@ -239,19 +238,7 @@ def assembly_contact(paths, target, views=(HERO,), cell=760, cols=4):
             img.thumbnail((cell, cell))
             label = path.stem if len(views) == 1 else f"{path.stem}  [{view}]"
             tiles.append((label, img))
-    bar, gap = 18, 6
-    rows = (len(tiles) + cols - 1) // cols
-    h = max(t.height for _n, t in tiles) + bar
-    canvas = Image.new("RGB", (cols * (cell + gap), rows * (h + gap)),
-                       (BG, BG, BG))
-    draw = ImageDraw.Draw(canvas)
-    for i, (label, img) in enumerate(tiles):
-        x, y = (i % cols) * (cell + gap), (i // cols) * (h + gap)
-        draw.text((x + 2, y + 3), label, INK)
-        canvas.paste(img, (x + (cell - img.width) // 2, y + bar))
-    target.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(target)
-    return target
+    return _grid(tiles, target, cell, cols)
 
 
 PUSHER_VIEWS = ((14, 74), (-14, -74))
@@ -262,20 +249,10 @@ PUSHER_VIEWS = ((14, 74), (-14, -74))
 BOX_VIEWS = ((38, 26), (10, 86))
 
 
-def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
-    """One grid image of every part, one tile per view — the way to look over a
-    whole build in one glance rather than 34 files."""
+def _grid(tiles, target, cell, cols):
+    """`tiles` [(label, image)] on one canvas, `cols` across, each under its
+    caption; written to `target`."""
     from PIL import ImageDraw
-    tiles = []
-    for path in paths:
-        for _name, verts, tris in mesh3mf.read(path):
-            for az, el in views:
-                img = render(verts, tris, az, el, cell)
-                img.thumbnail((cell, cell))
-                label = f"{path.parent.name}/{path.stem}"
-                if len(views) > 1:
-                    label += f"  [{az},{el}]"
-                tiles.append((label, img.convert("RGB")))
     bar, gap = 18, 6
     rows = (len(tiles) + cols - 1) // cols
     h = max(t.height for _n, t in tiles) + bar
@@ -289,6 +266,22 @@ def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
     target.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(target)
     return target
+
+
+def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
+    """One grid image of every part, one tile per view — the way to look over a
+    whole build in one glance rather than 34 files."""
+    tiles = []
+    for path in paths:
+        for _name, verts, tris in mesh3mf.read(path):
+            for az, el in views:
+                img = render(verts, tris, az, el, cell)
+                img.thumbnail((cell, cell))
+                label = f"{path.parent.name}/{path.stem}"
+                if len(views) > 1:
+                    label += f"  [{az},{el}]"
+                tiles.append((label, img.convert("RGB")))
+    return _grid(tiles, target, cell, cols)
 
 
 def sheet(path, out, width=1200, views=PUSHER_VIEWS):

@@ -109,6 +109,15 @@ def innovation_plain(size):
     X: the pattern is cut into the far side of the lid's floor, and Compile's,
     FCM's and Innovation's marks all read the right way round from there.
     """
+    faces, _base, _letter_I = _wordmark(size)
+    shape = _centre(faces)
+    return tuple(f.mirror(Plane.YZ) for f in shape)
+
+
+def _wordmark(size):
+    """`Innovation` at `size` with the ring fused into its `I` and the star
+    into its `i`'s tittle: (faces, baseline, the `I`). The plain mark whole,
+    and the first half of the Ultimate one."""
     u = _units(size)
     word = Text("Innovation", font_size=size, font_path=NOTO_SERIF,
                 align=(Align.CENTER, Align.MIN))
@@ -130,8 +139,14 @@ def innovation_plain(size):
         elif f is tittle:
             f = f.fuse(*star).clean().faces()[0]
         out.append(f)
-    shape = _centre(out)
-    return tuple(f.mirror(Plane.YZ) for f in shape)
+    return out, base, letter_I
+
+
+def _flat(solid):
+    """The top face of a unit-tall PRIVATE solid, brought down to Z = 0 —
+    a filled outline, which is what a mark is made of."""
+    f = solid.faces().sort_by(lambda f: f.center().Z)[-1]
+    return f.moved(Location((0, 0, -f.center().Z)))
 
 
 def _ring(letter_I, base, u):
@@ -140,11 +155,7 @@ def _ring(letter_I, base, u):
     bb = letter_I.bounding_box()
     r = (bb.max.X - bb.min.X) / 2
     at = Location(((bb.min.X + bb.max.X) / 2, base + SERIF_MID * u, 0))
-    disc = Cylinder(r + LINE_WIDTH, 1, mode=Mode.PRIVATE).faces() \
-        .sort_by(lambda f: f.center().Z)[-1]
-    bore = Cylinder(r, 1, mode=Mode.PRIVATE).faces() \
-        .sort_by(lambda f: f.center().Z)[-1]
-    return (disc - bore).moved(at).moved(Location((0, 0, -disc.center().Z)))
+    return (_disc(r + LINE_WIDTH, (0, 0)) - _disc(r, (0, 0))).moved(at)
 
 
 def _star(tittle, u):
@@ -159,9 +170,7 @@ def _star(tittle, u):
         c, s = math.cos(th), math.sin(th)
         # the arm's own centre: L/2 along the bearing, d off it
         mx, my = cx + L / 2 * c - d * s, cy + L / 2 * s + d * c
-        bar = Box(L, LINE_WIDTH, 1, mode=Mode.PRIVATE).faces() \
-            .sort_by(lambda f: f.center().Z)[-1]
-        bar = bar.moved(Location((0, 0, -bar.center().Z)))
+        bar = _flat(Box(L, LINE_WIDTH, 1, mode=Mode.PRIVATE))
         arms.append(bar.rotate(Axis.Z, ARM0 + k * ARM_STEP)
                     .moved(Location((mx, my, 0))))
     return arms
@@ -230,14 +239,13 @@ FAN = ((28.1492, -2.1871, 0.0),
 
 def _rect(x0, x1, y0, y1):
     """A rectangle as a face on Z = 0."""
-    f = Box(x1 - x0, y1 - y0, 1, mode=Mode.PRIVATE).faces() \
-        .sort_by(lambda f: f.center().Z)[-1]
-    return f.moved(Location(((x0 + x1) / 2, (y0 + y1) / 2, -f.center().Z)))
+    return _flat(Box(x1 - x0, y1 - y0, 1, mode=Mode.PRIVATE)).moved(
+        Location(((x0 + x1) / 2, (y0 + y1) / 2, 0)))
 
 
 def _disc(r, at):
-    f = Cylinder(r, 1, mode=Mode.PRIVATE).faces().sort_by(lambda f: f.center().Z)[-1]
-    return f.moved(Location((at[0], at[1], -f.center().Z)))
+    """A disc of radius `r` as a face on Z = 0, centred at `at`."""
+    return _flat(Cylinder(r, 1, mode=Mode.PRIVATE)).moved(Location((at[0], at[1], 0)))
 
 
 @lru_cache(maxsize=8)
@@ -247,22 +255,9 @@ def innovation_ultimate(size):
     under its U. Same frame and conventions as `innovation_plain`."""
     n = size / NOMINAL_SIZE
     u = _units(size)
-    word = Text("Innovation", font_size=size, font_path=NOTO_SERIF,
-                align=(Align.CENTER, Align.MIN))
-    faces = list(word.faces())
-    base = word.bounding_box().min.Y + 10 * u
-    tittle = max(faces, key=lambda f: f.bounding_box().min.Y)
-    letter_I = min(faces, key=lambda f: f.bounding_box().min.X)
+    out, base, letter_I = _wordmark(size)
     bbI = letter_I.bounding_box()
     ix = (bbI.min.X + bbI.max.X) / 2
-
-    out = []
-    for f in faces:
-        if f is letter_I:
-            f = f.fuse(_ring(letter_I, base, u)).clean().faces()[0]
-        elif f is tittle:
-            f = f.fuse(*_star(tittle, u)).clean().faces()[0]
-        out.append(f)
 
     # `Ultimate`, by its ink corner.
     ult = Text("Ultimate", font_size=ULT_RATIO * size, font_path=NOTO_SERIF_BI,

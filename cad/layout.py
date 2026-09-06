@@ -514,13 +514,6 @@ def misfit(objects, placed, bed, exclude):
     return None
 
 
-def validate(objects, placed, bed, exclude):
-    """`misfit`, refused."""
-    reason = misfit(objects, placed, bed, exclude)
-    if reason:
-        refuse(reason)
-
-
 def shifted(placed, dx, dy):
     """The same plate moved by (dx, dy)."""
     return [(i, ob.moved(dx, dy)) for i, ob in placed]

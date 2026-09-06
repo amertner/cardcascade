@@ -510,14 +510,15 @@ def logo_choice(p, d):
 
 
 def logo_art(p, d):
-    """The game's mark as filled faces in the lid's frame, or None.
+    """The game's mark as filled faces in the lid's frame; [] for a lid
+    that carries none.
 
     A drawing is already in that frame — lifted from, or exported beside, a
     reference lid — so `cad.marks` sizes it about its OWN centre and at n = 1
     it stays exactly where Onshape put it. A generated mark is built centred.
     """
     name, n = logo_choice(p, d)
-    return MK.faces(p.GameName, name, n) or None if name else None
+    return MK.faces(p.GameName, name, n) if name else []
 
 
 def logo_pattern(p, d, part):
@@ -539,7 +540,11 @@ def logo_pattern(p, d, part):
     # first): the regions are disjoint, the pocket is in the underside and
     # nothing later touches it, and a body of ten faces is cut in a fraction
     # of the time the finished lid's hundreds took — Compile's 1885-edge
-    # mark went from 22 s to under 4.
+    # mark went from 22 s to under 4. The prisms start ON the underside, and
+    # that is fine here: `tests/test_lid.py` measures the pocket complete.
+    # The Topper's identical cut is not (`topper.ENGRAVE_OVERSHOOT`, 0.713
+    # mm3 left behind); a reader of that note should not conclude this one
+    # is broken too.
     part = part.cut(*prisms)
     return part, [q.moved(Location((0, 0, -PATTERN_PROUD))) for q in prisms]
 
@@ -550,7 +555,7 @@ def inlays(p):
     faces = logo_art(p, d)
     return [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
             .moved(Location((0, 0, -PATTERN_PROUD)))
-            for f in (faces or [])]
+            for f in faces]
 
 
 # --- the outer rounds ------------------------------------------------------
@@ -564,12 +569,12 @@ def outer_edges(p, d, part):
     of the six outer faces. Nothing else on the lid is within reach of them,
     so this needs none of the care `box.sharp_edges` does.
     """
-    W, DD, H = lid_width(p, d) / 2, lid_depth(d) / 2, d.LidHeight
+    half_w, half_d, H = lid_width(p, d) / 2, lid_depth(d) / 2, d.LidHeight
     tol = 1e-6
     out = []
     for e in part.edges():
         m = e @ 0.5
-        on = ((abs(abs(m.X) - W) < tol) + (abs(abs(m.Y) - DD) < tol)
+        on = ((abs(abs(m.X) - half_w) < tol) + (abs(abs(m.Y) - half_d) < tol)
               + (abs(m.Z) < tol) + (abs(m.Z - H) < tol))
         if on >= 2:
             out.append(e)
