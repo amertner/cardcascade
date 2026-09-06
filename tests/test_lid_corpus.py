@@ -149,7 +149,7 @@ for game in GAMES:
         d = D.derive(p)
         V, T = load(path)
         print(f"  {game}/{path.stem}")
-        W, DD = lid.lid_width(p, d) / 2, lid.lid_depth(d) / 2
+        W, DD = lid.lid_width(d) / 2, lid.lid_depth(d) / 2
         H = d.LidHeight
 
         # --- the envelope --------------------------------------------------
@@ -161,10 +161,10 @@ for game in GAMES:
                round(float(lo[2]), 3)], [0.0, 0.0, 0.0])
 
         # --- the sockets ---------------------------------------------------
-        y0, y1 = lid.socket_span(p, d)
+        y0, y1 = lid.socket_span(d)
         yc = (y0 + y1) / 2
         z = lid.WALL + lid.SOCKET_H / 2 + EPS    # mid-socket, clear of both faces
-        centres = lid.socket_centres(p, d)
+        centres = lid.socket_centres(d)
         _cls, s = L.lock_class(d.calPusherTotalDepth)
         chan, half = L.LID_CHANNEL_W / 2, d.calFootTotalWidth / 2
         inner = W - lid.WALL - 1e-6              # anything beyond is end wall
@@ -213,7 +213,7 @@ for game in GAMES:
         check(f"{model}: calCapacityLabel's baseline off the socket line",
               any(abs(t - want_top) < 2e-3 for t in tops), True)
         logo = faces_at(V, T, lid.WALL + lid.LOGO_PROUD)
-        left = -(lid.lid_width(p, d) / 2 - lid.WALL) + lid.logo_offset(p, d)
+        left = -(lid.lid_width(d) / 2 - lid.WALL) + lid.logo_offset(d)
         check(f"{model}: the logo block starts at logo_offset",
               round(min(b[0] for b in logo), 2),
               round(left + (0.0 if p.HorizontalSlots > 2

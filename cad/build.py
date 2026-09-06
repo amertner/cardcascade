@@ -84,11 +84,11 @@ def model_matches(d, query):
     return not query or model_stem(query).lower() in model_stem(d.calModelName).lower()
 
 
-def pusher_file(p, legacy=False):
-    slv = "Sl" if p.isSleeved else "Un"
-    first = ("" if legacy or not p.isFirstSlidingSlotOverride
-             else f"-{p.FirstSlidingSlotCards}")
-    return f"Pusher {p.RisingSliders}x{p.CardsPerSlidingSlot}{first}-{slv}.3mf"
+def pusher_file(d, legacy=False):
+    slv = "Sl" if d.isSleeved else "Un"
+    first = ("" if legacy or not d.isFirstSlidingSlotOverride
+             else f"-{d.FirstSlidingSlotCards}")
+    return f"Pusher {d.RisingSliders}x{d.CardsPerSlidingSlot}{first}-{slv}.3mf"
 
 
 def box_file(d):
@@ -144,7 +144,7 @@ def write_component(path, bodies, **extra):
             "new": before is None, **extra}
 
 
-def build_lid(p, _extra, path):
+def build_lid(d, _extra, path):
     """Build one lid and write the 3MF. Like the Box, a Lid sits at the part
     studio's origin, which is the assembly's.
 
@@ -156,7 +156,7 @@ def build_lid(p, _extra, path):
     first) to keep a rebuild byte-identical.
     """
     from .parts import lid as lid_part
-    part, inlays = lid_part.build_all(p)
+    part, inlays = lid_part.build_all(d)
     bodies = [("Lid", part)]
     bodies += [(f"Part {i}", s) for i, s in enumerate(
         sorted(inlays, key=lambda s: (-round(s.volume, 6),
@@ -204,7 +204,7 @@ def holder_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     return [out[k] for k in sorted(out)]
 
 
-def build_holder(p, first, path):
+def build_holder(d, first, path):
     """Build one holder and write the 3MF.
 
     The object name is the one `plan_exports` uses, so the file drops straight
@@ -215,11 +215,11 @@ def build_holder(p, first, path):
     role `plan_exports` emits is `FirstHolder` either way.
     """
     from .parts import holder as holder_part
-    part = holder_part.build(p, first)
+    part = holder_part.build(d, first)
     return write_component(path, [("FirstHolder" if first else "Holder", part)])
 
 
-def topper_file(p, d, expansion="Blank"):
+def topper_file(d, expansion="Blank"):
     """`Topper Blank M10-Un.3mf` — the cached corpus' own name.
 
     The key is NOT `calModelName`. Onshape's catalogue is keyed on three
@@ -235,15 +235,15 @@ def topper_file(p, d, expansion="Blank"):
     is a 5% difference in volume under one filename. `topper_catalogue`
     refuses that rather than letting whichever row came first win.
     """
-    slv = "-Sl" if p.isSleeved else "-Un"
-    return f"Topper {expansion} {d.calSizeLetter}{p.CardsPerSlidingSlot}{slv}.3mf"
+    slv = "-Sl" if d.isSleeved else "-Un"
+    return f"Topper {expansion} {d.calSizeLetter}{d.CardsPerSlidingSlot}{slv}.3mf"
 
 
-def topper_shape_key(p, d):
+def topper_shape_key(d):
     """Everything the topper's geometry actually depends on — which is one more
     thing than its FILENAME carries. See `topper_file`."""
-    return (p.HorizontalSlots, p.CardsPerSlidingSlot, p.isSleeved,
-            p.RisingSliders)
+    return (d.HorizontalSlots, d.CardsPerSlidingSlot, d.isSleeved,
+            d.RisingSliders)
 
 
 # A topper labels which expansion is in a slot, so a cascade that holds only
@@ -269,9 +269,9 @@ def topper_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
         if SINGLE_SET in (row.get("Set/Extension") or "").lower():
             continue
         d = D.derive(p)
-        key = topper_shape_key(p, d)
+        key = topper_shape_key(d)
         for expansion in TB.TOPPERS:
-            fn = topper_file(p, d, expansion)
+            fn = topper_file(d, expansion)
             if model and model.lower() not in fn.lower():
                 continue
             seen = shapes.get(fn)
@@ -286,13 +286,13 @@ def topper_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     return [out[k] for k in sorted(out)]
 
 
-def build_topper(p, expansion, path):
+def build_topper(d, expansion, path):
     """Build one topper and write the 3MF: the body named as the corpus does,
     and — for a named expansion — its lettering as `Part 2`, `Part 3`, ...
     beside it, the second-filament inlays a print needs, as the Lid's logo
     regions are written (`topper.inlays`)."""
     from .parts import topper as topper_part
-    part, inlays = topper_part.build_all(p, None, expansion)
+    part, inlays = topper_part.build_all(d, expansion)
     bodies = [("Topper", part)] + [(f"Part {i}", s) for i, s in enumerate(inlays, start=2)]
     return write_component(path, bodies)
 
@@ -312,11 +312,11 @@ def box_catalogue(csv=CSV, game=None, model=None, version=L.GENERATION):
     return [out[k] for k in sorted(out)]
 
 
-def build_box(p, _extra, path):
+def build_box(d, _extra, path):
     """Build one box and write the 3MF. Boxes are NOT placed in an assembly
     offset — the part studio's origin is the assembly's."""
     from .parts import box as box_part
-    return write_component(path, [("Box", box_part.build(p))])
+    return write_component(path, [("Box", box_part.build(d))])
 
 
 def pusher_catalogue(csv=CSV, game=None, legacy=False, version=L.GENERATION):
@@ -330,7 +330,7 @@ def pusher_catalogue(csv=CSV, game=None, legacy=False, version=L.GENERATION):
         key = (p.GameName, p.RisingSliders, p.CardsPerSlidingSlot,
                p.FirstSlidingSlotCards if p.isFirstSlidingSlotOverride else 0,
                p.isSleeved)
-        out.setdefault(key, (p.GameName, pusher_file(p, legacy), p))
+        out.setdefault(key, (p.GameName, pusher_file(D.derive(p), legacy), p))
     if legacy:
         names, clash = {}, []
         for folder, fn, p in out.values():
@@ -398,7 +398,7 @@ def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False,
     return [out[k] for k in sorted(out)]
 
 
-def build_token_holder(p, half, path):
+def build_token_holder(d, half, path):
     """Build one token holder and write the 3MF.
 
     Like the Box and the Lid it sits at the part studio's origin, which is the
@@ -406,15 +406,14 @@ def build_token_holder(p, half, path):
     """
     from .parts import token_holder
     name = "HalfTokenHolder" if half else "TokenHolder"
-    return write_component(path, [(name, token_holder.build(p, half))])
+    return write_component(path, [(name, token_holder.build(d, half))])
 
 
-def build_pusher(p, _extra, path):
+def build_pusher(d, _extra, path):
     """Build one pusher, place it in assembly position, write the 3MF."""
     from build123d import Location
     from .parts import pusher
-    d = D.derive(p)
-    part = pusher.build(p).moved(Location(pusher.assembly_offset(d)))
+    part = pusher.build(d).moved(Location(pusher.assembly_offset(d)))
     return write_component(path, [("Pusher", part)], depth=d.calPusherTotalDepth,
                            rise=d.calHeightIncrement,
                            cls=L.lock_class(d.calPusherTotalDepth)[0])
@@ -458,7 +457,7 @@ def stamp_path(out_dir, folder, filename):
     return out_dir / STAMP_DIR / folder / (filename + ".sha256")
 
 
-# Every kind: its builder — `(Primary, extra, path) -> report` — and the
+# Every kind: its builder — `(Derived, extra, path) -> report` — and the
 # noun the report uses. The order is the order --part all reports in.
 BUILDERS = {"lid": build_lid, "holder": build_holder,
             "tokenholder": build_token_holder, "topper": build_topper,
@@ -483,7 +482,7 @@ def _job(spec):
                 for f, fn in targets]
     folder, fn = targets[0]
     t0 = time.perf_counter()
-    r = BUILDERS[kind](p, extra, out_dir / folder / fn)
+    r = BUILDERS[kind](D.derive(p), extra, out_dir / folder / fn)
     r.update(folder=folder, filename=fn, skipped=False, kind=kind,
              seconds=time.perf_counter() - t0)
     out = [r]

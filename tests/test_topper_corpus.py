@@ -125,8 +125,8 @@ for path in files:
     seen.add(key)
     d = D.derive(p)
     V, Tr = load(path)
-    x0, x1 = T.x_span(p, d)
-    front, rear = T.y_span(p, d)
+    x0, x1 = T.x_span(d)
+    front, rear = T.y_span(d)
     tag = f"{expansion} {key}"
 
     # --- the envelope, and its three rules ---------------------------------
@@ -155,12 +155,12 @@ for path in files:
     # the part's front vertical corners and this ray passes EPS inside them.
     # Their INNER edge is the one this rule is about, so that is what is held.
     z = (T.Z_BASE + T.FLOOR + T.FRONT_WALL_RISE
-         + T.slant_z(p, d, front - T.FRONT_WALL)) / 2
+         + T.slant_z(d, front - T.FRONT_WALL)) / 2
     band = spans(V, Tr, 0, front - EPS, z)
     check(f"{tag}: one band per boundary plus two halves",
           len(band), p.HorizontalSlots + 1)
     if len(band) == p.HorizontalSlots + 1:
-        want = T.band_x(p, d)
+        want = T.band_x(d)
         check(f"{tag}: the left half-band ends at {round(want[0][1], 2)}",
               round(band[0][1], 3), round(want[0][1], 3), 1e-3)
         check(f"{tag}: the right half-band starts at {round(want[-1][0], 2)}",
@@ -174,7 +174,7 @@ for path in files:
     # 1.400 of end wall overlapping a tab that starts TAB_INSET 1.300 in.
     rib = spans(V, Tr, 0, front - T.FRONT_WALL - EPS, z)
     blk = T.TAB_INSET + T.TAB_W
-    want = [(x0, x0 + blk)] + T.rib_x(p, d) + [(x1 - blk, x1)]
+    want = [(x0, x0 + blk)] + T.rib_x(d) + [(x1 - blk, x1)]
     check(f"{tag}: ribs, plus an end block each side", len(rib), len(want))
     for (a, b), (c, e) in zip(rib, want):
         check(f"{tag}: rib/block at {round(c, 2)}", (round(a, 3), round(b, 3)),
@@ -186,12 +186,12 @@ for path in files:
     # where LIP_FILLET has not finished opening. `off` is where the fillet's
     # arc is at that height, and it has to be allowed for exactly — a probe
     # that ignores it reads every notch 0.655 too narrow.
-    h = (T.topper_height(p, d) - T.FLOOR - T.LIP_ROOM_RISE) / 2
+    h = (T.topper_height(d) - T.FLOOR - T.LIP_ROOM_RISE) / 2
     r = T.LIP_FILLET
     off = r - (2 * r * h - h * h) ** 0.5
     z = T.Z_BASE + T.FLOOR + T.LIP_ROOM_RISE + h
     wall = spans(V, Tr, 0, rear + EPS, z)
-    rooms = T.lip_room_x(p, d)
+    rooms = T.lip_room_x(d)
     check(f"{tag}: {len(rooms)} notches leave {len(rooms) + 1} runs of wall",
           len(wall), len(rooms) + 1)
     if len(wall) == len(rooms) + 1:
@@ -211,13 +211,13 @@ for path in files:
     # instead and every file comes back 0.800 wide.
     if expansion != "Blank":
         rim = V[(np.abs(V[:, 2] - (T.Z_BASE + T.ENGRAVE)) < 1e-4)
-                & (V[:, 0] < T.text_origin_x(p, d))]
+                & (V[:, 0] < T.text_origin_x(d))]
         got = float(rim[:, 0].max() - rim[:, 0].min())
         want = T.MARKS[expansion](d.calLogoSidelength).bounding_box().size.X
         marks.append((tag, expansion, key, got, want))
 
     blanks.append((tag, expansion, mesh_volume(V, Tr),
-                   mesh_volume(*mesh3mf.triangulate(T.build(p, d, expansion)))))
+                   mesh_volume(*mesh3mf.triangulate(T.build(d, expansion)))))
 
 # The four SLEEVED `Unseen` files are STALE: their mark is drawn at the M10-Un
 # size — 5.3422, which is 1.2644 * 4.2250 — whatever their own

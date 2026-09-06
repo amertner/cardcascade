@@ -90,7 +90,7 @@ def rest_zone(p, d, first):
     along the slant — because a right prism would lean the wrong way and put
     the chamfer residual half outside its own band.
     """
-    slope = holder.slant_slope(p, d, first)
+    slope = holder.slant_slope(d, first)
     unit = 1.0 / (1.0 + slope * slope) ** 0.5
     dirv = Vector(0.0, -unit, -slope * unit)
     w = holder.LIP_LEN / 2 + holder.LIP_CHAMFER + REST_MARGIN
@@ -102,7 +102,7 @@ def rest_zone(p, d, first):
     x_mid = (holder.FINGER_R + holder.FINGER_FILLET + holder.LIP_GAP
              + holder.LIP_LEN / 2)
     zone = None
-    for xc in holder.compartment_x(p, d):
+    for xc in holder.compartment_x(d):
         for sign in (+1, -1):
             at = Vector(xc + sign * x_mid, 0.0,
                         holder.slant_top(d) - holder.SLANT_STEP / 2)
@@ -114,8 +114,8 @@ def rest_zone(p, d, first):
 
 def bands(p, d, first):
     """[(name, cell)] — the five, as solids to intersect both shapes with."""
-    x0, x1 = holder.x_span(p, d)
-    dep = holder.holder_depth(p, d, first)
+    x0, x1 = holder.x_span(d)
+    dep = holder.holder_depth(d, first)
     z0 = holder.base_z(d)
     pz0, _ = holder.pocket_z(d)
     w, tall = (x1 - x0) + 4.0, 400.0
@@ -154,7 +154,7 @@ def report(keys=None):
             print(f"{key}: SKIP — {path} not present")
             continue
         ref = import_step(str(path)).solids()[0]
-        mine = holder.build(p, first)
+        mine = holder.build(D.derive(p), first)
         d = D.derive(p)
         deltas = {}
         for name, cell in bands(p, d, first):

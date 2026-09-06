@@ -172,8 +172,8 @@ _EXPORTED_WITH = {
 }
 _PIN_FN = None
 _choice = lid.logo_choice
-lid.logo_choice = lambda p, d: (_EXPORTED_WITH.get(_PIN_FN)
-                                or (TB.LID_LOGO[p.GameName][None][-1], 1.0))
+lid.logo_choice = lambda d: (_EXPORTED_WITH.get(_PIN_FN)
+                                or (TB.LID_LOGO[d.GameName][None][-1], 1.0))
 
 
 for name, fn, P in REFS:
@@ -193,7 +193,7 @@ for name, fn, P in REFS:
     # them — see spec/LID.md.
     solids = import_step(str(path)).solids()
     ref = max(solids, key=lambda s: s.volume)
-    mine = lid.build(P)
+    mine = lid.build(D.derive(P))
     rb, mb = ref.bounding_box(), mine.bounding_box()
     print(f"  reference {len(solids)} solids, body {len(ref.faces())} faces, "
           f"{ref.volume:.3f} mm3;  build {len(mine.faces())} faces, "
@@ -201,7 +201,7 @@ for name, fn, P in REFS:
 
     # --- the envelope ------------------------------------------------------
     check("width  = #BoxWidth + 4.600", round(rb.size.X, 3),
-          round(lid.lid_width(P, d), 3), 1e-3)
+          round(lid.lid_width(d), 3), 1e-3)
     check("depth  = calLidDepth", round(rb.size.Y, 3),
           round(d.calLidDepth, 3), 1e-3)
     check("height = LidHeight", round(rb.size.Z, 3), round(d.LidHeight, 3), 1e-3)
@@ -213,7 +213,7 @@ for name, fn, P in REFS:
                                  rb.min.Z)], [0.0, 0.0, 0.0])
 
     # --- the shell ---------------------------------------------------------
-    W = lid.lid_width(P, d) / 2
+    W = lid.lid_width(d) / 2
     DD = lid.lid_depth(d) / 2
     for who, solid in (("STEP ", ref), ("build", mine)):
         # A wall's own area is what tells it from its neighbour: the outer
@@ -234,7 +234,7 @@ for name, fn, P in REFS:
                     - (2 * W - 2 * lid.WALL) * (2 * DD - 2 * lid.WALL), 3), 1e-3)
 
     # --- the sockets: the lid's half of the 7.0 lock -----------------------
-    y0, y1 = lid.socket_span(P, d)
+    y0, y1 = lid.socket_span(d)
     cls, s = L.lock_class(d.calPusherTotalDepth)
     check(f"lock class from calPusherTotalDepth {d.calPusherTotalDepth:.2f}",
           cls, cls)
@@ -247,18 +247,18 @@ for name, fn, P in REFS:
         xs = sorted(k[0] for k, a in planes(solid, 0).items()
                     if abs(a - side) < 1e-2)
         check(f"{who}: one block per socket, calFootTotalWidth wide", len(xs),
-              2 * lid.socket_count(P))
-        if len(xs) != 2 * lid.socket_count(P):
+              2 * lid.socket_count(D.derive(P)))
+        if len(xs) != 2 * lid.socket_count(D.derive(P)):
             continue
         check(f"{who}: socket centres",
               [round((a + b) / 2, 3) for a, b in zip(xs[0::2], xs[1::2])],
-              [round(x, 3) for x in lid.socket_centres(P, d)])
+              [round(x, 3) for x in lid.socket_centres(d)])
         check(f"{who}: block width",
               sorted({round(b - a, 3) for a, b in zip(xs[0::2], xs[1::2])}),
               [round(d.calFootTotalWidth, 3)])
         rib = lid.KEY_RIB_LEN if L.has_notch(s) else 0.0
         want_chan = round(lid.SOCKET_H * ((y1 - y0) - rib), 2)
-        for x in lid.socket_centres(P, d):
+        for x in lid.socket_centres(d):
             got = socket_walls(solid, x, y0, y1)
             want = {
                 round(x - d.calFootTotalWidth / 2, 3): side,
@@ -350,7 +350,7 @@ for name, fn, P in REFS:
               right < W - lid.WALL - lid.text_offset(d) + 1e-6, True)
     # The logo: its box, its own two lines, and the staircase.
     size = lid.logo_size(d)
-    left = round(-(W - lid.WALL) + lid.logo_offset(P, d), 3)
+    left = round(-(W - lid.WALL) + lid.logo_offset(d), 3)
     logo_base = round(d.calLidDepth / 2 - lid.WALL - D.FootDistanceFromWall
                       - lid.LOGO_DROP - TX.CAP * size, 3)
     for who, solid in (("STEP ", ref), ("build", mine)):
@@ -363,7 +363,7 @@ for name, fn, P in REFS:
     # is closed form: R steps of #LogoStepWidth by #LogoStepHeight.
     if P.HorizontalSlots > 2:
         top = logo_base - 2 * TX.CAP * size / 3
-        slope = top - lid.socket_span(P, d)[0]
+        slope = top - lid.socket_span(d)[0]
         for who, solid in (("STEP ", ref), ("build", mine)):
             stair = max((f for f in solid.faces()
                          if f.geom_type == GeomType.PLANE
@@ -397,7 +397,7 @@ for name, fn, P in REFS:
     # whole point of building them from one set of regions is that the inlay
     # cannot drift out of its pocket.
     ref_inlays = [x for x in solids if x is not ref]
-    mine_inlays = lid.inlays(P)
+    mine_inlays = lid.inlays(D.derive(P))
     check("the reference carries inlay solids", len(ref_inlays) > 0, True)
     check("one inlay per artwork region", len(mine_inlays), len(ref_inlays))
     if mine_inlays:
@@ -498,7 +498,7 @@ else:
           area_at(body, 2, lid.PATTERN_DEPTH, "-"), 0.0)
     check("so it stands proud of the with-logo export by the pocket",
           round(body.volume - sum(x.volume for x in inlays), 2),
-          round(lid.build(P).volume, 2), 1.0)
+          round(lid.build(D.derive(P)).volume, 2), 1.0)
 
 # --- the fit rule -------------------------------------------------------
 # The pin comes off: from here on `lid.logo_choice` is the rule itself, which
@@ -532,7 +532,7 @@ for model, want_file, want_scale in [
         check(f"{model}: in the catalogue", False, True)
         continue
     pp, dd = hit[0]
-    got_file, got_scale = lid.logo_choice(pp, dd)
+    got_file, got_scale = lid.logo_choice(dd)
     check(f"{model}: drawing", got_file, want_file)
     check(f"{model}: scale", round(got_scale, 3), want_scale, 1e-3)
 
@@ -543,12 +543,12 @@ for model, want_file, want_scale in [
 worst_room, worst_shrink = 0.0, []
 for _folder, fn, pp in build.lid_catalogue():
     dd = D.derive(pp)
-    name, scale = lid.logo_choice(pp, dd)
+    name, scale = lid.logo_choice(dd)
     if not name:
         check(f"{fn}: has artwork", False, True)
         continue
     w, h = marks.extent(pp.GameName, name, scale)
-    room_w, room_d = lid.logo_room(pp, dd)
+    room_w, room_d = lid.logo_room(dd)
     worst_room = max(worst_room, w / room_w, h / room_d)
     if scale < 1.0:
         # only where the mark genuinely does not fit the flat floor

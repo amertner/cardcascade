@@ -74,7 +74,7 @@ from the origin, which is the slot it caps.
 Allan's first answer was that it does not matter. On 2026-09-04 he described
 the placement itself: there is NO mate; the topper rests on the holder, logo up,
 diagonal meeting diagonal, its fins sliding into the holder's lip rooms. That
-derives it: `topper.z_base(p, d) = holder.slant_top(d) + topper_height(p, d)`,
+derives it: `topper.z_base(d) = holder.slant_top(d) + topper_height(d)`,
 the holder's slant top plus the topper's own rear thickness, `44.250 + 4.200`
 on every one of the eight parameter sets — constant because every Innovation
 topper row has five risers. `Z_BASE` stays as the catalogue's value and

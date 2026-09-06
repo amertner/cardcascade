@@ -156,19 +156,19 @@ for name, fn, p, first in REFS:
         continue
     ref = import_step(str(path)).solids()[0]
     d = D.derive(p)
-    mine = holder.build(p, first)
+    mine = holder.build(D.derive(p), first)
     rb, mb = ref.bounding_box(), mine.bounding_box()
-    sd = holder.slider_distance(p, d, first)
+    sd = holder.slider_distance(d, first)
 
     # --- the envelope ------------------------------------------------------
     # Width is calSlotwidth * n + 9.800 and has nothing to do with the depth;
     # the two 246 holders share it and differ in everything else.
     check("width = calSlotwidth * n + 9.800", round(rb.size.X, 3),
-          round(holder.holder_width(p, d), 3), 1e-3)
+          round(holder.holder_width(d), 3), 1e-3)
     check("... and the build agrees", round(mb.size.X, 3),
           round(rb.size.X, 3), 1e-3)
     # X is NOT symmetric: the origin is the first compartment's centre.
-    x0, x1 = holder.x_span(p, d)
+    x0, x1 = holder.x_span(d)
     check("X starts at -(calSlotwidth/2 + 4.900)", round(rb.min.X, 3),
           round(x0, 3), 1e-3)
     check("X ends at the last compartment + the same", round(rb.max.X, 3),
@@ -179,7 +179,7 @@ for name, fn, p, first in REFS:
     # proud in +Y (1.026 / 1.655 / 1.342 on the three), so the STEP's bbox is
     # wider than the body and would compare against nothing meaningful.
     check("the back face is at -(sliderDistance - 0.400)", round(rb.min.Y, 3),
-          round(-holder.holder_depth(p, d, first), 3), 1e-3)
+          round(-holder.holder_depth(d, first), 3), 1e-3)
     check("... and the build agrees", round(mb.min.Y, 3),
           round(rb.min.Y, 3), 1e-3)
     # Y = 0 is the REAR face — the `Rear lip` tabs stand proud of it — so the
@@ -196,7 +196,7 @@ for name, fn, p, first in REFS:
     # --- `Top slant angle` --------------------------------------------------
     # Two PARALLEL planes 2.000 apart, both meeting Y = 0 at the same Z on every
     # reference whatever the slope. Asserted on the STEP and on the build.
-    want = round(holder.slant_slope(p, d, first), 4)
+    want = round(holder.slant_slope(d, first), 4)
     rival = round((d.calHeightIncrement - 1.0)
                   / ((d.calSliderDistance if first else d.calFirstSliderDistance)
                      - 1.2), 4)
@@ -243,8 +243,8 @@ for name, fn, p, first in REFS:
     # pocket is inset WALL from both faces. Four Y-planes, and the two inner
     # ones move with the holder's own depth.
     want_y = [round(v, 3) for v in
-              (-holder.holder_depth(p, d, first),
-               -holder.holder_depth(p, d, first) + holder.WALL,
+              (-holder.holder_depth(d, first),
+               -holder.holder_depth(d, first) + holder.WALL,
                -holder.WALL, 0.0)]
     # Present, not exhaustive: the side slots add two more Y-planes of their own,
     # and the rear lip will add more again.
@@ -255,7 +255,7 @@ for name, fn, p, first in REFS:
     # The compartment edges: DIVIDER/2 in from each slot edge, patterned at
     # calSlotwidth. Every one of them is a face of the STEP too.
     edges = []
-    for x in holder.compartment_x(p, d):
+    for x in holder.compartment_x(d):
         edges += [round(x - (d.calSlotwidth - holder.DIVIDER) / 2, 3),
                   round(x + (d.calSlotwidth - holder.DIVIDER) / 2, 3)]
     for v in edges:
@@ -265,12 +265,12 @@ for name, fn, p, first in REFS:
     # --- the lattice --------------------------------------------------------
     # Three window rows of (H-6)/3 between 2.000 rails, five columns of a FIXED
     # 10.000 at (W+2)/5 pitch. Every window edge is a face of the STEP too.
-    grid = holder.window_grid(p, d)
+    grid = holder.window_grid(d)
     check("15 windows per compartment", len(grid), holder.ROWS * holder.COLS)
     check("every window is LIP_LENGTH wide",
           sorted({round(x1 - x0, 3) for x0, x1, _, _ in grid}),
           [round(holder.LIP_LENGTH, 3)])
-    w, h, _ = holder.outline(p, d)
+    w, h, _ = holder.outline(d)
     check("the mullion is the pitch less LIP_LENGTH, not a constant",
           round((w + 2.0) / holder.COLS - holder.LIP_LENGTH, 3),
           round((d.calSlotwidth - 6.0 + 2.0) / 5 - 10.0, 3), 1e-3)
@@ -317,7 +317,7 @@ for name, fn, p, first in REFS:
         a, b = top_at(ref, x, -0.40), top_at(mine, x, -0.40)
         check(f"the scallop profile at x={x} matches the STEP", a, b)
     # ... and it is centred on each compartment, not just the first.
-    for xc in holder.compartment_x(p, d)[1:]:
+    for xc in holder.compartment_x(d)[1:]:
         a, b = top_at(ref, xc, -0.40), top_at(mine, xc, -0.40)
         check(f"... and at the compartment on x={round(xc, 1)}", a, b)
 
@@ -348,7 +348,7 @@ for name, fn, p, first in REFS:
           round((holder.SLOT_W - box.SLIDER_W) / 2, 3), 0.200, 1e-3)
     check("... and is as deep as the rib stands proud",
           round(holder.END_BLOCK, 3), round(box.SLIDER_PROUD, 3), 1e-3)
-    dep = holder.holder_depth(p, d, first)
+    dep = holder.holder_depth(d, first)
     for zc in (-44.0, -20.0, 0.0, 20.0):
         for xc in (x0 + 2.0, x1 - 2.0):
             cell = Box(0.3, dep + 2.0, 0.3).moved(Location((xc, -dep / 2, zc)))
@@ -420,8 +420,8 @@ for name, fn, p, first in REFS:
     check("... and the same count as the STEP", len(b), len(a))
     check("every lip is where the STEP's is, and the same size", b, a)
     check("the lip reaches LIP_REACH along the slant",
-          round(holder.lip_reach_y(p, d, first)
-                * (1 + holder.slant_slope(p, d, first) ** 2) ** 0.5, 3),
+          round(holder.lip_reach_y(d, first)
+                * (1 + holder.slant_slope(d, first) ** 2) ** 0.5, 3),
           round(holder.LIP_REACH, 3), 1e-3)
     check("the lip's flat starts LIP_GAP out from the scallop's edge",
           round(holder.FINGER_R + holder.FINGER_FILLET + holder.LIP_GAP, 3),
@@ -442,7 +442,7 @@ for name, fn, p, first in REFS:
     pz0, _ = holder.pocket_z(d)
     for dz, want in ((-0.100, True), (+0.100, False)):
         cell = Box(0.4, 0.4, 0.05).moved(
-            Location((0.0, -holder.holder_depth(p, d, first) / 2,
+            Location((0.0, -holder.holder_depth(d, first) / 2,
                       pz0 - holder.FLOOR_DROP + dz)))
         for who, shape in (("STEP", ref), ("build", mine)):
             got = shape & cell
@@ -454,14 +454,14 @@ for name, fn, p, first in REFS:
     # face is at constant Y, exactly `2 * calSlotDepth` along the slant. A right
     # prism puts that face 0.769 further forward and 0.6 low, which `333` — the
     # only reference whose cut starts INSIDE the back wall — can see.
-    slope = holder.slant_slope(p, d, first)
+    slope = holder.slant_slope(d, first)
     y_start = -2.0 * d.calSlotDepth / (1.0 + slope * slope) ** 0.5
     check("the rest starts 2*calSlotDepth along the slant",
           round(y_start, 3),
           round(-2.0 * d.calSlotDepth * math.cos(math.atan(slope)), 3), 1e-3)
     # It reaches the back wall on the shallow holders and not on the steep ones,
     # and either way the build must agree with the STEP about which.
-    yb = -holder.holder_depth(p, d, first)
+    yb = -holder.holder_depth(d, first)
     for frac, lbl in ((0.25, "near"), (0.75, "far")):
         yy = yb + holder.WALL * (1.0 - frac)
         zz = (holder.slant_top(d) - holder.SLANT_STEP / 2) + slope * yy
@@ -479,9 +479,9 @@ for name, fn, p, first in REFS:
     # own engraving, which is what identifies both the string and the font — the
     # capacity block is 42.456 wide on `333`, which is `10 Sleeved` in Open Sans
     # (42.472) and not in Orbitron (51.342).
-    name, cap_txt = holder.text_blocks(p, d, first)
-    size = holder.text_size(p, d, first)
-    by_depth = (holder.holder_depth(p, d, first) - 2.0) / TX.CAP
+    name, cap_txt = holder.text_blocks(d, first)
+    size = holder.text_size(d, first)
+    by_depth = (holder.holder_depth(d, first) - 2.0) / TX.CAP
     capped = size < by_depth - 1e-6
 
     def ink_blocks(shape):
@@ -492,7 +492,7 @@ for name, fn, p, first in REFS:
         the LARGEST gap: a block is itself broken by its spaces, so a fixed
         threshold splits it in the wrong place.
         """
-        dep = holder.holder_depth(p, d, first)
+        dep = holder.holder_depth(d, first)
         lo, hi = x0 + holder.END_BLOCK + 1.0, x1 - holder.END_BLOCK - 1.0
         slab = Box(hi - lo, dep - 0.5, 1.0).moved(
             Location(((lo + hi) / 2, -dep / 2, holder.base_z(d) + 0.5)))
@@ -545,8 +545,8 @@ for name, fn, p, first in REFS:
               b[1][1] <= x1 - holder.END_BLOCK - holder.TEXT_INSET + 0.1, True)
     # Either way the engraving is ENGRAVE deep and no deeper.
     for who, shape in (("STEP", ref), ("build", mine)):
-        cell = Box(x1 - x0, holder.holder_depth(p, d, first), 0.06).moved(
-            Location(((x0 + x1) / 2, -holder.holder_depth(p, d, first) / 2,
+        cell = Box(x1 - x0, holder.holder_depth(d, first), 0.06).moved(
+            Location(((x0 + x1) / 2, -holder.holder_depth(d, first) / 2,
                       holder.base_z(d) + holder.ENGRAVE + 0.05)))
         got = shape & cell
         check(f"{who}: material just above the engraving floor",
@@ -563,7 +563,7 @@ for name, fn, p, first in REFS:
     # build's own period is held to the +Y side of the band, which is what
     # "reads the right way round from below" means in this frame.
     def ink_lumps(shape):
-        dep = holder.holder_depth(p, d, first)
+        dep = holder.holder_depth(d, first)
         lo, hi = x0 + holder.END_BLOCK + 1.0, x1 - holder.END_BLOCK - 1.0
         slab = Box(hi - lo, dep + 2.0, 1.0).moved(
             Location(((lo + hi) / 2, -dep / 2, holder.base_z(d) + 0.5)))
@@ -574,7 +574,7 @@ for name, fn, p, first in REFS:
                        for q in got), key=lambda b: (round(b[0], 1), b[2]))
 
     mine_lumps = ink_lumps(mine)
-    band_mid = -holder.holder_depth(p, d, first) / 2
+    band_mid = -holder.holder_depth(d, first) / 2
     period = min(mine_lumps, key=lambda b: (b[1] - b[0]) * (b[3] - b[2]))
     check("build: the smallest lump (a period) sits on the +Y side of the band",
           (period[2] + period[3]) / 2 > band_mid, True)
@@ -600,7 +600,7 @@ for name, fn, short, sl in HELD_OUT:
     q = row_params(short, sl)
     e = D.derive(q)
     ref = import_step(str(STEP_DIR / fn)).solids()[0]
-    want = holder.holder_depth(q, e, False)
+    want = holder.holder_depth(e, False)
     got = -ref.bounding_box().min.Y
     print(f"  {name}: depth {got:.3f}, rule says {want:.3f} "
           f"({(got + holder.DEPTH_GAP - 2.4) / e.calCardThickness:.2f} cards "

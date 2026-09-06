@@ -87,17 +87,17 @@ ref = import_step(
 print("=== the envelope, and its three rules ===")
 rb = ref.bounding_box()
 check("width is calSlotwidth * HorizontalSlots",
-      round(T.width(P, d), 3), round(rb.size.X, 3), 1e-3)
-check("depth is the HOLDER's own", round(T.depth(P, d), 3),
+      round(T.width(d), 3), round(rb.size.X, 3), 1e-3)
+check("depth is the HOLDER's own", round(T.depth(d), 3),
       round(rb.size.Y, 3), 1e-3)
 check("... which is 2.000 + calSlotDepth",
-      round(T.depth(P, d), 3), round(2.0 + d.calSlotDepth, 3), 1e-9)
+      round(T.depth(d), 3), round(2.0 + d.calSlotDepth, 3), 1e-9)
 check("the tabs top out TOTAL_HEIGHT above the base",
       round(T.Z_BASE + T.TOTAL_HEIGHT, 3), round(rb.max.Z, 3), 1e-3)
 
 print("\n=== the frame ===")
-x0, x1 = T.x_span(P, d)
-front, rear = T.y_span(P, d)
+x0, x1 = T.x_span(d)
+front, rear = T.y_span(d)
 check("X starts at -calSlotwidth/2 — the HOLDER's datum",
       round(x0, 3), round(rb.min.X, 3), 1e-3)
 check("X 0 is the centre of the first slot",
@@ -107,16 +107,16 @@ check("the rear face is at -2*depth", round(rear, 3), round(rb.min.Y, 3), 1e-3)
 check("the base is at Z_BASE", round(T.Z_BASE, 3), round(rb.min.Z, 3), 1e-3)
 
 print("\n=== #TopperHeight, two ways ===")
-th = T.topper_height(P, d)
+th = T.topper_height(d)
 check("Allan's expression gives 4.200", round(th, 3), 4.200, 1e-9)
 # and the geometry says the same: the rear of the section is that thick
 rear_runs = [f for f in Plane.YZ.offset(100.5).intersect(ref).faces()]
 check("the section's REAR is #TopperHeight thick",
-      round(T.slant_z(P, d, rear) - T.Z_BASE, 3), round(th, 3), 1e-9)
+      round(T.slant_z(d, rear) - T.Z_BASE, 3), round(th, 3), 1e-9)
 
 print("\n=== the slant is the HOLDER's, not a second transcription ===")
 check("topper.slant_slope IS holder.slant_slope",
-      T.slant_slope(P, d), H.slant_slope(P, d, first=False))
+      T.slant_slope(d), H.slant_slope(d, first=False))
 # read off the reference, so the claim is measured and not merely delegated
 sec = Plane.YZ.offset(33.5).intersect(ref).faces()[0]
 slant = max((e for e in sec.edges()
@@ -125,16 +125,16 @@ slant = max((e for e in sec.edges()
 a, b = slant.start_point(), slant.end_point()
 check("... and that is the reference's own slope",
       round(abs((b.Z - a.Z) / (b.Y - a.Y)), 6),
-      round(T.slant_slope(P, d), 6), 1e-5)
+      round(T.slant_slope(d), 6), 1e-5)
 
 print("\n=== the wedge: TriangleMatch + CardHeight ===")
-w = T.wedge(P, d)
+w = T.wedge(d)
 wb = w.bounding_box()
 for ax in "XYZ":
     check(f"wedge {ax} min", round(getattr(wb.min, ax), 3),
           round(getattr(rb.min, ax), 3), 1e-3)
 check("wedge Z max is the wall top, below the tabs",
-      round(wb.max.Z, 3), round(T.slant_z(P, d, front - T.FRONT_WALL), 3), 1e-3)
+      round(wb.max.Z, 3), round(T.slant_z(d, front - T.FRONT_WALL), 3), 1e-3)
 for x in (33.5, 100.5, 167.5):
     check(f"section at a rib, X={x}",
           round(sum(f.area for f in Plane.YZ.offset(x).intersect(w).faces()), 3),
@@ -153,10 +153,10 @@ check("one step back only the rib remains, 1.600",
 check("the rib is centred on the slot boundary",
       round((back_runs[0][0] + back_runs[0][1]) / 2, 3), 33.500, 1e-3)
 
-check("rib count is HorizontalSlots - 1", len(T.rib_x(P, d)), P.HorizontalSlots - 1)
-for got, want in zip(T.rib_x(P, d), [(32.7, 34.3), (99.7, 101.3), (166.7, 168.3)]):
+check("rib count is HorizontalSlots - 1", len(T.rib_x(d)), P.HorizontalSlots - 1)
+for got, want in zip(T.rib_x(d), [(32.7, 34.3), (99.7, 101.3), (166.7, 168.3)]):
     check(f"rib at {want}", (round(got[0], 3), round(got[1], 3)), want)
-for got, want in zip(T.band_x(P, d),
+for got, want in zip(T.band_x(d),
                      [(-33.5, -26.1), (26.1, 40.9), (93.1, 107.9),
                       (160.1, 174.9), (227.1, 234.5)]):
     check(f"band at {want}", (round(got[0], 3), round(got[1], 3)), want)
@@ -168,7 +168,7 @@ print("\n=== against the rolled-back exports (M15-Sl, a SECOND parameter set) ==
 from build123d import Rot                                 # noqa: E402
 Q = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dq = D.derive(Q)
-dpq = T.depth(Q, dq)
+dpq = T.depth(dq)
 
 
 def unflip(solid):
@@ -184,7 +184,7 @@ roll2 = load("Topper M5.15.15.62-Sl after More Dividers.step")
 roll3 = load("Topper M5.15.15.62-Sl after Linear pattern 1.step")
 
 rb1 = roll1.bounding_box()
-wq = T.wedge(Q, dq)
+wq = T.wedge(dq)
 check("the flip puts the rollback on the wedge's envelope (X)",
       round(rb1.min.X, 6), round(wq.bounding_box().min.X, 6), 1e-6)
 check("... (Y)", round(rb1.min.Y, 6), round(wq.bounding_box().min.Y, 6), 1e-6)
@@ -203,16 +203,16 @@ def exact(label, mine, ref):
           round(b.volume if b else 0.0, 6), 0.0, 1e-6)
 
 
-pocketed = wq - T.inner_hole(Q, dq)
+pocketed = wq - T.inner_hole(dq)
 exact("Remove Inner Hole", pocketed, roll1)
 check("the pocket is inset INNER_END_INSET from each end",
-      round(T.inner_hole(Q, dq).bounding_box().min.X - wq.bounding_box().min.X, 4),
+      round(T.inner_hole(dq).bounding_box().min.X - wq.bounding_box().min.X, 4),
       round(T.INNER_END_INSET, 4), 1e-4)
 check("... and INNER_INSET * cos(theta) in Y at the rear",
-      round(T.inner_hole(Q, dq).bounding_box().min.Y - rb1.min.Y, 4),
-      round(T.INNER_INSET * T.slant_cos(Q, dq), 4), 1e-4)
+      round(T.inner_hole(dq).bounding_box().min.Y - rb1.min.Y, 4),
+      round(T.INNER_INSET * T.slant_cos(dq), 4), 1e-4)
 
-grouped = pocketed - T.front_removal(Q, dq) + T.dividers(Q, dq)
+grouped = pocketed - T.front_removal(dq) + T.dividers(dq)
 exact("front removal + dividers", grouped, roll2)
 
 print("\n=== `Fillet front holes`, built into the TOOL ===")
@@ -233,16 +233,16 @@ check("each is a quarter cylinder through the front wall",
       0.6867, 1e-4)
 
 print("\n=== the holder tabs and the lip rooms ===")
-tabbed = grouped + T.holder_tabs(Q, dq) - T.lip_rooms(Q, dq)
+tabbed = grouped + T.holder_tabs(dq) - T.lip_rooms(dq)
 exact("Tab-to-attach .. Linear pattern 1", tabbed, roll3)
-check("two tabs, not one per slot", len(T.holder_tabs(Q, dq).solids()), 2)
+check("two tabs, not one per slot", len(T.holder_tabs(dq).solids()), 2)
 check("the tabs top out at TOTAL_HEIGHT",
-      round(T.holder_tabs(Q, dq).bounding_box().max.Z - T.Z_BASE, 3),
+      round(T.holder_tabs(dq).bounding_box().max.Z - T.Z_BASE, 3),
       round(T.TOTAL_HEIGHT, 3), 1e-3)
 check("... which is FLOOR + a 44 mm blind extrude",
       round(T.FLOOR + T.TAB_RISE, 3), 45.200, 1e-9)
 check("2 lip rooms a slot, HorizontalSlots over",
-      len(T.lip_room_x(Q, dq)), 2 * Q.HorizontalSlots)
+      len(T.lip_room_x(dq)), 2 * Q.HorizontalSlots)
 check("the reference carries 16 cylinders at r1.4",
       sum(1 for f in roll3.faces()
           if "CYLINDER" in str(f.geom_type)
@@ -251,8 +251,8 @@ check("the reference carries 16 cylinders at r1.4",
 print("\n=== the lip room IS the holder's lip base, with no clearance ===")
 # the notch on the +x side of the FIRST slot; lip_room_x is sorted, so
 # index 0 is that slot's other one, at negative x.
-lo, hi = T.lip_room_x(Q, dq)[1]
-xs = [x for x, _y in H.lip_plan(Q, dq, first=False)]
+lo, hi = T.lip_room_x(dq)[1]
+xs = [x for x, _y in H.lip_plan(dq, first=False)]
 check("the notch runs |x| min(lip_plan) .. max(lip_plan)",
       (round(lo, 4), round(hi, 4)), (round(min(xs), 4), round(max(xs), 4)))
 check("... which is LIP_LEN + 2 * LIP_CHAMFER wide",
@@ -266,19 +266,19 @@ check("the notch floor is LIP_ROOM_RISE above the topper's floor",
 print("\n=== `Top and front edges`, the last feature of the blank ===")
 for tag, pp in (("M10-Un", P), ("M15-Sl", Q)):
     dd = D.derive(pp)
-    body = T.build(pp, dd)
+    body = T.build(dd)
     cyl = [f for f in body.faces()
            if "CYLINDER" in str(f.geom_type) and abs(f.radius - T.EDGE_ROUND) < 1e-6]
     check(f"{tag}: eight r0.800 cylinders and no more", len(cyl), 8)
     check(f"{tag}: no tori — one chain, not four fillets",
           sum(1 for f in body.faces() if "TORUS" in str(f.geom_type)), 0)
-    x0, x1 = T.x_span(pp, dd)
-    fr, re_ = T.y_span(pp, dd)
+    x0, x1 = T.x_span(dd)
+    fr, re_ = T.y_span(dd)
     r = T.EDGE_ROUND
     longest = max(cyl, key=lambda f: f.area)
     check(f"{tag}: the bottom perimeter runs width - 2r",
           round(longest.bounding_box().size.X, 3),
-          round(T.width(pp, dd) - 2 * r, 3), 1e-3)
+          round(T.width(dd) - 2 * r, 3), 1e-3)
     # the tell: the REAR vertical fillet is trimmed by the SLANT, not by the
     # rear's own top, so its cylinder reaches slant_z at rear + r.
     rear_v = [f for f in cyl if abs(f.bounding_box().min.Y - re_) < 1e-6
@@ -286,13 +286,13 @@ for tag, pp in (("M10-Un", P), ("M15-Sl", Q)):
     check(f"{tag}: two rear vertical fillets", len(rear_v), 2)
     check(f"{tag}: ... trimmed by the slant at rear + r",
           round(rear_v[0].bounding_box().max.Z, 3),
-          round(T.slant_z(pp, dd, re_ + r), 3), 1e-3)
+          round(T.slant_z(dd, re_ + r), 3), 1e-3)
 
 print("\n=== build(): the whole blank ===")
-mine = T.build(P, d)
+mine = T.build(d)
 exact("unfilleted M10-Un, before the last fillet",
-      T.wedge(P, d) - T.inner_hole(P, d) - T.front_removal(P, d)
-      + T.dividers(P, d) + T.holder_tabs(P, d) - T.lip_rooms(P, d), ref)
+      T.wedge(d) - T.inner_hole(d) - T.front_removal(d)
+      + T.dividers(d) + T.holder_tabs(d) - T.lip_rooms(d), ref)
 # The strongest check available: the FILLETED Unseen export at this exact
 # parameter set. Its lettering is a removal, so it may hold LESS than the blank
 # — but it must hold nothing the blank does not.
@@ -313,7 +313,7 @@ print("\n=== a size-S blank, filleted, against build() ===")
 # the part frame, not the pre-flip one the M rollbacks arrive in.
 S15UN = params.Primary(3, 5, 15, 15, 0, 15, 0, 0, "Innovation")
 s_ref = import_step(str(STEP_DIR / "Topper Blank S5.15.15.45-Un.step")).solids()[0]
-s_mine = T.build(S15UN, D.derive(S15UN))
+s_mine = T.build(D.derive(S15UN))
 sb, mb = s_ref.bounding_box(), s_mine.bounding_box()
 for ax in "XYZ":
     check(f"S15-Un blank: {ax} min", round(getattr(mb.min, ax), 4), round(getattr(sb.min, ax), 4), 1e-4)
@@ -334,7 +334,7 @@ for _f, _fn, _p, _e in B.topper_catalogue():
     if _k in _seen:
         continue
     _seen.add(_k)
-    check(f"{_k}: z_base derives to Z_BASE", round(T.z_base(_p, D.derive(_p)), 6),
+    check(f"{_k}: z_base derives to Z_BASE", round(T.z_base(D.derive(_p)), 6),
           round(T.Z_BASE, 6), 1e-6)
 check("LIP_ROOM_RISE is the holder's SLANT_STEP", T.LIP_ROOM_RISE, H.SLANT_STEP)
 # `Remove most of front`: the opening's edge is 6.000 from the pocket's end,
@@ -378,7 +378,7 @@ def split(sols, pp, dd):
     body = max(sols, key=lambda q: q.volume)
     ins = sorted((q for q in sols if q is not body),
                  key=lambda q: q.bounding_box().min.X)
-    pen = T.text_origin_x(pp, dd)
+    pen = T.text_origin_x(dd)
     return ([q for q in ins if q.bounding_box().max.X < pen],
             [q for q in ins if q.bounding_box().max.X >= pen])
 
@@ -396,7 +396,7 @@ for tag, fn, pp, word in NAMED:
     # underside up by ENGRAVE, and the STEP's separate inlay solids are the
     # same height but sit 0.010 lower, so they stand proud of the face and
     # leave 0.010 clear at the pocket's top — as the Lid's logo inlays do.
-    pocket = T.build(pp, dd) - max(sols, key=lambda q: q.volume)
+    pocket = T.build(dd) - max(sols, key=lambda q: q.volume)
     pz = pocket.bounding_box()
     check(f"{tag}: the pocket starts at the underside",
           round(pz.min.Z, 3), round(T.Z_BASE, 3), 1e-3)
@@ -410,7 +410,7 @@ for tag, fn, pp, word in NAMED:
     # OUR inlays — what `cad.build` writes beside the body since 2026-09-05 —
     # against the STEP's, solid for solid: the same count, each within 0.05
     # of its box (the letters' tessellation, as the lid's marks are held)
-    mine_in = T.inlays(pp, dd, word)
+    mine_in = T.inlays(dd, word)
     check(f"{tag}: one inlay solid per STEP inlay", len(mine_in), len(ins))
     if len(mine_in) == len(ins):
         def box6(q):
@@ -421,7 +421,7 @@ for tag, fn, pp, word in NAMED:
             b = box6(q)
             return min(pool, key=lambda r: ((box6(r)[0] + box6(r)[3]) - (b[0] + b[3])) ** 2
                        + ((box6(r)[1] + box6(r)[4]) - (b[1] + b[4])) ** 2)
-        pen = T.text_origin_x(pp, dd)
+        pen = T.text_origin_x(dd)
         m_mine = [q for q in mine_in if q.bounding_box().max.X < pen]
         t_mine = [q for q in mine_in if q.bounding_box().max.X >= pen]
         worst_mark = max((max(abs(a - b) for a, b in zip(box6(q), box6(nearest(q, m_sol))))
@@ -433,7 +433,7 @@ for tag, fn, pp, word in NAMED:
         # these sizes (the `g` alone differs by 0.00459 em) — except where
         # the em is RAISED to the cut floor (`font_size`), the two 10-card
         # unsleeved rows, whose letters are deliberately larger than the STEP's
-        raised = T.font_size(pp, dd) > T.cap_band(pp, dd) / T.BAND_EM + 1e-9
+        raised = T.font_size(dd) > T.cap_band(dd) / T.BAND_EM + 1e-9
         check(f"{tag}: the mark's inlays land on the STEP's", round(worst_mark, 3), 0.0, 0.01)
         if raised:
             check(f"{tag}: letters raised to the floor stand LARGER than the STEP's",
@@ -442,7 +442,7 @@ for tag, fn, pp, word in NAMED:
             check(f"{tag}: the letters' inlays land on the STEP's to 0.07",
                   round(worst_text, 3), 0.0, 0.07)
     # the mark's box: its width and its TOP edge, which every expansion fills
-    mx0, my0, mx1, my1 = T.mark_box(pp, dd)
+    mx0, my0, mx1, my1 = T.mark_box(dd)
     check(f"{tag}: the mark box is calLogoSidelength wide",
           round(mx1 - mx0, 4), round(dd.calLogoSidelength, 4), 1e-9)
     # The BOX is the mark's own element — Unseen's shield, Cities' star — and
@@ -462,22 +462,22 @@ for tag, fn, pp, word in NAMED:
           (grp[0] + grp[1]) / 2, (mx0 + mx1) / 2, 1e-4)
     check(f"{tag}: the mark box is centred in the DEPTH",
           round((my0 + my1) / 2, 6),
-          round(sum(T.y_span(pp, dd)) / 2, 6), 1e-9)
+          round(sum(T.y_span(dd)) / 2, 6), 1e-9)
 
     # the lettering: baseline, band, and the pen
-    base = T.baseline_y(pp, dd)
+    base = T.baseline_y(dd)
     # A flat-bottomed letter sits ON the baseline; a round one overshoots it.
     # So the LEAST-descending letter's bottom IS the baseline, exactly — `n`
     # in Unseen, `t` and `i` in Cities.
     a, lsb, lo, _hi = TX.metrics(word, T.FONT)
-    size = T.font_size(pp, dd)
+    size = T.font_size(dd)
     # The STEP is Onshape's rule UNFLOORED: the band at BAND_EM of the em and
     # the baseline 2*LogoEdgeDist in. `font_size` raises the 10-card unsleeved
     # toppers to the 0.250 mm proud floor (`cad/text.py`, "floors"), so on
     # `Unseen M10-Un` the reference is measured against the unfloored rule
     # and the build against the floored one — both ends of the divergence.
-    ref_size = T.cap_band(pp, dd) / T.BAND_EM
-    ref_base = T.face_datum(pp, dd)[2] - 2 * T.logo_edge_dist(pp, dd)
+    ref_size = T.cap_band(dd) / T.BAND_EM
+    ref_base = T.face_datum(dd)[2] - 2 * T.logo_edge_dist(dd)
     raised = size > ref_size + 1e-9
     check(f"{tag}: the floor {'raises' if raised else 'does not raise'} this size",
           raised, tag.endswith("M10-Un"))
@@ -501,11 +501,11 @@ for tag, fn, pp, word in NAMED:
           round(-lo * ref_size, 4), 0.008 * ref_size)
     check(f"{tag}: STEP: the pen starts at 1.5L + 3 past the flat face",
           round(min(b.min.X for b in text) - lsb * ref_size, 3),
-          round(T.text_origin_x(pp, dd), 3), 0.01)
+          round(T.text_origin_x(dd), 3), 0.01)
 
     # and the whole word, rendered and placed the way build() will place it
-    sk = T.name_sketch(pp, dd, word)
-    placed = (Pos(T.text_origin_x(pp, dd), base, 0)
+    sk = T.name_sketch(dd, word)
+    placed = (Pos(T.text_origin_x(dd), base, 0)
               * sk.mirror(Plane.XZ))
     pb = placed.bounding_box()
     tb = (min(b.min.X for b in text), max(b.max.X for b in text),
@@ -515,7 +515,7 @@ for tag, fn, pp, word in NAMED:
         # ratio of the two sizes and moved to the floored baseline, is where
         # the build's ink must be: the same word, the same font, one rule.
         k = size / ref_size
-        x_pen = T.text_origin_x(pp, dd)
+        x_pen = T.text_origin_x(dd)
         tb = (x_pen + (tb[0] - x_pen) * k, x_pen + (tb[1] - x_pen) * k,
               base + (tb[2] - ref_base) * k, base + (tb[3] - ref_base) * k)
     # A tolerance PROPORTIONAL to the em, not an absolute one: the vendored
@@ -562,7 +562,7 @@ for tag, fn, pp, word in NAMED:
     # its +y is the part's -Y once placed — to 0.05 mm. Figures is an annulus
     # and cannot tell, but Unseen's rays hang below its shield and Artifacts'
     # and Echoes' triangles point one way.
-    bx0, by0, bx1, by1 = T.mark_box(pp, dd)     # THIS reference's box, not
+    bx0, by0, bx1, by1 = T.mark_box(dd)     # THIS reference's box, not
     cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2    # the last loop's leftover
     ref_pts = sorted((round(q.center().X - cx, 2), round(cy - q.center().Y, 2))
                      for q in ref)
@@ -594,8 +594,8 @@ check("every expansion has a mark", sorted(T.MARKS), sorted(T.EXPANSIONS[1:]))
 print("\n=== build(<expansion>): the whole named topper ===")
 for tag, fn, pp, word in NAMED:
     dd = D.derive(pp)
-    blank_b = T.build(pp, dd)
-    named = T.build(pp, dd, word)
+    blank_b = T.build(dd)
+    named = T.build(dd, word)
     ref = max(import_step(str(STEP_DIR / fn)).solids(), key=lambda s: s.volume)
     # `Solid.volume` is not the metric here: OCCT's GProp over-reports a body
     # with this many small BSpline faces, on the reference as much as on the
@@ -607,8 +607,8 @@ for tag, fn, pp, word in NAMED:
     # Where the floor raises the lettering (`M10-Un`), the pocket grows by
     # the name's area at the two sizes — the mark is unchanged — and that is
     # what the STEP's removed volume is held to; elsewhere the two agree.
-    ref_size = T.cap_band(pp, dd) / T.BAND_EM
-    size = T.font_size(pp, dd)
+    ref_size = T.cap_band(dd) / T.BAND_EM
+    size = T.font_size(dd)
     extra = 0.0
     if size > ref_size + 1e-9:
         from build123d import Text as _Text, Align as _Align
@@ -630,7 +630,7 @@ for tag, fn, pp, word in NAMED:
     check(f"{tag}: still one solid", len(named.solids()), 1)
 
 check("build() refuses a name that is not an expansion",
-      refuses(lambda: T.build(P, d, "Nonesuch")), True)
+      refuses(lambda: T.build(d, "Nonesuch")), True)
 
 print("\n=== `Figures`' descender, which the doubled margin is FOR ===")
 # Allan doubled the bottom margin so the font's lower-case `g` does not run off
@@ -649,8 +649,8 @@ for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         if pp.GameName != "Innovation":
             continue
         dd = D.derive(pp)
-        _x, _rear_f, front_f = T.face_datum(pp, dd)
-        clear = front_f - (T.baseline_y(pp, dd) - ONSHAPE_G * T.font_size(pp, dd))
+        _x, _rear_f, front_f = T.face_datum(dd)
+        clear = front_f - (T.baseline_y(dd) - ONSHAPE_G * T.font_size(dd))
         worst = clear if worst is None else min(worst, clear)
 check("the g clears the face on every row, Onshape's deeper g included",
       round(worst, 3) > 0.0, True)
@@ -658,18 +658,18 @@ check("... with 0.212 to spare at the tightest", round(worst, 3), 0.212, 1e-3)
 # and the rule it depends on: the bottom margin is TWICE the top
 pp = params.Primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dd = D.derive(pp)
-_x, rear_f, front_f = T.face_datum(pp, dd)
-led = T.logo_edge_dist(pp, dd)
+_x, rear_f, front_f = T.face_datum(dd)
+led = T.logo_edge_dist(dd)
 check("the bottom margin is 2 * LogoEdgeDist and the top is 1 *",
-      round(front_f - T.baseline_y(pp, dd), 4), round(2 * led, 4), 1e-9)
+      round(front_f - T.baseline_y(dd), 4), round(2 * led, 4), 1e-9)
 check("... which is what makes the band depth - 2r - 3 * LogoEdgeDist",
-      round(T.cap_band(pp, dd), 4),
-      round(T.depth(pp, dd) - 2 * T.EDGE_ROUND - 3 * led, 4), 1e-9)
+      round(T.cap_band(dd), 4),
+      round(T.depth(dd) - 2 * T.EDGE_ROUND - 3 * led, 4), 1e-9)
 
 print("\n=== it is Innovation-only ===")
 check("build() refuses a non-Innovation game",
-      refuses(lambda: T.build(params.Primary(4, 5, 15, 10, 0, 10, 0, 0,
-                                             "Dominion"))), True)
+      refuses(lambda: T.build(D.derive(params.Primary(4, 5, 15, 10, 0, 10, 0, 0,
+                                                      "Dominion")))), True)
 
 print("\nPASS" if not fails else f"\nFAIL ({len(fails)}): " + ", ".join(fails[:6]))
 sys.exit(1 if fails else 0)

@@ -273,13 +273,13 @@ def plate_title(scheme, title):
     return PLATE_SAFE.sub("-", f"{scheme} — {title}")
 
 
-def object_name(role, p, d):
+def object_name(role, d):
     """What Studio's object list shows. Every role is its own name except the
     Lid, which carries the card capacity and the sleeving — `Lid 168U` — as
     every shipped project has it (Allan, 2026-09-05): with several projects
     open it is the lid that says which cascade a plate belongs to."""
     if role == "Lid":
-        return f"Lid {d.calTotalCards}{'S' if p.isSleeved else 'U'}"
+        return f"Lid {d.calTotalCards}{'S' if d.isSleeved else 'U'}"
     return role
 
 

@@ -42,21 +42,20 @@ rows = assemble.catalogue()
 seen = {"cascades": 0, "margins": 0, "skipped": [], "unchecked": []}
 offsets = set()
 
-for folder, p, _tokens, _sn in rows:
-    d = D.derive(p)
+for folder, d, _tokens, _sn in rows:
     model = f"{folder}/{d.calModelName}"
-    cached = fit.cached_holders(p, d, folder)
+    cached = fit.cached_holders(d, folder)
     if not cached:
         seen["skipped"].append(model)
         continue
     seen["cascades"] += 1
     for state in A.STATES:
-        margins = list(fit.lid_margins(p, d))
+        margins = list(fit.lid_margins(d))
         if state == A.PLAY:
-            margins += fit.socketed_pusher_margins(p, d) + fit.tread_margins(p, d)
+            margins += fit.socketed_pusher_margins(d) + fit.tread_margins(d)
         else:
-            margins += fit.stored_pusher_margins(p, d)
-        margins += fit.holder_margins(p, d, cached)
+            margins += fit.stored_pusher_margins(d)
+        margins += fit.holder_margins(d, cached)
         for m in margins:
             seen["margins"] += 1
             if m.got != m.got:            # not checked: no cached mesh
@@ -73,7 +72,7 @@ for folder, p, _tokens, _sn in rows:
 
     # The tread offset, from the two margins it splits: front + back is the
     # tread's own slack, and their difference is twice the offset.
-    treads = [m for m in fit.tread_margins(p, d) if "on its tread" in m.name]
+    treads = [m for m in fit.tread_margins(d) if "on its tread" in m.name]
     for i in range(0, len(treads), 2):
         back, front = treads[i].got, treads[i + 1].got
         offsets.add(round((front - back) / 2, 6))

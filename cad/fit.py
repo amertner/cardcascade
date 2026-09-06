@@ -60,11 +60,11 @@ class Margin:
                 + (f"  {self.note}" if self.note else ""))
 
 
-def stored_pusher_margins(p, d):
+def stored_pusher_margins(d):
     """The pusher in the box's rear storage."""
     out = []
-    y0, y1 = box_part.slot_band(p, d)
-    pl = A.pusher_stored(p, d, 0)
+    y0, y1 = box_part.slot_band(d)
+    pl = A.pusher_stored(d, 0)
     plate_back = pl((0, 0, 0))[1]
     plate_front = pl((0, 0, L.PLATE))[1]
     out.append(Margin("stored: plate in the 3.200 slot band, back",
@@ -79,23 +79,23 @@ def stored_pusher_margins(p, d):
                       pl((L.TAB_L, 0, 0))[2], box_part.RIM_CUTOUT_Z))
     out.append(Margin("stored: rest below the pusher's own bottom",
                       pl((d.calPusherTotalHeight, 0, 0))[2]
-                      - box_part.pusher_rest(p, d), None,
+                      - box_part.pusher_rest(d), None,
                       note="a catch, not a shelf"))
     _cls, s = L.lock_class(d.calPusherTotalDepth)
-    centre = box_part.pusher_slots(p, d)[0]
+    centre = box_part.pusher_slots(d)[0]
     tab = pl((0, -d.calPusherTotalDepth / 2 + s, 0))[0]
     out.append(Margin("stored: tab centre on the cutout's",
                       abs(tab - centre), s, note="+- s from the slot centre"))
     return out
 
 
-def socketed_pusher_margins(p, d):
+def socketed_pusher_margins(d):
     """The pusher in the lid's socket."""
     out = []
-    s_i = A.play_sockets(p, d)[0]
-    x = lid_part.socket_centres(p, d)[s_i]
-    cx = A.lid_under(p, d)((x, 0.0, 0.0))[0]
-    pl = A.pusher_socketed(p, d, s_i)
+    s_i = A.play_sockets(d)[0]
+    x = lid_part.socket_centres(d)[s_i]
+    cx = A.lid_under(d)((x, 0.0, 0.0))[0]
+    pl = A.pusher_socketed(d, s_i)
     face_a, face_b = pl((0, 0, 0))[0], pl((0, 0, L.PLATE))[0]
     lo, hi = min(face_a, face_b), max(face_a, face_b)
     out.append(Margin("play: plate in the 3.300 channel, +X",
@@ -109,8 +109,8 @@ def socketed_pusher_margins(p, d):
     out.append(Margin("play: tab tip to the recess floor", tip - floor, None,
                       note=f"standard's play is {L.LID_RECESS_STEP - L.TAB_PROUD:.3f} "
                            "with the plate hard over"))
-    _y0, y1 = lid_part.socket_span(p, d)
-    under = A.lid_under(p, d)
+    _y0, y1 = lid_part.socket_span(d)
+    under = A.lid_under(d)
     out.append(Margin("play: pusher overhangs its socket, back",
                       pl((0, 0, 0))[1] - under((0, y1, 0))[1],
                       L.LID_SOCKET_CLEARANCE / 2))
@@ -119,7 +119,7 @@ def socketed_pusher_margins(p, d):
     return out
 
 
-def holder_margins(p, d, cached=None):
+def holder_margins(d, cached=None):
     """The holder on its rib.
 
     `cached` maps `first` to the slot and width measured off the mesh an
@@ -135,7 +135,7 @@ def holder_margins(p, d, cached=None):
     reported, rather than the whole cascade skipped.
     """
     out = []
-    for j, first in A.holders(p, d):
+    for j, first in A.holders(d):
         info = (cached or {}).get(first)
         if info is None:
             out.append(Margin(f"holder {j}: rib in the side slot",
@@ -144,8 +144,8 @@ def holder_margins(p, d, cached=None):
             continue
         slot_lo, slot_hi = info["slot"]
         want = (slot_hi - slot_lo - box_part.SLIDER_W) / 2
-        rib0, rib1 = box_part.slider_ribs(p, d)[j]
-        pl = A.holder_closed(p, d, j)
+        rib0, rib1 = box_part.slider_ribs(d)[j]
+        pl = A.holder_closed(d, j)
         lo, hi = pl((0, slot_lo, 0))[1], pl((0, slot_hi, 0))[1]
         out.append(Margin(f"holder {j}: rib in the side slot, back",
                           hi - rib1, want))
@@ -153,13 +153,13 @@ def holder_margins(p, d, cached=None):
                           rib0 - lo, want))
     plain = (cached or {}).get(False)
     if plain:
-        inner = box_part.box_width(p, d) / 2 - D.WallThickness
+        inner = box_part.box_width(d) / 2 - D.WallThickness
         out.append(Margin("holder: clearance in the box, each side",
                           inner - plain["width"] / 2, None))
     return out
 
 
-def tread_margins(p, d):
+def tread_margins(d):
     """The holder's footprint on the pusher's tread — the play state's own fit.
 
     The offset between a tread's centre and its rib's is a CONSTANT `0.150` on
@@ -168,15 +168,15 @@ def tread_margins(p, d):
     rather than measured — every parameter cancels.
     """
     out = []
-    drops = pusher_part.slider_drops(p, d)
+    drops = pusher_part.slider_drops(d)
     W = d.calPusherTotalDepth
-    oy = A.pusher_socketed(p, d, A.play_sockets(p, d)[0]).origin[1]
-    for j, _first in A.holders(p, d):
-        k = p.RisingSliders - j
+    oy = A.pusher_socketed(d, A.play_sockets(d)[0]).origin[1]
+    for j, _first in A.holders(d):
+        k = d.RisingSliders - j
         back = oy - (W - sum(drops[:k]))
         front = oy - (W - sum(drops[:k - 1]))
-        pl = A.holder_play(p, d, j)
-        depth = holder_part.holder_depth(p, d, _first)
+        pl = A.holder_play(d, j)
+        depth = holder_part.holder_depth(d, _first)
         out.append(Margin(f"holder {j}: on its tread, back",
                           back - pl.origin[1], None))
         out.append(Margin(f"holder {j}: on its tread, front",
@@ -184,47 +184,47 @@ def tread_margins(p, d):
     return out
 
 
-def lid_margins(p, d):
+def lid_margins(d):
     """The lid over the box, and the box in the lid."""
     out = []
     z0, _z1 = lid_part.groove_span(d)
-    pl = A.lid_closed(p, d)
+    pl = A.lid_closed(d)
     out.append(Margin("closed: groove floor on the box's bump top",
                       pl((0, 0, z0))[2], lid_part.BUMP_TOP))
-    inner = lid_part.lid_width(p, d) / 2 - D.WallThickness
+    inner = lid_part.lid_width(d) / 2 - D.WallThickness
     out.append(Margin("lid over box: width, each side",
-                      inner - box_part.box_width(p, d) / 2,
+                      inner - box_part.box_width(d) / 2,
                       (lid_part.WIDTH_OVER_BOX - 2 * D.WallThickness) / 2))
-    lid_inner_back = A.lid_under(p, d)((0, lid_part.lid_depth(d) / 2
+    lid_inner_back = A.lid_under(d)((0, lid_part.lid_depth(d) / 2
                                        - D.WallThickness, 0))[1]
-    box_back = box_part.box_depth(p, d) / 2 + box_part.REAR_DEPTH
+    box_back = box_part.box_depth(d) / 2 + box_part.REAR_DEPTH
     out.append(Margin("lid over box: behind the rear storage",
                       lid_inner_back - box_back, None))
-    lid_inner_front = A.lid_under(p, d)((0, -lid_part.lid_depth(d) / 2
+    lid_inner_front = A.lid_under(d)((0, -lid_part.lid_depth(d) / 2
                                         + D.WallThickness, 0))[1]
     out.append(Margin("lid over box: in front of the front wall",
-                      -box_part.box_depth(p, d) / 2 - lid_inner_front, None))
+                      -box_part.box_depth(d) / 2 - lid_inner_front, None))
     return out
 
 
-def cached_holders(p, d, folder):
+def cached_holders(d, folder):
     """`{first: {slot, width}}` for the holders an assembly places, measured
     off their meshes. A key is absent when that mesh is not on disk."""
     out = {}
-    for first in {f for _j, f in A.holders(p, d)}:
-        info = cached_holder(p, d, folder, first)
+    for first in {f for _j, f in A.holders(d)}:
+        info = cached_holder(d, folder, first)
         if info is not None:
             out[first] = info
     return out
 
 
-def cached_holder(p, d, folder, first=False):
+def cached_holder(d, folder, first=False):
     """The slot and width of one cached holder, measured off its mesh.
     `None` when it is not on disk."""
     import numpy as np
     from . import assemble
     try:
-        _n, verts, _t = assemble.holder_mesh(p, d, folder, first)
+        _n, verts, _t = assemble.holder_mesh(d, folder, first)
     except assemble.MissingCached:      # the one expected way to have none
         return None
     v = np.asarray(verts)
@@ -235,7 +235,7 @@ def cached_holder(p, d, folder, first=False):
     # holder's mid-depth. Both conditions are needed: on `Holder S-16-r4-Un`
     # the pair (-5.800, -3.908) is 1.892 apart and matches the width alone to
     # 0.008, and it is the outer face and a lip chamfer, not the slot.
-    mid = -holder_part.holder_depth(p, d, first) / 2
+    mid = -holder_part.holder_depth(d, first) / 2
     walls = sorted(((abs((a + b) / 2 - mid), (float(a), float(b)))
                     for i, a in enumerate(ys) for b in ys[i + 1:]
                     if abs((b - a) - holder_part.SLOT_W) < 0.05))
@@ -244,7 +244,7 @@ def cached_holder(p, d, folder, first=False):
     return {"slot": walls[0][1], "width": float(x_hi - x_lo)}
 
 
-def interference(p, d, state, tokens=False):
+def interference(d, state, tokens=False):
     """[(a, b, mm3)] for every pair of SOURCE-built parts, placed.
 
     Box, Lid, Pusher and — where the row ships one, `tokens` — the
@@ -252,19 +252,19 @@ def interference(p, d, state, tokens=False):
     can hand a B-rep for. Anything non-zero is a defect.
     """
     from .parts import box as bp, lid as lp, pusher as pp, token_holder as tp
-    solids = [("Box", bp.build(p), A.box(p, d))]
-    pusher = pp.build(p)
+    solids = [("Box", bp.build(d), A.box(d))]
+    pusher = pp.build(d)
     if state == A.PLAY:
-        solids += [(f"Pusher@{s}", pusher, A.pusher_socketed(p, d, s))
-                   for s in A.play_sockets(p, d)]
-        solids.append(("Lid", lp.build(p), A.lid_under(p, d)))
+        solids += [(f"Pusher@{s}", pusher, A.pusher_socketed(d, s))
+                   for s in A.play_sockets(d)]
+        solids.append(("Lid", lp.build(d), A.lid_under(d)))
     else:
-        solids += [(f"Pusher[{k}]", pusher, A.pusher_stored(p, d, k))
-                   for k in A.pushers(p, d)]
+        solids += [(f"Pusher[{k}]", pusher, A.pusher_stored(d, k))
+                   for k in A.pushers(d)]
         if state == A.CLOSED_LID:
-            solids.append(("Lid", lp.build(p), A.lid_closed(p, d)))
+            solids.append(("Lid", lp.build(d), A.lid_closed(d)))
     if tokens:
-        solids.append(("TokenHolder", tp.build(p, False), A.token_holder(p, d)))
+        solids.append(("TokenHolder", tp.build(d, False), A.token_holder(d)))
 
     placed = [(n, pl.location() * s) for n, s, pl in solids]
     out = []
@@ -275,23 +275,23 @@ def interference(p, d, state, tokens=False):
     return out
 
 
-def report(p, d, folder, state, solids=True, tokens=False):
+def report(d, folder, state, solids=True, tokens=False):
     """Print one cascade's fit in one state. True if everything passed.
     `tokens` says whether the row ships a token holder to check."""
     print(f"\n{folder}/{d.calModelName}  [{state}]")
-    cached = cached_holders(p, d, folder)
-    margins = list(lid_margins(p, d))
+    cached = cached_holders(d, folder)
+    margins = list(lid_margins(d))
     if state == A.PLAY:
-        margins += socketed_pusher_margins(p, d) + tread_margins(p, d)
+        margins += socketed_pusher_margins(d) + tread_margins(d)
     else:
-        margins += stored_pusher_margins(p, d)
-    margins += holder_margins(p, d, cached)
+        margins += stored_pusher_margins(d)
+    margins += holder_margins(d, cached)
     for m in margins:
         print(m)
     ok = all(m.ok for m in margins)
     if solids:
         print("  -- interference, source-built parts --")
-        for a, b, v in interference(p, d, state, tokens):
+        for a, b, v in interference(d, state, tokens):
             flag = "ok " if v <= 1e-6 else "HIT"
             if v > 1e-6:
                 ok = False
@@ -313,10 +313,9 @@ def main(argv=None):
     rows = assemble.catalogue(args.csv, args.game, args.model)
     states = A.STATES if args.state == "all" else (args.state,)
     ok = True
-    for folder, p, tokens, _sn in rows:
-        d = D.derive(p)
+    for folder, d, tokens, _sn in rows:
         for state in states:
-            ok &= report(p, d, folder, state, solids=not args.no_solids,
+            ok &= report(d, folder, state, solids=not args.no_solids,
                          tokens=tokens)
     print("\nPASS" if ok else "\nFAIL")
     return 0 if ok else 1

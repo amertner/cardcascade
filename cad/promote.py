@@ -44,7 +44,7 @@ BUILD = ROOT / "build"
 DEFAULT_OUT = BUILD / "components"
 
 
-def built_name(item, p, d):
+def built_name(item, d):
     """The `build/` filename for one planner component, or None for a kind
     `cad/` does not make (a `Label`, which the planner only lists under
     `--labels` and which `labelmaker.py` has made locally since 2026-08-15)."""
@@ -54,7 +54,7 @@ def built_name(item, p, d):
     if kind == "Lid":
         return B.lid_file(d)
     if kind == "Pusher":
-        return B.pusher_file(p)
+        return B.pusher_file(d)
     if kind == "Holder":
         return B.holder_file(d, first=item.get("instance") == "first")
     if kind == "TokenHolder":
@@ -62,7 +62,7 @@ def built_name(item, p, d):
     if kind == "HalfTokenHolder":
         return B.token_holder_file(d, half=True)
     if kind == "Topper":
-        return B.topper_file(p, d, expansion=item["key"][1])
+        return B.topper_file(d, expansion=item["key"][1])
     return None
 
 
@@ -83,7 +83,7 @@ def stage(games, out, model=None, name=None, dry=False):
             p = params.from_row(casc["row"], 1 if casc["sleeved"] == "Sl" else 0)
             d = D.derive(p)
             for item in casc["components"]:
-                fn = built_name(item, p, d)
+                fn = built_name(item, d)
                 if fn is None:
                     unmade.append(f"{folder}/{item['file']} ({casc['name']})")
                     continue

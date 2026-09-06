@@ -58,7 +58,7 @@ for name, path, p in REFS:
         fails.append(f"{name}: reference {path.name} missing")
         continue
     ref = import_step(str(path)).solids()[0]
-    part = pusher.build(p, text=False)
+    part = pusher.build(D.derive(p), text=False)
     rb, pb = ref.bounding_box(), part.bounding_box()
     # The STEPs are in assembly position and their Z origin differs between
     # parts, so align on the bounding box rather than a fixed offset.
@@ -100,7 +100,7 @@ for name, path, p in REFS:
     for x in xs:
         check(f"X-normal face area at x={x}", xf(moved, x), xf(ref, x), 1e-3)
 
-    drops = pusher.slider_drops(p, d)
+    drops = pusher.slider_drops(d)
     check("slider drops sum to the depth", round(sum(drops), 6),
           round(d.calPusherTotalDepth, 6))
     if p.isFirstSlidingSlotOverride:
@@ -130,7 +130,7 @@ for name, path, p in REFS:
     d = D.derive(p)
     for label, txt, font, detail in (
             ("logo (Orbitron Bold)", d.ProductName, T.LOGO_FONT, False),
-            ("detail (Open Sans Bold)", T.detail_line(p), T.DETAIL_FONT, True)):
+            ("detail (Open Sans Bold)", T.detail_line(d), T.DETAIL_FONT, True)):
         meas = step_glyphs(sol, detail)
         if not detail:                      # the logo plane holds both rows
             meas = [b for b in meas if abs(b.min.Y - meas[0].min.Y) < 1e-3]
@@ -152,7 +152,7 @@ for name, path, p in REFS:
 print("\n=== the text rule (an invariant check, not a reproduction) ===")
 for name, path, p in REFS:
     d = D.derive(p)
-    (txt, sz, x, base), (ver, sz2, x2, base2) = T.logo_lines(p, d)
+    (txt, sz, x, base), (ver, sz2, x2, base2) = T.logo_lines(d)
     logo_cap_em, logo_asc_em = T._metrics(T.LOGO_FONT)
     cap = sz * logo_cap_em
     # Half the product's cap — or the 0.200 mm stroke floor where half is
@@ -177,7 +177,7 @@ for name, path, p in REFS:
     check(f"{name}: both lines share a left anchor",
           round(x - T._LSB_C * sz, 4), round(x2 - T._LSB_C * sz2, 4), 1e-4)
 
-    dtxt, dsz, dbx, dy0 = T.detail_placement(p, d)
+    dtxt, dsz, dbx, dy0 = T.detail_placement(d)
     dcap = dsz * T._metrics(T.DETAIL_FONT)[0]
     dasc = dcap * (T._metrics(T.DETAIL_FONT)[1] / T._metrics(T.DETAIL_FONT)[0])
     dwidth = T._width_per_cap(dtxt, T.DETAIL_FONT) * dcap
@@ -203,7 +203,7 @@ built = 0
 tight = []
 for k, q in sorted(seen.items()):
     dq = D.derive(q)
-    part = pusher.build(q, text=True)
+    part = pusher.build(D.derive(q), text=True)
     b = part.bounding_box()
     assert abs(b.size.X - dq.calPusherTotalHeight) < 1e-6
     assert abs(b.size.Y - dq.calPusherTotalDepth) < 1e-6
@@ -211,12 +211,12 @@ for k, q in sorted(seen.items()):
     # The text rule has to hold on EVERY pusher, not just the two references —
     # it is a fitting rule, and the catalogue spans a 5x range of both the
     # strip it fits into and the depth it runs along.
-    (txt, sz, x, base), (_ver, sz2, x2, _b2) = T.logo_lines(q, dq)
+    (txt, sz, x, base), (_ver, sz2, x2, _b2) = T.logo_lines(dq)
     cap = sz * T._metrics(T.LOGO_FONT)[0]
     assert -base + T.LOGO_MARGIN * dq.calSliderDistance <= dq.calSliderDistance + 1e-9
     assert x + T._width_per_cap(txt, T.LOGO_FONT) * cap \
         <= dq.calPusherTotalHeight - pusher.CHAMFER + 1e-9
-    dtxt, dsz, dbx, dy0 = T.detail_placement(q, dq)
+    dtxt, dsz, dbx, dy0 = T.detail_placement(dq)
     dcap = dsz * T._metrics(T.DETAIL_FONT)[0]
     dasc = dcap * (T._metrics(T.DETAIL_FONT)[1] / T._metrics(T.DETAIL_FONT)[0])
     dwidth = T._width_per_cap(dtxt, T.DETAIL_FONT) * dcap
@@ -234,7 +234,7 @@ check("classes cover C1..C5",
       ["C1", "C2", "C3", "C4", "C5"])
 with tempfile.TemporaryDirectory() as tmp:
     out = Path(tmp) / "pusher_smoke.3mf"
-    m = Mesher(); m.add_shape(pusher.build(REFS[0][2]), part_number="Pusher"); m.write(out)
+    m = Mesher(); m.add_shape(pusher.build(D.derive(REFS[0][2])), part_number="Pusher"); m.write(out)
     check("3MF export", out.exists() and out.stat().st_size > 0, True)
 
 print(f"\n{'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")

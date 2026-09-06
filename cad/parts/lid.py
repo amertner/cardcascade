@@ -41,14 +41,14 @@ WIDTH_OVER_BOX = 4.600
 OUTER_ROUND = 1.000          # every outer edge: 4 vertical, 4 top, 4 bottom
 
 
-def lid_width(p, d):
+def lid_width(d):
     """`#BoxWidth + 4.600`.
 
     `box.box_width` rather than a second copy of the expression: it is one
     quantity, and derive.py's rule — every formula once — is what keeps the
     inner box width identical across the parts that have to agree on it.
     """
-    return box_part.box_width(p, d) + WIDTH_OVER_BOX
+    return box_part.box_width(d) + WIDTH_OVER_BOX
 
 
 def lid_depth(d):
@@ -56,10 +56,10 @@ def lid_depth(d):
     return d.calLidDepth
 
 
-def shell(p, d):
+def shell(d):
     """The tray: a rectangle extruded to `LidHeight` and hollowed to WALL with
     the TOP face removed, so the floor and the four walls are 1.600."""
-    return tray(lid_width(p, d), lid_depth(d), d.LidHeight, WALL)
+    return tray(lid_width(d), lid_depth(d), d.LidHeight, WALL)
 
 
 # --- the pusher sockets ----------------------------------------------------
@@ -79,7 +79,7 @@ KEY_RIB_LEN = 5.000          # along the channel, on the centreline
 # what is left. Nothing here is a number of its own.
 
 
-def socket_count(p):
+def socket_count(d):
     """2 sockets for XS and S, 3 for M and L.
 
     NB this is the plain size rule and NOT `isOnlyTwoPusherSlots`: an
@@ -91,10 +91,10 @@ def socket_count(p):
     eventually (Allan) — four lids, and it wants a version bump and a
     two-sided test, so `spec/LID.md` holds the decision and its cost.
     """
-    return 2 if p.HorizontalSlots <= 3 else 3
+    return 2 if d.HorizontalSlots <= 3 else 3
 
 
-def socket_centres(p, d):
+def socket_centres(d):
     """Channel centre X of each socket, left to right.
 
     The FIRST one is placed and the rest step off it, which is the sketch's own
@@ -111,14 +111,14 @@ def socket_centres(p, d):
     of the lid's. This file carried that `-0.300` as a measured constant until
     the sketch turned up — see spec/LID.md, "What the fit got wrong".
     """
-    n = socket_count(p)
-    span = (p.HorizontalSlots - 1) * d.calSlotwidth
-    first = (-(lid_width(p, d) / 2 - WALL) + d.calSlotwidth / 2
+    n = socket_count(d)
+    span = (d.HorizontalSlots - 1) * d.calSlotwidth
+    first = (-(lid_width(d) / 2 - WALL) + d.calSlotwidth / 2
              + d.calSliderSpaceLeftRight / 2 + d.calFootTotalWidth / 2)
     return [first + k * span / (n - 1) for k in range(n)]
 
 
-def socket_span(p, d):
+def socket_span(d):
     """(y0, y1) of a socket. Its length is the standard's `D - 0.400` and its
     BACK edge sits `SOCKET_BACK` in from the lid's back face — constant on all
     48 lids, whose depths run 34.98 to 111.30."""
@@ -126,7 +126,7 @@ def socket_span(p, d):
     return y1 - (d.calPusherTotalDepth - L.LID_SOCKET_CLEARANCE), y1
 
 
-def socket(p, d, x):
+def socket(d, x):
     """One socket, centred on channel X `x`.
 
     The block is `#calFootTotalWidth` x span x `SOCKET_H` and everything else
@@ -142,7 +142,7 @@ def socket(p, d, x):
       deep, cut into the channel's **-X wall only** — the pusher's tabs stand
       proud of one face — at the socket's centreline +- `s`.
     """
-    y0, y1 = socket_span(p, d)
+    y0, y1 = socket_span(d)
     z0, z1 = WALL, WALL + SOCKET_H
     _cls, s = L.lock_class(d.calPusherTotalDepth)
     centre = (y0 + y1) / 2
@@ -167,9 +167,9 @@ def socket(p, d, x):
     return block
 
 
-def sockets(p, d, part):
+def sockets(d, part):
     """Every socket, fused to the floor in one boolean."""
-    return part.fuse(*[socket(p, d, x) for x in socket_centres(p, d)])
+    return part.fuse(*[socket(d, x) for x in socket_centres(d)])
 
 
 # --- the closing grooves ---------------------------------------------------
@@ -193,7 +193,7 @@ def groove_span(d):
     return z0, z0 + GROOVE_HEIGHT
 
 
-def closing_grooves(p, d, part):
+def closing_grooves(d, part):
     """One groove in each end wall, mirrored.
 
     Centred on `y = 0`, which is where the box's bump lands: the bump sits at
@@ -210,7 +210,7 @@ def closing_grooves(p, d, part):
     chamfers — which is how this was caught.
     """
     z0, z1 = groove_span(d)
-    inner = lid_width(p, d) / 2 - WALL
+    inner = lid_width(d) / 2 - WALL
     over = 1.0                       # inward, so the cut is not coincident
     tool = Box(GROOVE_DEPTH + over, GROOVE_LEN, z1 - z0)
     deep = tool.faces().sort_by(Axis.X)[-1]
@@ -249,7 +249,7 @@ def text_offset(d):
             + d.calFootTotalWidth + 2.0)
 
 
-def logo_offset(p, d):
+def logo_offset(d):
     """The same, for the -X logo block's left edge from the left inner wall.
 
         #calLidTextOffset + 2*#calSlotwidth/3
@@ -259,7 +259,7 @@ def logo_offset(p, d):
     lid the logo keeps the bare offset and the text block moves DOWN instead —
     see `text_block`. Exact on all 48 cached lids.
     """
-    extra = d.calFootTotalWidth + 2.0 if p.HorizontalSlots > 2 else 0.0
+    extra = d.calFootTotalWidth + 2.0 if d.HorizontalSlots > 2 else 0.0
     return d.calLidTextOffset + 2 * d.calSlotwidth / 3 + extra
 
 
@@ -304,7 +304,7 @@ def right_aligned(txt, size, right, baseline, proud):
     return emboss(txt, size, right - adv * size, baseline, proud)
 
 
-def text_block(p, d):
+def text_block(d):
     """`calCapacityLabel`, `GameName`, `calModelName` — the +X block.
 
     Right-aligned on `text_offset` in from the right inner wall, reading UP in
@@ -315,11 +315,11 @@ def text_block(p, d):
     `#HorizontalSlots > 2 ? 2mm : 15mm` below the socket's back edge. The 15 is
     the whole of why an XS lid's text sits lower — see `spec/LID.md`.
     """
-    right = lid_width(p, d) / 2 - WALL - text_offset(d)
-    gap = 2.0 if p.HorizontalSlots > 2 else 15.0
+    right = lid_width(d) / 2 - WALL - text_offset(d)
+    gap = 2.0 if d.HorizontalSlots > 2 else 15.0
     base = (lid_depth(d) / 2 - WALL - D.FootDistanceFromWall - gap) - CAP_LINE
     out = []
-    lines = ((d.calCapacityLabel, CAP_LINE), (p.GameName, CAP_LINE),
+    lines = ((d.calCapacityLabel, CAP_LINE), (d.GameName, CAP_LINE),
              (d.calModelName, CAP_MODEL))
     for i, (txt, cap) in enumerate(lines):
         out.append(right_aligned(txt, cap / T.CAP, right, base, TEXT_PROUD))
@@ -330,7 +330,7 @@ def text_block(p, d):
     return out
 
 
-def logo_block(p, d):
+def logo_block(d):
     """`ProductName`, `calVersion` and the staircase — the -X block.
 
     `ProductName`'s cap top is `#FootDistanceFromWall + 1mm` below the lid's
@@ -338,7 +338,7 @@ def logo_block(p, d):
     `logo_width` long. The version is right-aligned on the same box, its cap
     top `VERSION_DROP` below `ProductName`'s baseline.
     """
-    left = -(lid_width(p, d) / 2 - WALL) + logo_offset(p, d)
+    left = -(lid_width(d) / 2 - WALL) + logo_offset(d)
     size = logo_size(d)
     cap = T.CAP * size                       # #LogoHeight
     cap23 = 2 * cap / 3                      # #LogoHeight23
@@ -347,11 +347,11 @@ def logo_block(p, d):
     out = [emboss(d.ProductName, size, left, base, LOGO_PROUD),
            right_aligned(d.calVersion, cap23 / T.CAP, left + logo_width(d),
                          base - VERSION_DROP - cap23, TEXT_PROUD)]
-    stair = staircase(p, d, left, base - cap23)
+    stair = staircase(d, left, base - cap23)
     return out + ([stair] if stair else [])
 
 
-def staircase(p, d, left, top):
+def staircase(d, left, top):
     """The Card Cascade logo: `RisingSliders` steps descending to the right,
     filling `#LogoWidth` by `#SlopeHeight`.
 
@@ -367,12 +367,12 @@ def staircase(p, d, left, top):
     rather than read off a sketch — it is the third feature to branch on
     `#HorizontalSlots > 2`, and both XS lids in `individual/` agree.
     """
-    if p.HorizontalSlots <= 2:
+    if d.HorizontalSlots <= 2:
         return None
-    y0 = socket_span(p, d)[0]
-    sw, sh = logo_width(d) / p.RisingSliders, (top - y0) / p.RisingSliders
+    y0 = socket_span(d)[0]
+    sw, sh = logo_width(d) / d.RisingSliders, (top - y0) / d.RisingSliders
     pts = [(left, y0), (left + logo_width(d), y0)]
-    for k in range(1, p.RisingSliders + 1):
+    for k in range(1, d.RisingSliders + 1):
         pts.append((left + logo_width(d) - (k - 1) * sw, y0 + k * sh))
         pts.append((left + logo_width(d) - k * sw, y0 + k * sh))
     with BuildPart() as part:
@@ -382,9 +382,9 @@ def staircase(p, d, left, top):
     return part.part
 
 
-def floor_text(p, d, part):
+def floor_text(d, part):
     """Both blocks, fused to the floor in one boolean."""
-    return part.fuse(*(text_block(p, d) + logo_block(p, d)))
+    return part.fuse(*(text_block(d) + logo_block(d)))
 
 
 # --- the logo pattern ------------------------------------------------------
@@ -440,22 +440,22 @@ LOGO_WIDTH_FRACTION = 0.600
 LOGO_DEPTH_FRACTION = 0.850
 
 
-def logo_room(p, d):
+def logo_room(d):
     """(width, depth) of FLAT outer floor — the hard limit, past which the
     pocket would run into an outer round."""
-    return (lid_width(p, d) - 2 * OUTER_ROUND,
+    return (lid_width(d) - 2 * OUTER_ROUND,
             lid_depth(d) - 2 * OUTER_ROUND)
 
 
-def logo_target(p, d):
+def logo_target(d):
     """(width, depth) the mark is sized to — the proportion of the lid it
     should take, which is a smaller rectangle than `logo_room` on all but the
     shallowest lids."""
-    return (lid_width(p, d) * LOGO_WIDTH_FRACTION,
+    return (lid_width(d) * LOGO_WIDTH_FRACTION,
             lid_depth(d) * LOGO_DEPTH_FRACTION)
 
 
-def logo_edition(p, d):
+def logo_edition(d):
     """Which of the game's marks this cascade carries, or None for its default.
 
     Keyed on the base model — `calModelName` up to its third dot — because it
@@ -463,27 +463,27 @@ def logo_edition(p, d):
     cascades say just "Innovation" where the other four say "Innovation
     Ultimate" (`TB.LID_LOGO_EDITION`).
     """
-    rule = TB.LID_LOGO_EDITION.get(p.GameName)
+    rule = TB.LID_LOGO_EDITION.get(d.GameName)
     if not rule:
         return None
     return rule.get(".".join(d.calModelName.split(".")[:3]))
 
 
-def logo_scale(p, d, name):
+def logo_scale(d, name):
     """The nominal factor this lid sizes `name` to — see above.
 
     A mark's size is AFFINE in that factor, `a*n + b`, because a generated
     mark's letters scale and its strokes do not (`cad/marks.growth`). A drawing
     has `b = 0` and this is then the plain scale it is drawn at.
     """
-    (rw, rd), (tw, td) = logo_room(p, d), logo_target(p, d)
-    (aw, bw), (ah, bh) = MK.growth(p.GameName, name)
+    (rw, rd), (tw, td) = logo_room(d), logo_target(d)
+    (aw, bw), (ah, bh) = MK.growth(d.GameName, name)
     hard = min((rw - bw) / aw, (rd - bh) / ah)
     want = min((tw - bw) / aw, (td - bh) / ah)
     return min(max(want, 1.0), hard)
 
 
-def logo_choice(p, d):
+def logo_choice(d):
     """(mark, nominal factor) — which of the game's marks this lid gets and how
     far it is sized, or (None, 0.0) for a game with no artwork on file.
 
@@ -494,22 +494,22 @@ def logo_choice(p, d):
     size it was PUBLISHED at (`marks.GENERATED`): the plain mark once, the
     Ultimate mark at both of the sizes Allan's sketch shipped.
     """
-    names = (TB.LID_LOGO.get(p.GameName) or {}).get(logo_edition(p, d))
+    names = (TB.LID_LOGO.get(d.GameName) or {}).get(logo_edition(d))
     if not names:
         return None, 0.0
     chosen = None
     for name in names:
-        if MK.growth(p.GameName, name) is None:
+        if MK.growth(d.GameName, name) is None:
             continue
         chosen = name
-        if logo_scale(p, d, name) >= 1.0:
+        if logo_scale(d, name) >= 1.0:
             break
     if chosen is None:
         return None, 0.0
-    return chosen, logo_scale(p, d, chosen)
+    return chosen, logo_scale(d, chosen)
 
 
-def logo_art(p, d):
+def logo_art(d):
     """The game's mark as filled faces in the lid's frame; [] for a lid
     that carries none.
 
@@ -517,17 +517,17 @@ def logo_art(p, d):
     reference lid — so `cad.marks` sizes it about its OWN centre and at n = 1
     it stays exactly where Onshape put it. A generated mark is built centred.
     """
-    name, n = logo_choice(p, d)
-    return MK.faces(p.GameName, name, n) if name else []
+    name, n = logo_choice(d)
+    return MK.faces(d.GameName, name, n) if name else []
 
 
-def logo_pattern(p, d, part):
+def logo_pattern(d, part):
     """(the body with its pocket cut, the inlay solids).
 
     Both come from one set of regions, so the inlay cannot drift out of the
     pocket: they are the same extrusion at two Z ranges.
     """
-    faces = logo_art(p, d)
+    faces = logo_art(d)
     if not faces:
         return part, []
     # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
@@ -549,10 +549,9 @@ def logo_pattern(p, d, part):
     return part, [q.moved(Location((0, 0, -PATTERN_PROUD))) for q in prisms]
 
 
-def inlays(p):
+def inlays(d):
     """Just the logo's inlay solids — what `build` cuts the pocket for."""
-    d = D.derive(p)
-    faces = logo_art(p, d)
+    faces = logo_art(d)
     return [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
             .moved(Location((0, 0, -PATTERN_PROUD)))
             for f in faces]
@@ -561,7 +560,7 @@ def inlays(p):
 # --- the outer rounds ------------------------------------------------------
 
 
-def outer_edges(p, d, part):
+def outer_edges(d, part):
     """The twelve edges of the outer envelope — four vertical, four at the
     rim, four at the bottom.
 
@@ -569,7 +568,7 @@ def outer_edges(p, d, part):
     of the six outer faces. Nothing else on the lid is within reach of them,
     so this needs none of the care `box.sharp_edges` does.
     """
-    half_w, half_d, H = lid_width(p, d) / 2, lid_depth(d) / 2, d.LidHeight
+    half_w, half_d, H = lid_width(d) / 2, lid_depth(d) / 2, d.LidHeight
     tol = 1e-6
     out = []
     for e in part.edges():
@@ -581,7 +580,7 @@ def outer_edges(p, d, part):
     return out
 
 
-def build_all(p):
+def build_all(d):
     """(the Lid BODY, its logo inlays) — both from ONE extrusion of the mark.
 
     The inlays are separate solids because they print in the second filament
@@ -593,19 +592,18 @@ def build_all(p):
     sockets, grooves and text are inside and on the walls, and none of them
     reaches it, so the order is free and the cheap one is taken.
     """
-    d = D.derive(p)
-    part = shell(p, d)
-    part, inlays = logo_pattern(p, d, part)
-    part = sockets(p, d, part)
-    part = closing_grooves(p, d, part)
-    part = floor_text(p, d, part)
+    part = shell(d)
+    part, inlays = logo_pattern(d, part)
+    part = sockets(d, part)
+    part = closing_grooves(d, part)
+    part = floor_text(d, part)
     # The outer rounds stay LAST, as the tree has them. Rounding the bare
     # shell first was tried: it saved nothing on Compile's lid and changed
     # its smallest one by 0.389 mm3, the mark there sitting at the hard limit
     # against the rounds, so the order is not free after all.
-    return fillet(outer_edges(p, d, part), OUTER_ROUND), inlays
+    return fillet(outer_edges(d, part), OUTER_ROUND), inlays
 
 
-def build(p):
-    """`p` is a params.Primary. Returns the Lid BODY as a build123d Part."""
-    return build_all(p)[0]
+def build(d):
+    """The Lid BODY as a build123d Part, from a `derive.Derived`."""
+    return build_all(d)[0]

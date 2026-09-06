@@ -28,7 +28,7 @@ from .. import text as T
 WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
 
 
-def box_width(p, d):
+def box_width(d):
     """`#BoxWidth`. Allan's sketch variable, verified on all 48 boxes.
 
     The expression moved into `derive.py` when the TokenHolder arrived, because
@@ -39,13 +39,13 @@ def box_width(p, d):
     return d.BoxWidth
 
 
-def box_depth(p, d):
+def box_depth(d):
     """`#BoxDepth`. Same expression as `calLidDepth` less a constant 8.100."""
-    return (6.0 + (p.RisingSliders - 1) * d.calSliderDistance
+    return (6.0 + (d.RisingSliders - 1) * d.calSliderDistance
             + d.calFirstSliderDistance) + d.calFrontPocketDepth
 
 
-def pusher_slots(p, d):
+def pusher_slots(d):
     """Centreline X of each rear pusher-storage slot, left to right.
 
     `#dBackSlotWidth` is the pitch, and it is `calPusherTotalDepth + 4.000` —
@@ -55,19 +55,19 @@ def pusher_slots(p, d):
     and C2/C3/C5; `tests/test_box.py` holds it to them.
     """
     pitch = D.back_slot_pitch(d)
-    x0 = -box_width(p, d) / 2 + WALL
-    return [x0 + (k + 0.5) * pitch for k in range(pusher_slot_count(p, d))]
+    x0 = -box_width(d) / 2 + WALL
+    return [x0 + (k + 0.5) * pitch for k in range(pusher_slot_count(d))]
 
 
-def pusher_slot_count(p, d=None):
+def pusher_slot_count(d):
     """`#calPusherSlots` — `derive.py`'s, which owns the rule (2 for an S box
     and for every Innovation box, else 3). `components.pushers_for` computes
     the same thing from the size letter and gets Innovation XS wrong (no `XS`
     key, so it falls through to 3 against the box's 2)."""
-    return (d if d is not None else D.derive(p)).calPusherSlots
+    return d.calPusherSlots
 
 
-def finger_hole_offset(p, d):
+def finger_hole_offset(d):
     """`#calFingerHoleOffset` — where the rear thumb cutout sits.
 
         (#calPusherSlots - 1 + (#HorizontalSlots - #calPusherSlots)/2)
@@ -77,18 +77,18 @@ def finger_hole_offset(p, d):
     pusher slot after the first, then centre what is left over. Checks out at
     162.5 on `M4.21.10.45-Sl`, which is the value his feature tree shows.
     """
-    n = pusher_slot_count(p, d)
-    return (n - 1 + (p.HorizontalSlots - n) / 2) * d.calSlotwidth
+    n = pusher_slot_count(d)
+    return (n - 1 + (d.HorizontalSlots - n) / 2) * d.calSlotwidth
 
 
-def shell(p, d):
+def shell(d):
     """`Create box shape` — Top of box / Extrude solid box / Hollow out box.
 
     A plain rectangle, extruded the full BoxHeight and hollowed to WALL with
     the top face removed. The sketch is centred on the origin: the STEPs put
     the outer walls at exactly +-#BoxWidth/2.
     """
-    return tray(box_width(p, d), box_depth(p, d), d.BoxHeight, WALL)
+    return tray(box_width(d), box_depth(d), d.BoxHeight, WALL)
 
 
 # The front pocket's back wall. Measured 1.000 thick on all five references —
@@ -109,7 +109,7 @@ def side_floor(d):
     return d.calSlotwidth / 2
 
 
-def bottom_slot(p, d):
+def bottom_slot(d):
     """`Hole in bottom of box` — the rectangle cut clean through the floor,
     as (width, depth, y centre).
 
@@ -126,9 +126,9 @@ def bottom_slot(p, d):
     else in it. It is NOT aligned with the rear pusher storage slots, which sit
     at their own `#dBackSlotWidth` pitch.
     """
-    width = box_width(p, d) - 2 * WALL - 2 * side_floor(d)
-    y_front = -box_depth(p, d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER
-    y_back = box_depth(p, d) / 2 - WALL
+    width = box_width(d) - 2 * WALL - 2 * side_floor(d)
+    y_front = -box_depth(d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER
+    y_back = box_depth(d) / 2 - WALL
     return width, y_back - y_front, (y_front + y_back) / 2
 
 
@@ -175,7 +175,7 @@ REAR_THUMB_FILLET = 0.600   # `Fillet rear thumb hole` — NOT the front thumb's
 #                             0.400; the wall it cuts is 1.600, not 1.000
 
 
-def pusher_rest(p, d):
+def pusher_rest(d):
     """The cavity floor — how high a stored pusher sits.
 
         min(25.000, BoxHeight - calPusherTotalHeight - 0.500)
@@ -212,19 +212,19 @@ def _interval_minus(lo, hi, blocks):
     return [(a, b) for a, b in out if b - a > 1e-9]
 
 
-def storage_dividers(p, d):
+def storage_dividers(d):
     """(x0, x1) of each `Divider` between rear storage slots.
 
     `n` dividers for `n` slots: one at every cavity boundary except the left
     inner wall, which already is one, and the last CLOSING the run on the
     right."""
-    left = -box_width(p, d) / 2 + WALL
+    left = -box_width(d) / 2 + WALL
     pitch = D.back_slot_pitch(d)
     return [(left + k * pitch, left + k * pitch + DIVIDER_W)
-            for k in range(1, pusher_slot_count(p, d) + 1)]
+            for k in range(1, pusher_slot_count(d) + 1)]
 
 
-def rear_thumb_x(p, d):
+def rear_thumb_x(d):
     """Centre X of the `Thumb Cutout in back`.
 
         -#BoxWidth/2 + WallThickness + #calFingerHoleOffset
@@ -235,11 +235,11 @@ def rear_thumb_x(p, d):
     in. Exact on all five references, whose pitches run 22.000 to 71.200, which
     is what separates that reading from a plain offset.
     """
-    return (-box_width(p, d) / 2 + WALL + finger_hole_offset(p, d)
+    return (-box_width(d) / 2 + WALL + finger_hole_offset(d)
             + D.back_slot_pitch(d) + DIVIDER_W)
 
 
-def rear_block(p, d):
+def rear_block(d):
     """`Add depth to back` — the solid the rest of the group carves.
 
     It reaches WALL/2 INTO the back wall rather than meeting it at
@@ -249,21 +249,21 @@ def rear_block(p, d):
     it fails — `ref & mine` came back as None. Half a wall of genuine overlap
     costs nothing (the back wall is solid there) and keeps the fuse honest.
     """
-    y0 = box_depth(p, d) / 2 - WALL / 2
+    y0 = box_depth(d) / 2 - WALL / 2
     depth = REAR_DEPTH + WALL / 2
-    return Box(box_width(p, d), depth, d.BoxHeight).moved(
+    return Box(box_width(d), depth, d.BoxHeight).moved(
         Location((0, y0 + depth / 2, d.BoxHeight / 2)))
 
 
-def slot_band(p, d):
+def slot_band(d):
     """(y0, y1) of the pusher slot itself — `LOCK_STANDARD.md`'s 3.200 box slot
     depth. It starts 0.300 INSIDE the sketch box, which is why the back wall
     measures 1.300 rather than WallThickness."""
-    y0 = box_depth(p, d) / 2 - SLOT_BITE
+    y0 = box_depth(d) / 2 - SLOT_BITE
     return y0, y0 + L.BOX_SLOT_DEPTH
 
 
-def hanging_holes(p, d):
+def hanging_holes(d):
     """(x0, x1) of every opening in the back, left to right.
 
     Five per horizontal slot, `HOLE_W` wide, at a pitch of
@@ -273,20 +273,20 @@ def hanging_holes(p, d):
     every reference.
     """
     pitch = (d.calSlotwidth - 2.0) / HOLES_PER_SLOT
-    x0 = -box_width(p, d) / 2 + WALL + HOLE_INSET
+    x0 = -box_width(d) / 2 + WALL + HOLE_INSET
     return [(x0 + k * d.calSlotwidth + j * pitch,
              x0 + k * d.calSlotwidth + j * pitch + HOLE_W)
-            for k in range(p.HorizontalSlots) for j in range(HOLES_PER_SLOT)]
+            for k in range(d.HorizontalSlots) for j in range(HOLES_PER_SLOT)]
 
 
-def hole_openings(p, d):
+def hole_openings(d):
     """`hanging_holes`, less HOLE_CLEAR at any edge that coincides with a
     storage divider's face. Identical to `hanging_holes` on every box but the
     three sleeved Innovation ones (see HOLE_CLEAR), and what `rear_storage`
     actually cuts."""
-    faces = [x for a, e in storage_dividers(p, d) for x in (a, e)]
+    faces = [x for a, e in storage_dividers(d) for x in (a, e)]
     out = []
-    for lo, hi in hanging_holes(p, d):
+    for lo, hi in hanging_holes(d):
         if any(abs(lo - f) < 1e-6 for f in faces):
             lo += HOLE_CLEAR
         if any(abs(hi - f) < 1e-6 for f in faces):
@@ -303,7 +303,7 @@ def hole_rows():
              HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP) + h) for i in range(HOLE_ROWS)]
 
 
-def rear_storage(p, d, part):
+def rear_storage(d, part):
     """The whole `Pusher holder & Rear Storage` group, thumb cutout included.
 
     Every cut is a PLAIN rectangular box, and they are disjoint. Composing the
@@ -314,14 +314,14 @@ def rear_storage(p, d, part):
     cavities are already separated by their dividers, so they can simply be
     listed.
     """
-    BW, BD = box_width(p, d), box_depth(p, d)
+    BW, BD = box_width(d), box_depth(d)
     inner = BW / 2 - WALL
-    y0, y1 = slot_band(p, d)
-    n = pusher_slot_count(p, d)
+    y0, y1 = slot_band(d)
+    n = pusher_slot_count(d)
     pitch = D.back_slot_pitch(d)
     left, top = -inner, d.BoxHeight + 1
 
-    part = part + rear_block(p, d)
+    part = part + rear_block(d)
     cuts = [
         # `Top of back` — the storage is capped at REAR_TOP between the end
         # walls; the end walls run the full height and the full added depth.
@@ -343,7 +343,7 @@ def rear_storage(p, d, part):
     for k in range(n):
         cuts.append(slab(left + k * pitch + (DIVIDER_W if k else 0.0),
                          left + (k + 1) * pitch, y0, y1,
-                         pusher_rest(p, d), top))
+                         pusher_rest(d), top))
     # `Hanging holes` — through the back wall in full, and on through the slot
     # band EXCEPT where a divider stands.
     #
@@ -353,8 +353,8 @@ def rear_storage(p, d, part):
     # every hole row, and no reference escapes with fewer than one. The
     # openings are wanted; sawing through the pusher hangers is not. See
     # spec/BOX.md.
-    divs = storage_dividers(p, d)
-    for x_lo, x_hi in hole_openings(p, d):
+    divs = storage_dividers(d)
+    for x_lo, x_hi in hole_openings(d):
         for z_lo, z_hi in hole_rows():
             cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y0, z_lo, z_hi))
             for a, e in _interval_minus(x_lo, x_hi, divs):
@@ -363,7 +363,7 @@ def rear_storage(p, d, part):
     # centreline +- s. They cut the 1.300 back wall only; the outer wall is
     # already gone above REAR_TOP, which is why they are invisible from behind.
     _cls, sv = L.lock_class(d.calPusherTotalDepth)
-    for centre in pusher_slots(p, d):
+    for centre in pusher_slots(d):
         for sign in (-1, +1):
             x = centre + sign * sv
             cuts.append(slab(x - L.BOX_CUTOUT_W / 2, x + L.BOX_CUTOUT_W / 2,
@@ -382,7 +382,7 @@ def rear_storage(p, d, part):
     # `over` is 2.000, not the default: forward of the outer wall is the slot
     # band, empty at this X, but 5.000 would reach the inner back wall behind it.
     return part - round_hole(y1, BD / 2 + REAR_DEPTH, D.ThumbCutoutRadius,
-                             REAR_THUMB_FILLET, rear_thumb_x(p, d), REAR_TOP,
+                             REAR_THUMB_FILLET, rear_thumb_x(d), REAR_TOP,
                              over=2.0)
 
 
@@ -395,15 +395,15 @@ def rear_storage(p, d, part):
 FRONT_TOP = 68.600
 
 
-def lower_front(p, d, part):
+def lower_front(d, part):
     """`Lower the front` — take the front wall down to FRONT_TOP.
 
     Only between the end walls: at z = 69.0 the front band still carries
     material over x +-(#BoxWidth/2 - WallThickness) .. +-#BoxWidth/2 on every
     reference, so the end walls run their full height.
     """
-    BD = box_depth(p, d)
-    inner = box_width(p, d) / 2 - WALL
+    BD = box_depth(d)
+    inner = box_width(d) / 2 - WALL
     return part - Box(2 * inner, WALL + 1, d.BoxHeight + 1 - FRONT_TOP).moved(
         Location((0, -BD / 2 + (WALL - 1) / 2,
                   (FRONT_TOP + d.BoxHeight + 1) / 2)))
@@ -416,7 +416,7 @@ def lower_front(p, d, part):
 CORNER_R = 4.600
 
 
-def round_top_corners(p, d, part):
+def round_top_corners(d, part):
     """`Round top box corners` — a CORNER_R round on each end wall's top edges.
 
     Cut with a tool rather than a `fillet()` on picked edges: the two edges are
@@ -425,8 +425,8 @@ def round_top_corners(p, d, part):
     ADDED above z = 100.4 later on, which is what the label holders and closing
     bumps do lower down, is untouched by a cut that has already happened.
     """
-    BD, top = box_depth(p, d), d.BoxHeight
-    width = box_width(p, d) + 20
+    BD, top = box_depth(d), d.BoxHeight
+    width = box_width(d) + 20
 
     def corner(y_edge, inward):
         yc, zc = y_edge + inward * CORNER_R, top - CORNER_R
@@ -449,7 +449,7 @@ SLIDER_PROUD = 4.000
 SLIDER_TOP_R = 0.700     # `Round top of slider`, on the two long top edges only
 
 
-def slider_ribs(p, d):
+def slider_ribs(d):
     """(y0, y1) of each rib, BACK to front.
 
     A rib's BACK FACE sits on the centre of its card slot, and the slots are
@@ -464,14 +464,14 @@ def slider_ribs(p, d):
     odd one out. `Box Dominion 246S` is the only reference that can tell the
     two distances apart (20.400 against 9.600) and it lands on the nose.
     """
-    back = box_depth(p, d) / 2 - WALL
+    back = box_depth(d) / 2 - WALL
     sd, fsd = d.calSliderDistance, d.calFirstSliderDistance
-    ys = [back - (j * sd + sd / 2) for j in range(p.RisingSliders - 1)]
-    ys.append(back - ((p.RisingSliders - 1) * sd + fsd / 2))
+    ys = [back - (j * sd + sd / 2) for j in range(d.RisingSliders - 1)]
+    ys.append(back - ((d.RisingSliders - 1) * sd + fsd / 2))
     return [(y - SLIDER_W, y) for y in ys]
 
 
-def sliders(p, d, part):
+def sliders(d, part):
     """`Sliders` — the ribs, mirrored to both end walls.
 
     Each rib reaches WALL/2 INTO the wall it stands on. That overlap is free
@@ -479,7 +479,7 @@ def sliders(p, d, part):
     the fuse off an exactly coincident face — the same trap `rear_block`
     documents.
     """
-    inner = box_width(p, d) / 2 - WALL
+    inner = box_width(d) / 2 - WALL
     thick = SLIDER_PROUD + WALL / 2
     rib = Box(thick, SLIDER_W, d.BoxHeight)
     # `Round top of slider` rounds ACROSS the rib, not along it: the two top
@@ -489,7 +489,7 @@ def sliders(p, d, part):
                  SLIDER_TOP_R)
     ribs = [rib.moved(Location((sign * (inner - (SLIDER_PROUD - WALL / 2) / 2),
                                 (y0 + y1) / 2, d.BoxHeight / 2)))
-            for y0, y1 in slider_ribs(p, d) for sign in (-1, +1)]
+            for y0, y1 in slider_ribs(d) for sign in (-1, +1)]
     return part.fuse(*ribs)
 
 
@@ -508,7 +508,7 @@ THUMB_Z = POCKET_CUT_TOP          # the same measured 87.500: the angled cutout'
 THUMB_FILLET = 0.400              # `Fillet thumb hole`, on BOTH panel faces
 
 
-def thumb_centres(p, d):
+def thumb_centres(d):
     """Centre X of each thumb hole, left to right — one per horizontal slot.
 
         -#BoxWidth/2 + WallThickness + calSliderSpaceLeftRight
@@ -518,9 +518,9 @@ def thumb_centres(p, d):
     less the divider width. Exact on all six references, at HorizontalSlots 3,
     4 and 5, and `MatPocket` does not move them even though it drops a divider.
     """
-    x0 = (-box_width(p, d) / 2 + WALL + d.calSliderSpaceLeftRight
+    x0 = (-box_width(d) / 2 + WALL + d.calSliderSpaceLeftRight
           - FRONT_DIVIDER_W + d.calSlotwidth / 2)
-    return [x0 + k * d.calSlotwidth for k in range(p.HorizontalSlots)]
+    return [x0 + k * d.calSlotwidth for k in range(d.HorizontalSlots)]
 
 
 def round_hole(y0, y1, r, f, x, z, over=5.0):
@@ -553,7 +553,7 @@ def round_hole(y0, y1, r, f, x, z, over=5.0):
     return tool.part.moved(Location((x, 0, z)))
 
 
-def thumb_tool(p, d):
+def thumb_tool(d):
     """One thumb hole, centred on x = 0: a THUMB_R cylinder through the panel
     on Y, filleted THUMB_FILLET into both faces. `front_pocket` moves a copy
     to each slot.
@@ -566,7 +566,7 @@ def thumb_tool(p, d):
     has four candidates through two points and picked one that left the hole a
     plain 12.400 cylinder — which the STEP's own profile caught at once.
     """
-    _fw, fb, back = pocket_span(p, d)
+    _fw, fb, back = pocket_span(d)
     return round_hole(fb, back, THUMB_R, THUMB_FILLET, 0.0, THUMB_Z)
 
 
@@ -601,7 +601,7 @@ def lip_slope(d):
     return 1.0 / D.cascade_slope(d, d.calFirstSliderDistance)
 
 
-def lip_tool(p, d):
+def lip_tool(d):
     """One lip, centred on x = 0; `front_pocket` moves a copy to each.
 
     In section it is a PARALLELOGRAM: from the panel's back face at LIP_Z, up
@@ -614,7 +614,7 @@ def lip_tool(p, d):
     Built as the intersection of the section swept across X with the chamfered
     footprint swept up Z, so each is stated once and neither needs an edge pick.
     """
-    _fw, _fb, back = pocket_span(p, d)
+    _fw, _fb, back = pocket_span(d)
     m = lip_slope(d)
     unit = (1.0 + m * m) ** 0.5
     rise, out = LIP_DEPTH / unit, LIP_DEPTH * m / unit
@@ -643,7 +643,7 @@ def lip_tool(p, d):
     return prism.part & foot.part
 
 
-def front_dividers(p, d):
+def front_dividers(d):
     """Right-edge X of each front-pocket divider, left to right.
 
         first = -#BoxWidth/2 + WallThickness + #calFirstLeftFrontDividerDist
@@ -659,18 +659,18 @@ def front_dividers(p, d):
     pair `Box Dominion 244S` / `Box Dominion 202S Merged`: same box, same
     envelope, and the only difference across the section is that one divider.
     """
-    x0 = -box_width(p, d) / 2 + WALL + d.calFirstLeftFrontDividerDist
-    n = p.HorizontalSlots - 1 - (1 if p.MatPocket else 0)
+    x0 = -box_width(d) / 2 + WALL + d.calFirstLeftFrontDividerDist
+    n = d.HorizontalSlots - 1 - (1 if d.MatPocket else 0)
     return [x0 + k * d.calSlotwidth for k in range(n)]
 
 
-def pocket_span(p, d):
+def pocket_span(d):
     """(front wall inner face, divider panel front, divider panel back) in Y."""
-    fw = -box_depth(p, d) / 2 + WALL
+    fw = -box_depth(d) / 2 + WALL
     return fw, fw + d.calFrontPocketDepth, fw + d.calFrontPocketDepth + FRONT_DIVIDER
 
 
-def angled_cutout(p, d):
+def angled_cutout(d):
     """`Angled cutout of front holder` — one plane, and it cuts the lot.
 
     It runs from the TOP OF THE LOWERED FRONT WALL, `(y = -#BoxDepth/2 +
@@ -686,19 +686,19 @@ def angled_cutout(p, d):
     `front_pocket` — so it can run the full width without touching the end
     walls, which the STEP leaves square to the rim.
     """
-    BD = box_depth(p, d)
-    fw, _fb, back = pocket_span(p, d)
+    BD = box_depth(d)
+    fw, _fb, back = pocket_span(d)
     top = d.BoxHeight + 5
     out = -BD / 2 - 5                       # clear of the box, into empty space
     with BuildPart() as tool:
         with BuildSketch(Plane.YZ):
             Polygon((fw, FRONT_TOP), (back, POCKET_CUT_TOP), (back, top),
                     (out, top), (out, FRONT_TOP), align=None)
-        extrude(amount=box_width(p, d) / 2 + 5, both=True)
+        extrude(amount=box_width(d) / 2 + 5, both=True)
     return tool.part
 
 
-def front_pocket(p, d, part):
+def front_pocket(d, part):
     """The whole `Front pocket` group, in the tree's order.
 
     The floor stays solid under it — `bottom_slot` already starts at the
@@ -711,8 +711,8 @@ def front_pocket(p, d, part):
     when the cut was clipped to the inner width, and what the corner-round
     probe caught, 1.816 mm3 at each end.
     """
-    inner = box_width(p, d) / 2 - WALL
-    fw, fb, back = pocket_span(p, d)
+    inner = box_width(d) / 2 - WALL
+    fw, fb, back = pocket_span(d)
     H = d.BoxHeight
 
     # `Front divider` — the panel that closes the pocket, 1.000 thick and
@@ -726,7 +726,7 @@ def front_pocket(p, d, part):
     # all adds.
     # `Divider for front pocket` / `Additional dividers`
     solids = [slab(x - FRONT_DIVIDER_W, x, fw - WALL / 2, back, 0.0, H)
-              for x in front_dividers(p, d)]
+              for x in front_dividers(d)]
     # `Pad outermost slots` — FrontPocketSidePaddingWidth of solid against each
     # end wall, filling the pocket from the front wall to the panel.
     for sign in (-1, +1):
@@ -737,19 +737,19 @@ def front_pocket(p, d, part):
     # at the same X and the same three rows. The padding starts 5.800 in and
     # the first hole 8.300 in, so no slit ever meets a pad or a divider.
     pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
-                    for x_lo, x_hi in hanging_holes(p, d)
+                    for x_lo, x_hi in hanging_holes(d)
                     for z_lo, z_hi in hole_rows()])
     # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
     # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
     # lip, so both only ever meet the panel.
     # Both tools are built ONCE at x = 0 and a copy moved to each slot: the
     # revolve and the intersection are the same solid every time.
-    centres = thumb_centres(p, d)
-    thumb, lip = thumb_tool(p, d), lip_tool(p, d)
+    centres = thumb_centres(d)
+    thumb, lip = thumb_tool(d), lip_tool(d)
     pocket = pocket.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
     pocket = pocket.fuse(*[lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
                      for x in centres for sign in (-1, +1)])
-    return part + (pocket - angled_cutout(p, d))
+    return part + (pocket - angled_cutout(d))
 
 
 # `Closing mechanism`. A pad on each end wall that the lid grips. Its position
@@ -761,7 +761,7 @@ BUMP_Z0, BUMP_Z1 = 87.000, 90.000
 BUMP_CHAMFER = 0.500              # `Chamfer 1`, on the outer face's four edges
 
 
-def closing_bumps(p, d, part):
+def closing_bumps(d, part):
     """`Closing mechanism` — `Side bump` / `Extrude 1` / `Chamfer 1` / `Mirror 1`.
 
     The chamfer is on the OUTER face only, so the pad's sides rise square for
@@ -769,7 +769,7 @@ def closing_bumps(p, d, part):
     the volume 21.4167 mm³ rather than the 24.000 of a plain pad, and the diff
     found exactly 21.417.
     """
-    BW = box_width(p, d)
+    BW = box_width(d)
     thick = BUMP_DEPTH + WALL / 2      # reaches into the wall, so the fuse is
     for sign in (-1, +1):              # not across a coincident face
         pad = Box(thick, BUMP_Y1 - BUMP_Y0, BUMP_Z1 - BUMP_Z0)
@@ -866,7 +866,7 @@ def label_holder(length, fasteners=()):
     return pad
 
 
-def fastener_centres(p, d):
+def fastener_centres(d):
     """Where the front holder's fasteners sit, in X.
 
     The wide holder carries TWO, at the thirds of its length — `Box Dominion
@@ -879,13 +879,13 @@ def fastener_centres(p, d):
     fits — two at the thirds of `65.600` would sit `10.933` out, and each ridge
     is `10.000` long.
     """
-    length = front_label_len(p, d)
+    length = front_label_len(d)
     if length < FRONT_LABEL_WIDE + LABEL_HOLDER_EXTRA:
         return (0.0,)
     return (-length / 6, length / 6)
 
 
-def front_label_len(p, d):
+def front_label_len(d):
     """Overall length of the front label holder — the label plus 3.600.
 
     The wide label does not fit every box. `cc.cfg` has known this all along
@@ -900,11 +900,11 @@ def front_label_len(p, d):
     every S box is at least 209.300 wide.
     """
     wide = FRONT_LABEL_WIDE + LABEL_HOLDER_EXTRA
-    return (wide if box_width(p, d) >= wide
+    return (wide if box_width(d) >= wide
             else FRONT_LABEL_NARROW + LABEL_HOLDER_EXTRA)
 
 
-def label_holders(p, d, part):
+def label_holders(d, part):
     """`Front Label Holder` and `Side Label Holder`, behind
     `isLabelHoldersOnBox`.
 
@@ -919,9 +919,9 @@ def label_holders(p, d, part):
     """
     if not d.isLabelHoldersOnBox:
         return part
-    BW, BD = box_width(p, d), box_depth(p, d)
-    part = part + label_holder(front_label_len(p, d),
-                               fastener_centres(p, d)).moved(
+    BW, BD = box_width(d), box_depth(d)
+    part = part + label_holder(front_label_len(d),
+                               fastener_centres(d)).moved(
         Location((0, -BD / 2, 0)))
     side = label_holder(d.calSideLabelWidth + SIDE_LABEL_EXTRA)
     return part + side.rotate(Axis.Z, -90).moved(
@@ -945,7 +945,7 @@ VERSION_GAP = 1 / 2        # x #LogoHeight, capacity baseline to cap top
 VERSION_CAP = 3 / 4        # x #LogoHeight
 
 
-def logo_margin(p, d):
+def logo_margin(d):
     """The +X text box's inset at the BACK of the card area.
 
         #RisingSliders <= 8 ? 2.5 mm
@@ -956,15 +956,15 @@ def logo_margin(p, d):
     size it had at eight. He experimented with ten and twelve; one catalogue row
     reaches the branch, Dominion's `333 Card` at `S9.21.10`.
     """
-    return LOGO_FRONT_INSET + max(0, p.RisingSliders - 8) * d.calSliderDistance
+    return LOGO_FRONT_INSET + max(0, d.RisingSliders - 8) * d.calSliderDistance
 
 
-def card_area(p, d):
+def card_area(d):
     """(front, back) of the sliding-card area in Y — what the text is fitted
     to. Its front is the divider panel's back face and its back the inner back
     wall, which is exactly `bottom_slot`'s span."""
-    return (-box_depth(p, d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER,
-            box_depth(p, d) / 2 - WALL)
+    return (-box_depth(d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER,
+            box_depth(d) / 2 - WALL)
 
 
 def engrave_line(txt, size, baseline, start, toward):
@@ -980,15 +980,15 @@ def engrave_line(txt, size, baseline, start, toward):
     return solid.moved(Location((baseline, start, 0)))
 
 
-def floor_text(p, d, part):
+def floor_text(d, part):
     """`Model name` and the `Logo` group, cut ENGRAVE into the floor's top.
 
     Five lines, all Orbitron Bold, on the two side floors. `#LogoHeight` is the
     `ProductName` line's cap height and everything on the +X side hangs off it.
     """
-    inner = box_width(p, d) / 2 - WALL
+    inner = box_width(d) / 2 - WALL
     edge = inner - side_floor(d)          # the side floor's INNER edge
-    y_front, y_back = card_area(p, d)
+    y_front, y_back = card_area(d)
     span = y_back - y_front
 
     # --- -X: calModelName, then GameName, one size, reading toward -Y -------
@@ -1003,13 +1003,13 @@ def floor_text(p, d, part):
     cap = T.CAP * size
     x = -edge - TEXT_INSET                # the first line's cap top
     tools = []                            # all five lines, cut at the end
-    for txt in (d.calModelName, p.GameName):
+    for txt in (d.calModelName, d.GameName):
         tools.append(engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
                                   -1))
         x = x - cap - MODEL_GAP           # next line, one gap further out
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
     start = y_front + LOGO_FRONT_INSET
-    logo_len = span - LOGO_FRONT_INSET - logo_margin(p, d)
+    logo_len = span - LOGO_FRONT_INSET - logo_margin(d)
     logo_size = T.floored(T.fit_size(d.ProductName, logo_len))
     _fits(d.ProductName, logo_size, span)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight
@@ -1052,7 +1052,7 @@ def _fits(txt, size, span):
 SMOOTH_R = 0.600
 
 
-def sharp_edges(p, d, part):
+def sharp_edges(d, part):
     """The edges `Smooth box edges` rounds, as an explicit geometric set.
 
     Most of it is the **perimeter of an end wall**, on both of its faces: the
@@ -1095,7 +1095,7 @@ def sharp_edges(p, d, part):
     lost is a 0.600 round on interior edges no finger reaches. Everything a
     hand touches is rounded.
     """
-    BW, BD = box_width(p, d), box_depth(p, d)
+    BW, BD = box_width(d), box_depth(d)
     inner, x_out = BW / 2 - WALL, BW / 2
     y_front, y_back = -BD / 2, BD / 2 + REAR_DEPTH
     tol = 1e-3
@@ -1153,35 +1153,34 @@ def sharp_edges(p, d, part):
     return out
 
 
-def smooth_edges(p, d, part):
+def smooth_edges(d, part):
     """One fillet, one call — no retries, and the same edges every time."""
-    edges = sharp_edges(p, d, part)
+    edges = sharp_edges(d, part)
     return fillet(edges, SMOOTH_R) if edges else part
 
 
-def build(p, d=None):
-    """`p` is a params.Primary. Returns the Box as a build123d Part.
+def build(d):
+    """The Box as a build123d Part, from a `derive.Derived`.
 
     Feature groups in the studio's own order, which is what `spec/BOX.md`
-    transcribes, through to the final `Smooth box edges`. `d` is derived from
-    `p` unless given — a caller that wants a flag the catalogue cannot set,
-    `isLabelHoldersOnBox = 0`, passes a Derived with it flipped.
+    transcribes, through to the final `Smooth box edges`. A caller that wants
+    a flag the catalogue cannot set, `isLabelHoldersOnBox = 0`, passes a
+    Derived with it flipped.
     """
-    d = D.derive(p) if d is None else d
-    part = shell(p, d)
-    w, depth, y = bottom_slot(p, d)
+    part = shell(d)
+    w, depth, y = bottom_slot(d)
     # Cut Z from below the floor up to exactly WALL, so the boolean is clean
     # underneath and nothing above the floor is touched — the tree cuts this
     # before the sliders and dividers exist, and this keeps that true whatever
     # order the code ends up in.
     part = part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
-    part = rear_storage(p, d, part)
-    part = lower_front(p, d, part)
-    part = round_top_corners(p, d, part)
-    part = sliders(p, d, part)
-    part = front_pocket(p, d, part)
-    part = closing_bumps(p, d, part)
-    part = label_holders(p, d, part)
+    part = rear_storage(d, part)
+    part = lower_front(d, part)
+    part = round_top_corners(d, part)
+    part = sliders(d, part)
+    part = front_pocket(d, part)
+    part = closing_bumps(d, part)
+    part = label_holders(d, part)
     # The floor text stays LAST before the rounds, though it is the most
     # expensive cut (2 to 3 s of a box's 6). Cutting it into the bare shell
     # first, the way the Lid takes its logo pocket, was tried on 2026-09-05:
@@ -1189,4 +1188,4 @@ def build(p, d=None):
     # nearly twice the build time, because every boolean after it then
     # carries the text's hundreds of spline faces. Spline text is the cost,
     # not the order.
-    return smooth_edges(p, d, floor_text(p, d, part))
+    return smooth_edges(d, floor_text(d, part))

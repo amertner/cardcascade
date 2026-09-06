@@ -52,7 +52,7 @@ def record(part, fn, line, fitted, final, font, proud):
 print("=== pushers ===")
 for _folder, fn, p in B.pusher_catalogue():
     d = D.derive(p)
-    (txt, sz, _x, _b), (_v, vsz, _x2, _b2) = T.logo_lines(p, d)
+    (txt, sz, _x, _b), (_v, vsz, _x2, _b2) = T.logo_lines(d)
     cap_em, asc_em = T._metrics(T.LOGO_FONT)
     strip = d.calSliderDistance
     margin = T.LOGO_MARGIN * strip
@@ -65,7 +65,7 @@ for _folder, fn, p in B.pusher_catalogue():
     record("Pusher", fn, "version", fitted / 2, vsz, T.LOGO_FONT, False)
     check(f"{fn}: the version line never outgrows the product's cap",
           vsz <= sz + 1e-9, True)
-    dt, dsz, _bx, _sy = T.detail_placement(p, d)
+    dt, dsz, _bx, _sy = T.detail_placement(d)
     dcap_em, dasc_em = T._metrics(T.DETAIL_FONT)
     band = d.calHeightIncrement - T.DETAIL_BASELINE_X
     depth = d.calPusherTotalDepth
@@ -78,9 +78,9 @@ for _folder, fn, p in B.pusher_catalogue():
 print("=== boxes ===")
 for _folder, fn, p in B.box_catalogue():
     d = D.derive(p)
-    y0, y1 = box.card_area(p, d)
+    y0, y1 = box.card_area(d)
     span = y1 - y0
-    logo_len = span - box.LOGO_FRONT_INSET - box.logo_margin(p, d)
+    logo_len = span - box.LOGO_FRONT_INSET - box.logo_margin(d)
     ms = T.fit_size(d.calModelName, span - box.MODEL_MARGIN)
     ls = T.fit_size(d.ProductName, logo_len)
     cs = T.fit_size(d.calCapacityLabel, logo_len)
@@ -105,7 +105,7 @@ for _game, fn, p in B.lid_catalogue():
 print("=== holders ===")
 for _folder, fn, p, first in B.holder_catalogue():
     d = D.derive(p)
-    s = holder.text_size(p, d, first)
+    s = holder.text_size(d, first)
     record("Holder", fn, "name", s, s, T.LOGO_FONT, False)
     record("Holder", fn, "capacity", s, s, T.DETAIL_FONT, False)
 
@@ -113,7 +113,7 @@ print("=== token holders ===")
 for item in B.token_holder_catalogue():
     _folder, fn, p, half = item[0], item[1], item[2], item[3]
     d = D.derive(p)
-    s = token_holder.text_size(p, d, half)
+    s = token_holder.text_size(d, half)
     record("TokenHolder", fn, "model", s, s, T.LOGO_FONT, False)
 
 print("=== toppers ===")
@@ -125,10 +125,10 @@ for item in B.topper_catalogue():
     if key in seen:
         continue
     seen.add(key)
-    fitted = topper.cap_band(p, d) / topper.BAND_EM
-    final = topper.font_size(p, d)
+    fitted = topper.cap_band(d) / topper.BAND_EM
+    final = topper.font_size(d)
     record("Topper", key, "name", fitted, final, topper.FONT, False)
-    _x, rear, front = topper.face_datum(p, d)
+    _x, rear, front = topper.face_datum(d)
     check(f"Topper {key}: the cap band stays inside the flat",
           final * topper.BAND_EM <= (front - rear) + 1e-9, True)
 

@@ -192,18 +192,18 @@ def measure(entry):
     d = D.derive(p)
     _cn, cv, ct = mesh(cpath)
     _bn, bv, bt = mesh(bpath)
-    blank = holder.build(p, first, text=False)
+    blank = holder.build(D.derive(p), first, text=False)
     mv, mt = mesh3mf.triangulate(blank)
     cut66 = sum((blank & tool).volume
-                for tool in holder.engraving(replace(p, Version="6.6"), d, first))
-    by_depth = (holder.holder_depth(p, d, first) - 2.0) / TX.CAP
+                for tool in holder.engraving(D.derive(replace(p, Version="6.6")), first))
+    by_depth = (holder.holder_depth(d, first) - 2.0) / TX.CAP
     return {"tag": f"{game}/{legacy}", "legacy": legacy, "built": built,
             "cbox": box_of(cv), "bbox": box_of(bv),
             "got_vol": mesh_volume(cv, ct),
             "want_vol": mesh_volume(mv, mt) - cut66,
             "end": round((max(c[0] for c in cv) - min(c[0] for c in cv))
                          - d.calSlotwidth * p.HorizontalSlots, 3),
-            "capped": holder.text_size(p, d, first) < by_depth - 1e-6}
+            "capped": holder.text_size(d, first) < by_depth - 1e-6}
 
 
 def main():

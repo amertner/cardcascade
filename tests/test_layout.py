@@ -67,13 +67,13 @@ def rows():
             continue
         for sleeved in (0, 1):
             p = params.from_row(row, sleeved)
-            yield row, p, D.derive(p)
+            yield row, D.derive(p)
 
 
 def find(model):
-    for row, p, d in rows():
+    for row, d in rows():
         if d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl") == model:
-            return row, p, d
+            return row, d
     raise SystemExit(f"no row {model}")
 
 
@@ -133,13 +133,13 @@ with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
 
     print("\n=== 1. the same layout as make_cascade --auto-plates ===")
-    row, p, d = find("S4.16.10.32-Un")
-    objects = CC.objects(row, p, d)
+    row, d = find("S4.16.10.32-Un")
+    objects = CC.objects(row, d)
     bed, plates, placements = LY.layout(objects)
     check("bed p1", bed == "p1", bed)
     # make_cascade's own regeneration, from the same built files
     by_role = {}
-    for name, fn in CC.parts(row, p, d):
+    for name, fn in CC.parts(row, d):
         by_role.setdefault(LY.role(name), fn)
     mc_out = tmp / "mc.3mf"
     cmd = [sys.executable, str(ROOT / "automation" / "make_cascade.py"), str(SHIPPED_168),
@@ -165,13 +165,13 @@ with tempfile.TemporaryDirectory() as tmp:
     AT_THE_LIMIT = set()
     written = {}
     n_ok = 0
-    for row, p, d in rows():
+    for row, d in rows():
         model = d.calModelName
         try:
-            objs = CC.objects(row, p, d)
+            objs = CC.objects(row, d)
             bed, plates, places = LY.layout(objs)
             out = tmp / f"{model}.3mf"
-            PJ.write(out, bed, objs, plates, places, title=CC.title(row, p, d))
+            PJ.write(out, bed, objs, plates, places, title=CC.title(row, d))
         except Refused as e:
             check(f"{p.GameName} {model}: refused, and known to be at the bed's limit",
                   model in AT_THE_LIMIT, str(e))

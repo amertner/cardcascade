@@ -71,10 +71,10 @@ from . import holder as H
 Z_BASE = 48.450
 
 
-def z_base(p, d):
-    """Where the topper's base sits: `H.slant_top(d) + topper_height(p, d)`,
+def z_base(d):
+    """Where the topper's base sits: `H.slant_top(d) + topper_height(d)`,
     the holder's slant top and the topper's own rear thickness above it."""
-    return H.slant_top(d) + topper_height(p, d)
+    return H.slant_top(d) + topper_height(d)
 
 FRONT_WALL = 0.800         # the front wall, and the flat left along the top
 FLOOR = 1.200              # floor thickness
@@ -144,17 +144,17 @@ FRONT_FILLET = 2.000       # `Fillet front holes`
 EDGE_ROUND = 0.800         # `Top and front edges`
 
 
-def width(p, d):
+def width(d):
     """`calSlotwidth * HorizontalSlots` — the Holder less its two end blocks."""
-    return d.calSlotwidth * p.HorizontalSlots
+    return d.calSlotwidth * d.HorizontalSlots
 
 
-def depth(p, d):
+def depth(d):
     """The Holder's own depth, `2.000 + calSlotDepth`. Exact on all 48."""
-    return H.holder_depth(p, d, first=False)
+    return H.holder_depth(d, first=False)
 
 
-def topper_height(p, d):
+def topper_height(d):
     """`#TopperHeight` — Allan's expression, and the REAR thickness.
 
         BoxHeight - WallThickness*2 - PusherFootThickness
@@ -168,66 +168,66 @@ def topper_height(p, d):
             - d.calPocketHeight - 4.0 - 3.5)
 
 
-def x_span(p, d):
+def x_span(d):
     """(x0, x1). X = 0 is the centre of the FIRST slot, as the Holder's is."""
     x0 = -d.calSlotwidth / 2
-    return x0, x0 + width(p, d)
+    return x0, x0 + width(d)
 
 
-def y_span(p, d):
+def y_span(d):
     """(front, rear), both negative — the topper sits one depth back."""
-    dp = depth(p, d)
+    dp = depth(d)
     return -dp, -2 * dp
 
 
-def slant_slope(p, d):
+def slant_slope(d):
     """The Holder's `Top slant angle`, and not a second transcription of it.
 
     Measured `1.497717` on the M15-Sl sample against `holder.slant_slope`'s
     `1.497717`, and `3.153846` on the M10-Un one. This IS `TriangleMatch`.
     """
-    return H.slant_slope(p, d, first=False)
+    return H.slant_slope(d, first=False)
 
 
-def slant_z(p, d, y):
+def slant_z(d, y):
     """Z of the slant plane at a given Y.
 
     Anchored at the REAR, where the section is `#TopperHeight` thick — the one
     place the slant's height is stated rather than inferred.
     """
-    _, rear = y_span(p, d)
-    return Z_BASE + topper_height(p, d) + slant_slope(p, d) * (y - rear)
+    _, rear = y_span(d)
+    return Z_BASE + topper_height(d) + slant_slope(d) * (y - rear)
 
 
-def post_x(p, d):
+def post_x(d):
     """Centre X of each full post — the slot boundaries.
 
     `calSlotwidth * (k + 0.5)`, which is `HorizontalSlots - 1` of them: the
     count `More Dividers` patterns. The two ends carry half a post each,
     because `Remove Inner Hole` stops INNER_END_INSET short of them.
     """
-    return [d.calSlotwidth * (k + 0.5) for k in range(p.HorizontalSlots - 1)]
+    return [d.calSlotwidth * (k + 0.5) for k in range(d.HorizontalSlots - 1)]
 
 
-def band_x(p, d):
+def band_x(d):
     """(x0, x1) of each 14.800 front-wall band, and the half-bands at the ends.
 
     The ends carry half a band each, because the band is centred on a slot
     boundary and the part stops half a slot out from the first one.
     """
-    x0, x1 = x_span(p, d)
+    x0, x1 = x_span(d)
     out = [(x0, x0 + BAND_HALF)]
-    out += [(c - BAND_HALF, c + BAND_HALF) for c in post_x(p, d)]
+    out += [(c - BAND_HALF, c + BAND_HALF) for c in post_x(d)]
     out.append((x1 - BAND_HALF, x1))
     return out
 
 
-def rib_x(p, d):
+def rib_x(d):
     """(x0, x1) of each rib — RIB_W wide, centred on a slot boundary."""
-    return [(c - RIB_W / 2, c + RIB_W / 2) for c in post_x(p, d)]
+    return [(c - RIB_W / 2, c + RIB_W / 2) for c in post_x(d)]
 
 
-def wedge_profile(p, d):
+def wedge_profile(d):
     """The section `TriangleMatch` + `CardHeight` make, as (Y, Z) points.
 
     Read straight off the unfilleted reference at a post:
@@ -238,28 +238,28 @@ def wedge_profile(p, d):
         (-6.800, 69.050) -> (-12.000, 52.650)   the slant
         (-12.000, 52.650) -> (-12.000, 48.450)  the rear, #TopperHeight tall
     """
-    front, rear = y_span(p, d)
+    front, rear = y_span(d)
     # The front is the LESS negative edge, so going into the part subtracts.
-    z_front = slant_z(p, d, front - FRONT_WALL)
-    z_rear = Z_BASE + topper_height(p, d)
+    z_front = slant_z(d, front - FRONT_WALL)
+    z_rear = Z_BASE + topper_height(d)
     return [(rear, Z_BASE), (front, Z_BASE), (front, z_front),
             (front - FRONT_WALL, z_front), (rear, z_rear)]
 
 
-def wedge(p, d):
+def wedge(d):
     """The base solid: the profile swept the full width."""
-    x0, x1 = x_span(p, d)
+    x0, x1 = x_span(d)
     with BuildPart() as part:
         with BuildSketch(Plane.YZ):
             with BuildLine():
-                pts = wedge_profile(p, d)
+                pts = wedge_profile(d)
                 Polyline(*pts, close=True)
             make_face()
         extrude(amount=x1 - x0)
     return part.part.moved(Location((x0, 0, 0)))
 
 
-def slant_cos(p, d):
+def slant_cos(d):
     """cos of the slant's angle to Y — how a distance ALONG the slant projects.
 
     `1/sqrt(1 + m^2)`. This is the factor that turns `Inner Hole Outline`'s
@@ -267,11 +267,11 @@ def slant_cos(p, d):
     thickness: 0.4442 at slope 1.4977 and 0.2418 at 3.1538, against 0.444 and
     0.242 measured.
     """
-    m = slant_slope(p, d)
+    m = slant_slope(d)
     return 1.0 / math.sqrt(1.0 + m * m)
 
 
-def inner_hole(p, d):
+def inner_hole(d):
     """`Remove Inner Hole` — the pocket, as the solid to subtract.
 
     Differencing `wedge()` against the `to Remove Inner Hole` rollback gives
@@ -284,29 +284,29 @@ def inner_hole(p, d):
         rear    INNER_INSET along the slant from the rear edge
         ends    INNER_END_INSET in from each end
     """
-    x0, x1 = x_span(p, d)
-    front, rear = y_span(p, d)
+    x0, x1 = x_span(d)
+    front, rear = y_span(d)
     y_front = front - FRONT_WALL
-    y_rear = rear + INNER_INSET * slant_cos(p, d)
+    y_rear = rear + INNER_INSET * slant_cos(d)
     z_floor = Z_BASE + FLOOR
     with BuildPart() as part:
         with BuildSketch(Plane.YZ):
             with BuildLine():
-                Polyline((y_front, z_floor), (y_front, slant_z(p, d, y_front)),
-                         (y_rear, slant_z(p, d, y_rear)), (y_rear, z_floor),
+                Polyline((y_front, z_floor), (y_front, slant_z(d, y_front)),
+                         (y_rear, slant_z(d, y_rear)), (y_rear, z_floor),
                          close=True)
             make_face()
         extrude(amount=(x1 - x0) - 2 * INNER_END_INSET)
     return part.part.moved(Location((x0 + INNER_END_INSET, 0, 0)))
 
 
-def slot_x(p, d):
+def slot_x(d):
     """Centre X of each SLOT — `calSlotwidth * k`, one per HorizontalSlots.
 
     The front-wall removal is centred on these, where the ribs and bands are
     centred on the BOUNDARIES between them.
     """
-    return [d.calSlotwidth * k for k in range(p.HorizontalSlots)]
+    return [d.calSlotwidth * k for k in range(d.HorizontalSlots)]
 
 
 def _arc(start, centre, end):
@@ -324,7 +324,7 @@ def _arc(start, centre, end):
     return ThreePointArc(start, mid, end)
 
 
-def front_removal(p, d):
+def front_removal(d):
     """`Remove most of front` .. `Fillet front holes`, as the solid to subtract.
 
     The front wall is taken away above the floor's `FRONT_WALL_RISE`, over
@@ -352,13 +352,13 @@ def front_removal(p, d):
     alone would pass a tool with neither. The symmetric difference is what
     catches it — `tests/test_topper.py` asserts both directions separately.
     """
-    front, _rear = y_span(p, d)
+    front, _rear = y_span(d)
     z0 = Z_BASE + FLOOR + FRONT_WALL_RISE
-    z1 = slant_z(p, d, front - FRONT_WALL)
+    z1 = slant_z(d, front - FRONT_WALL)
     r = FRONT_FILLET
     hw = (d.calSlotwidth - 2 * BAND_HALF) / 2
     out = None
-    for c in slot_x(p, d):
+    for c in slot_x(d):
         xl, xr = c - hw, c + hw
         with BuildPart() as part:
             with BuildSketch(Plane.XZ):
@@ -381,7 +381,7 @@ def front_removal(p, d):
     return out
 
 
-def holder_tabs(p, d):
+def holder_tabs(d):
     """`Tab-to-attach` — two plates that clip the topper onto the Holder.
 
     One at each end, `TAB_W` thick and `TAB_INSET` in, standing off the FLOOR
@@ -390,10 +390,10 @@ def holder_tabs(p, d):
     the two REAR vertical edges — the front edges are square, because the tab
     merges into the front wall there.
     """
-    x0, x1 = x_span(p, d)
-    front, rear = y_span(p, d)
+    x0, x1 = x_span(d)
+    front, rear = y_span(d)
     y_front = front - FRONT_WALL
-    y_rear = rear + INNER_INSET * slant_cos(p, d) + TAB_REAR_GAP
+    y_rear = rear + INNER_INSET * slant_cos(d) + TAB_REAR_GAP
     z0 = Z_BASE + FLOOR
     z1 = z0 + TAB_RISE
     out = None
@@ -409,20 +409,20 @@ def holder_tabs(p, d):
     return out
 
 
-def lip_room_x(p, d):
+def lip_room_x(d):
     """(x0, x1) of every lip notch — the HOLDER's lip base, not a number here.
 
     Two per slot, mirrored about the slot centre, `HorizontalSlots` times over:
     that is `Remove Lip Room` + `Other side` + `Linear pattern 1`, and it gives
     the 8 notches and 16 `r 1.400` cylinders the M15-Sl rollback carries.
     """
-    xs = [x for x, _y in H.lip_plan(p, d, first=False)]
+    xs = [x for x, _y in H.lip_plan(d, first=False)]
     lo, hi = min(xs), max(xs)
     return sorted((c - hi, c - lo) if s < 0 else (c + lo, c + hi)
-                  for c in slot_x(p, d) for s in (+1, -1))
+                  for c in slot_x(d) for s in (+1, -1))
 
 
-def lip_rooms(p, d):
+def lip_rooms(d):
     """`Room for Lips` .. `Linear pattern 1`, as the solid to subtract.
 
     A notch through the rear wall, floor at `LIP_ROOM_RISE` above the topper's
@@ -431,13 +431,13 @@ def lip_rooms(p, d):
     is outside the part and in front of it is the pocket, so the extra is air
     either way and no face of the cut is coincident with a face of the body.
     """
-    _front, rear = y_span(p, d)
+    _front, rear = y_span(d)
     z0 = Z_BASE + FLOOR + LIP_ROOM_RISE
     z1 = Z_BASE + TOTAL_HEIGHT + 1.0
     r = LIP_FILLET
-    depth_y = INNER_INSET * slant_cos(p, d) + 2.0
+    depth_y = INNER_INSET * slant_cos(d) + 2.0
     out = None
-    for xl, xr in lip_room_x(p, d):
+    for xl, xr in lip_room_x(d):
         with BuildPart() as part:
             with BuildSketch(Plane.XZ):
                 with BuildLine():
@@ -452,7 +452,7 @@ def lip_rooms(p, d):
     return out
 
 
-def dividers(p, d):
+def dividers(d):
     """`Divider` and `More Dividers` — the ribs, as the solid to ADD.
 
     Each is the inner hole's own profile, `RIB_W` wide, centred on a slot
@@ -461,14 +461,14 @@ def dividers(p, d):
     is the pocket filled back in over 1.600, not a shape of its own.
     """
     out = None
-    hole = inner_hole(p, d)                 # the same prism under every rib
-    for c in post_x(p, d):
+    hole = inner_hole(d)                 # the same prism under every rib
+    for c in post_x(d):
         strip = Pos(c, 0, 0) * Box(RIB_W, 1000, 1000)
         r = hole & strip
         out = r if out is None else out + r
     return out
 
-def top_and_front_edges(p, d, part):
+def top_and_front_edges(d, part):
     """`Top and front edges` — the last feature of the blank, `r EDGE_ROUND`.
 
     Named for the SKETCH's orientation; `Upside Down` sits between, so the
@@ -491,8 +491,8 @@ def top_and_front_edges(p, d, part):
     offset from the edge of these fillets, so `Expansion Name` does not work
     without it.
     """
-    x0, x1 = x_span(p, d)
-    front, rear = y_span(p, d)
+    x0, x1 = x_span(d)
+    front, rear = y_span(d)
 
     def on_side(pt):
         return (min(abs(pt.X - x0), abs(pt.X - x1)) < 1e-6
@@ -688,15 +688,15 @@ MARK_GAP = 1.000           # the mark box's left edge, past calLogoSidelength/2
 TEXT_GAP = 3.000           # the sketch's `+3mm`, past calLogoSidelength*3/2
 
 
-def logo_edge_dist(p, d):
+def logo_edge_dist(d):
     """`#LogoEdgeDist` — a PART-STUDIO variable, so it lives here and not in
     `derive.py`, which is the variable studio's transcription."""
-    if p.CardsPerSlidingSlot > 10:
-        return 1.2 if p.isSleeved else 0.8
-    return 1.0 if p.isSleeved else 0.6
+    if d.CardsPerSlidingSlot > 10:
+        return 1.2 if d.isSleeved else 0.8
+    return 1.0 if d.isSleeved else 0.6
 
 
-def face_datum(p, d):
+def face_datum(d):
     """Where every `Expansion Name` offset is measured from: the FLAT part of
     the underside, i.e. inside `Top and front edges`.
 
@@ -704,12 +704,12 @@ def face_datum(p, d):
     be built before the lettering (Allan) — an offset taken from the part's own
     edge instead is wrong by EDGE_ROUND, on every one of the six.
     """
-    x0, _x1 = x_span(p, d)
-    front, rear = y_span(p, d)
+    x0, _x1 = x_span(d)
+    front, rear = y_span(d)
     return x0 + EDGE_ROUND, rear + EDGE_ROUND, front - EDGE_ROUND
 
 
-def cap_band(p, d):
+def cap_band(d):
     """The band the lettering's CAP HEIGHT fills.
 
         depth - 2 * EDGE_ROUND - 3 * LogoEdgeDist
@@ -720,7 +720,7 @@ def cap_band(p, d):
     wrong the moment either moved. `3 *` is the two margins, LogoEdgeDist at
     the top and twice that at the bottom.
     """
-    return depth(p, d) - 2 * EDGE_ROUND - 3 * logo_edge_dist(p, d)
+    return depth(d) - 2 * EDGE_ROUND - 3 * logo_edge_dist(d)
 
 
 # The deepest descender any expansion name has: `Figures`' `g`, and Onshape's
@@ -730,7 +730,7 @@ def cap_band(p, d):
 DESCENDER_EM = -(TX.metrics("Figures", FONT)[2] - 0.00459)
 
 
-def font_size(p, d):
+def font_size(d):
     """The em that puts `cap_band` at BAND_EM of it — or the CUT floor
     (`cad/text.py`, "floors") where that is larger.
 
@@ -747,11 +747,11 @@ def font_size(p, d):
     hold would raise `DoesNotFit` rather than put the `g` into the round —
     which is what the PROUD floor's 4.63 em did before this was settled.
     """
-    fitted = cap_band(p, d) / BAND_EM
+    fitted = cap_band(d) / BAND_EM
     floor = TX.floor_size(FONT)
     if fitted >= floor:
         return fitted
-    _x, rear, front = face_datum(p, d)
+    _x, rear, front = face_datum(d)
     flat = front - rear
     # The largest em whose band AND deepest descender fit with the 1:2 split:
     #   2/3 (flat - BAND_EM s) >= DESCENDER_EM s
@@ -763,22 +763,22 @@ def font_size(p, d):
     return floor
 
 
-def baseline_y(p, d):
+def baseline_y(d):
     """Y of the lettering's baseline: `LogoEdgeDist * 2` in from the flat
     face's FRONT edge. Exact on all three filleted references — -8.000,
     -10.400, -14.950 — against ink that overshoots it by a round letter's
     0.036, 0.055 and 0.090."""
-    _x, y_rear, y_front = face_datum(p, d)
+    _x, y_rear, y_front = face_datum(d)
     # `2 * LogoEdgeDist` is two thirds of what the flat has left once the cap
     # band is out of it — `3 * LogoEdgeDist` — and it is written that way so
     # a band raised to its floor (`font_size`) keeps the sketch's 1:2 split
     # of the margins instead of walking off the rear round. Identical where
     # the floor does not bind, which is everywhere but the 10-card unsleeved.
-    left = (y_front - y_rear) - font_size(p, d) * BAND_EM
+    left = (y_front - y_rear) - font_size(d) * BAND_EM
     return y_front - 2 * left / 3
 
 
-def text_origin_x(p, d):
+def text_origin_x(d):
     """The PEN's start, `calLogoSidelength*3/2 + 3` past the flat face's end.
 
     Not the ink's start: what is left over is the first glyph's own left
@@ -786,11 +786,11 @@ def text_origin_x(p, d):
     sets whose sizes differ by 54%. That agreement is what says the rule places
     the pen and the font does the rest.
     """
-    x, _rear, _front = face_datum(p, d)
+    x, _rear, _front = face_datum(d)
     return x + 1.5 * d.calLogoSidelength + TEXT_GAP
 
 
-def mark_box(p, d):
+def mark_box(d):
     """(x0, y0, x1, y1) of the `calLogoSidelength` square the mark fills.
 
     Left edge at `calLogoSidelength/2 + MARK_GAP` past the flat face's end —
@@ -804,26 +804,26 @@ def mark_box(p, d):
     Cities fills the square exactly; Unseen's shield fills its width and its
     top edge, and its rays hang below.
     """
-    x, _rear, _front = face_datum(p, d)
-    front, rear = y_span(p, d)
+    x, _rear, _front = face_datum(d)
+    front, rear = y_span(d)
     L = d.calLogoSidelength
     x0 = x + L / 2 + MARK_GAP
     cy = (front + rear) / 2
     return x0, cy - L / 2, x0 + L, cy + L / 2
 
 
-def name_sketch(p, d, word):
+def name_sketch(d, word):
     """The expansion's name, as a sketch in the reading frame with the pen's
     origin at (0, 0) — so the caller places it by `text_origin_x` and
     `baseline_y` and nothing here has to know where the part is."""
-    size = font_size(p, d)
+    size = font_size(d)
     _adv, lsb, lo, _hi = TX.metrics(word, FONT)
     with BuildSketch() as sk:
         Text(word, font_size=size, font_path=FONT, align=(Align.MIN, Align.MIN))
     return sk.sketch.moved(Location((lsb * size, lo * size, 0)))
 
 
-def name_and_mark(p, d, expansion):
+def name_and_mark(d, expansion):
     """`Expansion Name`'s sketch — the mark and the word, placed on the
     underside in the reading frame — from which both the cut and the inlays
     are extruded."""
@@ -831,9 +831,9 @@ def name_and_mark(p, d, expansion):
         """Reading frame at the origin -> the underside, at (x, y)."""
         return Pos(x, y, 0) * sketch.mirror(Plane.XZ)
 
-    mx0, my0, mx1, my1 = mark_box(p, d)
-    sk = place(name_sketch(p, d, expansion),
-               text_origin_x(p, d), baseline_y(p, d))
+    mx0, my0, mx1, my1 = mark_box(d)
+    sk = place(name_sketch(d, expansion),
+               text_origin_x(d), baseline_y(d))
     mark = MARKS.get(expansion)
     if mark is not None:
         sk = sk + place(mark(d.calLogoSidelength),
@@ -841,16 +841,16 @@ def name_and_mark(p, d, expansion):
     return sk
 
 
-def expansion_name(p, d, expansion):
+def expansion_name(d, expansion):
     """`Expansion Name` — the mark and the word, as the solid to subtract."""
     # Dropped OVERSHOOT below the underside so no face of the tool is
     # coincident with the face it cuts. Without it OCCT quietly leaves 0.713
     # of the 19.294 behind and warns only "Boolean operation unable to clean".
     return Pos(0, 0, Z_BASE - ENGRAVE_OVERSHOOT) * extrude(
-        name_and_mark(p, d, expansion), amount=ENGRAVE + ENGRAVE_OVERSHOOT)
+        name_and_mark(d, expansion), amount=ENGRAVE + ENGRAVE_OVERSHOOT)
 
 
-def inlays(p, d, expansion):
+def inlays(d, expansion):
     """The lettering as the SECOND-FILAMENT solids a print needs: one per
     region of the mark and the word, ENGRAVE tall, standing INLAY_PROUD below
     the underside so they leave that much clear at the pocket's top — the
@@ -860,7 +860,7 @@ def inlays(p, d, expansion):
     files that way on 2026-09-05."""
     if expansion == "Blank":
         return []
-    solid = Pos(0, 0, Z_BASE - INLAY_PROUD) * extrude(name_and_mark(p, d, expansion),
+    solid = Pos(0, 0, Z_BASE - INLAY_PROUD) * extrude(name_and_mark(d, expansion),
                                                     amount=ENGRAVE)
     return sorted(solid.solids(), key=lambda q: (q.bounding_box().min.X, q.bounding_box().min.Y))
 
@@ -868,7 +868,7 @@ def inlays(p, d, expansion):
 EXPANSIONS = TB.TOPPERS
 
 
-def build(p, d=None, expansion="Blank"):
+def build(d, expansion="Blank"):
     """One Topper, in the Onshape tree's own order.
 
     `Blank` carries no name and no logo. The other five are the same body with
@@ -876,28 +876,24 @@ def build(p, d=None, expansion="Blank"):
     an expansion `MARKS` does not know raises rather than quietly writing a
     topper with a name and no mark.
     """
-    if p.GameName != "Innovation":
-        raise ValueError(f"the Topper is Innovation-only, not {p.GameName!r}")
+    if d.GameName != "Innovation":
+        raise ValueError(f"the Topper is Innovation-only, not {d.GameName!r}")
     if expansion not in EXPANSIONS:
         raise ValueError(f"no such Innovation expansion: {expansion!r}")
-    if d is None:
-        d = D.derive(p)
-    part = wedge(p, d) - inner_hole(p, d)                 # Main topper
-    part = part - front_removal(p, d)                     # Remove .. front
-    part = part + dividers(p, d)                          # Divider, More
-    part = part + holder_tabs(p, d)                       # Tab-to-attach
-    part = part - lip_rooms(p, d)                         # Room for Lips ..
-    part = top_and_front_edges(p, d, part)                # Top and front edges
+    part = wedge(d) - inner_hole(d)                 # Main topper
+    part = part - front_removal(d)                     # Remove .. front
+    part = part + dividers(d)                          # Divider, More
+    part = part + holder_tabs(d)                       # Tab-to-attach
+    part = part - lip_rooms(d)                         # Room for Lips ..
+    part = top_and_front_edges(d, part)                # Top and front edges
     if expansion == "Blank":
         return part
-    return part - expansion_name(p, d, expansion)         # Expansion Name
+    return part - expansion_name(d, expansion)         # Expansion Name
 
 
-def build_all(p, d=None, expansion="Blank"):
+def build_all(d, expansion="Blank"):
     """(the Topper BODY, its lettering inlays) — what a topper file carries."""
-    if d is None:
-        d = D.derive(p)
-    return build(p, d, expansion), inlays(p, d, expansion)
+    return build(d, expansion), inlays(d, expansion)
 
 
 # NB `Solid.volume` is NOT the metric to check a NAMED topper with. OCCT's

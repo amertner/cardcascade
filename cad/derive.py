@@ -10,6 +10,8 @@ is tested on its own (`tests/test_derive.py`).
 
 No component module may recompute any of this. Read it from `Derived`.
 """
+import dataclasses
+
 from . import tables as T
 
 # --- constants (studio variables with literal values) ----------------------
@@ -75,8 +77,11 @@ class Derived:
 
 
 def derive(p):
-    """The studio, in order. `p` is a params.Primary."""
-    v = {}
+    """The studio, in order. `p` is a params.Primary, and its ten inputs come
+    through onto the Derived by name — `d.HorizontalSlots` beside
+    `d.calSlotwidth`, as every part studio reads them — so a part reads one
+    record and nothing below `derive` handles a Primary."""
+    v = dataclasses.asdict(p)
     g = p.GameName
 
     v["BoxHeight"] = 115.0 if g == "Colours" else 105.0

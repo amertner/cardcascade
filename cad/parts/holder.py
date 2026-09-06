@@ -109,7 +109,7 @@ def slant_top(d):
     return pocket_height(d) / 2
 
 
-def slider_distance(p, d, first):
+def slider_distance(d, first):
     """The holder's OWN slider distance.
 
     The first-riser holder is the same box's holder made deeper, so everything
@@ -127,34 +127,34 @@ def slider_distance(p, d, first):
     return d.calFirstSliderDistance if first else d.calSliderDistance
 
 
-def holder_depth(p, d, first):
+def holder_depth(d, first):
     """Front face to back face: `sliderDistance - 0.400`.
 
     Exact on all ten references, `4.800` to `20.000`, and that includes the
     first-riser holder at `calFirstSliderDistance`.
     """
-    return slider_distance(p, d, first) - DEPTH_GAP
+    return slider_distance(d, first) - DEPTH_GAP
 
 
-def holder_width(p, d):
+def holder_width(d):
     """`calSlotwidth * HorizontalSlots + 9.800`.
 
     Exact on all ten STEPs and on the 20 cached components exported since the
     studio trimmed the end block. The other 30 say `10.000` and are the older
     geometry — see spec/HOLDER.md, "`individual/` is a mixed catalogue".
     """
-    return d.calSlotwidth * p.HorizontalSlots + 2 * END_EXTRA
+    return d.calSlotwidth * d.HorizontalSlots + 2 * END_EXTRA
 
 
-def x_span(p, d):
+def x_span(d):
     """(min, max) X. The frame's origin is the FIRST compartment's centre, so
     this is NOT symmetric: the part runs from -(calSlotwidth/2 + END_EXTRA) to
     the last compartment's centre plus the same."""
     half = d.calSlotwidth / 2 + END_EXTRA
-    return -half, (p.HorizontalSlots - 1) * d.calSlotwidth + half
+    return -half, (d.HorizontalSlots - 1) * d.calSlotwidth + half
 
 
-def slant_slope(p, d, first):
+def slant_slope(d, first):
     """`dZ/dY` of `Top slant angle` — the cascade diagonal.
 
         (calHeightIncrement - 1.0) / (sliderDistance - 1.2)
@@ -163,15 +163,15 @@ def slant_slope(p, d, first):
     references, against 1.7857 / 0.7812 / 1.2037 predicted. The rival reading
     (the other slider distance) is 2.3x out on the 246 pair.
     """
-    return D.cascade_slope(d, slider_distance(p, d, first))
+    return D.cascade_slope(d, slider_distance(d, first))
 
 
-def slant_z(p, d, first, y, lower=False):
+def slant_z(d, first, y, lower=False):
     """Z of the slant plane at depth `y` (y <= 0)."""
-    return slant_top(d) - (SLANT_STEP if lower else 0.0) + slant_slope(p, d, first) * y
+    return slant_top(d) - (SLANT_STEP if lower else 0.0) + slant_slope(d, first) * y
 
 
-def shell(p, d, first):
+def shell(d, first):
     """`Pocket outline` / `Extrude 1`, cut by `Top slant angle`.
 
     Built as its YZ section swept along X rather than as a block minus a
@@ -180,15 +180,15 @@ def shell(p, d, first):
     and there is no rotated tool to place. The scallops, the side slots and the
     lips all come off this.
     """
-    x0, x1 = x_span(p, d)
-    depth = holder_depth(p, d, first)
+    x0, x1 = x_span(d)
+    depth = holder_depth(d, first)
     z0 = base_z(d)
     with BuildPart() as part:
         with BuildSketch(Plane.YZ):
             with BuildLine():
                 Polyline((0.0, z0), (-depth, z0),
-                         (-depth, slant_z(p, d, first, -depth)),
-                         (0.0, slant_z(p, d, first, 0.0)),
+                         (-depth, slant_z(d, first, -depth)),
+                         (0.0, slant_z(d, first, 0.0)),
                          close=True)
             make_face()
         extrude(amount=x1 - x0)
@@ -202,9 +202,9 @@ def shell(p, d, first):
 DIVIDER = 1.600
 
 
-def compartment_x(p, d):
+def compartment_x(d):
     """Centre X of each card compartment. The frame's origin is the first."""
-    return [k * d.calSlotwidth for k in range(p.HorizontalSlots)]
+    return [k * d.calSlotwidth for k in range(d.HorizontalSlots)]
 
 
 # `Card holder bottom` drops the pocket's floor FLOOR_DROP below the sketch
@@ -219,13 +219,13 @@ def compartment_x(p, d):
 FLOOR_DROP = 0.200
 
 
-def card_pockets(p, d, first, part):
+def card_pockets(d, first, part):
     """`Hole for cards`, plus `Card holder bottom`'s FLOOR_DROP.
 
     Inset WALL from both faces (measured: the walls are the only material left
     at a lattice rail's height) and DIVIDER/2 from each slot edge.
     """
-    depth = holder_depth(p, d, first)
+    depth = holder_depth(d, first)
     z0, z1 = pocket_z(d)
     z0 -= FLOOR_DROP
     w = d.calSlotwidth - DIVIDER
@@ -235,7 +235,7 @@ def card_pockets(p, d, first, part):
     # (see box.rear_storage): they are disjoint, so the shape is the same,
     # and the body is walked once.
     return part.cut(*[tool.moved(Location((x, -depth / 2, (z0 + z1 + over) / 2)))
-                      for x in compartment_x(p, d)])
+                      for x in compartment_x(d)])
 
 
 # `Hole outline` / `Vertical slits in holder` / `Remove card holes` — the
@@ -267,16 +267,16 @@ OUTLINE_BASE = 2.000       # above the card pocket's bottom
 OUTLINE_TOP_TERM = 76.500  # HoleOutlineHeight = this - calHeightIncrement
 
 
-def outline(p, d):
+def outline(d):
     """(width, height, bottom Z) of one compartment's `Hole outline`."""
     return (d.calSlotwidth - 2 * OUTLINE_INSET,
             OUTLINE_TOP_TERM - d.calHeightIncrement,
             pocket_z(d)[0] + OUTLINE_BASE)
 
 
-def window_grid(p, d):
+def window_grid(d):
     """(x0, x1, z0, z1) of every lattice window in the FIRST compartment."""
-    w, h, z0 = outline(p, d)
+    w, h, z0 = outline(d)
     win_h = (h - ROWS * RAIL) / ROWS
     pitch = (w + 2.0) / COLS
     out = []
@@ -288,13 +288,13 @@ def window_grid(p, d):
     return out
 
 
-def lattice(p, d, first, part):
+def lattice(d, first, part):
     """Cut the windows through both walls, in every compartment."""
-    depth = holder_depth(p, d, first)
+    depth = holder_depth(d, first)
     tools = []
-    for x0, x1, z0, z1 in window_grid(p, d):
+    for x0, x1, z0, z1 in window_grid(d):
         tool = Box(x1 - x0, depth + 2.0, z1 - z0)
-        for xc in compartment_x(p, d):
+        for xc in compartment_x(d):
             tools.append(tool.moved(
                 Location((xc + (x0 + x1) / 2, -depth / 2, (z0 + z1) / 2))))
     return part.cut(*tools)
@@ -348,12 +348,12 @@ def finger_tool(depth):
     return core + bead.moved(Location((0, -FINGER_FILLET, 0)))
 
 
-def finger_cutouts(p, d, first, part):
+def finger_cutouts(d, first, part):
     """Cut the finger scallops through the full depth."""
-    depth = holder_depth(p, d, first)
+    depth = holder_depth(d, first)
     tool = finger_tool(depth)
     return part.cut(*[tool.moved(Location((x, 0.0, slant_top(d))))
-                      for x in compartment_x(p, d)])
+                      for x in compartment_x(d)])
 
 
 # `Side slot solid` / `Side slot` / `Side slot hole` / `Mirror Side` — the groove
@@ -390,7 +390,7 @@ SLOT_W = 1.900
 SLOT_MOUTH_CHAMFER = 0.300
 
 
-def mouth_flare(p, d, first):
+def mouth_flare(d, first):
     """The prism that opens the slot's mouth.
 
     Section in Y-Z: `SLOT_MOUTH_CHAMFER` wider a side than the groove from 1.0
@@ -400,7 +400,7 @@ def mouth_flare(p, d, first):
     and returned centred on X = 0 so the caller places it like `tool`.
     """
     c = SLOT_MOUTH_CHAMFER
-    yc = -holder_depth(p, d, first) / 2
+    yc = -holder_depth(d, first) / 2
     z0 = base_z(d)
     half = SLOT_W / 2
     reach = END_BLOCK + 1.0
@@ -419,16 +419,16 @@ def mouth_flare(p, d, first):
     return prism.part.moved(Location((-reach / 2, 0, 0)))
 
 
-def side_slots(p, d, first, part):
+def side_slots(d, first, part):
     """Cut the two end grooves, and flare the mouth of each."""
-    x0, x1 = x_span(p, d)
-    depth = holder_depth(p, d, first)
+    x0, x1 = x_span(d)
+    depth = holder_depth(d, first)
     z0 = base_z(d)
     tall = slant_top(d) - z0 + 2.0
     # END_BLOCK deep, plus 1.0 of overshoot past the end so the cut leaves no
     # coincident face; likewise 1.0 below the base and above the slant.
     tool = Box(END_BLOCK + 1.0, SLOT_W, tall)
-    lead = mouth_flare(p, d, first)
+    lead = mouth_flare(d, first)
     for x, inward in ((x0, +1), (x1, -1)):
         cx = x + inward * (END_BLOCK / 2 - 0.5)
         part = part - tool.moved(
@@ -463,18 +463,18 @@ LIP_CHAMFER = 1.200        # `Chamfer lip`, 45 degrees, measured in Y
 LIP_REACH = 2.100          # along the slant plane, from Y = 0
 
 
-def lip_reach_y(p, d, first):
+def lip_reach_y(d, first):
     """How far a lip stands proud in Y — LIP_REACH taken along the slant."""
-    slope = slant_slope(p, d, first)
+    slope = slant_slope(d, first)
     return LIP_REACH / math.sqrt(1.0 + slope * slope)
 
 
-def lip_plan(p, d, first):
+def lip_plan(d, first):
     """The lip's plan-view outline, as (x, y) relative to its own inner edge.
 
     x is |x| from the compartment centre; the caller mirrors it.
     """
-    y1 = lip_reach_y(p, d, first)
+    y1 = lip_reach_y(d, first)
     lo = FINGER_R + FINGER_FILLET + LIP_GAP
     hi = lo + LIP_LEN
     # The base is ALWAYS the full LIP_CHAMFER out. Where the lip is shorter in Y
@@ -488,24 +488,24 @@ def lip_plan(p, d, first):
             (hi, LIP_CHAMFER), (hi, y1), (lo, y1), (lo, LIP_CHAMFER)]
 
 
-def slant_band(p, d, first, x0, x1):
+def slant_band(d, first, x0, x1):
     """The prism between the two slant planes, over X in [x0, x1]."""
     with BuildPart() as part:
         with BuildSketch(Plane.YZ):
             with BuildLine():
-                Polyline((0.0, slant_z(p, d, first, 0.0, lower=True)),
-                         (0.0, slant_z(p, d, first, 0.0)),
-                         (4.0, slant_z(p, d, first, 4.0)),
-                         (4.0, slant_z(p, d, first, 4.0, lower=True)),
+                Polyline((0.0, slant_z(d, first, 0.0, lower=True)),
+                         (0.0, slant_z(d, first, 0.0)),
+                         (4.0, slant_z(d, first, 4.0)),
+                         (4.0, slant_z(d, first, 4.0, lower=True)),
                          close=True)
             make_face()
         extrude(amount=x1 - x0)
     return part.part.moved(Location((x0, 0, 0)))
 
 
-def rear_lips(p, d, first, part):
+def rear_lips(d, first, part):
     """Add the lips: the plan outline, clipped to the band between the slants."""
-    pts = lip_plan(p, d, first)
+    pts = lip_plan(d, first)
     # Tall enough to reach the slant band, which sits around Z = 44; extruding
     # +-40 about the origin misses it entirely.
     tall = 200.0
@@ -517,9 +517,9 @@ def rear_lips(p, d, first, part):
         extrude(amount=tall, both=True)
     one = blank.part
     # The band is the same prism at every compartment: built once, moved.
-    band = slant_band(p, d, first, -30.0, 30.0)
+    band = slant_band(d, first, -30.0, 30.0)
     lips = []
-    for xc in compartment_x(p, d):
+    for xc in compartment_x(d):
         at = Location((xc, 0, 0))
         for sign in (+1, -1):
             lip = one if sign > 0 else one.mirror(Plane.YZ)
@@ -547,7 +547,7 @@ def rear_lips(p, d, first, part):
 # cut. 200 clears the tallest holder's diagonal from any start.
 LIP_REST_THROUGH = 200.0
 REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan) — see `lip_rests`
-def lip_rests(p, d, first, part):
+def lip_rests(d, first, part):
     """Cut the lip rests.
 
     The section is the lip's OWN LENGTH by SLANT_STEP — `LIP_LEN` wide, 10.000,
@@ -583,7 +583,7 @@ def lip_rests(p, d, first, part):
     `2 * calSlotDepth` along the slant lands, not at the -6.899 a right prism
     would give.
     """
-    slope = slant_slope(p, d, first)
+    slope = slant_slope(d, first)
     t0 = 2.0 * d.calSlotDepth
     unit = 1.0 / math.sqrt(1.0 + slope * slope)
     dirv = Vector(0.0, -unit, -slope * unit)
@@ -596,7 +596,7 @@ def lip_rests(p, d, first, part):
         make_face()
     x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
     tools = []
-    for xc in compartment_x(p, d):
+    for xc in compartment_x(d):
         for sign in (+1, -1):
             at = Vector(xc + sign * x_mid, 0.0,
                         slant_top(d) - SLANT_STEP / 2) + dirv * t0
@@ -634,14 +634,14 @@ TEXT_GAP = 4.000           # the least space left between the two blocks
 # `engraving`.
 
 
-def text_blocks(p, d, first):
+def text_blocks(d, first):
     """(name, capacity) — the two strings, in reading order."""
-    cards = p.FirstSlidingSlotCards if first else p.CardsPerSlidingSlot
-    return (f"CC {p.Version} - {p.GameName}",
-            f"{cards} {'Sleeved' if p.isSleeved else 'Unsleeved'}")
+    cards = d.FirstSlidingSlotCards if first else d.CardsPerSlidingSlot
+    return (f"CC {d.Version} - {d.GameName}",
+            f"{cards} {'Sleeved' if d.isSleeved else 'Unsleeved'}")
 
 
-def text_size(p, d, first):
+def text_size(d, first):
     """The em size, and a DELIBERATE DIVERGENCE.
 
     Onshape sizes by the DEPTH alone — the cap height is `depth - 2.000`, which
@@ -656,9 +656,9 @@ def text_size(p, d, first):
     references whose text does not collide the depth term is the smaller and the
     result is Onshape's own size exactly.
     """
-    name, cap = text_blocks(p, d, first)
-    by_depth = (holder_depth(p, d, first) - 2.0) / T.CAP
-    x0, x1 = x_span(p, d)
+    name, cap = text_blocks(d, first)
+    by_depth = (holder_depth(d, first) - 2.0) / T.CAP
+    x0, x1 = x_span(d)
     room = (x1 - x0) - 2 * (END_BLOCK + TEXT_INSET) - TEXT_GAP
     per_em = (T.ink(name, size=1.0)[0]
               + T.ink(cap, font=T.DETAIL_FONT, size=1.0)[0])
@@ -691,7 +691,7 @@ def engrave(txt, font, size, x, baseline):
         Location((x, baseline, 0)))
 
 
-def engraving(p, d, first):
+def engraving(d, first):
     """The two text blocks as positioned solids — what `bottom_text` cuts.
 
     Exposed so a caller can price the engraving without cutting it:
@@ -699,10 +699,10 @@ def engraving(p, d, first):
     and subtracts the engraving at either version's string, instead of
     building it twice.
     """
-    name, cap = text_blocks(p, d, first)
-    size = text_size(p, d, first)
-    x0, x1 = x_span(p, d)
-    depth = holder_depth(p, d, first)
+    name, cap = text_blocks(d, first)
+    size = text_size(d, first)
+    x0, x1 = x_span(d)
+    depth = holder_depth(d, first)
     # The cap band centred in the depth, and the glyphs hanging toward -Y from
     # the baseline (`engrave`), so the baseline is the band's +Y edge. The
     # reference's baseline moves with the string's own ink extents and lands
@@ -721,23 +721,22 @@ def engraving(p, d, first):
                                   (cap, T.DETAIL_FONT, cap_pen))]
 
 
-def bottom_text(p, d, first, part):
+def bottom_text(d, first, part):
     """Cut both blocks into the underside, in one boolean."""
-    return part.cut(*engraving(p, d, first))
+    return part.cut(*engraving(d, first))
 
 
-def build(p, first=False, text=True):
-    """`p` is a params.Primary. Returns the Holder as a build123d Part.
+def build(d, first=False, text=True):
+    """The Holder as a build123d Part, from a `derive.Derived`.
 
     `text=False` leaves the underside blank — the Pusher has the same flag —
     for a caller that wants to price the engraving separately (`engraving`).
     """
-    d = D.derive(p)
-    part = shell(p, d, first)
-    part = card_pockets(p, d, first, part)
-    part = lattice(p, d, first, part)
-    part = finger_cutouts(p, d, first, part)
-    part = side_slots(p, d, first, part)
-    part = rear_lips(p, d, first, part)
-    part = lip_rests(p, d, first, part)
-    return bottom_text(p, d, first, part) if text else part
+    part = shell(d, first)
+    part = card_pockets(d, first, part)
+    part = lattice(d, first, part)
+    part = finger_cutouts(d, first, part)
+    part = side_slots(d, first, part)
+    part = rear_lips(d, first, part)
+    part = lip_rests(d, first, part)
+    return bottom_text(d, first, part) if text else part

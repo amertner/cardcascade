@@ -89,7 +89,7 @@ IDENTITY = Place()
 
 # --- the Box ---------------------------------------------------------------
 
-def box(p, d):
+def box(d):
     """The Box IS the frame."""
     return IDENTITY
 
@@ -114,7 +114,7 @@ def box(p, d):
 PLATE_SLOP = (L.BOX_SLOT_DEPTH - L.PLATE) / 2      # 0.100 a side, nominal
 
 
-def pusher_stored(p, d, k):
+def pusher_stored(d, k):
     """The `k`th stored pusher, left to right.
 
     * **Z** — `origin_z = BoxHeight`, so the pusher HANGS by its tabs with its
@@ -128,8 +128,8 @@ def pusher_stored(p, d, k):
     * **Y** — the plate centred in the slot band, which is `PLATE_SLOP` a side.
     """
     depth = d.calPusherTotalDepth
-    centre = box_part.pusher_slots(p, d)[k]
-    _y0, y1 = box_part.slot_band(p, d)
+    centre = box_part.pusher_slots(d)[k]
+    _y0, y1 = box_part.slot_band(d)
     return Place(x_dir=(0, 0, -1), z_dir=(0, -1, 0),
                  origin=(centre + depth / 2, y1 - PLATE_SLOP, d.BoxHeight))
 
@@ -139,26 +139,26 @@ def pusher_stored(p, d, k):
 # The holder's own axes already run the box's way: X across, Y with the REAR
 # face at 0 and the body toward the front, Z up. So it is a translation.
 
-def holder_rib(p, d, j):
+def holder_rib(d, j):
     """(y, depth, first) for riser `j`, back to front.
 
     `box.slider_ribs` is back to front and puts the odd one — the
     `calFirstSliderDistance` rib — LAST, which is the frontmost. That is the
     rib the deeper `FirstHolder` takes, and only when the row has an override.
     """
-    ribs = box_part.slider_ribs(p, d)
-    first = bool(p.isFirstSlidingSlotOverride) and j == len(ribs) - 1
+    ribs = box_part.slider_ribs(d)
+    first = bool(d.isFirstSlidingSlotOverride) and j == len(ribs) - 1
     y0, y1 = ribs[j]
-    return (y0 + y1) / 2, holder_part.holder_depth(p, d, first), first
+    return (y0 + y1) / 2, holder_part.holder_depth(d, first), first
 
 
-def holder_x(p, d):
+def holder_x(d):
     """The X translation. The holder's origin is its FIRST compartment's centre,
     so centring it in the box is a shift of half the compartment span — and it
     then clears by `(11.100 - 9.800)/2 = 0.650` a side, the holder being
     `calSlotwidth * H + 9.800` wide in an inner box of `calSlotwidth * H
     + 11.100`."""
-    return -(p.HorizontalSlots - 1) * d.calSlotwidth / 2
+    return -(d.HorizontalSlots - 1) * d.calSlotwidth / 2
 
 
 def holder_z_base(d):
@@ -167,7 +167,7 @@ def holder_z_base(d):
     return holder_part.half_height(d)
 
 
-def holder_closed(p, d, j):
+def holder_closed(d, j):
     """Riser `j` on the floor, its side slots over rib `j`.
 
     Resting on the two `side_floor` strips, which `box.side_floor` says is what
@@ -175,20 +175,20 @@ def holder_closed(p, d, j):
     depth, so a holder centred on its rib is centred on its card slot too, and
     consecutive holders clear by `calSliderDistance - depth = CardHolderGap`.
     """
-    y, depth, _first = holder_rib(p, d, j)
-    return Place(origin=(holder_x(p, d), y + depth / 2,
+    y, depth, _first = holder_rib(d, j)
+    return Place(origin=(holder_x(d), y + depth / 2,
                          D.WallThickness + holder_z_base(d)))
 
 
-def holders(p, d):
+def holders(d):
     """[(j, first)] — one per riser, back to front."""
-    n = len(box_part.slider_ribs(p, d))
-    return [(j, holder_rib(p, d, j)[2]) for j in range(n)]
+    n = len(box_part.slider_ribs(d))
+    return [(j, holder_rib(d, j)[2]) for j in range(n)]
 
 
-def pushers(p, d):
+def pushers(d):
     """How many pushers a cascade stores, and which slot each takes."""
-    return list(range(box_part.pusher_slot_count(p)))
+    return list(range(box_part.pusher_slot_count(d)))
 
 
 # --- the TokenHolder -------------------------------------------------------
@@ -201,7 +201,7 @@ def pushers(p, d):
 # physical part is. That also settles what its "left edge of the slot" means —
 # left as seen from behind, which is the box's +X end.
 
-def token_slot_x(p, d):
+def token_slot_x(d):
     """The slot's +X end, which the turn makes its origin.
 
     Two expressions land on it and they agree exactly, which is what says it is
@@ -212,10 +212,10 @@ def token_slot_x(p, d):
     lesson `spec/LID.md` records twice about a rule that fits and is still hung
     off the wrong thing.
     """
-    return box_part.front_dividers(p, d)[-1] + d.calTokenHolderSlotWidth
+    return box_part.front_dividers(d)[-1] + d.calTokenHolderSlotWidth
 
 
-def token_holder(p, d):
+def token_holder(d):
     """The FULL holder, dropped into the front pocket's last compartment.
 
     A merged cascade also ships a HALF one, and the two are ALTERNATIVES rather
@@ -227,9 +227,9 @@ def token_holder(p, d):
     slot's corner, and both parts are inset `CLEARANCE` into it — so only the
     mesh changes.
     """
-    front, _panel_front, _panel_back = box_part.pocket_span(p, d)
+    front, _panel_front, _panel_back = box_part.pocket_span(d)
     return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, 1),
-                 origin=(token_slot_x(p, d), front, D.WallThickness))
+                 origin=(token_slot_x(d), front, D.WallThickness))
 
 
 # --- the Lid ---------------------------------------------------------------
@@ -242,7 +242,7 @@ def token_holder(p, d):
 LID_Y = 2.250              # the box sits this far back of the lid
 
 
-def lid_closed(p, d):
+def lid_closed(d):
     """The lid inverted over the box.
 
         box = (lid_x, 2.250 - lid_y, (WallThickness + BoxHeight) - lid_z)
@@ -280,7 +280,7 @@ def lid_closed(p, d):
                  origin=(0.0, LID_Y, D.WallThickness + d.BoxHeight))
 
 
-def lid_under(p, d):
+def lid_under(d):
     """The lid the right way up with the box standing in it — the play state.
 
     No turn at all, and the box's floor rests on the lid's floor, so the LID
@@ -293,7 +293,7 @@ def lid_under(p, d):
 
 # --- the play state: pushers in the lid, holders on their treads ------------
 
-def play_sockets(p, d):
+def play_sockets(d):
     """Which of the lid's sockets the cascade's pushers stand in.
 
     A lid gets `lid.socket_count` sockets — the plain size rule — while the
@@ -303,14 +303,14 @@ def play_sockets(p, d):
     dropped from the Lid eventually. So the pushers take the OUTER pair.
     """
     from .parts import lid as lid_part
-    n_sock = lid_part.socket_count(p)
-    n_push = box_part.pusher_slot_count(p)
+    n_sock = lid_part.socket_count(d)
+    n_push = box_part.pusher_slot_count(d)
     if n_push >= n_sock:
         return list(range(n_sock))
     return [0, n_sock - 1] if n_push == 2 else list(range(n_push))
 
 
-def pusher_socketed(p, d, socket):
+def pusher_socketed(d, socket):
     """A pusher standing in lid socket `socket`, the box's frame.
 
     The axes are forced the same way the stored pusher's are, off a different
@@ -327,15 +327,15 @@ def pusher_socketed(p, d, socket):
       the box's own `z = 0`: box and pushers stand on the same surface.
     """
     from .parts import lid as lid_part
-    x = lid_part.socket_centres(p, d)[socket]
-    y0, y1 = lid_part.socket_span(p, d)
-    under = lid_under(p, d)
+    x = lid_part.socket_centres(d)[socket]
+    y0, y1 = lid_part.socket_span(d)
+    under = lid_under(d)
     cx, cy, _cz = under((x, (y0 + y1) / 2, 0.0))
     return Place(x_dir=(0, 0, 1), z_dir=(-1, 0, 0),
                  origin=(cx + L.PLATE / 2, cy + d.calPusherTotalDepth / 2, 0.0))
 
 
-def tread_z(p, d, j):
+def tread_z(d, j):
     """The height of the tread riser `j` rests on, `j` counted from the BACK.
 
     A pusher's treads are its constant-X segments — part X is the rise, and it
@@ -344,19 +344,19 @@ def tread_z(p, d, j):
     because the pusher's first drop is `calFirstSliderDistance` and
     `slider_drops` puts the override on the leading edge, which is the front.
     """
-    return (p.RisingSliders - j) * d.calHeightIncrement
+    return (d.RisingSliders - j) * d.calHeightIncrement
 
 
-def holder_play(p, d, j):
+def holder_play(d, j):
     """Riser `j` on its tread, still riding rib `j`.
 
     X and Y are the closed state's exactly — the holders ride the same slider
     ribs whether the cascade is open or shut, which is the whole idea — and
     only Z changes, from the floor to the tread.
     """
-    closed = holder_closed(p, d, j)
+    closed = holder_closed(d, j)
     return Place(origin=(closed.origin[0], closed.origin[1],
-                         tread_z(p, d, j) + holder_z_base(d)))
+                         tread_z(d, j) + holder_z_base(d)))
 
 
 # --- the Topper ------------------------------------------------------------
@@ -381,7 +381,7 @@ def holder_play(p, d, j):
 # diagonal." The diagonal is that slant, and the protrusions are the two tabs.
 
 
-def topper(p, d, j, first=False):
+def topper(d, j, first=False):
     """The topper on riser `j`, in the cascade frame.
 
     A half turn about **X**, about the plane `z = topper.Z_BASE`, and one of
@@ -410,16 +410,16 @@ def topper(p, d, j, first=False):
     determines is the mistake `spec/LID.md` records twice, made a third time.
     """
     from .parts import topper as topper_part
-    depth = holder_part.holder_depth(p, d, first)
-    base = holder_closed(p, d, j).origin
+    depth = holder_part.holder_depth(d, first)
+    base = holder_closed(d, j).origin
     return Place(x_dir=(1, 0, 0), z_dir=(0, 0, -1),
                  origin=(base[0], base[1] - 2 * depth,
                          base[2] + 2 * topper_part.Z_BASE))
 
 
-def topper_play(p, d, j, first=False):
+def topper_play(d, j, first=False):
     """The same, on a cascaded holder — only the tread's height differs."""
-    pl = topper(p, d, j, first)
-    lift = holder_play(p, d, j).origin[2] - holder_closed(p, d, j).origin[2]
+    pl = topper(d, j, first)
+    lift = holder_play(d, j).origin[2] - holder_closed(d, j).origin[2]
     return Place(x_dir=pl.x_dir, z_dir=pl.z_dir,
                  origin=(pl.origin[0], pl.origin[1], pl.origin[2] + lift))

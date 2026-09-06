@@ -88,7 +88,7 @@ for name in files:
     v = mesh(name)
     xs, ys, zs = ([q[i] for q in v] for i in range(3))
     check(f"{name}: width", round(TH.width(d), 3), round(max(xs) - min(xs), 3), 1e-3)
-    check(f"{name}: depth", round(TH.depth(p, d, half), 3),
+    check(f"{name}: depth", round(TH.depth(d, half), 3),
           round(max(ys) - min(ys), 3), 1e-3)
     # The origin is the SLOT's corner, not the part's — this is what says so.
     check(f"{name}: sits at the slot corner + CLEARANCE",
@@ -126,8 +126,8 @@ for name in files:
     ink = [q for q in v if abs(q[2] - TH.ENGRAVE) < 1e-4]
     ix0, ix1 = min(q[0] for q in ink), max(q[0] for q in ink)
     iy0, iy1 = min(q[1] for q in ink), max(q[1] for q in ink)
-    txt = TH.text_line(p, d)
-    em = TH.text_size(p, d, half)
+    txt = TH.text_line(d)
+    em = TH.text_size(d, half)
     lsb = TX.metrics(txt, TX.LOGO_FONT)[1]
 
     if name in CLIPPED:
@@ -139,7 +139,7 @@ for name in files:
               (round(iy0, 3), round(iy1, 3)), (round(y0, 3), round(y1, 3)))
         check(f"{name}: the build fits inside the part instead",
               TH.cap_reach(txt) * em + TH.CLEARANCE
-              <= TH.depth(p, d, half) / 2 + 1e-9, True)
+              <= TH.depth(d, half) / 2 + 1e-9, True)
     else:
         # The anchor and the size, both against the reference's own ink.
         check(f"{name}: text box origin is TEXT_INSET in",

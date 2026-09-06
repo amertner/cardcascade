@@ -82,9 +82,9 @@ def catalogue():
 
 def probe_box(V, T, p, d):
     """Every reading the checks below compare, from one mesh."""
-    BW, BD = box.box_width(p, d), box.box_depth(p, d)
+    BW, BD = box.box_width(d), box.box_depth(d)
     inner = BW / 2 - box.WALL
-    y0, _y1 = box.slot_band(p, d)
+    y0, _y1 = box.slot_band(d)
     z_row = box.hole_rows()[1]                 # the middle row, mid-height
     z_mid = (z_row[0] + z_row[1]) / 2 + EPS
     # Hanging holes: an X ray through the OUTER back wall reads them as gaps.
@@ -101,13 +101,13 @@ def probe_box(V, T, p, d):
     # a rib is the one thing SLIDER_W thick along Y.
     ribs = [(a, b) for a, b in ribs if abs((b - a) - box.SLIDER_W) < 0.05]
     # Front pocket: an X ray through the pocket reads pads, dividers and walls.
-    fw, fb, _back = box.pocket_span(p, d)
+    fw, fb, _back = box.pocket_span(d)
     front = probe.spans(V, T, 0, (fw + fb) / 2 + EPS, d.BoxHeight / 2 + EPS)
     front = [(a, b) for a, b in front if -inner < a and b < inner]
     # Storage dividers: a Z ray down each divider's centre in the slot band.
     y_div = y0 + 1.0 + EPS
     divs = [len(probe.spans(V, T, 2, (a + e) / 2 + EPS, y_div))
-            for a, e in box.storage_dividers(p, d)]
+            for a, e in box.storage_dividers(d)]
     return {"box": probe.box(V), "holes": holes, "cut": cut, "ribs": ribs,
             "front": front, "divs": divs}
 
@@ -116,11 +116,11 @@ def expected(p, d):
     """The rules' own values, from `cad/parts/box.py`."""
     _cls, s = L.lock_class(d.calPusherTotalDepth)
     cut = sorted((c + sign * s - L.BOX_CUTOUT_W / 2, c + sign * s + L.BOX_CUTOUT_W / 2)
-                 for c in box.pusher_slots(p, d) for sign in (-1, +1))
-    front = sorted([(x - box.FRONT_DIVIDER_W, x) for x in box.front_dividers(p, d)])
-    return {"holes_sketch": box.hanging_holes(p, d),
-            "holes_built": box.hole_openings(p, d),
-            "cut": cut, "ribs": sorted(box.slider_ribs(p, d)), "front": front}
+                 for c in box.pusher_slots(d) for sign in (-1, +1))
+    front = sorted([(x - box.FRONT_DIVIDER_W, x) for x in box.front_dividers(d)])
+    return {"holes_sketch": box.hanging_holes(d),
+            "holes_built": box.hole_openings(d),
+            "cut": cut, "ribs": sorted(box.slider_ribs(d)), "front": front}
 
 
 print(f"  {'cached box':38s} {'gen':>4s} {'holes':>5s} {'cut':>4s} {'ribs':>4s} "

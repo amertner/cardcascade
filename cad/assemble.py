@@ -90,29 +90,29 @@ def _all(path):
     return [(n if n == body else f"{body} {n}", v, t) for n, v, t in objects]
 
 
-def _built(path, build, p, extra=None):
+def _built(path, build, d, extra=None):
     """`path` under build/, built by `build` (a `cad.build` builder) first if
     it is not there yet."""
     if not path.exists():
-        build(p, extra, path)
+        build(d, extra, path)
     return path
 
 
-def lid_meshes(p, d, out_dir, folder):
-    return _all(_built(out_dir / folder / B.lid_file(d), B.build_lid, p))
+def lid_meshes(d, out_dir, folder):
+    return _all(_built(out_dir / folder / B.lid_file(d), B.build_lid, d))
 
 
-def token_holder_mesh(p, d, out_dir, folder, half=False):
+def token_holder_mesh(d, out_dir, folder, half=False):
     return _one(_built(out_dir / folder / B.token_holder_file(d, half),
-                       B.build_token_holder, p, half))
+                       B.build_token_holder, d, half))
 
 
-def box_mesh(p, d, out_dir, folder):
-    return _one(_built(out_dir / folder / B.box_file(d), B.build_box, p))
+def box_mesh(d, out_dir, folder):
+    return _one(_built(out_dir / folder / B.box_file(d), B.build_box, d))
 
 
-def pusher_mesh(p, d, out_dir, folder):
-    path = _built(out_dir / folder / B.pusher_file(p), B.build_pusher, p)
+def pusher_mesh(d, out_dir, folder):
+    path = _built(out_dir / folder / B.pusher_file(d), B.build_pusher, d)
     ox, oy, oz = pusher_part.assembly_offset(d)
     return shifted(_one(path), (-ox, -oy, -oz))
 
@@ -129,21 +129,21 @@ class MissingCached(Exception):
     """
 
 
-def holder_file(p, d, first=False):
+def holder_file(d, first=False):
     """`plan_exports.holder`'s name for the CACHED holder in `individual/` —
     NOT `build.holder_file`, which names the rebuilt one by its model code.
     Compile and Innovation holders SPAN the box, so they are keyed on the
     horizontal count; the rest are per-slot and keyed on the size letter and
     the front capacity."""
-    slv = "Sl" if p.isSleeved else "Un"
-    if p.GameName in ("Compile", "Innovation"):
-        return (f"Holder {p.HorizontalSlots}x{p.CardsPerSlidingSlot}"
-                f"-r{p.RisingSliders}-{slv}.3mf")
-    return (f"Holder {d.calSizeLetter}-{p.FrontPocketCardCapacity}"
-            f"-r{p.RisingSliders}-{slv}" + (" (first)" if first else "") + ".3mf")
+    slv = "Sl" if d.isSleeved else "Un"
+    if d.GameName in ("Compile", "Innovation"):
+        return (f"Holder {d.HorizontalSlots}x{d.CardsPerSlidingSlot}"
+                f"-r{d.RisingSliders}-{slv}.3mf")
+    return (f"Holder {d.calSizeLetter}-{d.FrontPocketCardCapacity}"
+            f"-r{d.RisingSliders}-{slv}" + (" (first)" if first else "") + ".3mf")
 
 
-def holder_mesh(p, d, folder, first=False, source=False):
+def holder_mesh(d, folder, first=False, source=False):
     """The holder an assembly places, in its part frame.
 
     Cached by default, because `individual/` is what shipped. `source=True`
@@ -154,10 +154,10 @@ def holder_mesh(p, d, folder, first=False, source=False):
     """
     if source:
         from .parts import holder as holder_part
-        part = holder_part.build(p, first)
+        part = holder_part.build(d, first)
         name = "FirstHolder" if first else "Holder"
         return (name, *mesh3mf.triangulate(part))
-    path = ROOT / "individual" / folder / holder_file(p, d, first)
+    path = ROOT / "individual" / folder / holder_file(d, first)
     if not path.exists():
         raise MissingCached(
             f"no cached {path.name} in individual/{folder}")
@@ -174,7 +174,7 @@ TOPPERS = ("Cities", "Echoes", "Artifacts", "Figures", "Unseen", "Blank")
 NO_TOPPERS = {"Single Set", "Single Mini"}
 
 
-def topper_meshes(p, d, folder, expansion):
+def topper_meshes(d, folder, expansion):
     """Every object in a topper: the body AND its lettering.
 
     `_all`, not `_one`. A labelled topper carries its expansion name as inlays
@@ -183,20 +183,20 @@ def topper_meshes(p, d, folder, expansion):
     left is the POCKETS the letters sit in, which read as text in a shaded
     render and are not text at all: they would print as bare recesses.
     """
-    path = ROOT / "individual" / folder / B.topper_file(p, d, expansion)
+    path = ROOT / "individual" / folder / B.topper_file(d, expansion)
     if not path.exists():
         raise MissingCached(f"no cached {path.name} in individual/{folder}")
     return _all(path)
 
 
-def topper_risers(p, d, short_name=None):
+def topper_risers(d, short_name=None):
     """[(riser, first)] that carry a topper. Innovation only."""
-    if p.GameName != "Innovation" or short_name in NO_TOPPERS:
+    if d.GameName != "Innovation" or short_name in NO_TOPPERS:
         return []
-    return A.holders(p, d)
+    return A.holders(d)
 
 
-def assemble(p, d, state, folder, out_dir, take_tokens=False,
+def assemble(d, state, folder, out_dir, take_tokens=False,
              half=False, holder_source=False, short_name=None):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
@@ -206,63 +206,64 @@ def assemble(p, d, state, folder, out_dir, take_tokens=False,
         parts.append((mesh[0], (mesh[1], mesh[2])))
         instances.extend((len(parts) - 1, pl) for pl in places)
 
-    add(box_mesh(p, d, out_dir, folder), [A.box(p, d)])
+    add(box_mesh(d, out_dir, folder), [A.box(d)])
 
     closed = state in (A.CLOSED, A.CLOSED_LID)
     if closed:
-        add(pusher_mesh(p, d, out_dir, folder),
-            [A.pusher_stored(p, d, k) for k in A.pushers(p, d)])
+        add(pusher_mesh(d, out_dir, folder),
+            [A.pusher_stored(d, k) for k in A.pushers(d)])
     else:
-        add(pusher_mesh(p, d, out_dir, folder),
-            [A.pusher_socketed(p, d, s) for s in A.play_sockets(p, d)])
+        add(pusher_mesh(d, out_dir, folder),
+            [A.pusher_socketed(d, s) for s in A.play_sockets(d)])
 
     place = A.holder_closed if closed else A.holder_play
     for first in (False, True):
-        js = [j for j, f in A.holders(p, d) if f == first]
+        js = [j for j, f in A.holders(d) if f == first]
         if js:
-            add(holder_mesh(p, d, folder, first, holder_source),
-                [place(p, d, j) for j in js])
+            add(holder_mesh(d, folder, first, holder_source),
+                [place(d, j) for j in js])
 
     # Toppers — Innovation only, one per riser, and only where the row has them
     # (`components.no_toppers`: a box built for ONE set has nothing for a
     # topper to say). Each is its own cached component, so each is its own mesh
     # with one instance; the expansion order is the catalogue's and is
     # arbitrary as far as the geometry is concerned.
-    for j, first in topper_risers(p, d, short_name):
-        pl = (A.topper if closed else A.topper_play)(p, d, j, first)
-        for mesh in topper_meshes(p, d, folder, TOPPERS[j % len(TOPPERS)]):
+    for j, first in topper_risers(d, short_name):
+        pl = (A.topper if closed else A.topper_play)(d, j, first)
+        for mesh in topper_meshes(d, folder, TOPPERS[j % len(TOPPERS)]):
             add(mesh, [pl])
 
     # The token holder is the FULL one: a merged row ships a HALF as well, but
     # the two are alternatives for one slot, not both at once, and the
     # placement is the same either way — `assembly.token_holder`. A row with
     # no `TokenHolder` gets neither.
-    if take_tokens and p.GameName == "Dominion":
-        add(token_holder_mesh(p, d, out_dir, folder,
-                              half=half and bool(p.MatPocket)),
-            [A.token_holder(p, d)])
+    if take_tokens and d.GameName == "Dominion":
+        add(token_holder_mesh(d, out_dir, folder,
+                              half=half and bool(d.MatPocket)),
+            [A.token_holder(d)])
 
     if state == A.CLOSED_LID:
-        for mesh in lid_meshes(p, d, out_dir, folder):
-            add(mesh, [A.lid_closed(p, d)])
+        for mesh in lid_meshes(d, out_dir, folder):
+            add(mesh, [A.lid_closed(d)])
     elif state == A.PLAY:
-        for mesh in lid_meshes(p, d, out_dir, folder):
-            add(mesh, [A.lid_under(p, d)])
+        for mesh in lid_meshes(d, out_dir, folder):
+            add(mesh, [A.lid_under(d)])
     return parts, instances
 
 
 def catalogue(csv=CSV, game=None, model=None):
-    """[(folder, Primary, tokens, short name)] — every cascade, both sleevings.
+    """[(folder, Derived, tokens, short name)] — every cascade, both sleevings.
 
     `tokens` is parts.csv's own `TokenHolder` column, which is per ROW and not
     derivable from the geometry: only the sets whose expansions need one carry
     it (`plan_exports.compose`)."""
     out = []
     for row, p in params.cascades(csv, game):
-        if not B.model_matches(D.derive(p), model):
+        d = D.derive(p)
+        if not B.model_matches(d, model):
             continue
         tokens = (row.get("TokenHolder") or "").strip().lower()
-        out.append((p.GameName, p, tokens not in ("", "none"),
+        out.append((d.GameName, d, tokens not in ("", "none"),
                     (row.get("Short name") or "").strip()))
     return out
 
@@ -288,19 +289,18 @@ def main(argv=None):
     rows = catalogue(args.csv, args.game, args.model)
     states = A.STATES if args.state == "all" else (args.state,)
     if args.list:
-        for folder, p, _tk, _sn in rows:
-            print(f"  {folder}/{D.derive(p).calModelName}")
+        for folder, d, _tk, _sn in rows:
+            print(f"  {folder}/{d.calModelName}")
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
 
     print(f"  holders: {args.holder}")
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
     skipped = []
-    for folder, p, tokens, short_name in rows:
-        d = D.derive(p)
+    for folder, d, tokens, short_name in rows:
         for state in states:
             try:
-                parts, instances = assemble(p, d, state, folder, args.out,
+                parts, instances = assemble(d, state, folder, args.out,
                                             take_tokens=tokens,
                                             half=args.half,
                                             holder_source=args.holder == "source",

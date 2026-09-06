@@ -39,9 +39,9 @@ print("=== every cascade, written ===")
 t0 = time.time()
 refused = {}
 n = 0
-for row, p, d in CC.catalogue():
+for row, d in CC.catalogue():
     try:
-        CC.make(row, p, d)
+        CC.make(row, d)
         n += 1
     except Refused as e:
         refused[d.calModelName.replace(".Un", "-Un").replace(".Sl", "-Sl")] = str(e)

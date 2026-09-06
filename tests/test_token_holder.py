@@ -44,7 +44,7 @@ def section_area(solid, z):
 
 
 d = D.derive(P)
-built = {half: TH.build(P, half) for _, half, _ in REFS}
+built = {half: TH.build(D.derive(P), half) for _, half, _ in REFS}
 refs = {half: import_step(str(STEP_DIR / fn)).solids()[0]
         for _, half, fn in REFS}
 
@@ -55,7 +55,7 @@ check("... less 0.500 is the sketch's 63.9", round(d.calTokenHolderSlotWidth - 0
 check("2.600 + calFrontPocketDepth/2 is the sketch's 8.9",
       round(TH.HALF_BASE + d.calFrontPocketDepth / 2, 3), 8.900, 1e-3)
 check("calTokenHolderModel", d.calTokenHolderModel, "M21.Sl")
-check("the engraved line", TH.text_line(P, d), "CC 7.0 M21.Sl")
+check("the engraved line", TH.text_line(d), "CC 7.0 M21.Sl")
 
 print("\n=== the envelope ===")
 for name, half, _ in REFS:
@@ -77,9 +77,9 @@ check("the references have the same edge count",
 check("and so does the build", len(built[False].faces()),
       len(built[True].faces()))
 check("FULL depth is calFrontPocketDepth - 2*CLEARANCE",
-      round(TH.depth(P, d, False), 3), 11.800, 1e-3)
+      round(TH.depth(d, False), 3), 11.800, 1e-3)
 check("HALF depth is 2.600 + half of it, less the same",
-      round(TH.depth(P, d, True), 3), 8.100, 1e-3)
+      round(TH.depth(d, True), 3), 8.100, 1e-3)
 
 print("\n=== volume ===")
 # The residual is the grip's round where it runs out into the rim's, at the two
@@ -103,7 +103,7 @@ print("\n=== the token divider ===")
 # under a half-round cap. Read as the difference between a section below the
 # cap and one above it.
 for name, half, _ in REFS:
-    cy0, cy1 = TH.cavity(P, d, half)[2:]
+    cy0, cy1 = TH.cavity(d, half)[2:]
     below = section_area(built[half], 60.0)
     above = section_area(built[half], 70.0)
     check(f"{name}: the divider is 2.000 x the cavity depth",
@@ -141,12 +141,12 @@ for name, half, _ in REFS:
 print("\n=== the branding ===")
 # The em is asserted against the reference's OWN two readings of it: the cap
 # band (0.720 em) and the `l`, which reaches 0.771. Both give 5.700 exactly.
-em = TH.text_size(P, d, False)
+em = TH.text_size(d, False)
 # 1e-3: the reference's cap band puts the em at 5.7000 ±0.0014 (a 4.104 band
 # read to ±0.001), and the derived TRAIL — a quarter space, 0.0765 against
 # the 0.0754 that was fitted to land on 5.70000 exactly — gives 5.6992.
 check("em size", round(em, 4), 5.7000, 1e-3)
-cut = TH.branding(P, d, False)
+cut = TH.branding(d, False)
 b = cut.bounding_box()
 check("ink X min", round(b.min.X, 3), 10.719, 6e-3)
 check("ink X max", round(b.max.X, 3), 53.065, 6e-3)
@@ -155,11 +155,11 @@ check("ink Y max (the BASELINE — the glyphs run -Y)",
       round(b.max.Y, 3), -4.248, 6e-3)
 check("engraved depth", round(b.max.Z - b.min.Z, 3), round(TH.ENGRAVE, 3), 1e-6)
 check("the text box's origin is TEXT_INSET from the left edge",
-      round(b.min.X - TX.metrics(TH.text_line(P, d))[1] * em - TH.CLEARANCE, 3),
+      round(b.min.X - TX.metrics(TH.text_line(d))[1] * em - TH.CLEARANCE, 3),
       round(TH.TEXT_INSET, 3), 5e-3)
 check("the cap band is centred on the part's depth",
       round(b.max.Y - TX.CAP * em / 2, 3),
-      round(-TH.CLEARANCE - TH.depth(P, d, False) / 2, 3), 5e-3)
+      round(-TH.CLEARANCE - TH.depth(d, False) / 2, 3), 5e-3)
 
 print("\n=== two more HALF references, 2026-09-04 ===")
 # Both hand-exported as the HALF configuration (their depths, 5.790 and 8.100,
@@ -178,7 +178,7 @@ MORE = [("HALF Un", "HalfTokenHolder M6.21.10.45-Un.step",
 for name, fn, q, clipped in MORE:
     dq = D.derive(q)
     ref = import_step(str(STEP_DIR / fn)).solids()[0]
-    mine = TH.build(q, True)
+    mine = TH.build(D.derive(q), True)
     b, r = mine.bounding_box(), ref.bounding_box()
     for ax in "XYZ":
         check(f"{name}: {ax} min", round(getattr(b.min, ax), 6),
@@ -186,7 +186,7 @@ for name, fn, q, clipped in MORE:
         check(f"{name}: {ax} max", round(getattr(b.max, ax), 6),
               round(getattr(r.max, ax), 6), 1e-6)
     check(f"{name}: depth is the HALF's", round(b.max.Y - b.min.Y, 3),
-          round(TH.depth(q, dq, True), 3), 1e-3)
+          round(TH.depth(dq, True), 3), 1e-3)
     for z in (1.5, 40.0, 64.5, 74.0, 80.0):
         check(f"{name}: section area at Z {z}",
               round(section_area(mine, z), 3), round(section_area(ref, z), 3), 1e-3)
@@ -227,7 +227,7 @@ for name, fn, q, clipped in MORE:
 
 print("\n=== it is Dominion-only, and says so ===")
 try:
-    TH.build(params.Primary(4, 6, 21, 10, 0, 10, 1, 0, "Innovation"))
+    TH.build(D.derive(params.Primary(4, 6, 21, 10, 0, 10, 1, 0, "Innovation")))
     check("a non-Dominion Primary is refused", False, True)
 except ValueError:
     check("a non-Dominion Primary is refused", True, True)

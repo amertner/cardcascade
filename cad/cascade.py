@@ -49,9 +49,9 @@ CSV = ROOT / "automation" / "parts.csv"
 STUDIO = Path("/Applications/BambuStudio.app/Contents/MacOS/BambuStudio")
 
 
-def parts(row, p, d):
+def parts(row, d):
     """[(object name, filename under build/<Game>/)] — every printed thing
-    the cascade `row` (with its sleeving already in `p`) is made of, in the
+    the cascade `row` (with its sleeving already in `d`) is made of, in the
     order the plate scheme lists them.
 
     * one Box, `calPusherSlots` Pushers (`#calPusherSlots` is the studio's
@@ -67,30 +67,30 @@ def parts(row, p, d):
       nothing for a topper to say).
     """
     out = [("Box", B.box_file(d))]
-    out += [("Pusher", B.pusher_file(p))] * d.calPusherSlots
-    if p.isFirstSlidingSlotOverride:
+    out += [("Pusher", B.pusher_file(d))] * d.calPusherSlots
+    if d.isFirstSlidingSlotOverride:
         out.append(("FirstHolder", B.holder_file(d, first=True)))
-        out += [("Holder", B.holder_file(d))] * (p.RisingSliders - 1)
+        out += [("Holder", B.holder_file(d))] * (d.RisingSliders - 1)
     else:
-        out += [("Holder", B.holder_file(d))] * p.RisingSliders
-    out.append((PJ.object_name("Lid", p, d), B.lid_file(d)))
-    if p.GameName == "Dominion" and (row.get("TokenHolder") or "").strip().lower() == "full":
+        out += [("Holder", B.holder_file(d))] * d.RisingSliders
+    out.append((PJ.object_name("Lid", d), B.lid_file(d)))
+    if d.GameName == "Dominion" and (row.get("TokenHolder") or "").strip().lower() == "full":
         out.append(("TokenHolder", B.token_holder_file(d, half=False)))
-        if p.MatPocket:
+        if d.MatPocket:
             out.append(("HalfTokenHolder", B.token_holder_file(d, half=True)))
-    spec = C.GAMES.get(p.GameName) or {}
+    spec = C.GAMES.get(d.GameName) or {}
     short = (row.get("Short name") or "").strip()
-    if p.GameName == "Innovation" and short not in spec.get("no_toppers", set()):
+    if d.GameName == "Innovation" and short not in spec.get("no_toppers", set()):
         for exp in TB.TOPPERS:
-            out.append((f"Topper {exp}", B.topper_file(p, d, exp)))
+            out.append((f"Topper {exp}", B.topper_file(d, exp)))
     return out
 
 
-def objects(row, p, d, root=BUILD):
+def objects(row, d, root=BUILD):
     """The parts as `project.Obj`s, read from `root/<Game>/`. A missing file
     is named rather than guessed around — build it first."""
-    folder = root / p.GameName
-    wanted = parts(row, p, d)
+    folder = root / d.GameName
+    wanted = parts(row, d)
     missing = sorted({fn for _n, fn in wanted if not (folder / fn).exists()})
     if missing:
         refuse(f"not built under {folder}: {missing} — run python -m cad.build --part all")
@@ -103,16 +103,16 @@ def objects(row, p, d, root=BUILD):
     return out
 
 
-def _named(row, p, d, version):
+def _named(row, d, version):
     """`components.cascade_filename` for this row, at `version` (None: none)."""
-    model = (row.get("Sleeved model" if p.isSleeved else "Unsl Model") or "").strip()
-    return C.cascade_filename((row.get("Game") or p.GameName).strip(),
+    model = (row.get("Sleeved model" if d.isSleeved else "Unsl Model") or "").strip()
+    return C.cascade_filename((row.get("Game") or d.GameName).strip(),
                               (row.get("Short name") or "").strip(),
-                              "Sl" if p.isSleeved else "Un", model, version,
+                              "Sl" if d.isSleeved else "Un", model, version,
                               (row.get("Project label") or "").strip())
 
 
-def filename(row, p, d, versioned=False):
+def filename(row, d, versioned=False):
     """The project's FILE name. No version in it by default.
 
     The version in a name serves one reader: someone holding a downloaded file,
@@ -125,23 +125,23 @@ def filename(row, p, d, versioned=False):
     So `build/cascades/` and `cascades/` hold the stable name, and `--publish`
     puts the version back for the tree that leaves the repo. What the file says
     about itself does NOT change with it — see `title` below."""
-    return _named(row, p, d, p.Version if versioned else None)
+    return _named(row, d, d.Version if versioned else None)
 
 
-def title(row, p, d):
+def title(row, d):
     """The project's TITLE, which ALWAYS carries the version:
     `Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)`.
 
     A filename is the one identifier its owner can trivially change, so the
     version cannot live only there. `project.write` puts this in the 3MF's
     `Title` metadata and at the end of every plate name, where Studio shows it
-    and no rename can touch it. The version is `p.Version` — what `cad.build`
+    and no rename can touch it. The version is `d.Version` — what `cad.build`
     stamped every part with, and on this path that really is every part, so the
     title and the engraving say the same thing."""
-    return _named(row, p, d, p.Version)[:-len(".3mf")]
+    return _named(row, d, d.Version)[:-len(".3mf")]
 
 
-def bed_for(row, p):
+def bed_for(row, d):
     """The bed parts.csv's `3D printer` column names — Mini, Standard, Large,
     or Mixed (P1 unsleeved, H2C sleeved: the sleeved box is deeper) — or None
     for the layout to pick the smallest that fits. `refresh_cascades.bed_for`."""
@@ -153,7 +153,7 @@ def bed_for(row, p):
     if kind == "large":
         return "h2c"
     if kind == "mixed":
-        return "h2c" if p.isSleeved else "p1"
+        return "h2c" if d.isSleeved else "p1"
     return None
 
 
@@ -176,7 +176,7 @@ def row_stamp(row):
 
 def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=None,
               version=GENERATION):
-    """[(row, p, d)] for the cascades selected."""
+    """[(row, d)] for the cascades selected."""
     sizes = [x.strip().upper() for x in size.split(",")] if size else None
     out = []
     for row, p in params.cascades(csv, game, version):
@@ -189,21 +189,21 @@ def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=Non
             continue
         if sizes and d.calSizeLetter.upper() not in sizes:
             continue
-        out.append((row, p, d))
+        out.append((row, d))
     return out
 
 
-def make(row, p, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD,
+def make(row, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD,
          versioned=False):
     """One cascade's project, written and checked. Returns (path, notes)."""
-    objs = objects(row, p, d, root)
-    chosen, plates, places = LY.layout(objs, bed or bed_for(row, p))
-    path = Path(out_dir) / p.GameName / filename(row, p, d, versioned)
-    PJ.write(path, chosen, objs, plates, places, title=title(row, p, d),
+    objs = objects(row, d, root)
+    chosen, plates, places = LY.layout(objs, bed or bed_for(row, d))
+    path = Path(out_dir) / d.GameName / filename(row, d, versioned)
+    PJ.write(path, chosen, objs, plates, places, title=title(row, d),
              metadata={"cardcascade:model": d.calModelName,
                        "cardcascade:source": source_stamp(),
                        "cardcascade:row": row_stamp(row),
-                       "cardcascade:version": p.Version})
+                       "cardcascade:version": d.Version})
     ps = json.loads(zipfile.ZipFile(path).read("Metadata/project_settings.config"))
     blocking = [x for x in FIL.makerworld_problems(ps) if x[3]]
     if blocking:
@@ -262,9 +262,9 @@ def main(argv=None):
     rows = catalogue(args.csv, args.game, args.model, args.size, args.sleeving, args.name,
                      args.version)
     if args.list:
-        for row, p, d in rows:
-            print(f"  {p.GameName}/{filename(row, p, d, args.publish)}"
-                  f"  bed {bed_for(row, p) or 'auto'}")
+        for row, d in rows:
+            print(f"  {d.GameName}/{filename(row, d, args.publish)}"
+                  f"  bed {bed_for(row, d) or 'auto'}")
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
     if args.build:
@@ -275,15 +275,15 @@ def main(argv=None):
             return rc
     print(f"  {'project':62s} {'layout':10s} notes")
     failed = []
-    for row, p, d in rows:
+    for row, d in rows:
         try:
-            path, notes = make(row, p, d, out, args.bed, args.slice,
+            path, notes = make(row, d, out, args.bed, args.slice,
                                args.components, args.publish)
         except Refused as e:
-            failed.append(f"{p.GameName}/{title(row, p, d)}: {e.reason}")
-            print(f"  {p.GameName + '/' + title(row, p, d):62s} {'REFUSED':10s} {e.reason}")
+            failed.append(f"{d.GameName}/{title(row, d)}: {e.reason}")
+            print(f"  {d.GameName + '/' + title(row, d):62s} {'REFUSED':10s} {e.reason}")
             continue
-        print(f"  {p.GameName + '/' + path.name:62s} {notes[0]:10s} {'; '.join(notes[1:])}")
+        print(f"  {d.GameName + '/' + path.name:62s} {notes[0]:10s} {'; '.join(notes[1:])}")
     print(f"\n  {len(rows) - len(failed)} of {len(rows)} written to {out}")
     for f in failed:
         print(f"  refused  {f}")

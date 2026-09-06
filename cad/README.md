@@ -315,15 +315,18 @@ is the point: a divergence is recorded in `spec/`, and asserted from both ends
 re-converging fails the tests rather than passing quietly. Anything else that
 differs from a reference is a bug.
 
-## One convention
+## One record below `derive`
 
-Every feature function in a part module takes `(p, d)` — the Primary and
-the Derived — whether or not it reads both, and the assembly's placements
-take the same pair. About twenty of them read only `d`. The uniform
-signature is deliberate: a caller (the assembly, a test, a diff script)
-passes the pair without knowing which half a feature happens to need, and
-a feature that grows a dependency on the other half does not change its
-callers. An unused `p` is that convention, not an oversight.
+A `Primary` is the parts.csv row's ten inputs and nothing else; `derive`
+turns it into a `Derived`, and the Derived carries those ten by name
+beside everything computed from them — `d.HorizontalSlots` next to
+`d.calSlotwidth`, as every Onshape part studio reads them. So every
+function below `derive` — a part's features and its `build`, a placement
+in `assembly`, a margin in `fit`, a file name in `build` — takes `d` and
+nothing else. A Primary is handled only where rows come in: `params`, the
+catalogues, the stamps. Until 2026-09-06 every feature took `(p, d)`, a
+carry-over from Onshape's split between the variable studio's inputs and
+its outputs that has no counterpart in one Python record.
 
 ## What each part is checked against
 

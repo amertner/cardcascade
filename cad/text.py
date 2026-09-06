@@ -123,7 +123,7 @@ def _width_per_cap(txt, font_path=LOGO_FONT):
     return t.bounding_box().size.X / (_PROBE * _metrics(font_path)[0])
 
 
-def logo_lines(p, d, chamfer=2.0):
+def logo_lines(d, chamfer=2.0):
     """[(text, font_size, x_ink, baseline)] for the two Orbitron lines.
 
     They run along the rise near the front edge, left-anchored at the first
@@ -166,17 +166,17 @@ def logo_lines(p, d, chamfer=2.0):
     return out
 
 
-def detail_line(p):
+def detail_line(d):
     """The rotated line along the leading edge: "<cards per slot> <sleeving>".
 
     Confirmed from the STEP's glyph pattern -- a word space after the first
     glyph, the narrow `l` third, and the three `e`s fourth, fifth and seventh --
     and from Allan's screenshots, which show "12 Unsleeved" and "12 Sleeved".
     """
-    return f"{p.CardsPerSlidingSlot} {'Sleeved' if p.isSleeved else 'Unsleeved'}"
+    return f"{d.CardsPerSlidingSlot} {'Sleeved' if d.isSleeved else 'Unsleeved'}"
 
 
-def detail_placement(p, d):
+def detail_placement(d):
     """(text, font_size, baseline_x, start_y) for the detail line.
 
     It reads down the depth near the leading edge, so it is bounded by the band
@@ -190,7 +190,7 @@ def detail_placement(p, d):
     Dominion one.
     """
     cap_em, asc_em = _metrics(DETAIL_FONT)
-    txt = detail_line(p)
+    txt = detail_line(d)
     band = d.calHeightIncrement - DETAIL_BASELINE_X
     depth = d.calPusherTotalDepth
     wpc = _width_per_cap(txt, DETAIL_FONT)

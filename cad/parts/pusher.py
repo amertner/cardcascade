@@ -20,7 +20,6 @@ from build123d import (BuildPart, BuildSketch, BuildLine, Polyline, Plane,
                        Locations, Box, Mode, Pos, Rot, add, make_face, extrude,
                        fillet, Align, Text)
 
-from .. import derive as D
 from .. import lock as L
 from .. import text as T
 
@@ -38,7 +37,7 @@ ROUND_STEP = 0.800        # Round top of step
 ENGRAVE = 0.400           # text depth
 
 
-def slider_drops(p, d):
+def slider_drops(d):
     """The Y drop at each step, leading edge first, summing to
     calPusherTotalDepth.
 
@@ -48,13 +47,13 @@ def slider_drops(p, d):
     rounds separately (`First Step` / `Round step 1`, at x = calHeightIncrement),
     and its riser face measures PLATE - 2r for r = 1.000 rather than 0.800.
     """
-    drops = [d.calSliderDistance] * p.RisingSliders
-    if p.isFirstSlidingSlotOverride:
+    drops = [d.calSliderDistance] * d.RisingSliders
+    if d.isFirstSlidingSlotOverride:
         drops[0] = d.calFirstSliderDistance
     return drops
 
 
-def profile_points(p, d, notch=True):
+def profile_points(d, notch=True):
     """The staircase outline, in order, starting at the leading edge.
 
     `notch` mirrors the CAD's suppression formula on `Remove Centre Notch`:
@@ -72,13 +71,13 @@ def profile_points(p, d, notch=True):
                 (0.0, yc - L.NOTCH_W / 2)]
     pts += [(0.0, -W),
            (inc - CHAMFER, -W), (inc, -W + CHAMFER)]
-    drops = slider_drops(p, d)
+    drops = slider_drops(d)
     for k in range(1, len(drops) + 1):
         y_top = -(W - sum(drops[:k]))
-        if k == p.RisingSliders:
+        if k == d.RisingSliders:
             y_top = -CHAMFER                    # Chamfer 2 clips the last riser
         pts.append((k * inc, y_top))
-        if k < p.RisingSliders:
+        if k < d.RisingSliders:
             pts.append(((k + 1) * inc, y_top))
     pts += [(H - CHAMFER, 0.0), (0.0, 0.0)]
     return pts
@@ -89,17 +88,16 @@ def assembly_offset(d):
     return (ASSEMBLY_X, 0.0, -d.calHeightIncrement)
 
 
-def build(p, text=True):
-    """`p` is a params.Primary. Returns the Pusher as a build123d Part."""
-    if L.geometry_of(p.Version) != L.GENERATION:
+def build(d, text=True):
+    """The Pusher as a build123d Part, from a `derive.Derived`."""
+    if L.geometry_of(d.Version) != L.GENERATION:
         raise ValueError(
             f"cad/ builds {L.GENERATION} geometry only, so a Primary at "
-            f"{p.Version!r} would get {L.GENERATION} tabs under a "
-            f"'CC {p.Version}' stamp — the mixed-generation part parts.csv's "
+            f"{d.Version!r} would get {L.GENERATION} tabs under a "
+            f"'CC {d.Version}' stamp — the mixed-generation part parts.csv's "
             f"Build column exists to prevent. Leave the 6.6 pushers to "
             f"individual/ until their cascades migrate. (7.1 is 7.0 geometry "
             f"with a new stamp: lock.SAME_GEOMETRY.)")
-    d = D.derive(p)
     W = d.calPusherTotalDepth
     inc = d.calHeightIncrement
     yc = -W / 2
@@ -112,7 +110,7 @@ def build(p, text=True):
     # solids are made first, in algebra mode, and subtracted below.
     cuts = []
     if text:
-        for txt, size, x0, baseline in T.logo_lines(p, d):
+        for txt, size, x0, baseline in T.logo_lines(d):
             glyphs = Text(txt, font_size=size, font_path=T.LOGO_FONT,
                           align=(Align.MIN, Align.MIN))
             cuts.append(extrude(Pos(x0, baseline, L.PLATE - ENGRAVE) * glyphs,
@@ -121,7 +119,7 @@ def build(p, text=True):
         # that maps +X to -Y and +Y to +X, leaving the baseline running along
         # -Y with the glyphs standing up +X. Align.MIN then Rot puts the ink's
         # min X and max Y at the origin, so the anchor is a plain translation.
-        txt, size, bx, y0 = T.detail_placement(p, d)
+        txt, size, bx, y0 = T.detail_placement(d)
         glyphs = Rot(0, 0, -90) * Text(txt, font_size=size,
                                        font_path=T.DETAIL_FONT,
                                        align=(Align.MIN, Align.MIN))
@@ -131,7 +129,7 @@ def build(p, text=True):
     with BuildPart() as pusher:
         with BuildSketch(Plane.XY):
             with BuildLine():
-                Polyline(*profile_points(p, d, notch=L.has_notch(s)))
+                Polyline(*profile_points(d, notch=L.has_notch(s)))
             make_face()
         extrude(amount=L.PLATE)
 
@@ -139,7 +137,7 @@ def build(p, text=True):
         # both Z edges, r=1.000 on the step nearest the leading edge and
         # r=0.800 on the replicated ones. This is why the riser faces measure
         # (PLATE - 2r) tall rather than PLATE.
-        for k in range(1, p.RisingSliders + 1):
+        for k in range(1, d.RisingSliders + 1):
             r = ROUND_FIRST if k == 1 else ROUND_STEP
             edges = [e for e in pusher.edges()
                      if abs(e.center().X - k * inc) < 1e-6

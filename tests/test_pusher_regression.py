@@ -71,7 +71,7 @@ items = B.pusher_catalogue()
 # riser 12) differ by 1.20 mm sleeved and share `Pusher 6x10-*.3mf`.
 by_legacy = {}
 for folder, fn, p in items:
-    by_legacy.setdefault((folder, B.pusher_file(p, legacy=True)), []).append(fn)
+    by_legacy.setdefault((folder, B.pusher_file(D.derive(p), legacy=True)), []).append(fn)
 
 print(f"  {'built file':38s} {'D':>6s} {'rise':>7s} {'cls':>4s} "
       f"{'tabs':>4s} {'root':>5s} {'notch':>6s}   in individual/")
@@ -137,7 +137,7 @@ for folder, fn, p in items:
     for t in tabs:
         check(f"{tag} tab width", round(t["w"], 2), round(L.TAB_W, 2), 0.05)
 
-    legacy = B.pusher_file(p, legacy=True)
+    legacy = B.pusher_file(D.derive(p), legacy=True)
     ref = INDIV / folder / legacy
     if len(by_legacy[(folder, legacy)]) > 1:
         note = f"{legacy} — SHARED, see below"
@@ -159,7 +159,7 @@ print(f"    {'individual/ file':32s} {'H':>7s} {'D':>7s} {'Z':>8s} "
       f"{'their base':>10s} {'ours':>7s}  lock")
 same = moved = shared = 0
 for folder, fn, p in items:
-    legacy = B.pusher_file(p, legacy=True)
+    legacy = B.pusher_file(D.derive(p), legacy=True)
     ref = INDIV / folder / legacy
     tag = f"{folder}/{fn}"
     if not ref.exists():

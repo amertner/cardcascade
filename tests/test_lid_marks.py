@@ -79,7 +79,7 @@ print("=== the scales the catalogue fits ===")
 scales = {}
 for game, fn, p in B.lid_catalogue():
     d = D.derive(p)
-    name, n = lid.logo_choice(p, d)
+    name, n = lid.logo_choice(d)
     if name:
         scales.setdefault((game, name), {})[round(n, 6)] = fn
 for (game, name), by_n in sorted(scales.items()):

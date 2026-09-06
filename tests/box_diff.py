@@ -76,7 +76,7 @@ def report(key, limit=25, slabs=SLABS):
     fn, p = REFS[key]
     ref = import_step(str(Path(__file__).resolve().parent.parent
                           / "spec" / "reference" / fn)).solids()[0]
-    mine = box.build(p)
+    mine = box.build(D.derive(p))
     d = D.derive(p)
     print(f"=== {key}  #BoxWidth {box.box_width(p,d):.3f}  "
           f"#BoxDepth {box.box_depth(p,d):.3f}")

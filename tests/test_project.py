@@ -87,7 +87,7 @@ row = next(r for r in params.load_rows(ROOT / "automation" / "parts.csv")
            if D.derive(params.from_row(r, 0)).calModelName.replace(".Un", "-Un") == MODEL)
 p = params.from_row(row, 0)
 d = D.derive(p)
-files = {"Box": B.box_file(d), "Lid": B.lid_file(d), "Pusher": B.pusher_file(p),
+files = {"Box": B.box_file(d), "Lid": B.lid_file(d), "Pusher": B.pusher_file(d),
          "Holder": B.holder_file(d), "TokenHolder": B.token_holder_file(d, half=False)}
 missing = [f for f in files.values() if not (ROOT / "build" / "Dominion" / f).exists()]
 check("every part built", missing, [])
@@ -98,7 +98,7 @@ if missing or fails:
 objects, placements = [], []
 for oid, name, _parts in lay.objects:
     r = role(name)
-    objects.append(PJ.Obj.from_file(PJ.object_name(r, p, d), ROOT / "build" / "Dominion" / files[r]))
+    objects.append(PJ.Obj.from_file(PJ.object_name(r, d), ROOT / "build" / "Dominion" / files[r]))
     if r == "Lid":
         check("the lid keeps its capacity suffix", objects[-1].name, name)
     pl = lay.placements[oid]

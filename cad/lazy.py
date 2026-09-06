@@ -4,7 +4,7 @@
 the part modules, and importing a part module loads build123d — four seconds
 of start-up that `cad.assemble --list` spent on printing names. A `lazy(...)`
 stands in for the module and imports it on the first attribute read, so the
-call sites stay `box_part.slot_band(p, d)` and the cost lands only on a
+call sites stay `box_part.slot_band(d)` and the cost lands only on a
 caller that computes a placement.
 """
 import importlib

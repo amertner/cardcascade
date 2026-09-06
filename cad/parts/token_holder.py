@@ -107,7 +107,7 @@ def width(d):
     return d.calTokenHolderSlotWidth - SLOT_TRIM - 2 * CLEARANCE
 
 
-def depth(p, d, half):
+def depth(d, half):
     """The outer depth: the whole front pocket, or Allan's half rule."""
     pocket = (HALF_BASE + d.calFrontPocketDepth / 2 if half
               else d.calFrontPocketDepth)
@@ -132,17 +132,17 @@ def model_name(d):
     return d.calTokenHolderModel
 
 
-def text_line(p, d):
+def text_line(d):
     """`CC 7.0 M21.Sl` — the version and the model, no separator.
 
     The Holder writes `CC <version> - <GameName>`; this one carries the model
     code instead, because a token holder's identity is its slot, not its game
     (it only has one).
     """
-    return f"CC {p.Version} {model_name(d)}"
+    return f"CC {d.Version} {model_name(d)}"
 
 
-def text_size(p, d, half):
+def text_size(d, half):
     """The em size, fitting BOTH dimensions — a DELIBERATE DIVERGENCE.
 
     Onshape constrains the WIDTH alone: the text box runs from TEXT_INSET to
@@ -168,19 +168,19 @@ def text_size(p, d, half):
     Onshape rule works this reproduces it, and where it does not this is what
     changes. `tests/test_token_holder_corpus.py` asserts both halves.
     """
-    txt = text_line(p, d)
+    txt = text_line(d)
     # Width: the text box runs from TEXT_INSET to width - TEXT_INSET, and the
     # em has to put the box's right edge there (`T.box_run`). Read out of the
     # font rather than off rendered ink: `T.ink` at size 1.0 is a rendered
     # bounding box and is out by enough to move the em in the fourth decimal.
     by_width = (width(d) - 2 * TEXT_INSET) / T.box_run(txt, T.LOGO_FONT)
 
-    by_depth = (depth(p, d, half) / 2 - CLEARANCE) / cap_reach(txt)
+    by_depth = (depth(d, half) / 2 - CLEARANCE) / cap_reach(txt)
     # And no smaller than the cut floor (`cad/text.py`, "floors"): 4.93 em is
     # the catalogue's smallest against 1.70, so it binds nowhere today.
     size = T.floored(min(by_width, by_depth), T.LOGO_FONT)
     if size > min(by_width, by_depth) + 1e-9 and \
-            size * cap_reach(txt) > depth(p, d, half) / 2:
+            size * cap_reach(txt) > depth(d, half) / 2:
         raise T.DoesNotFit(f"{txt!r} at its floor overruns the tray")
     return size
 
@@ -198,12 +198,12 @@ def cap_reach(txt):
     return max(T.CAP / 2, (hi - lo) - T.CAP / 2)
 
 
-def cavity(p, d, half):
+def cavity(d, half):
     """(x0, x1, y0, y1) of the inner walls, in the part's own frame."""
     x0 = CLEARANCE + SIDE_WALL
     x1 = CLEARANCE + width(d) - SIDE_WALL
     y1 = -CLEARANCE - END_WALL
-    y0 = -CLEARANCE - depth(p, d, half) + END_WALL
+    y0 = -CLEARANCE - depth(d, half) + END_WALL
     return x0, x1, y0, y1
 
 
@@ -214,7 +214,7 @@ def divider_x(d):
 
 
 
-def build(p, half=False):
+def build(d, half=False):
     """The finished solid, in assembly position — which is the part's own.
 
     Built in algebra mode: the tray is one box less its cavity, the two rounds
@@ -222,14 +222,13 @@ def build(p, half=False):
     order matters once — the grip stands on the rim BEFORE the rim is rounded,
     so the round breaks either side of it, which is what the reference has.
     """
-    if p.GameName != "Dominion":
+    if d.GameName != "Dominion":
         # Not a refusal on principle — no other game has ever had one, and no
         # other parts.csv row asks for one, so there is no reference to say
         # what it would look like.
-        raise ValueError(f"TokenHolder is Dominion-only; got {p.GameName!r}")
-    d = D.derive(p)
-    w, dp, h = width(d), depth(p, d, half), height()
-    cx0, cx1, cy0, cy1 = cavity(p, d, half)
+        raise ValueError(f"TokenHolder is Dominion-only; got {d.GameName!r}")
+    w, dp, h = width(d), depth(d, half), height()
+    cx0, cx1, cy0, cy1 = cavity(d, half)
     xc, yc = CLEARANCE + w / 2, -CLEARANCE - dp / 2
     back = -CLEARANCE - dp                       # the rear outer face
 
@@ -286,10 +285,10 @@ def build(p, half=False):
     part = part + stem + cap
 
     # --- Branding ----------------------------------------------------------
-    return part - branding(p, d, half)
+    return part - branding(d, half)
 
 
-def branding(p, d, half):
+def branding(d, half):
     """The engraved text, as the solid to subtract from the underside.
 
     The glyphs run toward **-Y**, not +Y. That is not a guess: the reference's
@@ -309,9 +308,9 @@ def branding(p, d, half):
     side only. Mirroring in Y keeps the X order and turns the glyphs over,
     so the ink hangs BELOW the baseline.
     """
-    txt = text_line(p, d)
-    em = text_size(p, d, half)
+    txt = text_line(d)
+    em = text_size(d, half)
     x = CLEARANCE + TEXT_INSET
-    baseline = -CLEARANCE - depth(p, d, half) / 2 + T.CAP * em / 2
+    baseline = -CLEARANCE - depth(d, half) / 2 + T.CAP * em / 2
     return text_solid(txt, T.LOGO_FONT, em, ENGRAVE).mirror(Plane.XZ).moved(
         Location((x, baseline, 0)))
