@@ -123,6 +123,7 @@ cad/
   fit.py        interference and margins — the reason the assemblies exist
   gltf.py       an assembly -> .glb, for a renderer that can light it
   lazy.py       a module imported on first use; keeps build123d out of --list
+  refuse.py     Refused — the one exception every guard raises, caught once per CLI
   project.py    a Bambu Studio project written from parts and placements, no donor — spec/PROJECT.md
   layout.py     the plate scheme, bed, 45-degree packing and tower, lifted from make_cascade
   cascade.py    a parts.csv row -> its parts under build/ and its project title
@@ -313,6 +314,16 @@ is the point: a divergence is recorded in `spec/`, and asserted from both ends
 — the build has the new behaviour, the reference still has the old one — so
 re-converging fails the tests rather than passing quietly. Anything else that
 differs from a reference is a bug.
+
+## One convention
+
+Every feature function in a part module takes `(p, d)` — the Primary and
+the Derived — whether or not it reads both, and the assembly's placements
+take the same pair. About twenty of them read only `d`. The uniform
+signature is deliberate: a caller (the assembly, a test, a diff script)
+passes the pair without knowing which half a feature happens to need, and
+a feature that grows a dependency on the other half does not change its
+callers. An unused `p` is that convention, not an oversight.
 
 ## What each part is checked against
 

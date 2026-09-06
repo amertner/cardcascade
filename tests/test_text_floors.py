@@ -80,7 +80,7 @@ for _folder, fn, p in B.box_catalogue():
     d = D.derive(p)
     y0, y1 = box.card_area(p, d)
     span = y1 - y0
-    logo_len = span - box.LOGO_MARGIN - box.logo_margin(p, d)
+    logo_len = span - box.LOGO_FRONT_INSET - box.logo_margin(p, d)
     ms = T.fit_size(d.calModelName, span - box.MODEL_MARGIN)
     ls = T.fit_size(d.ProductName, logo_len)
     cs = T.fit_size(d.calCapacityLabel, logo_len)
