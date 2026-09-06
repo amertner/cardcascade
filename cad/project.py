@@ -105,9 +105,12 @@ class Part:
 
 @dataclass
 class Obj:
-    """A printed thing: one or more parts sharing a frame, and a role name."""
+    """A printed thing: one or more parts sharing a frame, a role name, and
+    the component file it came from — two objects from one file (four
+    holders, two pushers) share one mesh in the project, as Studio's do."""
     name: str
     parts: list
+    source: str = ""
 
     @classmethod
     def from_file(cls, name, path):
@@ -118,7 +121,7 @@ class Obj:
                  for n, v, t in mesh3mf.read(Path(path))]
         if not parts:
             refuse(f"{path}: no mesh")
-        return cls(name, parts)
+        return cls(name, parts, str(path))
 
     @property
     def bbox(self):
@@ -207,22 +210,27 @@ def _uuid():
 # --- the members ------------------------------------------------------------
 
 
-def mesh_model(mesh_id, part):
-    """One sub-model file: the part's mesh, stored centred on its bbox."""
+def _mesh_xml(mesh_id, part):
+    """One `<object>`: the part's mesh, stored centred on its bbox."""
     cx, cy, cz = part.centre
     body = "".join(f'     <vertex x="{x - cx:.6f}" y="{y - cy:.6f}" z="{z - cz:.6f}"/>\n'
                    for x, y, z in part.verts)
     body += "    </vertices>\n    <triangles>\n"
     body += "".join(f'     <triangle v1="{a}" v2="{b}" v3="{c}"/>\n'
                     for a, b, c in part.tris)
+    return (f'  <object id="{mesh_id}" p:UUID="{_uuid()}" type="model">\n'
+            '   <mesh>\n    <vertices>\n' + body +
+            '    </triangles>\n   </mesh>\n  </object>\n')
+
+
+def sub_model(mesh_ids, parts):
+    """One sub-model file: every mesh of one object, as Studio writes them."""
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<model unit="millimeter" xml:lang="en-US" {NS}>\n'
             ' <metadata name="BambuStudio:3mfVersion">1</metadata>\n'
             ' <resources>\n'
-            f'  <object id="{mesh_id}" p:UUID="{_uuid()}" type="model">\n'
-            '   <mesh>\n    <vertices>\n' + body +
-            '    </triangles>\n   </mesh>\n  </object>\n'
-            ' </resources>\n <build/>\n</model>\n')
+            + "".join(_mesh_xml(mid, part) for mid, part in zip(mesh_ids, parts))
+            + ' </resources>\n <build/>\n</model>\n')
 
 
 def settings(bed, n_plates, towers, filaments=FILAMENTS):
@@ -294,32 +302,27 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     n = len(objects)
     next_id = n + 1
     resources, build_items, cfg_objects, meshes = [], [], [], {}
-    shared = {}     # sub-model body, ids stripped -> (file name, its mesh ids)
-    identify = 100
+    shared = {}     # source file -> (sub-model file name, its mesh ids)
+    identify = 100  # Studio numbers its instances from here in steps of 11
     for oi, obj in enumerate(objects):
         oid = oi + 1
         ocx, ocy, ocz = obj.centre
         comps, parts_cfg = [], []
-        # every mesh of an object in ONE sub-model file, as Studio writes them
-        mids = list(range(next_id, next_id + len(obj.parts)))
-        next_id += len(obj.parts)
-        body = _merge_models([mesh_model(mid, part)
-                              for mid, part in zip(mids, obj.parts)])
-        key = _ANON.sub("", body)
-        twin = shared.get(key)
+        twin = shared.get(obj.source) if obj.source else None
         if twin is None:
+            mids = list(range(next_id, next_id + len(obj.parts)))
+            next_id += len(obj.parts)
             fname = f"/3D/Objects/object_{oid}.model"
-            meshes[fname.lstrip("/")] = body
-            shared[key] = (fname, mids)
+            meshes[fname.lstrip("/")] = sub_model(mids, obj.parts)
+            shared[obj.source] = (fname, mids)
         else:
             # The SAME part printed more than once — four holders, two pushers.
             # Studio shares one sub-model between them (its four `<object>`s all
             # name object_35.model) and so do we: a mesh is stored centred on
             # its own bbox, so two copies differ only in the build item's
-            # transform. Ids go back in the pot; the mesh id and the
-            # `<part id>` in model_settings repeat across objects, as Studio's do.
+            # transform. The mesh id and the `<part id>` in model_settings
+            # repeat across objects, as Studio's do.
             fname, mids = twin
-            next_id -= len(obj.parts)
         for part, mid in zip(obj.parts, mids):
             cx, cy, cz = part.centre
             if len(obj.parts) == 1:
@@ -441,18 +444,6 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     return path
 
 
-# What makes two sub-model files the same mesh: everything but their ids.
-_ANON = re.compile(r'p:UUID="[^"]*"|<object id="\d+"')
-
-
-def _merge_models(chunks):
-    """Several one-object sub-model documents into one document."""
-    head, sep, _ = chunks[0].partition(" <resources>\n")
-    objs = "".join(c.split(" <resources>\n", 1)[1].split(" </resources>", 1)[0]
-                   for c in chunks)
-    return head + sep + objs + " </resources>\n <build/>\n</model>\n"
-
-
 CONTENT_TYPES = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
@@ -495,20 +486,16 @@ def read(path):
     ps = json.loads(zf.read("Metadata/project_settings.config"))
     bed = next((k for k, v in BEDS.items() if v.model == ps.get("printer_model")), None)
     if bed is None:
-        # the P1S is a P1P's bed with a lid on it
+        # the P1S is a P1P's bed with a lid on it: match on the bed's far corner
         area = ps.get("printable_area", [])
-        bed = {("256x256",): "p1", ("330x320",): "h2c", ("180x180",): "mini"}.get(
-            (area[2],) if len(area) > 2 else (), None)
+        corner = area[2] if len(area) > 2 else None
+        bed = {"256x256": "p1", "330x320": "h2c", "180x180": "mini"}.get(corner)
     if bed is None:
         refuse(f"{path}: unknown printer {ps.get('printer_model')!r}")
     cfg = zf.read("Metadata/model_settings.config").decode()
     xml = zf.read("3D/3dmodel.model").decode()
-    title = ""
     m = re.search(r'<metadata name="Title">([^<]*)</metadata>', xml)
-    if m and m.group(1):
-        title = m.group(1)
-    else:
-        title = Path(path).stem
+    title = m.group(1) if m and m.group(1) else Path(path).stem
     out = Layout(bed=bed, title=title)
     # object names, extruders, parts
     for ob in re.finditer(r'<object id="(\d+)">(.*?)</object>', cfg, re.S):

@@ -90,16 +90,16 @@ def objects(row, p, d, root=BUILD):
     """The parts as `project.Obj`s, read from `root/<Game>/`. A missing file
     is named rather than guessed around — build it first."""
     folder = root / p.GameName
-    missing = sorted({fn for _n, fn in parts(row, p, d) if not (folder / fn).exists()})
+    wanted = parts(row, p, d)
+    missing = sorted({fn for _n, fn in wanted if not (folder / fn).exists()})
     if missing:
         refuse(f"not built under {folder}: {missing} — run python -m cad.build --part all")
     cache = {}
     out = []
-    for name, fn in parts(row, p, d):
+    for name, fn in wanted:
         if fn not in cache:
             cache[fn] = PJ.Obj.from_file(name, folder / fn)
-        obj = cache[fn]
-        out.append(PJ.Obj(name, obj.parts))
+        out.append(PJ.Obj(name, cache[fn].parts, cache[fn].source))
     return out
 
 
