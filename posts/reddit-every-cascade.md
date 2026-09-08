@@ -78,52 +78,64 @@ them readable.
 
 ## The tables
 
-**Cards** and **Front / slider** are for the game the box was designed for; scale
-them to your own cards with the formula below. **Piles** is the number of
-compartments that keep cards apart, which is usually the number that decides
-whether a box suits your game. **Closed size** is the footprint of the closed
-Cascade in mm; every one of them is 106.6 mm tall. **Bed** is the print bed you need: Mini
-= A1 mini (180 mm), 256 = P1P/P1S/X1C/A1, 350 = H2C/H2D. Where two are listed,
-the unsleeved version fits the smaller bed and the sleeved one doesn't.
+**Cards**, **Piles** and **Front / slider** are for the game the box was
+designed for; scale the card counts to your own cards with the formula below.
+**Piles** is the number of compartments that keep cards apart, which is usually
+the number that decides whether a box suits your game.
+
+**Back pocket** is the open compartment across the back of the box - the one
+with the thumb cutout, to the right of where the pushers are stored. This is
+where rules, player mats and reference cards go, and it is the column to look at
+if your game comes with more than cards. It is 3.2 mm deep and 83.4 mm tall on
+every single model, so only the width varies, and that is what the column gives.
+These are the v7.1 numbers: from v7.1 every Cascade stores two pushers instead
+of two or three, and on the 11 designs that used to store three the pocket
+gained exactly one pusher slot's width - between 18 and 71 mm, depending on the
+model.
+
+**Closed size** is the footprint of the closed Cascade in mm; every one of them
+is 106.6 mm tall. **Bed** is the print bed you need: Mini = A1 mini (180 mm),
+256 = P1P/P1S/X1C/A1, 350 = H2C/H2D. Where two are listed, the unsleeved version
+fits the smaller bed and the sleeved one doesn't.
 
 **Group A - cards up to 61.4 mm wide (63.4 mm in the sleeved boxes)**
 
-|Model|Game|Cards|Piles|Front / slider|Closed size, unsl / sleeved|Bed|Originally for|
-|:-|:-|-:|-:|:-|:-|:-|:-|
-|**M5.6.6**|FCM|144|24|6 / 6|271x40 / 279x48|256|FCM Milestones|
-|**S4.16.10**|Dominion|168|15|16 / 10|208x45 / 214x57.3|256|Dominion: Alchemy, Cornucopia, Guilds|
-|**L3.18.6**|FCM|180|20|18 / 6|334x35 / 344x42.9|350|FCM Occupations, box 2 of 2|
-|**S4.18.12**|FCM|198|15|18 / 12|208x48.8 / 214x63.3|256|FCM Occupations, 1-box alternative|
-|**M4.21.10-M**|Dominion|202|18|21 / 10|271x47 / 279x60.3|256|Half a 400-card set, with mat pocket|
-|**M4.21.10**|Dominion|244|20|21 / 10|271x46.9 / 279x60.3|256|Half of Adventures / Nocturne / Plunder|
-|**S2.40.12-30**|Dominion|246|9|40 / 12 (1st 30)|208x50 / 214x68.1|256|Dominion base cards, thick piles|
-|**M4.18.12**|FCM|264|20|18 / 12|271x48.8 / 279x63.3|256|FCM Occupations, box 1 of 2|
-|**S5.40.12**|Dominion|300|18|40 / 12|208x64.1 / 214x86.1|256|Half the Dominion base set|
-|**M6.21.10**|Dominion|324|28|21 / 10|271x59.3 / 279x77.1|256|A standard Dominion expansion|
-|**S9.21.10**|Dominion|333|30|21 / 10|208x77.9 / 214x102.3|256|A big set on a 256 mm bed|
-|**M8.40.10-M**|Dominion|400|34|40 / 10|271x78.9 / 279x105.3|256 / 350|Dominion sets with mats|
-|**M2.60.18-40**|Dominion|472|12|60 / 18 (1st 40)|271x63.7 / 279x89.7|256 / 350|Dominion base cards, 6 players|
-|**L6.40.12**|Dominion|560|35|40 / 12|334x71 / 344x95.7|350|The whole Dominion base set|
-|**L8.50.10**|Dominion|650|45|50 / 10|334x82.7 / 344x111.3|350|Dominion's biggest sets|
+|Model|Cards|Piles|Front / slider|Back pocket, unsl / sl|Closed size, unsl / sl|Bed|Originally for|
+|:-|-:|-:|:-|:-|:-|:-|:-|
+|**M5.6.6**|144|24|6 / 6|206.7 / 201.5|271x39.8 / 279x47.7|256|FCM Milestones|
+|**S4.16.10**|168|15|16 / 10|140.9 / 129.3|208x45 / 214x57.3|256|Dominion: Alchemy, Cornucopia, Guilds|
+|**L3.18.6**|180|20|18 / 6|288.4 / 290.5|334x35 / 344x42.9|350|FCM Occupations, box 2 of 2|
+|**S4.18.12**|198|15|18 / 12|134.8 / 119.7|208x48.8 / 214x63.3|256|FCM Occupations, 1-box alternative|
+|**M4.21.10-M**|202|18|21 / 10|203.9 / 194.3|271x46.9 / 279x60.3|256|Half a Dominion 400-card set, with mats|
+|**M4.21.10**|244|20|21 / 10|203.9 / 194.3|271x46.9 / 279x60.3|256|Half of Adventures / Nocturne / Plunder|
+|**S2.40.12-30**|246|9|40 / 12 (1st 30)|149 / 136.5|208x50 / 214x68.1|256|Dominion base cards, thick piles|
+|**M4.18.12**|264|20|18 / 12|197.8 / 184.7|271x48.8 / 279x63.3|256|FCM Occupations, box 1 of 2|
+|**S5.40.12**|300|18|40 / 12|120.9 / 100.5|208x64.1 / 214x86.1|256|Half the Dominion base set|
+|**M6.21.10**|324|28|21 / 10|179.1 / 160.7|271x59.3 / 279x77.1|256|A standard Dominion expansion|
+|**S9.21.10**|333|30|21 / 10|78.9 / 45.3|208x77.9 / 214x102.3|256|A big Dominion set on a 256 mm bed|
+|**M8.40.10-M**|400|34|40 / 10|154.3 / 127.1|271x78.9 / 279x105.3|256 / 350|Dominion sets with player mats|
+|**M2.60.18-40**|472|12|60 / 18 (1st 40)|199.8 / 182.3|271x63.7 / 279x89.7|256 / 350|Dominion base cards, 6 players|
+|**L6.40.12**|560|35|40 / 12|233 / 211.3|334x71 / 344x95.7|350|The whole Dominion base set|
+|**L8.50.10**|650|45|50 / 10|217.3 / 192.1|334x82.7 / 344x111.3|350|Dominion's biggest sets|
 
 **Group B - cards up to 65.4 mm wide (67.4 mm in the sleeved boxes)**
 
-|Model|Game|Cards|Piles|Front / slider|Closed size, unsl / sleeved|Bed|Originally for|
-|:-|:-|-:|-:|:-|:-|:-|:-|
-|**XS5.15.10**|Innovation|130|12|15 / 10|153x58.5 / 157x68.4|Mini|One Innovation set, A1 mini|
-|**S3.15.10**|Innovation|135|12|15 / 10|220x39.3 / 226x50.6|256|One Innovation set|
-|**S5.10.10**|Innovation|180|18|10 / 10|220x50.1 / 226x65.1|256|Innovation Ultimate, 3 later ages|
-|**M5.10.10**|Innovation|240|24|10 / 10|287x50.1 / 295x65.1|256|Innovation Ultimate, 4 later ages|
-|**S5.15.15**|Innovation|270|18|15 / 15|220x62.1 / 226x84.6|256|Innovation Ultimate, 3 ages|
-|**M5.15.15**|Innovation|360|24|15 / 15|287x62.1 / 295x84.6|256 / 350|Innovation Ultimate, 4 ages|
+|Model|Cards|Piles|Front / slider|Back pocket, unsl / sl|Closed size, unsl / sl|Bed|Originally for|
+|:-|-:|-:|:-|:-|:-|:-|:-|
+|**XS5.15.10**|130|12|15 / 10|71.5 / 50.5|152.9x52.1 / 156.9x68.35|Mini|One Innovation set, A1 mini|
+|**S3.15.10**|135|12|15 / 10|164.1 / 155.1|220x39.3 / 226x50.6|256|One Innovation set|
+|**S5.10.10**|180|18|10 / 10|138.5 / 119.5|220x50.1 / 226x65.1|256|Innovation Ultimate, 3 later ages|
+|**M5.10.10**|240|24|10 / 10|205.5 / 188.5|287x50.1 / 295x65.1|256|Innovation Ultimate, 4 later ages|
+|**S5.15.15**|270|18|15 / 15|118.5 / 87|220x62.1 / 226x84.6|256|Innovation Ultimate, 3 ages|
+|**M5.15.15**|360|24|15 / 15|185.5 / 156|287x62.1 / 295x84.6|256 / 350|Innovation Ultimate, 4 ages|
 
 **Group C - cards up to 66.4 mm wide (68.4 mm in the sleeved boxes)**
 
-|Model|Game|Cards|Piles|Front / slider|Closed size, unsl / sleeved|Bed|Originally for|
-|:-|:-|-:|-:|:-|:-|:-|:-|
-|**S4.7.7**|Compile|105|15|7 / 7|222.9x37.7 / 228.9x51.7|256|Compile main + 1 aux|
-|**S5.7.7**|Compile|126|18|7 / 7|222.9x42.9 / 228.9x59.7|256|Compile main 2, aux 1 and 2|
-|**L5.7.7**|Compile|210|30|7 / 7|359x42.9 / 369x59.7|350|All 10 Compile sets|
+|Model|Cards|Piles|Front / slider|Back pocket, unsl / sl|Closed size, unsl / sl|Bed|Originally for|
+|:-|-:|-:|:-|:-|:-|:-|:-|
+|**S4.7.7**|105|15|7 / 7|163.9 / 147.5|222.9x37.7 / 228.9x51.7|256|Compile main + 1 aux|
+|**S5.7.7**|126|18|7 / 7|153.5 / 131.5|222.9x42.9 / 228.9x59.7|256|Compile main 2, aux 1 and 2|
+|**L5.7.7**|210|30|7 / 7|289.5 / 271.5|359x42.9 / 369x59.7|350|All 10 Compile sets|
 
 ## Working out the capacity for your own cards
 
@@ -153,7 +165,10 @@ land within about 10% of the number in the table, it'll be fine.
 * **The biggest**: L8.50.10, 650 cards in 45 piles.
 * **The smallest printer**: XS5.15.10 is the only one that fits an A1 mini.
 * **Player mats or boards**: the -M models have a wide pocket at the front for
-  them.
+  them, on top of the back pocket every model has.
+* **A lot of rules and reference material**: L5.7.7 and L3.18.6 again, with
+  around 290 mm of back pocket. At the other end, a sleeved S9.21.10 has only
+  45 mm, so check that column if it matters to you.
 
 ## Where to download
 
