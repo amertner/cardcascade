@@ -88,6 +88,8 @@ with the thumb cutout, to the right of where the pushers are stored. This is
 where rules, player mats and reference cards go, and it is the column to look at
 if your game comes with more than cards. It is 3.2 mm deep and 83.4 mm tall on
 every single model, so only the width varies, and that is what the column gives.
+It is open at the top - the back wall stops at 85 mm and the box wall carries on
+- so something taller than 83.4 mm will stand proud rather than not fit.
 These are the v7.1 numbers: from v7.1 every Cascade stores two pushers instead
 of two or three, and on the 11 designs that used to store three the pocket
 gained exactly one pusher slot's width - between 18 and 71 mm, depending on the
