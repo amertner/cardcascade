@@ -67,12 +67,14 @@ from .refuse import refuse
 # defaults to; an older one is still buildable and is what every reference
 # STEP and cached mesh in `individual/` is compared against.
 #
-# `7.1a` is 7.1 being ITERATED, and the LETTER is the point (Allan,
+# `7.1a` and `7.1b` are 7.1 being ITERATED, and the LETTER is the point (Allan,
 # 2026-09-08): see "An unreleased release is iterated by LETTER" below. `7.1`
 # itself is deliberately NOT on the line — it is what the last letter is
-# renamed to at the lock, and until then nothing can build or stamp it.
-RELEASES = ("7.0", "7.1a")
-CURRENT = "7.1a"
+# renamed to at the lock, and until then nothing can build or stamp it. An
+# earlier letter STAYS: parts stamped `CC 7.1a` exist, and a version you can
+# hold has to remain buildable.
+RELEASES = ("7.0", "7.1a", "7.1b")
+CURRENT = "7.1b"
 
 
 @dataclass(frozen=True)
@@ -101,6 +103,17 @@ class Rev:
         "what": "the Lid cuts one pusher socket per pusher the cascade ships "
                 "instead of Onshape's plain size rule, so the four Innovation "
                 "M lids lose their unused MIDDLE socket",
+    })
+
+    rear_thumbs_spread: bool = field(metadata={
+        "since": "7.1b",
+        "spec": "spec/BOX.md, 'A thumb cutout every 70 mm of back pocket'",
+        "what": "the back pocket gets as many `Thumb Cutout in back`s as it "
+                "takes to put one every REAR_THUMB_PITCH (70.000) along it, "
+                "spread evenly and centred on the pocket (Allan). One cutout "
+                "served every pocket at 7.1a, and 45 of the 50 are over "
+                "100 mm wide, four of them over 280. "
+                "`#calFingerHoleOffset` stops placing it: the pocket does",
     })
 
     thick_floor: bool = field(metadata={

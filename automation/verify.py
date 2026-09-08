@@ -537,12 +537,15 @@ def pusher_lock(data):
 # Neither replaces the other, and a disagreement is the file lying to itself.
 # An ITERATION LETTER (`7.1a`, `cad/revisions.py`) reads as its release does:
 # the signature is the two digits' counters and the letter is not one of them.
-# So `7.1a` and `7.1` share ("none", "none") and a part stamped either reads
-# back as "7.1/7.1a" — the same benign ambiguity 6.3 and 6.5 already have, and
-# the metadata is what separates them. What the letter DOES change is the
+# So `7.1a`, `7.1b` and `7.1` all share ("none", "none") and a part stamped any
+# of them reads back as "7.1/7.1a/7.1b" — the same benign ambiguity 6.3 and 6.5
+# already have, and the metadata is what separates them. A letter costs the
+# glyph nothing and buys nothing from it: the check only ever asks whether the
+# expected release is among the names, so a new letter is one more row here. What the letter DOES change is the
 # shape of the word: `_dotted` has to accept the trailing mark, or the version
 # is not found on the line at all.
 STAMP_SIGNATURES = {
+    "7.1b": ("none", "none"),
     "7.1a": ("none", "none"),
     "7.1": ("none", "none"),
     "7.0": ("none", "tall"),

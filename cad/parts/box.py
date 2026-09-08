@@ -15,6 +15,8 @@ Complete: `build()` runs the whole tree through `Smooth box edges`, and
 every measurement and `tests/test_box.py` for what is proven against the nine
 reference STEPs.
 """
+import math
+
 from build123d import (Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
                        GeomType, Line, Location, Plane, Polygon, SlotOverall,
                        ThreePointArc, chamfer, extrude, fillet, make_face,
@@ -208,6 +210,15 @@ HOLE_ROW_GAP = 2.000
 RIM_CUTOUT_Z = 100.000
 REAR_THUMB_FILLET = 0.600   # `Fillet rear thumb hole` — NOT the front thumb's
 #                             0.400; the wall it cuts is 1.600, not 1.000
+# From 7.1b the back pocket gets a cutout every REAR_THUMB_PITCH of its width
+# rather than one however wide it is (Allan, 2026-09-08). The pitch is a
+# CEILING and not a target: the cutouts are spread EVENLY over the pocket, so
+# the gap actually cut is the largest one no wider than this — 34.90 to 69.15
+# across the catalogue. REAR_THUMB_CLEAR is the wall left standing at each
+# end, and it is also what has to stand BETWEEN two cutouts for the second one
+# to be worth cutting.
+REAR_THUMB_PITCH = 70.000
+REAR_THUMB_CLEAR = 10.000
 
 
 def pusher_rest(d):
@@ -272,6 +283,51 @@ def rear_thumb_x(d):
     """
     return (-box_width(d) / 2 + WALL + finger_hole_offset(d)
             + D.back_slot_pitch(d) + DIVIDER_W)
+
+
+def rear_pocket(d):
+    """(x0, x1) of the back pocket — the empty run right of the last divider.
+
+    `rear_storage` cuts it away from the floor up, so it is the one stretch of
+    the back a thumb cutout can be put through: everything left of it is a
+    pusher cavity with a `Divider` standing at each of its edges.
+    """
+    left = -box_width(d) / 2 + WALL
+    return (left + pusher_slot_count(d) * D.back_slot_pitch(d) + DIVIDER_W,
+            box_width(d) / 2 - WALL)
+
+
+def rear_thumbs_x(d):
+    """Centre X of every `Thumb Cutout in back`, left to right.
+
+    Before 7.1b there is exactly one and `rear_thumb_x` places it — Onshape's
+    own expression, which is why that function stays.
+
+    From 7.1b the POCKET places them (`d.rev.rear_thumbs_spread`). The pocket
+    is 45 to 290 mm wide across the catalogue and one cutout in the middle of
+    290 mm is not reachable from its ends, so: keep REAR_THUMB_CLEAR of wall at
+    each end, and spread cutouts evenly over what is left at the largest gap
+    that is no wider than REAR_THUMB_PITCH. `ceil` is what makes the pitch a
+    CEILING and not a target a wide pocket overshoots: it puts the gap in
+    (PITCH/2, PITCH] wherever there are two gaps or more.
+
+    A second cutout has to earn its place: below `2 * r + REAR_THUMB_CLEAR` of
+    usable span the two would leave less wall between them than either leaves
+    at its own end, so such a pocket keeps ONE, centred. Three cascades are in
+    that case, and the narrowest (`S9.21.10.62-Sl`, 45.30 of pocket) is
+    narrower than one cutout plus its clearances — `hi - lo` goes negative
+    there and the guard catches it, so it eats its margin rather than going
+    without the cutout the box has always had.
+    """
+    if not d.rev.rear_thumbs_spread:
+        return [rear_thumb_x(d)]
+    x0, x1 = rear_pocket(d)
+    r = D.ThumbCutoutRadius
+    lo, hi = x0 + r + REAR_THUMB_CLEAR, x1 - r - REAR_THUMB_CLEAR
+    if hi - lo < 2 * r + REAR_THUMB_CLEAR:
+        return [(x0 + x1) / 2]
+    n = math.ceil((hi - lo) / REAR_THUMB_PITCH)
+    return [lo + k * (hi - lo) / n for k in range(n + 1)]
 
 
 def rear_block(d):
@@ -416,9 +472,14 @@ def rear_storage(d, part):
     # wall: that reads as one unbroken piece at this height on all five.
     # `over` is 2.000, not the default: forward of the outer wall is the slot
     # band, empty at this X, but 5.000 would reach the inner back wall behind it.
-    return part - round_hole(y1, BD / 2 + REAR_DEPTH, D.ThumbCutoutRadius,
-                             REAR_THUMB_FILLET, rear_thumb_x(d), REAR_TOP,
-                             over=2.0)
+    #
+    # From 7.1b there are several of them, one every REAR_THUMB_PITCH of
+    # pocket (`rear_thumbs_x`); before it there is one, and this is the same
+    # cut either way. They are disjoint — the layout leaves REAR_THUMB_CLEAR
+    # between any two — so they go in ONE boolean, as the cuts above do.
+    return part.cut(*[round_hole(y1, BD / 2 + REAR_DEPTH, D.ThumbCutoutRadius,
+                                 REAR_THUMB_FILLET, x, REAR_TOP, over=2.0)
+                      for x in rear_thumbs_x(d)])
 
 
 # `Lower the front`. The front wall stops here instead of at BoxHeight, so the
@@ -1134,10 +1195,36 @@ def sharp_edges(d, part):
     back corner and its arc and leave the front pair and the rim sharp. What is
     lost is a 0.600 round on interior edges no finger reaches. Everything a
     hand touches is rounded.
+
+    ## The `Top of back` ledge drops its OUTER face once the pocket has several
+    ## thumb cutouts — a KERNEL LIMIT again, and it costs nothing
+
+    The ledge runs along both faces of the outer back wall and both are listed,
+    which was always redundant: given the INNER face's edge OCCT rounds the
+    outer one too, and the two edge sets fillet to the same solid.
+
+    At 7.1b that redundancy turns fatal. Several thumb cutouts break the OUTER
+    face's ledge into three segments or more, one of them bounded by a cutout
+    at BOTH ends, and OCCT then refuses the chain: every segment on its own is
+    accepted, any two ACROSS a cutout are not, and the whole box dies in
+    `smooth_edges` rather than losing a round. The INNER face's ledge takes
+    five segments without a murmur. So the outer face is listed only while
+    there is one cutout.
+
+    Measured both ways, because "it costs nothing" is a claim and not an
+    assumption. Dropping it leaves the wall's top section identical — rounded
+    0.600 into BOTH faces, `tests/test_revisions.py` probes it between two
+    cutouts — and on all 50 boxes at 7.0 the two edge sets fillet to volumes within 3e-5 mm3 of each other,
+    44 of them to within 1e-10. That last 3e-5 is why the switch is on the
+    cutout count and not simply on the outer face being dropped for good: it
+    is noise in a volume, but it moves enough bytes in the written mesh to
+    break the byte-for-byte 7.0 rebuild on six boxes, and a release that has
+    shipped must keep rebuilding to the byte.
     """
     BW, BD = box_width(d), box_depth(d)
     inner, x_out = BW / 2 - WALL, BW / 2
     y_front, y_back = -BD / 2, BD / 2 + REAR_DEPTH
+    one_thumb = len(rear_thumbs_x(d)) == 1
     tol = 1e-3
 
     def near(a, b):
@@ -1185,11 +1272,13 @@ def sharp_edges(d, part):
 #                                    above start, so the outline is soft.
 
         elif (flat and near(m.Z, REAR_TOP) and along_x
-              and (near(m.Y, y_back) or near(m.Y, y_back - WALL))):
-            out.append(e)          # the `Top of back` ledge, across the OUTER
-#                                    back wall. The short segments around the
-#                                    dividers and the end-wall junction are the
-#                                    three OCCT will not take with the rest.
+              and (near(m.Y, y_back - WALL)
+                   or (one_thumb and near(m.Y, y_back)))):
+            out.append(e)          # the `Top of back` ledge. Both faces of the
+#                                    outer back wall while the pocket has ONE
+#                                    thumb cutout; its inner face alone once it
+#                                    has several, which is a kernel limit and
+#                                    costs no geometry — see below.
     return out
 
 

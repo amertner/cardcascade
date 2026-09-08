@@ -71,12 +71,14 @@ What every reference STEP in `spec/reference/` and every cached mesh in
 the corpus tests assert, and `tests/reference.py` is why they keep asserting it
 when the default moves.
 
-### 7.1 — the cad-built release, being iterated as `7.1a`
+### 7.1 — the cad-built release, being iterated as `7.1b`
 
-Currently on the line as **`7.1a`** and not as `7.1`: the release is unfinished,
+Currently on the line as **`7.1b`** and not as `7.1`: the release is unfinished,
 and the letter is what a part built today is stamped and titled with (see "An
-unreleased release is iterated by LETTER"). Everything below is what `7.1a`
-is; the next change opens `7.1b`.
+unreleased release is iterated by LETTER"). Everything below is what `7.1b`
+is; the next change opens `7.1c`. `7.1a` is still on the line and still
+buildable — parts stamped with it exist — and it is the first three flags
+below and not the fourth.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -108,13 +110,31 @@ Its geometry changes, in the order they were made:
   with it by exactly `0.400`: every holder and the token holder. The Lid keeps
   its `1.600` floor. `spec/BOX.md`, "The floor is 2.000, and it grows UPWARD".
 
-**The flags are separable and the tests keep them so.** Two of the three reach
+The first three are `7.1a`. `7.1b` adds one:
+
+* **`rear_thumbs_spread`** (`7.1b`) — the back pocket gets as many
+  `Thumb Cutout in back`s as it takes to put one every `70.000` along it,
+  spread evenly and centred on the pocket (Allan). Before it there is exactly
+  one however wide the pocket is, and the pocket is `45.3` to `290.5` mm wide
+  — `two_pushers` having just widened 24 of them by a whole slot pitch. The
+  pitch is a CEILING and not a target: the gap cut is the largest one no wider
+  than `70.000`, `34.90 .. 69.15` across the catalogue, and the outer pair
+  keep `10.000` of wall at each end. `#calFingerHoleOffset` stops placing the
+  cutout — the pocket does — so `box.rear_thumb_x` is now 7.0's and 7.1a's
+  answer alone. It costs the outer back ledge its place in `sharp_edges`,
+  which is a kernel limit and no geometry. `spec/BOX.md`, "A thumb cutout
+  every 70 mm of back pocket".
+
+**The flags are separable and the tests keep them so.** Two of the four reach
 the Lid, so comparing 7.0 with 7.1 shows 28 lids changing and says nothing about
 which flag did what; `tests/test_revisions.py` turns one flag on at a time
 against a 7.0 Derived to isolate them. `thick_floor` needs the same treatment
 for a different reason: `two_pushers` restates 24 boxes wholesale, so only a
 7.0 Derived carrying the floor flag ALONE — same three slots, same `CC 7.0` ink
-— can show that the floor moved and nothing else did. That technique is the
+— can show that the floor moved and nothing else did. `rear_thumbs_spread` is
+isolated the same way, and for a third reason: at 7.0 the pocket is a slot
+pitch narrower, so the row it lays down there is not the row it lays down at
+7.1b, and only the flag alone can price a cutout. That technique is the
 reason a `Rev` is a record of independent booleans rather than a version number
 to compare against.
 
@@ -166,8 +186,8 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is **7.1**: a plain `cad.build` or `cad.cascade` builds the
-current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
+`revisions.CURRENT` is **`7.1b`**: a plain `cad.build` or `cad.cascade` builds
+the current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
 regress against is the shipped tree, which the Onshape pipeline built at 7.0 —
 and from 7.1 a twin is MEANT to print differently, two pushers against three. That makes the default a moving target by
@@ -189,7 +209,7 @@ apart (Allan, 2026-09-08): **`7.1a`, `7.1b`, `7.1c`, ... and then plain `7.1`
 at the lock.**
 
 **The problem it solves is physical.** While 7.1 is being worked on its
-geometry moves — three times already — and every part printed along the way
+geometry moves — four times already — and every part printed along the way
 says `CC 7.1`. A shelf of them cannot say which is which, and the stamp is the
 only thing a person holding the plastic can read. A letter makes each state
 nameable on the part itself.

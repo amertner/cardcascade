@@ -449,12 +449,17 @@ for name, fn, p in REFS:
                          for q in (shape & bar).solids())
             gaps = [((a[1] + b[0]) / 2, b[0] - a[1])
                     for a, b in zip(pcs, pcs[1:])]
+            # `rear_thumbs_x` and not `rear_thumb_x`: the references are 7.0,
+            # where the pocket has ONE cutout however wide it is, and saying so
+            # through the layout function is what keeps this honest if the
+            # reference release ever moves past 7.1b's row of them.
+            want = box.rear_thumbs_x(d)
             check(f"{who}: one rear thumb, {depth} into the outer back wall",
-                  len(gaps), 1)
+                  len(gaps), len(want))
             if gaps:
                 c, w = gaps[0]
                 check(f"{who}: rear thumb centre at {depth}",
-                      round(c, 3), round(box.rear_thumb_x(d), 3), 1e-3)
+                      round(c, 3), round(want[0], 3), 1e-3)
                 # The chord at z=80 gives the radius back directly, since the
                 # hole is centred on REAR_TOP.
                 check(f"{who}: rear thumb radius at {depth}",

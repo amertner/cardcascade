@@ -72,7 +72,7 @@ stamp, so a cad-built cascade can be told from an Onshape-exported one on the
 shelf — and, since the version went into the project name, in the file too.
 It is NOT the same geometry: 7.1 is where the Lid drops its middle pusher
 socket, and `cad/revisions.py` is the one place a release change lives.
-**An unreleased release is ITERATED BY LETTER and 7.1a is what builds today**
+**An unreleased release is ITERATED BY LETTER and 7.1b is what builds today**
 (Allan, 2026-09-08): `7.1a`, `7.1b`, ... and then plain `7.1` at the lock, so
 two parts printed from different states of an unfinished 7.1 can be told apart
 on the shelf. **A letter is a release like any other** — a member of
@@ -94,7 +94,7 @@ tree, because what it stages joins Onshape parts in a shipped cascade).
 **Every test that compares against a reference pins 7.0** through
 `tests/reference.py`; the default is a moving target by design.
 **A part now says its release TWICE** and `verify.py --stamps` reads both: the
-engraved `CC 7.1a` (`STAMP_SIGNATURES`) and a
+engraved `CC 7.1b` (`STAMP_SIGNATURES`) and a
 `CardCascade:Version` metadata string `cad.build` writes into every component
 (`mesh3mf.write(metadata=...)`). The glyph is what a person holding the plastic
 reads and it CANNOT tell 7.1 from 7.2, nor 7.1 from 7.1a — the letter is not a
@@ -123,24 +123,34 @@ been printed yet.
   `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
   A version is an opaque STRING — `7.1`, and possibly `7.1.1` or `7.1B` later —
   so nothing parses one: order is the position in `RELEASES`, and `HISTORICAL`
-  names the older versions still asked about (`6.6`). **7.1 carries three
+  names the older versions still asked about (`6.6`). **7.1 carries four
   changes**: the Lid cuts one socket per pusher (four Innovation M lids lose
   their unused MIDDLE socket); **every cascade takes TWO pushers** at any
   size, which restates 24 boxes — a slot, a divider and a pair of rim cutouts
   gone, the thumb cutout moved, one Pusher fewer in the project; and the Box's
   **floor is 2.000** where every wall stays 1.600 (`thick_floor`, 2026-09-08).
-  A **7.0** build still cuts three, still lays a 1.600 floor and still
-  reproduces every STEP and cached mesh — all 50 7.0 boxes rebuild
-  byte-for-byte — which is the point of the mechanism.
+  7.1b adds a fourth: the back pocket gets **a thumb cutout every 70 mm**
+  rather than one however wide it is — the pocket runs 45 to 290 mm and
+  `two_pushers` had just widened 24 of them — spread evenly, centred on the
+  pocket, 10.000 of wall kept at each end, so `#calFingerHoleOffset` no longer
+  places the cutout (`rear_thumbs_spread`, 2026-09-08).
+  A **7.0** build still cuts three, still lays a 1.600 floor, still cuts the
+  one Onshape cutout and still reproduces every STEP and cached mesh — all 50
+  7.0 boxes rebuild byte-for-byte — which is the point of the mechanism, and
+  it is what decided the wrinkle in the last change: several cutouts break a
+  fillet chain OCCT will not take, so the outer back ledge leaves
+  `sharp_edges` only where they do — dropping it always would move bytes, not
+  geometry, on six 7.0 boxes.
   `tests/test_revisions.py` turns the flags on ONE AT A TIME to keep them
   separable: two of them reach the Lid, and `two_pushers` restates so many
   boxes that only the floor flag ALONE can show what the floor did.
   **CURRENT is the release being ITERATED** (`spec/REVISIONS.md`): while 7.1 is
-  current a new change is `since: "7.1"` and joins it, and only once it is
-  locked and shipped does the next change open 7.2.
-  **Read `rear_thumb_x` rather than re-deriving it** — its offset is measured
-  from the SECOND cavity's left edge, and hand-deriving it invents collisions
-  that are not there.
+  current a new change is `since:` the NEW LETTER and joins it, and only once
+  it is locked and shipped does the next change open 7.2.
+  **Read `box.rear_thumbs_x` rather than re-deriving a thumb cutout** — from
+  7.1b it is a row the POCKET places, and before it a single cutout whose
+  `#calFingerHoleOffset` is measured from the SECOND cavity's left edge, which
+  hand-deriving gets wrong and invents collisions that are not there.
 - The Holder's **side slot mouth** is another, since 2026-09-05: the bottom
   `SLOT_MOUTH_CHAMFER` (0.300) of the groove is flared 45 degrees so an
   elephant's foot closes the chamfer instead of the groove the holder slides

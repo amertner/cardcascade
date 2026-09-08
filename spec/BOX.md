@@ -180,7 +180,11 @@ and every S box were on two already — and on each of them:
   up, so nothing is left standing as a slab;
 * the `Thumb Cutout in back` MOVES, because `#calFingerHoleOffset` is written
   in terms of `#calPusherSlots`. At two slots the expression centres the
-  remainder, so the thumb lands at `x = -5.55` on every box in the catalogue;
+  remainder, and where it lands is worth stating exactly, because it is not
+  obvious from the formula: **`4.750` left of the pocket's own centre, on all
+  50 boxes at both releases**. That falls out of an invariant of the
+  catalogue — `#BoxWidth = #HorizontalSlots * #calSlotwidth + 14.300` on every
+  row — and it is what 7.1b's spread replaces;
 * the project ships one Pusher fewer, and the Lid one socket fewer — the Lid
   follows on its own, since `lid.socket_count` is `box.pusher_slot_count`
   from 7.1 (`spec/LID.md`).
@@ -335,6 +339,80 @@ stays `1.600`.
 The Lid keeps its `1.600` floor. It is the other part built on `geom.tray`, and
 `shell` adds the box's extra slab rather than passing a floor down to the
 helper precisely so that the Lid is not touched by this.
+
+## A thumb cutout every 70 mm of back pocket — a 7.1 RELEASE CHANGE
+
+**From 7.1b the back pocket gets as many `Thumb Cutout in back`s as it takes to
+put one every `70.000` along it** (Allan, 2026-09-08), where every release
+before it gets exactly one however wide the pocket is. A release change and not
+a divergence: a 7.0 build still cuts the single Onshape cutout at the Onshape
+position and still rebuilds all 50 boxes to the byte (`cad/revisions.py`, flag
+`rear_thumbs_spread`; `spec/REVISIONS.md`).
+
+### Why
+
+The pocket is the empty run right of the divider that closes the pusher slots,
+cut away from the floor up. It is **45.3 to 290.5 mm wide** across the
+catalogue, 45 of the 50 over 100 mm and four over 280 — and 7.1's
+`two_pushers` widened 24 of them by a whole `#dBackSlotWidth`. One cutout in
+the middle of 290 mm is not reachable from either end of what it serves.
+
+### The rule
+
+```
+pocket            box.rear_pocket(d)      the empty run, divider face to end wall
+usable            [x0 + r + CLEAR, x1 - r - CLEAR]     r = ThumbCutoutRadius
+n gaps            ceil(usable / REAR_THUMB_PITCH)      PITCH = 70.000
+cutouts           n + 1, evenly spread over `usable`   CLEAR = 10.000
+```
+
+`ceil` is what makes `REAR_THUMB_PITCH` a **ceiling and not a target**: the gap
+actually cut is the largest one no wider than `70.000`, which puts it in
+`(35, 70]` by construction and, on the catalogue, at `34.90 .. 69.15`. Counts
+come out `{1: 3, 2: 3, 3: 24, 4: 16, 5: 4}`.
+
+A **second cutout has to earn its place**: below `2 * r + CLEAR` of usable span
+the two would leave less wall between them than either leaves at its own end,
+so such a pocket keeps one, centred. Three cascades are in that case, and the
+narrowest of them (`S9.21.10.62-Sl`, `45.30`) is narrower than one cutout plus
+its clearances — it eats its margin rather than going without the cutout the
+box has always had.
+
+**`#calFingerHoleOffset` stops being consulted** from 7.1b: the pocket places
+the row, so it is centred on the pocket rather than `4.750` left of its centre.
+`box.rear_thumb_x` stays exactly as it is — it is what 7.0 and 7.1a cut, and
+the reference STEPs are held to it.
+
+Nothing else on the back is in the way, which is why the change is cheap. The
+cutout is `r = 12.000` centred on `REAR_TOP`, so it opens the band
+`z 73.000..85.000` of the **outer back wall only**; the hanging-hole lattice
+tops out at `69.500`, the rim cutouts are in the `1.300` INNER wall above
+`100.000`, the engraving is in the floor and the closing bumps are on the end
+walls at the front. `tests/test_revisions.py` asserts that every cutout at
+every release is clear of the dividers, inside the pocket and inside the end
+walls, and prices the flag on the widest box: `4` more cutouts, `1456.7 mm³`
+net, `4.025` half-cylinders of `1.600` wall.
+
+### It cost the outer ledge its fillet listing, and no geometry
+
+`sharp_edges` listed the `z = 85.000` ledge on BOTH faces of the outer back
+wall. Several cutouts break the OUTER face's ledge into three segments or more,
+one of them bounded by a cutout at each end, and **OCCT refuses that chain** —
+each segment alone is accepted, any two ACROSS a cutout are not, and the box
+dies in `smooth_edges` rather than losing a round. The INNER face's ledge takes
+five segments without complaint.
+
+Listing the outer face was always redundant: given the inner one, OCCT rounds
+the outer edge too. So it is listed only while the pocket has ONE cutout, and
+the ledge still comes out rounded `0.600` into both faces — probed between two
+cutouts in `tests/test_revisions.py`, identical to the 7.0 wall to the micron.
+
+**Why the switch is on the cutout count and not simply dropped.** On all 50
+boxes at 7.0 the two edge sets fillet to volumes within `3e-5 mm³` of each
+other, 44 of them within `1e-10`. That is noise in a volume — a hundred-
+thousandth of the fillet it would be missing — but on six boxes it moves enough
+bytes in the written mesh to break the byte-for-byte 7.0 rebuild, and a
+release that has shipped must keep rebuilding to the byte.
 
 ## `Smooth box edges` is a `0.600` fillet, and there is a ground truth for it
 
@@ -513,6 +591,12 @@ pusher slot's centreline lands on a pier, where material runs past the rest and
 a vertical profile says nothing about it. That cost a false failure.
 
 ### `Thumb Cutout in back` — and what `#calFingerHoleOffset` is measured from
+
+Everything here is the ONE cutout every release up to 7.1a cuts. From 7.1b the
+pocket places a row of them instead and `#calFingerHoleOffset` is not consulted
+— "A thumb cutout every 70 mm of back pocket", above — but the hole itself, its
+radius, its fillet and its over-run are unchanged, so this is still what is cut,
+several times over.
 
 A `ThumbCutoutRadius = 12.000` hole through the **outer back wall only**,
 centred on `REAR_TOP` so `Top of back` takes its upper half away, filleted
