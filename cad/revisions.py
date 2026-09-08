@@ -71,6 +71,17 @@ class Rev:
                 "M lids lose their unused MIDDLE socket",
     })
 
+    thick_floor: bool = field(metadata={
+        "since": "7.1",
+        "spec": "spec/BOX.md, 'The floor is 2.000, and it grows UPWARD'",
+        "what": "the Box's floor is 2.000 where every wall stays "
+                "WallThickness's 1.600 (Allan). It grows UPWARD into the "
+                "cavity, so BoxHeight, the rim and every bed-referenced "
+                "feature of the lock are exactly where they were and the "
+                "0.400 comes out of the interior, which has 12.900 of "
+                "headroom on all 50 rows. The Lid keeps its 1.600 floor",
+    })
+
 
 # A version is a STRING and not a number (Allan, 2026-09-06). It is usually
 # short and usually looks numeric — `7.0`, `7.1` — but it may be `7.1.1` or

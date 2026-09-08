@@ -105,14 +105,21 @@ been printed yet.
   `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
   A version is an opaque STRING — `7.1`, and possibly `7.1.1` or `7.1B` later —
   so nothing parses one: order is the position in `RELEASES`, and `HISTORICAL`
-  names the older versions still asked about (`6.6`). **7.1 carries two
+  names the older versions still asked about (`6.6`). **7.1 carries three
   changes**: the Lid cuts one socket per pusher (four Innovation M lids lose
-  their unused MIDDLE socket), and **every cascade takes TWO pushers** at any
+  their unused MIDDLE socket); **every cascade takes TWO pushers** at any
   size, which restates 24 boxes — a slot, a divider and a pair of rim cutouts
-  gone, the thumb cutout moved, one Pusher fewer in the project. A **7.0**
-  build still cuts three and still reproduces every STEP and cached mesh,
-  which is the point of the mechanism. Both flags reach the Lid, so
-  `tests/test_revisions.py` turns them on ONE AT A TIME to keep them separable.
+  gone, the thumb cutout moved, one Pusher fewer in the project; and the Box's
+  **floor is 2.000** where every wall stays 1.600 (`thick_floor`, 2026-09-08).
+  A **7.0** build still cuts three, still lays a 1.600 floor and still
+  reproduces every STEP and cached mesh — all 50 7.0 boxes rebuild
+  byte-for-byte — which is the point of the mechanism.
+  `tests/test_revisions.py` turns the flags on ONE AT A TIME to keep them
+  separable: two of them reach the Lid, and `two_pushers` restates so many
+  boxes that only the floor flag ALONE can show what the floor did.
+  **CURRENT is the release being ITERATED** (`spec/REVISIONS.md`): while 7.1 is
+  current a new change is `since: "7.1"` and joins it, and only once it is
+  locked and shipped does the next change open 7.2.
   **Read `rear_thumb_x` rather than re-deriving it** — its offset is measured
   from the SECOND cavity's left edge, and hand-deriving it invents collisions
   that are not there.
@@ -121,8 +128,9 @@ been printed yet.
   elephant's foot closes the chamfer instead of the groove the holder slides
   on. That edge is the holder's FIRST LAYER and the holder sits on it whenever
   the cascade is shut. The box's rib gets **no** matching chamfer and
-  deliberately not — its flank is buried in the floor slab until `z = 1.600`,
-  so a chamfer at its base would cut nothing. `spec/HOLDER.md`, "The mouth of
+  deliberately not — its flank is buried in the floor slab until
+  `box.floor_top` (1.600 at 7.0, 2.000 from 7.1), so a chamfer at its base
+  would cut nothing. `spec/HOLDER.md`, "The mouth of
   the slot is flared"; asserted from both ends in `tests/test_holder.py`,
   because at 0.004% of a holder's volume the corpus test cannot see it.
 - A mark is either a DRAWING (`logos/<Game>/*.dxf`, or `*.brep` where it is
@@ -137,6 +145,15 @@ been printed yet.
   did not change in 7.0, so only the engraved version string differs. FULL and
   HALF are one part at two depths, and "merged" means the mat merges two front
   slots so the tray gets both — `HorizontalSlots` cancels out of its width.
+- **The Box's FLOOR is not its WALL** and has not been since 7.1: read
+  `box.floor_top(d)` — 2.000 against `WallThickness`'s 1.600 — anywhere a Z
+  datum is the floor. Four places in the box need it (the shell, the rear
+  storage's empty run, the engraving, and `bottom_slot`, which is a THROUGH cut
+  and would otherwise leave a membrane) and two in `assembly.py` (the holders
+  and the token holder stand on it). The `WallThickness` still in
+  `assembly.lid_closed` and `lid_under` is the LID's floor, which stays 1.600.
+  It grows UPWARD, so nothing bed-referenced moves and the box's bounding box
+  is unchanged. `spec/BOX.md`, "The floor is 2.000, and it grows UPWARD".
 - `cad/derive.py` is a transcription of the Onshape variable studio and is the
   **only** place a VARIABLE-STUDIO formula lives. Two SKETCH variables live
   there too — `#BoxWidth`, because `calTokenHolderSlotWidth` is written in

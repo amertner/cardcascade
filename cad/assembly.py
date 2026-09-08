@@ -174,10 +174,15 @@ def holder_closed(d, j):
     they are left standing for. The side slot is centred on the holder's own
     depth, so a holder centred on its rib is centred on its card slot too, and
     consecutive holders clear by `calSliderDistance - depth = CardHolderGap`.
+
+    The Z datum is the BOX's floor — `box.floor_top`, not `WallThickness`.
+    The two agree before 7.1 and part company at it, where the floor is 2.000
+    and the wall stays 1.600, and a holder placed on the wall's thickness would
+    then sit 0.400 inside the floor it rests on.
     """
     y, depth, _first = holder_rib(d, j)
     return Place(origin=(holder_x(d), y + depth / 2,
-                         D.WallThickness + holder_z_base(d)))
+                         box_part.floor_top(d) + holder_z_base(d)))
 
 
 def holders(d):
@@ -226,10 +231,13 @@ def token_holder(d):
     a merged row. The PLACEMENT is the same either way — the origin is the
     slot's corner, and both parts are inset `CLEARANCE` into it — so only the
     mesh changes.
+
+    It stands on the box's FLOOR, so its Z is `box.floor_top` — 2.000 from
+    7.1, where `WallThickness` stays 1.600 (`holder_closed` says why).
     """
     front, _panel_front, _panel_back = box_part.pocket_span(d)
     return Place(x_dir=(-1, 0, 0), z_dir=(0, 0, 1),
-                 origin=(token_slot_x(d), front, D.WallThickness))
+                 origin=(token_slot_x(d), front, box_part.floor_top(d)))
 
 
 # --- the Lid ---------------------------------------------------------------
@@ -271,6 +279,10 @@ def lid_closed(d):
     **Y is chosen because three of the four read correctly under it.** That is a
     majority, not a proof, and it is the honest description of the state of the
     evidence.
+
+    The `WallThickness` in the placement is the LID's OWN floor, which stays
+    1.600 at every release — the box's is `box.floor_top` and from 7.1 they are
+    different numbers. Same for `lid_under`.
 
     Its cost is nil geometrically: the lid's sockets, placed `SOCKET_BACK` in
     from its back face, are empty when the cascade is closed — the pushers are

@@ -89,12 +89,27 @@ Its geometry changes, in the order they were made:
   moves their thumb cutout, and ships one Pusher fewer in each of their
   projects. The Lid follows through the flag above, so nothing has three
   sockets at 7.1. `spec/BOX.md`, "Two pusher slots, at every size".
+* **`thick_floor`** — the Box's floor is `2.000` where every wall stays
+  `WallThickness`'s `1.600` (Allan). It is the two SIDE FLOORS that matter: the
+  card area is cut clean through (`bottom_slot`), so what the floor actually is
+  is the pair of strips the holders rest on, plus the front pocket's and the
+  rear storage's. It grows **upward**, into the cavity, so nothing about the
+  box's outside changes — same bounding box, same rim, same rim cutouts, same
+  `Top of back`, same hanging holes, all of them measured from the bed — and
+  the `0.400` comes out of the interior, which has `12.900` of headroom over
+  the tallest holder on all 50 rows. Everything standing on the floor rises
+  with it by exactly `0.400`: every holder and the token holder. The Lid keeps
+  its `1.600` floor. `spec/BOX.md`, "The floor is 2.000, and it grows UPWARD".
 
-**The two are separable and the tests keep them so.** Both reach the Lid, so
-comparing 7.0 with 7.1 shows 28 lids changing and says nothing about which flag
-did what; `tests/test_revisions.py` turns one flag on at a time against a 7.0
-Derived to isolate them. That technique is the reason a `Rev` is a record of
-independent booleans rather than a version number to compare against.
+**The flags are separable and the tests keep them so.** Two of the three reach
+the Lid, so comparing 7.0 with 7.1 shows 28 lids changing and says nothing about
+which flag did what; `tests/test_revisions.py` turns one flag on at a time
+against a 7.0 Derived to isolate them. `thick_floor` needs the same treatment
+for a different reason: `two_pushers` restates 24 boxes wholesale, so only a
+7.0 Derived carrying the floor flag ALONE — same three slots, same `CC 7.0` ink
+— can show that the floor moved and nothing else did. That technique is the
+reason a `Rev` is a record of independent booleans rather than a version number
+to compare against.
 
 ## What a release moves besides its flags
 

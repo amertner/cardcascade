@@ -374,13 +374,15 @@ SLOT_W = 1.900
 # studio has no such chamfer. The holder prints base down, so the slot's bottom
 # edge is its FIRST LAYER, and an elephant's foot closes the groove there --
 # exactly where the holder sits when the cascade is shut, its base landing on
-# the box's inner floor at z = WallThickness on every riser. The same flare is
-# the lead-in for dropping the holder onto the rib, which it does from above.
+# the box's inner floor -- `box.floor_top`, 1.600 before 7.1 and 2.000 from it
+# -- on every riser. The same flare is the lead-in for dropping the holder onto
+# the rib, which it does from above.
 #
 # The BOX's rib gets no matching chamfer, and deliberately not: the rib spans
-# z 0..BoxHeight but the floor is WALL thick, so its flank is not exposed until
-# z = 1.600, eight layers up. A chamfer on the rib's base would be cut inside
-# the floor slab and would do nothing.
+# z 0..BoxHeight but its flank is buried in the floor slab, so it is not
+# exposed until `box.floor_top` -- eight layers up at 1.600, ten at 2.000, and
+# the thicker floor only buries it further. A chamfer on the rib's base would
+# be cut inside the floor slab and would do nothing.
 #
 # 0.300 is the largest the catalogue takes. The shallowest holders --
 # `L3.18.6.20-Un` and `M5.6.6.20-Un`, 4.280 deep -- leave (depth - SLOT_W)/2 =

@@ -187,9 +187,13 @@ honest picture of what is on the shelf.
   the Box's 1.500 slider ribs.
 * **Y** — one holder per rib, its side slot on that rib: `box.slider_ribs`
   gives the rib backs, and the slot is centred on the holder's depth.
-* **Z, closed** — the base on the floor: `box_z = holder_z + WallThickness +
+* **Z, closed** — the base on the floor: `box_z = holder_z + box.floor_top +
   (CardHeight - 1.5)/2`. The two `side_floor` strips are what it rests on, which
-  is what they are for.
+  is what they are for. The datum is `box.floor_top` and NOT `WallThickness`:
+  they are the same `1.600` through 7.0 and part company at 7.1, where the
+  floor is `2.000` and the wall is not (`spec/BOX.md`, "The floor is 2.000, and
+  it grows UPWARD"). Every holder in the catalogue rises `0.400` with it, into
+  headroom of `12.900`.
 * **Z, open** — the base on the pusher's step `k`, whose tread is at part
   `x = k * calHeightIncrement`, so the whole set rises `calHeightIncrement` a
   riser and the slant tops make one diagonal.
@@ -202,7 +206,8 @@ is the one `slider_ribs` places at `calFirstSliderDistance`.
 Its frame's origin is already **the slot's corner** — X at the slot's left edge,
 Y at its front edge, Z at the base — so the placement is just where that slot is
 in the box: `box.front_dividers` in X, `box.pocket_span` in Y,
-`z = WallThickness`.
+`z = box.floor_top` — the box's floor, `1.600` through 7.0 and `2.000` from
+7.1, and not the wall's thickness that happened to equal it.
 
 **Its Y runs the opposite way to the box's**, so with X alone flipped the
 placement would be a MIRROR, which no physical part is. A half turn about Z is

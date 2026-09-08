@@ -284,9 +284,57 @@ wall carries the same pattern in a `1.000` panel at `y = -14.600..-13.600`.
 ## The text is engraved in the FLOOR
 
 Not on a wall. `Model Name` and the `Logo` group cut `0.400` deep into the top
-of the `1.600` floor — glyph faces at `z = 1.200` against a floor face at
-`1.600` — the same `ENGRAVE` depth the Pusher uses. They sit at the two ends,
-outboard of the card slots.
+of the floor — the same `ENGRAVE` depth the Pusher uses — and they sit at the
+two ends, outboard of the card slots. The glyph faces are `ENGRAVE` below the
+floor's top face wherever that is: `z = 1.200` against `1.600` at 7.0,
+`1.600` against `2.000` from 7.1. The whole block is carried up by the change
+below, not re-fitted to it — same lines, same sizes, same ink.
+
+## The floor is 2.000, and it grows UPWARD — a 7.1 RELEASE CHANGE
+
+**The floor is `2.000` from 7.1** (Allan, 2026-09-08), where every wall stays
+`WallThickness`'s `1.600`. It is a release change and not a divergence: a 7.0
+build still lays a `1.600` floor and still reproduces all 48 cached boxes and
+its nine reference STEPs (`cad/revisions.py`, flag `thick_floor`;
+`spec/REVISIONS.md`).
+
+**What actually thickens is the two side floors.** `Hole in bottom of box` cuts
+the card area clean through, so the box has no floor across most of its
+footprint; what it has is the pair of strips the holders rest on when the
+cascade is shut, plus the front pocket's floor and the rear storage's. Those
+strips are also what carries the engraving. That is the reason for the change,
+and it is why the number to state is the floor's and not the wall's.
+
+**UPWARD is the whole of why it is cheap.** `box.shell` fuses the extra
+`0.400` on top of the hollowed tray, so the box's outside is untouched — same
+bounding box to the last decimal, same rim at `BoxHeight`, same rim cutouts at
+`z 100.000..105.000`, same `Top of back` at `85.000`, same hanging holes from
+`3.000`, same `pusher_rest`. Every one of those is measured from the BED, and
+none of them moves. The `0.400` comes out of the CAVITY instead, and the cavity
+can afford it: the closed lid's inner face lands flat on the rim, so the budget
+is the holder's headroom, and that is `12.900 mm` on all 50 rows before the
+change and `12.500` after.
+
+Three things follow the floor, and each is a place where reading `WALL` instead
+of `box.floor_top` would be a bug:
+
+* **`bottom_slot`** is a THROUGH cut. Stopping it at `1.600` would leave a
+  `0.400` membrane across the card area — which no test of volume alone would
+  notice, so `tests/test_revisions.py` probes the card area for it directly.
+* **`rear_storage`**'s empty run right of the last divider is cut "from the
+  floor up", and its floor is the box's.
+* **the engraving**, above.
+
+And two things stand ON it, so they rise by exactly `0.400`: every holder
+(`assembly.holder_closed`) and the token holder (`assembly.token_holder`). Both
+take their Z from `box.floor_top` and not from `WallThickness` — the two are
+the same number until 7.1 and different after it, and the `WallThickness` still
+in `assembly.lid_closed` and `assembly.lid_under` is the LID's own floor, which
+stays `1.600`.
+
+The Lid keeps its `1.600` floor. It is the other part built on `geom.tray`, and
+`shell` adds the box's extra slab rather than passing a floor down to the
+helper precisely so that the Lid is not touched by this.
 
 ## `Smooth box edges` is a `0.600` fillet, and there is a ground truth for it
 

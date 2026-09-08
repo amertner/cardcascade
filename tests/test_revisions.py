@@ -30,7 +30,8 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 from cad import derive as D, lock as L, params, revisions as R   # noqa: E402
 from cad.refuse import Refused                                   # noqa: E402
-from cad.parts import box as box_part, lid                       # noqa: E402
+from cad import assembly as A                                    # noqa: E402
+from cad.parts import box as box_part, holder as holder_part, lid  # noqa: E402
 import reference as REF                                          # noqa: E402
 
 CSV = ROOT / "automation" / "parts.csv"
@@ -229,6 +230,92 @@ for v in ("7.0", "7.1"):
            for f in [thumb_faults(at(r, s, v))] if f}
     check(f"{v}: the thumb is clear of every divider, in the run, inside the walls",
           bad, {})
+
+
+# --- 7.1: the floor is 2.000, and it grows UPWARD ---------------------------
+print("\n=== 7.1  thick_floor ===")
+asserted.add("thick_floor")
+# The claim has two halves and they are asserted separately: the floor IS
+# thicker, and NOTHING ELSE MOVED. The second half is the whole reason the
+# change is cheap — the rim, the rim cutouts, `Top of back` and every other
+# bed-referenced feature of the lock are where they were, and the 0.400 comes
+# out of the cavity.
+check("7.0: the floor is the wall's own 1.600",
+      sorted({box_part.floor_top(at(r, s, "7.0"))
+              for r in rows() for s in (0, 1)}), [1.6])
+check("7.1: the floor is 2.000",
+      sorted({box_part.floor_top(at(r, s, "7.1"))
+              for r in rows() for s in (0, 1)}), [2.0])
+check("the WALL is 1.600 at both — this is the FLOOR alone",
+      [D.WallThickness, box_part.WALL], [1.6, 1.6])
+
+# One box, built with THIS flag alone against the release before it: the
+# engraved `CC 7.0` and the three pusher slots are then identical, so every
+# difference below is the floor's.
+box_row = next(r for r in rows()
+               if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
+dbox70 = at(box_row, 0, "7.0")
+dboxfl = D.Derived(dict(dbox70.items()),
+                   R.Rev(**{f.name: f.name == "thick_floor" for f in R.flags()}))
+b70, bfl = box_part.build(dbox70), box_part.build(dboxfl)
+bb70, bbfl = b70.bounding_box(), bfl.bounding_box()
+check("the box does not grow: same bounding box, rim included",
+      [round(v, 4) for v in (bbfl.min.X, bbfl.min.Y, bbfl.min.Z,
+                             bbfl.max.X, bbfl.max.Y, bbfl.max.Z)],
+      [round(v, 4) for v in (bb70.min.X, bb70.min.Y, bb70.min.Z,
+                             bb70.max.X, bb70.max.Y, bb70.max.Z)])
+removed = b70 - bfl
+check("nothing is taken away — the floor only grows",
+      0.0 if removed is None else round(removed.volume, 6), 0.0)
+added = bfl - b70
+check("and what it grows by lies between the old engraving and the new floor",
+      [round(added.bounding_box().min.Z, 4),
+       round(added.bounding_box().max.Z, 4)], [1.2, 2.0])
+
+# The floor's top face, and the bottoms of the glyphs cut into it, move up
+# together by exactly 0.400 with the same area: the engraving is carried, not
+# re-fitted, and it is still ENGRAVE deep.
+
+
+def up_area(part, z, tol=1e-4):
+    """Total area of the horizontal faces whose centre sits at `z`."""
+    return round(sum(f.area for f in part.faces()
+                     if abs(f.center().Z - z) < tol
+                     and abs(abs(f.normal_at(f.center()).Z) - 1) < 1e-6), 3)
+
+
+top70, ink70 = up_area(b70, box_part.WALL), up_area(b70, box_part.WALL - box_part.ENGRAVE)
+check("7.0: the floor's top face is at 1.600 and none is at 2.000",
+      [top70 > 0, up_area(b70, box_part.THICK_FLOOR)], [True, 0.0])
+check("7.1: the same face, the same area, 0.400 higher",
+      [up_area(bfl, box_part.THICK_FLOOR), up_area(bfl, box_part.WALL - box_part.ENGRAVE)],
+      [top70, 0.0])
+check("and the engraving rides up with it, still 0.400 deep",
+      up_area(bfl, box_part.THICK_FLOOR - box_part.ENGRAVE), ink70)
+print(f"  (floor top {top70:.1f} mm2, engraved ink {ink70:.1f} mm2)")
+
+# `bottom_slot` is a THROUGH cut and has to follow the floor: stopping it at
+# 1.600 would leave a 0.400 membrane across the card area, which no test of
+# volume alone would notice.
+from build123d import Box as _Box, Location as _Loc                # noqa: E402
+_w, _depth, slot_y = box_part.bottom_slot(dboxfl)
+membrane = added & _Box(2.0, 2.0, 6.0).moved(_Loc((0.0, slot_y, 2.0)))
+check("the card area is still cut clean through — no membrane",
+      0.0 if membrane is None else round(membrane.volume, 6), 0.0)
+
+# What it costs: everything standing on the floor rises 0.400, and the closed
+# lid's inner face lands on the rim, so the holder's headroom is the budget.
+rises, heads = set(), []
+for row_ in rows():
+    for sleeved in (0, 1):
+        a70, a71 = at(row_, sleeved, "7.0"), at(row_, sleeved, "7.1")
+        rises.add(round(A.holder_closed(a71, 0)((0, 0, 0))[2]
+                        - A.holder_closed(a70, 0)((0, 0, 0))[2], 6))
+        heads.append(a71.BoxHeight - (box_part.floor_top(a71)
+                                      + 2 * holder_part.half_height(a71)))
+check("every holder rises by exactly the 0.400", sorted(rises), [0.4])
+check("and every one of them still clears the rim", min(heads) > 0.4, True)
+print(f"  (the tightest headroom left is {min(heads):.3f} mm)")
 
 
 # --- the two witnesses, at every release ------------------------------------

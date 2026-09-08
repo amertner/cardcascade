@@ -252,16 +252,18 @@ after users reported holders that do not slide.
 underside is the engraved face, so that is layer one -- and the slot's bottom
 edge is therefore a first-layer edge. An elephant's foot closes the groove
 exactly there. And "there" is not an idle corner: the holder's base lands on
-the box's inner floor at `z = WallThickness = 1.600` on *every* riser of every
-cascade, which is the position it occupies when the cascade is shut. The same
+the box's inner floor -- `box.floor_top`, `1.600` through 7.0 and `2.000` from
+7.1 -- on *every* riser of every cascade, which is the position it occupies
+when the cascade is shut. The same
 flare is the lead-in for dropping the holder onto the rib, which it does from
 above, so the mouth is the leading edge on assembly as well.
 
 **Why the BOX's rib gets no matching chamfer.** It was the obvious other half
 and it is void. The rib spans `z 0..BoxHeight`, so its bottom face IS on the
-bed -- but the floor is `WALL = 1.600` thick, and the rib's flank is buried in
-the floor slab until it emerges at `z = 1.600`, eight layers up at a 0.2 layer
-height. An elephant's foot never reaches it. A chamfer on the rib's base would
+bed -- but its flank is buried in the floor slab until it emerges at
+`box.floor_top`: eight layers up at 7.0's `1.600` and ten at 7.1's `2.000`, at
+a 0.2 layer height. An elephant's foot never reaches it, and the thicker floor
+only buries it further. A chamfer on the rib's base would
 be cut inside the floor and change nothing a holder can touch.
 
 **Why `0.300`.** It is the largest the catalogue takes. The wall either side of

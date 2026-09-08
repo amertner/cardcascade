@@ -27,6 +27,28 @@ from .. import text as T
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
 
+# The FLOOR is the one thickness that is not the wall's, from 7.1 (Allan): the
+# two side floors are what the holders rest on and what carries the engraving,
+# and 2.000 is ten layers at a 0.2 layer height rather than eight. It grows
+# UPWARD (`shell`), so BoxHeight, the rim, the rim cutouts, `Top of back` and
+# every other bed-referenced feature of the lock stay exactly where they are,
+# and the 0.400 comes out of the cavity — which has 12.900 of headroom over
+# the tallest holder on all 50 rows. The Lid keeps its 1.600.
+# `spec/BOX.md`, "The floor is 2.000, and it grows UPWARD".
+THICK_FLOOR = 2.000
+
+
+def floor_top(d):
+    """The floor's top face in Z — which is also its thickness, the box being
+    extruded from the bed.
+
+    The datum for everything that stands on the floor (the holders and the
+    token holder, in `assembly.py`) and everything cut into it (the engraving,
+    the rear storage's empty run, `bottom_slot`). Read this rather than
+    `WALL`: the two are one number through 7.0 and two from 7.1.
+    """
+    return THICK_FLOOR if d.rev.thick_floor else WALL
+
 
 def box_width(d):
     """`#BoxWidth`. Allan's sketch variable, verified on all 48 boxes.
@@ -87,8 +109,21 @@ def shell(d):
     A plain rectangle, extruded the full BoxHeight and hollowed to WALL with
     the top face removed. The sketch is centred on the origin: the STEPs put
     the outer walls at exactly +-#BoxWidth/2.
+
+    From 7.1 the floor is thicker than the wall, and the difference is FUSED ON
+    TOP of the hollowed tray rather than passed down to `tray`: it keeps the
+    Lid's tray — the same helper, the same 1.600 — untouched, and the slab
+    reaches WALL/2 into each wall, which is this module's idiom for keeping a
+    fuse off a coincident face. Nothing below the old floor line changes, so
+    the box still sits on the bed on the same footprint.
     """
-    return tray(box_width(d), box_depth(d), d.BoxHeight, WALL)
+    part = tray(box_width(d), box_depth(d), d.BoxHeight, WALL)
+    if floor_top(d) > WALL:
+        bw, bd = box_width(d), box_depth(d)
+        part = part + slab(-bw / 2 + WALL / 2, bw / 2 - WALL / 2,
+                           -bd / 2 + WALL / 2, bd / 2 - WALL / 2,
+                           WALL, floor_top(d))
+    return part
 
 
 # The front pocket's back wall. Measured 1.000 thick on all five references —
@@ -331,7 +366,7 @@ def rear_storage(d, part):
         slab(-inner, inner, y0, BD / 2 + REAR_DEPTH, REAR_TOP, top),
         # Right of the pusher slots — and of the divider that CLOSES the run —
         # the slot band is empty from the floor up.
-        slab(left + n * pitch + DIVIDER_W, inner, y0, y1, WALL, top),
+        slab(left + n * pitch + DIVIDER_W, inner, y0, y1, floor_top(d), top),
     ]
     # One cavity per pusher slot, open from the rest up — what stands below it
     # is `Remove material, don't let pushers drop through`, and the hanging
@@ -967,15 +1002,17 @@ def card_area(d):
             box_depth(d) / 2 - WALL)
 
 
-def engrave_line(txt, size, baseline, start, toward):
+def engrave_line(txt, size, baseline, start, toward, top):
     """One line of engraved text, as a solid to subtract.
 
     `baseline` is the line's baseline in X, `start` where its pen begins in Y,
-    and `toward` +1 or -1 the reading direction. The glyphs are placed by the
-    PEN ORIGIN (`geom.text_solid`), which no measurement of rendered ink can
-    recover.
+    `toward` +1 or -1 the reading direction, and `top` the floor's top face —
+    the glyphs are ENGRAVE below it, so at 7.1 the whole block moves up with
+    the face it is cut into and keeps its 0.400 depth. The glyphs are placed by
+    the PEN ORIGIN (`geom.text_solid`), which no measurement of rendered ink
+    can recover.
     """
-    solid = text_solid(txt, T.LOGO_FONT, size, ENGRAVE, z=WALL - ENGRAVE)
+    solid = text_solid(txt, T.LOGO_FONT, size, ENGRAVE, z=top - ENGRAVE)
     solid = solid.rotate(Axis.Z, 90 * (1 if toward > 0 else -1))
     return solid.moved(Location((baseline, start, 0)))
 
@@ -1005,7 +1042,7 @@ def floor_text(d, part):
     tools = []                            # all five lines, cut at the end
     for txt in (d.calModelName, d.GameName):
         tools.append(engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
-                                  -1))
+                                  -1, floor_top(d)))
         x = x - cap - MODEL_GAP           # next line, one gap further out
     # --- +X: ProductName, calCapacityLabel, calVersion, reading toward +Y ---
     start = y_front + LOGO_FRONT_INSET
@@ -1014,11 +1051,13 @@ def floor_text(d, part):
     _fits(d.ProductName, logo_size, span)
     logo_cap = T.CAP * logo_size          # this is #LogoHeight
     base = edge + TEXT_INSET + logo_cap
-    tools.append(engrave_line(d.ProductName, logo_size, base, start, +1))
+    tools.append(engrave_line(d.ProductName, logo_size, base, start, +1,
+                              floor_top(d)))
     cap_size = T.floored(T.fit_size(d.calCapacityLabel, logo_len))
     _fits(d.calCapacityLabel, cap_size, span)
     base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
-    tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1))
+    tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1,
+                              floor_top(d)))
     # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:
     # it should say CC, as the Lid does. A DELIBERATE DIVERGENCE, and
     # tests/test_box.py asserts both sides of it.
@@ -1027,7 +1066,8 @@ def floor_text(d, part):
     ver_size = min(logo_size, T.floored(VERSION_CAP * logo_size))
     ver_cap = T.CAP * ver_size
     base = base + VERSION_GAP * logo_cap + ver_cap
-    tools.append(engrave_line(d.calVersion, ver_size, base, start, +1))
+    tools.append(engrave_line(d.calVersion, ver_size, base, start, +1,
+                              floor_top(d)))
     return part.cut(*tools)
 
 
@@ -1169,11 +1209,14 @@ def build(d):
     """
     part = shell(d)
     w, depth, y = bottom_slot(d)
-    # Cut Z from below the floor up to exactly WALL, so the boolean is clean
-    # underneath and nothing above the floor is touched — the tree cuts this
-    # before the sliders and dividers exist, and this keeps that true whatever
-    # order the code ends up in.
-    part = part - Box(w, depth, WALL + 1).moved(Location((0, y, (WALL - 1) / 2)))
+    # Cut Z from below the floor up to exactly the floor's top face, so the
+    # boolean is clean underneath and nothing above the floor is touched — the
+    # tree cuts this before the sliders and dividers exist, and this keeps that
+    # true whatever order the code ends up in. The cut follows the floor at
+    # 7.1: it is a THROUGH cut, and stopping it at 1.600 would leave a 0.400
+    # membrane across the card area.
+    fl = floor_top(d)
+    part = part - Box(w, depth, fl + 1).moved(Location((0, y, (fl - 1) / 2)))
     part = rear_storage(d, part)
     part = lower_front(d, part)
     part = round_top_corners(d, part)
