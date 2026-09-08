@@ -535,7 +535,15 @@ def pusher_lock(data):
 # person will read off the plastic — the thing that stops a 7.x pusher going
 # into a 6.6 lid — and the metadata says exactly which release wrote the file.
 # Neither replaces the other, and a disagreement is the file lying to itself.
+# An ITERATION LETTER (`7.1a`, `cad/revisions.py`) reads as its release does:
+# the signature is the two digits' counters and the letter is not one of them.
+# So `7.1a` and `7.1` share ("none", "none") and a part stamped either reads
+# back as "7.1/7.1a" — the same benign ambiguity 6.3 and 6.5 already have, and
+# the metadata is what separates them. What the letter DOES change is the
+# shape of the word: `_dotted` has to accept the trailing mark, or the version
+# is not found on the line at all.
 STAMP_SIGNATURES = {
+    "7.1a": ("none", "none"),
     "7.1": ("none", "none"),
     "7.0": ("none", "tall"),
     "6.6": ("low", "low"),
@@ -552,7 +560,10 @@ STAMP_SIGNATURES = {
 # neither, which is not a fault: it is why this is a second witness and not a
 # replacement.
 META_VERSION_KEY = "CardCascade:Version"
-META_TITLE_VERSION = re.compile(r"\bv(\d+(?:\.\d+)+)\b")
+# The trailing `[a-z]?` is the iteration letter: a project built while 7.1 is
+# being worked on is titled `... Sleeved v7.1a (...)`, and without it the
+# title witness would read nothing for the whole of an unreleased release.
+META_TITLE_VERSION = re.compile(r"\bv(\d+(?:\.\d+)+[a-z]?)\b")
 
 # The three parts the 7.0 lock spans, and so the three whose stamp is a claim
 # about which lock a person is holding. LOCK_STANDARD.md: "a pusher, a lid and a
@@ -695,7 +706,38 @@ def _dotted(line):
 
     Reading the version as a word is also what lets the box be read at all: its
     floor line carries a second word after the number, so a reader that wanted
-    the line to be five marks and nothing else would skip every box."""
+    the line to be five marks and nothing else would skip every box.
+
+    A FOURTH mark is allowed at the END of the word, and only there: an
+    unreleased release is iterated by letter (`cad/revisions.py`), so the stamp
+    reads `CC 7.1a` and a reader that demanded exactly three marks would go
+    blind on every part of the release being worked on.
+
+    A four-mark word cannot be admitted on its own SHAPE, and the catalogue
+    says so rather than theory: the merged Dominion codes end `-M.Un`, and
+    with the hyphen off the baseline that trails the line as its own word of
+    `M . U n` — a full-cap mark, a period, a full-cap mark and a 0.81 one,
+    which is `7 . 1 a` exactly. Both readings then stand on one part and
+    `version_stamp` answers None, which is how this was caught: all 128
+    Onshape components read before the letter and eight stopped after it.
+
+    Height cannot separate them either, and that is measured, not assumed. In
+    Orbitron Bold, against a digit's cap: `a`, `c` and `e` are 0.80, `b`, `d`,
+    `f` and `h` are 1.07 and `g` is 1.12. The letters straddle the digits, so a
+    threshold that admitted `7.1a` would refuse `7.1b`, and `n` sits at 0.81
+    right beside `a`. Every lowercase glyph does sit ON the baseline (offset
+    0.000 on all of them), so the letter is always in `on_base`.
+
+    So a four-mark word is admitted by its CONTEXT: the stamp is `CC <version>`
+    and always has been (`derive.calVersion`), so the word before it must be
+    the `CC` — two marks, both reaching the cap, of the same width to a tenth.
+    `M.Un` follows the eleven marks of `M4.21.10.32` and is refused; nothing in
+    the catalogue puts a two-letter word in front of a dotted one. A THREE-mark
+    word is still read wherever it appears, exactly as before, so no part that
+    could be read before can stop being readable.
+
+    The letter itself is not read — the counters of `a`, `b`, `d` and `e` are
+    one apiece and cannot be told apart — which is what the metadata is for."""
     rough = max(m[3] - m[2] for m in line)
     levels = {}
     for m in line:
@@ -717,10 +759,21 @@ def _dotted(line):
         word.append(m)
     if word:
         words.append(word)
-    for word in words:
-        if len(word) != 3:
-            continue
-        a, dot, b = word
+    def is_cc(word):
+        """Is `word` the `CC` a version stamp begins with? Two marks, both at
+        the cap, the same width to a tenth."""
+        if len(word) != 2:
+            return False
+        widths = [m[1] - m[0] for m in word]
+        return (min(m[3] - m[2] for m in word) >= 0.8 * cap
+                and abs(widths[0] - widths[1]) <= 0.1 * max(widths))
+
+    for i, word in enumerate(words):
+        if len(word) not in (3, 4):
+            continue           # 4 = the iteration letter, e.g. `7.1a`
+        if len(word) == 4 and not (i and is_cc(words[i - 1])):
+            continue           # ... and only where the `CC` vouches for it
+        a, dot, b = word[:3]
         w, h = dot[1] - dot[0], dot[3] - dot[2]
         if h > 0.35 * cap or abs(w - h) > 0.3 * max(w, h):
             continue

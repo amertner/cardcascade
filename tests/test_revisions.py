@@ -38,6 +38,13 @@ CSV = ROOT / "automation" / "parts.csv"
 fails = []
 asserted = set()
 
+# The release under test. NOT pinned the way `tests/reference.py` pins 7.0:
+# nothing here compares against a stored reference, and every assertion below
+# is 7.0 against the NEWEST release, which stays true as an iteration letter
+# moves because the line is monotonic — a flag introduced at 7.1a is still on
+# at 7.1b. `cad/revisions.py`, "An unreleased release is iterated by LETTER".
+NEW = R.RELEASES[-1]
+
 
 def check(label, got, want, tol=1e-6):
     ok = abs(got - want) <= tol if isinstance(want, float) else got == want
@@ -89,8 +96,8 @@ except Refused:
 check("an unknown release is refused, not silently built", refused, True)
 
 
-# --- 7.1: the Lid cuts one socket per pusher --------------------------------
-print("\n=== 7.1  lid_socket_per_pusher ===")
+# --- the Lid cuts one socket per pusher -------------------------------------
+print(f"\n=== {NEW}  lid_socket_per_pusher ===")
 asserted.add("lid_socket_per_pusher")
 # The four Innovation M lids, named. Any other row in the catalogue must be
 # IDENTICAL across the two releases: the flag changes these and nothing else.
@@ -100,11 +107,11 @@ CHANGED = {"M5.15.15.45.Un", "M5.15.15.62.Sl", "M5.10.10.32.Un", "M5.10.10.45.Sl
 def only_lid_flag(d):
     """`d` with THIS flag on and every other release change off.
 
-    7.1 carries two changes and they both reach the Lid: `two_pushers` drops
-    the box to two, and the socket count follows it. Comparing 7.0 with 7.1
-    therefore shows 28 lids changing and says nothing about which flag did
-    what. Turning on one flag at a time is what isolates them, and it is the
-    same technique that prices the socket block below.
+    The release carries three changes and two of them reach the Lid:
+    `two_pushers` drops the box to two, and the socket count follows it.
+    Comparing 7.0 with it therefore shows 28 lids changing and says nothing
+    about which flag did what. Turning on one flag at a time is what isolates
+    them, and it is the same technique that prices the socket block below.
     """
     return D.Derived(dict(d.items()),
                      R.Rev(**{f.name: f.name == "lid_socket_per_pusher"
@@ -125,11 +132,12 @@ for row in rows():
                 fails.append(f"{d70.calModelName}: centres moved with no count change")
             continue
         moved.add(d70.calModelName)
-        check(f"{d70.calModelName}: 7.0 has 3 sockets, 7.1 has 2", [n70, n71], [3, 2])
+        check(f"{d70.calModelName}: 7.0 has 3 sockets, {NEW} has 2",
+              [n70, n71], [3, 2])
         # 7.0 is Onshape's size rule; 7.1 is the box's pusher count.
         check(f"{d70.calModelName}: 7.0 = the size rule",
               n70, 2 if d70.HorizontalSlots <= 3 else 3)
-        check(f"{d70.calModelName}: 7.1 = one per pusher",
+        check(f"{d70.calModelName}: {NEW} = one per pusher",
               n71, box_part.pusher_slot_count(d71))
         # The OUTER PAIR does not move: that is what makes the change free.
         c70, c71 = lid.socket_centres(d70), lid.socket_centres(d71)
@@ -145,11 +153,12 @@ print(f"  ({same} lids identical across the two releases)")
 # the geometry its flags gate, and the `CC <v>` engraved on every part — so
 # they are separated here rather than lumped into one tolerance.
 #
-# The FLAG alone: a 7.0 Derived carrying 7.1's Rev. Everything else, the
+# The FLAG alone: a 7.0 Derived carrying the new release's Rev. Everything
+# else, the
 # engraved `CC 7.0` included, is identical, so the difference can only be the
 # socket. This is the number that says the flag changed exactly one thing.
 row = next(r for r in rows() if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
-d70, d71 = at(row, 0, "7.0"), at(row, 0, "7.1")
+d70, d71 = at(row, 0, "7.0"), at(row, 0, NEW)
 
 
 def body(part):
@@ -158,16 +167,16 @@ def body(part):
 
 block = lid.socket(d70, lid.socket_centres(d70)[1]).volume
 v70, v71 = body(lid.build(d70)), body(lid.build(d71))
-v_flag = body(lid.build(D.Derived(dict(d70.items()), R.of("7.1"))))
+v_flag = body(lid.build(D.Derived(dict(d70.items()), R.of(NEW))))
 print(f"  (one socket block = {block:.2f} mm3)")
 check("the flag alone removes exactly one socket block",
       round(v70 - v_flag - block, 3), 0.0, 0.02)
-# The STAMP is the rest of it: `CC 7.0` and `CC 7.1` are the same six
-# characters but not the same ink, and that difference is the only other thing
-# between the two builds.
+# The STAMP is the rest of it: `CC 7.0` and `CC <the new release>` are not the
+# same ink — and from an iteration letter they are not even the same number of
+# glyphs — and that difference is the only other thing between the two builds.
 digits = (v_flag - v71)
 print(f"  (the version digits = {digits:+.2f} mm3)")
-check("and the whole 7.0 -> 7.1 difference is that block plus the digits",
+check(f"and the whole 7.0 -> {NEW} difference is that block plus the digits",
       round(v70 - v71 - block - digits, 3), 0.0, 0.02)
 check("the digits are ink, not geometry (under 2 mm3)", abs(digits) < 2.0, True)
 check("the two releases write the same number of solids",
@@ -175,14 +184,14 @@ check("the two releases write the same number of solids",
 
 
 # --- 7.1: every cascade takes two pushers -----------------------------------
-print("\n=== 7.1  two_pushers ===")
+print(f"\n=== {NEW}  two_pushers ===")
 asserted.add("two_pushers")
 # 24 of the 50 lose their third slot: 16 Dominion, 6 FCM, 2 Compile. Innovation
 # and every S box were on two already, so the count is the assertion.
 dropped, kept = [], 0
 for row in rows():
     for sleeved in (0, 1):
-        d70, d71 = at(row, sleeved, "7.0"), at(row, sleeved, "7.1")
+        d70, d71 = at(row, sleeved, "7.0"), at(row, sleeved, NEW)
         n70, n71 = box_part.pusher_slot_count(d70), box_part.pusher_slot_count(d71)
         check_quiet = n71 == 2
         if not check_quiet:
@@ -191,8 +200,8 @@ for row in rows():
             kept += 1
         else:
             dropped.append((d70.calModelName, d70.GameName, n70, n71))
-check("every cascade takes two pushers at 7.1",
-      sorted({box_part.pusher_slot_count(at(r, s, "7.1"))
+check(f"every cascade takes two pushers at {NEW}",
+      sorted({box_part.pusher_slot_count(at(r, s, NEW))
               for r in rows() for s in (0, 1)}), [2])
 check("24 of them had three at 7.0", len(dropped), 24)
 check("and 7.0 still gives 3 to every M and L that is not Innovation",
@@ -203,8 +212,9 @@ print(f"  ({kept} cascades were on two already)")
 # The Lid follows on its own — one socket per pusher — so nothing anywhere has
 # three sockets at 7.1. That is the two flags agreeing, and it is the thing a
 # future change could quietly break.
-check("no lid has three sockets at 7.1",
-      sorted({lid.socket_count(at(r, s, "7.1")) for r in rows() for s in (0, 1)}), [2])
+check(f"no lid has three sockets at {NEW}",
+      sorted({lid.socket_count(at(r, s, NEW))
+              for r in rows() for s in (0, 1)}), [2])
 
 # The thumb cutout MOVES, because calFingerHoleOffset is written in terms of
 # the slot count, and three things must stay true of it. Through the part's own
@@ -225,7 +235,7 @@ def thumb_faults(d):
         out.append("past an end wall")
     return out
 
-for v in ("7.0", "7.1"):
+for v in ("7.0", NEW):
     bad = {at(r, s, v).calModelName: f for r in rows() for s in (0, 1)
            for f in [thumb_faults(at(r, s, v))] if f}
     check(f"{v}: the thumb is clear of every divider, in the run, inside the walls",
@@ -233,7 +243,7 @@ for v in ("7.0", "7.1"):
 
 
 # --- 7.1: the floor is 2.000, and it grows UPWARD ---------------------------
-print("\n=== 7.1  thick_floor ===")
+print(f"\n=== {NEW}  thick_floor ===")
 asserted.add("thick_floor")
 # The claim has two halves and they are asserted separately: the floor IS
 # thicker, and NOTHING ELSE MOVED. The second half is the whole reason the
@@ -243,8 +253,8 @@ asserted.add("thick_floor")
 check("7.0: the floor is the wall's own 1.600",
       sorted({box_part.floor_top(at(r, s, "7.0"))
               for r in rows() for s in (0, 1)}), [1.6])
-check("7.1: the floor is 2.000",
-      sorted({box_part.floor_top(at(r, s, "7.1"))
+check(f"{NEW}: the floor is 2.000",
+      sorted({box_part.floor_top(at(r, s, NEW))
               for r in rows() for s in (0, 1)}), [2.0])
 check("the WALL is 1.600 at both — this is the FLOOR alone",
       [D.WallThickness, box_part.WALL], [1.6, 1.6])
@@ -287,8 +297,9 @@ def up_area(part, z, tol=1e-4):
 top70, ink70 = up_area(b70, box_part.WALL), up_area(b70, box_part.WALL - box_part.ENGRAVE)
 check("7.0: the floor's top face is at 1.600 and none is at 2.000",
       [top70 > 0, up_area(b70, box_part.THICK_FLOOR)], [True, 0.0])
-check("7.1: the same face, the same area, 0.400 higher",
-      [up_area(bfl, box_part.THICK_FLOOR), up_area(bfl, box_part.WALL - box_part.ENGRAVE)],
+check(f"{NEW}: the same face, the same area, 0.400 higher",
+      [up_area(bfl, box_part.THICK_FLOOR),
+       up_area(bfl, box_part.WALL - box_part.ENGRAVE)],
       [top70, 0.0])
 check("and the engraving rides up with it, still 0.400 deep",
       up_area(bfl, box_part.THICK_FLOOR - box_part.ENGRAVE), ink70)
@@ -308,7 +319,7 @@ check("the card area is still cut clean through — no membrane",
 rises, heads = set(), []
 for row_ in rows():
     for sleeved in (0, 1):
-        a70, a71 = at(row_, sleeved, "7.0"), at(row_, sleeved, "7.1")
+        a70, a71 = at(row_, sleeved, "7.0"), at(row_, sleeved, NEW)
         rises.add(round(A.holder_closed(a71, 0)((0, 0, 0))[2]
                         - A.holder_closed(a70, 0)((0, 0, 0))[2], 6))
         heads.append(a71.BoxHeight - (box_part.floor_top(a71)
@@ -333,14 +344,19 @@ import verify as V                                               # noqa: E402
 check("every release has a stamp signature recorded",
       sorted(v for v in R.RELEASES if v in V.STAMP_SIGNATURES),
       sorted(R.RELEASES))
-# 7.1's is ("none", "none") and cannot be told from 7.2's; that is WHY the
-# metadata exists, and it is asserted rather than left as a comment.
-check("7.1's signature is the counterless pair",
-      V.STAMP_SIGNATURES["7.1"], ("none", "none"))
+# 7.1's is ("none", "none") and cannot be told from 7.2's — nor from 7.1a's,
+# since an iteration letter is not a counter and does not change the pair.
+# That is WHY the metadata exists, and it is asserted rather than left as a
+# comment: the glyph narrows a part down to a release family, the metadata
+# names the build.
+check(f"{NEW}'s signature is the counterless pair",
+      V.STAMP_SIGNATURES[NEW], ("none", "none"))
+check("and it is the same pair 7.1 itself will read",
+      V.STAMP_SIGNATURES.get("7.1"), ("none", "none"))
 
 with tempfile.TemporaryDirectory() as tmp:
     written = {}
-    for v, dd in (("7.0", d70), ("7.1", d71)):
+    for v, dd in (("7.0", d70), (NEW, d71)):
         path = Path(tmp) / f"Lid {dd.calModelName}.3mf"
         body_shape = max(lid.build(dd).solids(), key=lambda s: s.volume)
         mesh3mf.write(path, [("Lid", body_shape)],
@@ -355,7 +371,7 @@ with tempfile.TemporaryDirectory() as tmp:
               V.check_stamp(data, v), (None, None))
     # And a part from one release is REFUSED against the other, which is the
     # whole point: 7.0's glyph differs, and 7.1's metadata is exact.
-    for v, other in (("7.0", "7.1"), ("7.1", "7.0")):
+    for v, other in (("7.0", NEW), (NEW, "7.0")):
         fatal, _warn = V.check_stamp(written[v], other)
         check(f"a {v} part is refused as {other}", fatal is not None, True)
 

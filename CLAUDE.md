@@ -69,10 +69,23 @@ current release against it would report the intended change as failures.
 ones in a shipped project. **7.1 is the cad-built release and the DEFAULT**
 (Allan, 2026-09-06): the same 7.0 LOCK (`lock.SAME_LOCK`) under a `CC 7.1`
 stamp, so a cad-built cascade can be told from an Onshape-exported one on the
-shelf — and, since the version went into the project name, in the file too
-(`... Sleeved v7.1 (...)`). It is NOT the same geometry: 7.1 is where the Lid
-drops its middle pusher socket, and `cad/revisions.py` is the one place a
-release change lives. **A release's parts go in their own tree and the default
+shelf — and, since the version went into the project name, in the file too.
+It is NOT the same geometry: 7.1 is where the Lid drops its middle pusher
+socket, and `cad/revisions.py` is the one place a release change lives.
+**An unreleased release is ITERATED BY LETTER and 7.1a is what builds today**
+(Allan, 2026-09-08): `7.1a`, `7.1b`, ... and then plain `7.1` at the lock, so
+two parts printed from different states of an unfinished 7.1 can be told apart
+on the shelf. **A letter is a release like any other** — a member of
+`RELEASES`, of `lock.SAME_LOCK` and of `STAMP_SIGNATURES` — which is what
+makes it mean something: a change lands as a flag whose `since` is the NEW
+letter, so a 7.1a part stays reproducible instead of being quietly restated.
+`7.1` itself is deliberately NOT on the line until the lock, so nothing can
+stamp an unfinished `CC 7.1`. To bump: the letter into `RELEASES` and
+`SAME_LOCK`, `CURRENT` onto it, `since` on the new flag, a `STAMP_SIGNATURES`
+row — the tests take the newest release from `RELEASES[-1]` and need no edit.
+`spec/REVISIONS.md`, "An unreleased release is iterated by LETTER"; prose in
+`spec/` that says "from 7.1" means the release and is true of every letter in
+it. **A release's parts go in their own tree and the default
 follows the version** — `build/` is the current release, `build/v7.0/` is
 anything else, so `cad.build --version 7.0` needs no `--out` and two releases
 cannot overwrite each other under identical filenames. `cad.cascade
@@ -81,12 +94,17 @@ tree, because what it stages joins Onshape parts in a shipped cascade).
 **Every test that compares against a reference pins 7.0** through
 `tests/reference.py`; the default is a moving target by design.
 **A part now says its release TWICE** and `verify.py --stamps` reads both: the
-engraved `CC 7.1` (`STAMP_SIGNATURES`, now including 7.1) and a
+engraved `CC 7.1a` (`STAMP_SIGNATURES`) and a
 `CardCascade:Version` metadata string `cad.build` writes into every component
 (`mesh3mf.write(metadata=...)`). The glyph is what a person holding the plastic
-reads and it CANNOT tell 7.1 from 7.2 — both are two counterless digits — so
-the metadata is the exact witness and the glyph the physical one; either
-disagreeing with the release, or with the other, is fatal.
+reads and it CANNOT tell 7.1 from 7.2, nor 7.1 from 7.1a — the letter is not a
+counter — so the metadata is the exact witness and the glyph the physical one;
+either disagreeing with the release, or with the other, is fatal. **The letter
+made the glyph reader a four-mark word**, and that had to be paid for: `M.Un`
+at the end of the merged Dominion codes is `M . U n`, the same shape as
+`7 . 1 a`, so a four-mark word is read only where the `CC` before it vouches
+for it (`verify._dotted`). Eight parts went unreadable before that gate went
+in, which is what the 128-component `--stamps` run is for.
 `verify.py --stamps --tree build` audits a cad tree that way (metadata on all
 258 parts, engraving as well on the Box/Lid/Pusher trio) and is the check to
 run before publishing a release. The older route — `python -m cad.promote` staging built parts under

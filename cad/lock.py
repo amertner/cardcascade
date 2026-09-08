@@ -26,8 +26,10 @@ GENERATION = "7.0"
 # A new release must be admitted here deliberately: leave it out and
 # `pusher.build` refuses it rather than stamping the wrong version on 7.0 tabs,
 # which is the right way round. `tests/test_revisions.py` holds the two lists
-# to each other.
-SAME_LOCK = ("7.0", "7.1")
+# to each other. An ITERATION LETTER is a release like any other
+# (`cad/revisions.py`, "An unreleased release is iterated by LETTER"), so each
+# new one is admitted here too — and plain `7.1` will be, at the lock.
+SAME_LOCK = ("7.0", "7.1a")
 
 
 def lock_generation(version):

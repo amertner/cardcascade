@@ -25,9 +25,11 @@ of switches instead of a release history. That was asked and settled (Allan,
 
 ## A version is a STRING
 
-Short, usually numeric-looking — `7.0`, `7.1` — but it may be `7.1.1` or
-`7.1B` or anything else that fits on a part, so nothing parses it (Allan,
-2026-09-06). A release's ORDER is its position in `RELEASES`, which is the only
+Short, usually numeric-looking — `7.0`, `7.1` — but it may be `7.1a`, `7.1.1`
+or anything else that fits on a part, so nothing parses it (Allan,
+2026-09-06). The iteration letter below is the first version on the line that
+is not a number at all, and nothing had to change to admit it: it is a member
+of `RELEASES` like any other string. A release's ORDER is its position in `RELEASES`, which is the only
 place the line's order is stated, and `HISTORICAL` names the older versions
 still asked about by name (`6.6`, which `tests/test_holder_corpus.py` prices
 its engraving at). Anything else is refused: with opaque strings there is no
@@ -69,7 +71,12 @@ What every reference STEP in `spec/reference/` and every cached mesh in
 the corpus tests assert, and `tests/reference.py` is why they keep asserting it
 when the default moves.
 
-### 7.1 — the cad-built release
+### 7.1 — the cad-built release, being iterated as `7.1a`
+
+Currently on the line as **`7.1a`** and not as `7.1`: the release is unfinished,
+and the letter is what a part built today is stamped and titled with (see "An
+unreleased release is iterated by LETTER"). Everything below is what `7.1a`
+is; the next change opens `7.1b`.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -173,30 +180,62 @@ is the same idea; this generalises it.
 A test that does not pin is a test that re-baselines itself the next time the
 default moves — the one failure a regression corpus must not have.
 
-## The current release is the one being ITERATED
+## An unreleased release is iterated by LETTER
 
 `CURRENT` is not a finished thing. The way this repo is worked (Allan,
 2026-09-06) is: **sit at a version for a while, accumulate changes in it, then
-lock it and release it.** So while 7.1 is current, a new design change is a
-field with `since: "7.1"` — it joins the release being built rather than
-opening a new one — and only when 7.1 is locked and shipped does the next
-change become `since: "7.2"`.
+lock it and release it.** The letter is how those accumulating states are told
+apart (Allan, 2026-09-08): **`7.1a`, `7.1b`, `7.1c`, ... and then plain `7.1`
+at the lock.**
 
-Nothing in the mechanism resists that: a build's stamp hashes the Primary and
-every source file, so adding a flag to the current release rebuilds exactly the
-parts it touches and nothing else. What DOES matter is the moment of locking,
-because a released version is a promise about parts that exist on a shelf:
+**The problem it solves is physical.** While 7.1 is being worked on its
+geometry moves — three times already — and every part printed along the way
+says `CC 7.1`. A shelf of them cannot say which is which, and the stamp is the
+only thing a person holding the plastic can read. A letter makes each state
+nameable on the part itself.
 
-* before the lock, `since: "<current>"` and the parts are rebuilt in place;
-* after it, the released version's geometry is frozen the way 7.0's is —
-  anything further is `since: "<next>"`, and `tests/test_revisions.py` keeps
-  asserting the locked one from then on.
+**A letter is a release like any other**, and that is the whole design: a full
+member of `RELEASES`, with its own position on the line, its own
+`lock.SAME_LOCK` entry and its own row in `verify.STAMP_SIGNATURES`. It is what
+makes the letter MEAN something — a change lands as a flag whose `since` is the
+NEW letter, so a build at `7.1a` keeps producing what `7.1a` always produced,
+and the part stamped with it stays reproducible.
+
+The alternative was considered and rejected: a letter as a mere build marker,
+with the flags still keyed on `7.1`. It reads simpler and it is wrong — a
+change would move the geometry under every earlier letter, so two different
+shapes would wear the same stamp, which is the one thing the stamp exists to
+prevent.
+
+### Bumping, and locking
+
+To bump: add the letter to `RELEASES` and to `lock.SAME_LOCK`, move `CURRENT`
+onto it, give the new change's flag `since: "<the new letter>"`, and leave
+every earlier flag alone — the line is monotonic, so they carry forward.
+Nothing is rebuilt in place any more; the earlier letter is FROZEN, which is
+what a version stamped on plastic has to be.
+
+At the lock, plain `7.1` joins the END of the line and becomes `CURRENT`. The
+letters STAY on it. Parts printed at `7.1b` exist, and the rule this repo
+keeps everywhere is that a version you can hold must remain describable and
+buildable; `7.1` sitting after them all carries every flag they introduced.
+
+**`7.1` itself is not on the line until then**, deliberately: while the release
+is unfinished, nothing can build it, stamp it or title a project with it, so
+there is no way to put an unfinished `CC 7.1` on a part by accident.
+
+**Prose in `spec/` says "from 7.1" and means the release**, not the letter —
+the geometry sections were written about the release and stay true of every
+letter in it. The flags' `since` is the exact answer and `cad/revisions.py` is
+where to read it.
 
 The reference corpus is the model for what a locked release looks like: 7.0 is
 locked, `tests/reference.py` pins it, and a 7.0 build must reproduce
 `individual/` forever.
 
-## Adding the next release
+## Adding the next release — or the next LETTER
+
+The steps are the same for both, because a letter IS a release.
 
 1. Add it to `RELEASES`, set `CURRENT` if it is the new default, and add it to
    `lock.SAME_LOCK` if it keeps the 7.0 lock. Leaving it out of `SAME_LOCK` is

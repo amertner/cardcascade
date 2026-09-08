@@ -28,9 +28,36 @@ not `d.Version >= "7.1"` — the flag name is what `spec/` records and what a
 reader greps for, and adding the next change is one field here and one `if`
 in the part.
 
-**The line is monotonic.** A change introduced at 7.1 is in every release
+**The line is monotonic.** A change introduced at 7.1a is in every release
 after it; that is what a release line means. Undoing one is a NEW flag with
 its own `since`, not a hole in this table.
+
+## An unreleased release is iterated by LETTER
+
+`7.1a`, `7.1b`, `7.1c`, ... and then plain `7.1` at the lock (Allan,
+2026-09-08). The letter exists so that two parts printed from the SAME
+unreleased release can be told apart on the shelf: while 7.1 is being worked
+on, its geometry moves, and a shelf full of parts all stamped `CC 7.1` cannot
+say which of them is which.
+
+So **a letter is a release like any other** — a full member of `RELEASES`, with
+its own position, its own `SAME_LOCK` entry and its own stamp signature — and
+that is what makes the letter mean something: a change lands as a flag whose
+`since` is the NEW letter, so `7.1a` keeps building what `7.1a` always built
+and the part stamped with it stays reproducible. A letter that were only a
+build marker, with the flags still keyed on `7.1`, would let two different
+geometries wear the same stamp, which is the thing this is here to stop.
+
+**Bumping.** A design change during 7.1 opens the next letter: add it to
+`RELEASES` and `lock.SAME_LOCK`, move `CURRENT` on, give the new flag
+`since: "<the new letter>"`, and leave the earlier letters' flags alone —
+monotonicity carries them forward. Nothing is rebuilt in place; the earlier
+letter is frozen, which is exactly what a version stamped on plastic has to be.
+
+**At the lock**, plain `7.1` joins the END of the line and becomes `CURRENT`.
+The letters STAY on it: parts printed at `7.1b` exist, and this repo's rule is
+that a version you can hold must remain describable and buildable. `7.1` sits
+after them all, so it carries every flag they introduced.
 """
 from dataclasses import dataclass, field, fields
 
@@ -39,8 +66,13 @@ from .refuse import refuse
 # Every release `cad/` can build, oldest first. `CURRENT` is what a build
 # defaults to; an older one is still buildable and is what every reference
 # STEP and cached mesh in `individual/` is compared against.
-RELEASES = ("7.0", "7.1")
-CURRENT = "7.1"
+#
+# `7.1a` is 7.1 being ITERATED, and the LETTER is the point (Allan,
+# 2026-09-08): see "An unreleased release is iterated by LETTER" below. `7.1`
+# itself is deliberately NOT on the line — it is what the last letter is
+# renamed to at the lock, and until then nothing can build or stamp it.
+RELEASES = ("7.0", "7.1a")
+CURRENT = "7.1a"
 
 
 @dataclass(frozen=True)
@@ -53,7 +85,7 @@ class Rev:
     """
 
     two_pushers: bool = field(metadata={
-        "since": "7.1",
+        "since": "7.1a",
         "spec": "spec/BOX.md, 'Two pusher slots, at every size'",
         "what": "every cascade takes TWO pushers, whatever its size: "
                 "`#calPusherSlots` is 2 rather than 2-for-Innovation-and-S-"
@@ -64,7 +96,7 @@ class Rev:
     })
 
     lid_socket_per_pusher: bool = field(metadata={
-        "since": "7.1",
+        "since": "7.1a",
         "spec": "spec/LID.md, 'The middle socket is gone'",
         "what": "the Lid cuts one pusher socket per pusher the cascade ships "
                 "instead of Onshape's plain size rule, so the four Innovation "
@@ -72,7 +104,7 @@ class Rev:
     })
 
     thick_floor: bool = field(metadata={
-        "since": "7.1",
+        "since": "7.1a",
         "spec": "spec/BOX.md, 'The floor is 2.000, and it grows UPWARD'",
         "what": "the Box's floor is 2.000 where every wall stays "
                 "WallThickness's 1.600 (Allan). It grows UPWARD into the "

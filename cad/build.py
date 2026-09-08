@@ -136,8 +136,9 @@ def component_metadata(d, path):
     The engraved `CC <v>` is the only thing a person holding the part can read,
     and reading it back is not OCR but a signature over the digits' counters
     (`verify.STAMP_SIGNATURES`) — which cannot tell `7.1` from `7.2`, both
-    being two counterless digits. So the release goes in the file as TEXT as
-    well, and `verify.check_stamp` holds the two to each other: the glyph says
+    being two counterless digits, nor either from the iteration letter `7.1a`,
+    a letter being no kind of counter. So the release goes in the file as TEXT
+    as well, and `verify.check_stamp` holds the two to each other: the glyph says
     what a person will read off the plastic, the metadata says exactly which
     release wrote it, and a disagreement is the file lying to itself.
     `spec/REVISIONS.md`, "What a release moves besides its flags".

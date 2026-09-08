@@ -133,17 +133,24 @@ one = [(row, d) for row, d in rows if d.calModelName.startswith("S4.16.10.32")
 check("a cad title is the same rule at p.Version",
       CC.title(*one) + ".3mf",
       C.cascade_filename("Dominion", "168 Card", "Un", "S4.16.10.32-Un", R.CURRENT))
+# The version is read to the SPACE before the model code and not by a fixed
+# width: `[:3]` was right for exactly as long as every version was three
+# characters, and an iteration letter (`7.1a`) is the first that is not.
 check("every cad title carries a version, and it is the default release",
-      sorted({t.split(" v")[1][:3] for t in
+      sorted({t.split(" v")[1].split(" ")[0] for t in
               (CC.title(row, d) for row, d in rows)}), [R.CURRENT])
 check("cad names 50 distinct projects",
       len({CC.title(row, d) for row, d in rows}), len(rows))
-# The two releases are named EXPLICITLY, not one of them by default: the
-# default moves (it is 7.1 now and was 7.0), and a test that took it would
-# compare a set with itself the moment it did. `spec/REVISIONS.md`.
+# The OLD release is named explicitly and never taken from the default: the
+# default moves (it is 7.1a now, was 7.1 and was 7.0 before that), and a test
+# that took it for both sides would compare a set with itself the moment it
+# did. `spec/REVISIONS.md`. The new side is the newest release on the line,
+# which during an unreleased release is its current LETTER — written that way
+# so an iteration bump does not have to be chased through the suite.
+NEW = R.RELEASES[-1]
 at70 = CC.catalogue(version="7.0")
-at71 = CC.catalogue(version="7.1")
-check("a 7.1 set is titled apart from the 7.0 one",
+at71 = CC.catalogue(version=NEW)
+check(f"a {NEW} set is titled apart from the 7.0 one",
       {CC.title(row, d) for row, d in at71}
       & {CC.title(row, d) for row, d in at70}, set())
 
@@ -156,7 +163,7 @@ check("and neither does any of them",
              if " v" in n), [])
 check("--publish puts it back, and is the title plus the suffix",
       CC.filename(*one, versioned=True), CC.title(*one) + ".3mf")
-check("so a 7.1 publish is 50 files apart from a 7.0 one",
+check(f"so a {NEW} publish is 50 files apart from a 7.0 one",
       {CC.filename(row, d, True) for row, d in at71}
       & {CC.filename(row, d, True) for row, d in at70}, set())
 check("while the two write the SAME 50 names into the repo",
