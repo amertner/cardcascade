@@ -149,6 +149,10 @@ exact in both.
 
 ### The lattice column is a FIXED `10.000`, and the mullion absorbs the rest
 
+**This is 7.0's window. From 7.1c it is `9.000` and there are four rows** — "A
+stouter lattice", below. Everything else here holds at every release: the
+pitch, the left alignment, and the mullion absorbing the variation.
+
 `#LipLength` is a constant `10 mm` (Allan), and `Vertical slits in holder` uses
 it for the window width. The three STEPs cannot show this on their own — all
 three are Dominion sleeved at `calSlotwidth 65.000` — so it was checked against
@@ -170,6 +174,85 @@ The pattern is LEFT-ALIGNED on the outline. Five windows and four mullions come
 to `4 * pitch + 10`, against an outline of `5 * pitch - 2`, so `pitch - 12.000`
 is left over on the right — `0.2` on Dominion, `1.2` on Compile sleeved. That
 asymmetry is the reference's and is reproduced, not corrected.
+
+## A stouter lattice — a 7.1 RELEASE CHANGE
+
+**From 7.1c a lattice window is `9.000` wide and there are FOUR rows of them**
+(Allan, 2026-09-09), where every release before it has `10.000` and three. A
+release change and not a divergence: a 7.0 build still cuts five `10.000`
+windows in three rows and still reproduces every reference STEP
+(`cad/revisions.py`, flag `stout_lattice`; `spec/REVISIONS.md`). The Box takes
+the same change at the same release — `spec/BOX.md`, "A stouter lattice".
+
+### The window has parted company with `#LipLength`
+
+7.0's window is `10.000` because the LIP is: the studio writes the window width
+in terms of `#LipLength`, and `10.000` is a number chosen for the rear lip, not
+for a window anyone sized. From 7.1c the two are separate, and the code says so
+— `holder.WINDOW_W` (and `WINDOW_W_STOUT`) against `holder.LIP_LEN`, which
+stays `10.000` and is untouched at every release. Read `holder.window_w(d)` and
+`holder.window_rows(d)`; neither constant is safe to read directly from 7.1c.
+
+### What moves
+
+The pitch does not, and neither does the outline. So only a window's `+X` edge
+moves, and the mullion — which is `pitch - window` and absorbs every bit of the
+variation — takes the whole `1.000`:
+
+| `calSlotwidth` | mullion at 7.1b | mullion at 7.1c |
+|---|---|---|
+| 63.0 (FCM) | **`1.800`** | **`2.800`** |
+| 65.0 (Dominion) | `2.200` | `3.200` |
+| 67.0 (Innovation Un) | `2.600` | `3.600` |
+| 68.0 (Compile Un) | `2.800` | `3.800` |
+| 69.0 (Innovation Sl) | `3.000` | `4.000` |
+| 70.0 (Compile Sl) | `3.200` | `4.200` |
+
+Rows go `3 -> 4`, so the windows are `(H - 8)/4` rather than `(H - 6)/3` and
+the windows and their rails still fill `H` exactly. On the FCM outline that is
+`18.167 -> 13.125` of free run.
+
+One incidental tidy-up: the pattern is left-aligned and the leftover on the
+right is `pitch - window - 2.000`, which at `10.000` is **`-0.200`** on FCM —
+the fifth window overruns its outline. At `9.000` every slot width has clean
+margin, `0.800` to `2.200`.
+
+### Why
+
+The mullions break, and the holder's are the weakest members in the cascade:
+`1.800 x 0.800` at `calSlotwidth 63`, against the box pier's `2.200 x 1.300`.
+The lattice is cut through BOTH walls, so a mullion is TWO independent `0.800`
+columns with the card pocket between them — visible in the part, and it is
+`1.44 mm2` of bond area per layer, not `2.88`.
+
+Two failure modes, both observed (Allan, 2026-09-09):
+
+* **During the print.** Inside a window row the mullions are ISLANDS in the
+  layer — four per compartment per wall, so 24 on a three-compartment holder —
+  each a free cantilever standing the full window height with nothing tying it
+  back. The nozzle brushes it and the `10.000` bridge above contracts across it
+  as it cools; it snaps at the BASE and is then captured by that bridge, which
+  is why a broken one is found hanging from the underside of the last bridge
+  rather than lying loose in the print.
+* **Picking the holder up.** A point load on a `1.44 mm2` section.
+
+Both are FORCE-controlled, which is what makes the row count safe to change:
+under an imposed deflection a shorter span would concentrate the same movement
+and raise the stress as `1/L^2`, but that is the prying-off-the-plate case and
+it is not one that has happened. `9.000` gives `+56%` of section at `63`; the
+fourth row cuts the free run by `28%` and the cantilever tip deflection to
+`0.24x`.
+
+### Why a width and a row count, and NOT a fillet
+
+Filleting the window corners is the obvious answer to a member that breaks at
+its root, and it was tried first, on test prints. It is **worse**. A fillet at
+a window's TOP corner turns a clean short bridge into a progressively worsening
+overhang and stops the window's sides running vertical, so the mullion steps
+layer by layer instead of stacking. Coupons with pointed BOTTOMS — the
+self-supporting direction — came out clean; every rounded or pointed TOP came
+out rough, exactly at the top. **Sides vertical, top horizontal** is the
+constraint, and it is why this change is two numbers and no new geometry.
 
 ## `Finger Cutouts` is a `12.000` circle on the slant top
 

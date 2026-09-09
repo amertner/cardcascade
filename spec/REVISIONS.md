@@ -71,14 +71,14 @@ What every reference STEP in `spec/reference/` and every cached mesh in
 the corpus tests assert, and `tests/reference.py` is why they keep asserting it
 when the default moves.
 
-### 7.1 — the cad-built release, being iterated as `7.1b`
+### 7.1 — the cad-built release, being iterated as `7.1c`
 
-Currently on the line as **`7.1b`** and not as `7.1`: the release is unfinished,
+Currently on the line as **`7.1c`** and not as `7.1`: the release is unfinished,
 and the letter is what a part built today is stamped and titled with (see "An
-unreleased release is iterated by LETTER"). Everything below is what `7.1b`
-is; the next change opens `7.1c`. `7.1a` is still on the line and still
-buildable — parts stamped with it exist — and it is the first three flags
-below and not the fourth.
+unreleased release is iterated by LETTER"). Everything below is what `7.1c`
+is; the next change opens `7.1d`. `7.1a` and `7.1b` are still on the line and
+still buildable — parts stamped with them exist — and each is only the flags
+at or before its own letter.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -124,6 +124,30 @@ The first three are `7.1a`. `7.1b` adds one:
   answer alone. It costs the outer back ledge its place in `sharp_edges`,
   which is a kernel limit and no geometry. `spec/BOX.md`, "A thumb cutout
   every 70 mm of back pocket".
+
+And `7.1c` adds a fifth, the only one that reaches TWO parts at once:
+
+* **`stout_lattice`** (`7.1c`) — the lattice window is `9.000` wide rather
+  than `10.000` and there are FOUR rows of them where there were three, in the
+  Box's `Hanging holes` and the Holder's `Vertical slits in holder` alike (and
+  in the front pocket's slits, which are the same openings). The PITCH does
+  not move and neither does the row band, so every `1.000` the window gives up
+  is `1.000` the pillar between two windows gains, and four rows divide
+  `HOLE_ROW_BOTTOM..HOLE_ROW_TOP` where three did. Both halves are for the
+  PILLARS, which break: the Holder's is `1.800 x 0.800` at `calSlotwidth 63`
+  and stands `18.167` free, and in every layer inside a window row it is an
+  ISLAND — four per compartment per wall, each a free cantilever the nozzle
+  brushes and the bridge above pulls on as it cools. It snaps at its base
+  mid-print and is then captured by that bridge, which is why a broken one is
+  found hanging from it (Allan, 2026-09-09, with the print to show it). `9.000`
+  hands the mullion the whole `1.000` — `+56%` of section at `63` — and the
+  fourth row cuts the free run to `13.125`, a tip deflection of `0.24x`.
+  **Filleting the window corners was tried first, on real prints, and is
+  WORSE**: a fillet at a window's TOP corner turns a clean short bridge into a
+  progressively worsening overhang, and the sides stop running vertical. The
+  constraint this change respects, and the reason it is a width and a count
+  and not a shape, is **sides vertical, top horizontal**. `spec/BOX.md` and
+  `spec/HOLDER.md`, "A stouter lattice".
 
 **The flags are separable and the tests keep them so.** Two of the four reach
 the Lid, so comparing 7.0 with 7.1 shows 28 lids changing and says nothing about
@@ -186,7 +210,7 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is **`7.1b`**: a plain `cad.build` or `cad.cascade` builds
+`revisions.CURRENT` is **`7.1c`**: a plain `cad.build` or `cad.cascade` builds
 the current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
 regress against is the shipped tree, which the Onshape pipeline built at 7.0 —

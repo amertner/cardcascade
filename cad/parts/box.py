@@ -186,6 +186,13 @@ PUSHER_REST_CAP = 25.000  # `Remove material, don't let pushers drop through`:
 #                           the cavity floor never sits higher than this
 DIVIDER_W = 1.600        # `Divider` between adjacent pusher slots
 HOLE_W = 10.000          # `Hanging holes` — the lattice through the back
+# From 7.1c the lattice is STOUTER (`stout_lattice`): the window is 9.000, so
+# the PIER between two of them takes the whole 1.000 — the pitch is fixed and
+# the pier absorbs whatever the window does not — and there are four rows
+# rather than three, so a pier is tied back to a bridge after 15.125 instead
+# of 20.833. The piers are what break. `spec/BOX.md`, "A stouter lattice".
+HOLE_W_STOUT = 9.000
+HOLE_ROWS_STOUT = 4
 HOLES_PER_SLOT = 5
 HOLE_INSET = 8.300       # first hole, from the left inner wall
 # A hanging hole stops this short of a storage divider's face when its own
@@ -354,10 +361,17 @@ def slot_band(d):
     return y0, y0 + L.BOX_SLOT_DEPTH
 
 
+def hole_w(d):
+    """The window's width. `stout_lattice` narrows it to widen the pier; the
+    PITCH does not move, so every 1.000 the window gives up is 1.000 the pier
+    gains, and only a window's +X edge moves."""
+    return HOLE_W_STOUT if d.rev.stout_lattice else HOLE_W
+
+
 def hanging_holes(d):
     """(x0, x1) of every opening in the back, left to right.
 
-    Five per horizontal slot, `HOLE_W` wide, at a pitch of
+    Five per horizontal slot, `hole_w` wide, at a pitch of
     `(calSlotwidth - 2.000) / 5` within a slot; the groups themselves repeat at
     `calSlotwidth`, so the pier between two slots is 2.000 wider than the piers
     inside one. First hole `HOLE_INSET` from the left inner wall — a constant on
@@ -366,7 +380,7 @@ def hanging_holes(d):
     pitch = (d.calSlotwidth - 2.0) / HOLES_PER_SLOT
     x0 = -box_width(d) / 2 + WALL + HOLE_INSET
     return [(x0 + k * d.calSlotwidth + j * pitch,
-             x0 + k * d.calSlotwidth + j * pitch + HOLE_W)
+             x0 + k * d.calSlotwidth + j * pitch + hole_w(d))
             for k in range(d.HorizontalSlots) for j in range(HOLES_PER_SLOT)]
 
 
@@ -386,12 +400,19 @@ def hole_openings(d):
     return out
 
 
-def hole_rows():
-    """(z0, z1) of each lattice row. Constant — the same three rows on every
-    reference, so this is not a function of the riser count."""
-    h = (HOLE_ROW_TOP - HOLE_ROW_BOTTOM - (HOLE_ROWS - 1) * HOLE_ROW_GAP) / HOLE_ROWS
+def hole_rows(d):
+    """(z0, z1) of each lattice row.
+
+    The BAND is constant — `HOLE_ROW_BOTTOM` to `HOLE_ROW_TOP` on every
+    reference, so this is not a function of the riser count — and the rows
+    divide it with `HOLE_ROW_GAP` between them. `stout_lattice` puts four rows
+    in the same band instead of three, which shortens the free run of a pier
+    from 20.833 to 15.125 and adds one more bridge to tie it back.
+    """
+    rows = HOLE_ROWS_STOUT if d.rev.stout_lattice else HOLE_ROWS
+    h = (HOLE_ROW_TOP - HOLE_ROW_BOTTOM - (rows - 1) * HOLE_ROW_GAP) / rows
     return [(HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP),
-             HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP) + h) for i in range(HOLE_ROWS)]
+             HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP) + h) for i in range(rows)]
 
 
 def rear_storage(d, part):
@@ -446,7 +467,7 @@ def rear_storage(d, part):
     # spec/BOX.md.
     divs = storage_dividers(d)
     for x_lo, x_hi in hole_openings(d):
-        for z_lo, z_hi in hole_rows():
+        for z_lo, z_hi in hole_rows(d):
             cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y0, z_lo, z_hi))
             for a, e in _interval_minus(x_lo, x_hi, divs):
                 cuts.append(slab(a, e, BD / 2 - WALL, y1, z_lo, z_hi))
@@ -830,11 +851,12 @@ def front_pocket(d, part):
         solids.append(slab(lo, hi, fw - WALL / 2, back, 0.0, H))
     pocket = pocket.fuse(*solids)
     # `Slits in front pocket` — the SAME openings as the back's hanging holes,
-    # at the same X and the same three rows. The padding starts 5.800 in and
+    # at the same X and the same rows, `stout_lattice` and all: they are one
+    # sketch in the tree and stay one here. The padding starts 5.800 in and
     # the first hole 8.300 in, so no slit ever meets a pad or a divider.
     pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
                     for x_lo, x_hi in hanging_holes(d)
-                    for z_lo, z_hi in hole_rows()])
+                    for z_lo, z_hi in hole_rows(d)])
     # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
     # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
     # lip, so both only ever meet the panel.

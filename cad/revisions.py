@@ -67,14 +67,14 @@ from .refuse import refuse
 # defaults to; an older one is still buildable and is what every reference
 # STEP and cached mesh in `individual/` is compared against.
 #
-# `7.1a` and `7.1b` are 7.1 being ITERATED, and the LETTER is the point (Allan,
-# 2026-09-08): see "An unreleased release is iterated by LETTER" below. `7.1`
-# itself is deliberately NOT on the line — it is what the last letter is
+# `7.1a`, `7.1b` and `7.1c` are 7.1 being ITERATED, and the LETTER is the point
+# (Allan, 2026-09-08): see "An unreleased release is iterated by LETTER" below.
+# `7.1` itself is deliberately NOT on the line — it is what the last letter is
 # renamed to at the lock, and until then nothing can build or stamp it. An
 # earlier letter STAYS: parts stamped `CC 7.1a` exist, and a version you can
 # hold has to remain buildable.
-RELEASES = ("7.0", "7.1a", "7.1b")
-CURRENT = "7.1b"
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c")
+CURRENT = "7.1c"
 
 
 @dataclass(frozen=True)
@@ -114,6 +114,27 @@ class Rev:
                 "served every pocket at 7.1a, and 45 of the 50 are over "
                 "100 mm wide, four of them over 280. "
                 "`#calFingerHoleOffset` stops placing it: the pocket does",
+    })
+
+    stout_lattice: bool = field(metadata={
+        "since": "7.1c",
+        "spec": "spec/BOX.md and spec/HOLDER.md, 'A stouter lattice'",
+        "what": "the lattice window is 9.000 wide rather than 10.000 and "
+                "there are FOUR rows of them where there were three — the "
+                "Box's `Hanging holes` and the Holder's `Vertical slits in "
+                "holder` alike, and the front pocket's slits with them, "
+                "being the same openings (Allan, 2026-09-09). The pillar "
+                "between two windows takes the whole 1.000 the window gives "
+                "up, because the mullion is what absorbs the pitch; and it "
+                "is tied back to a bridge after 13.125 rather than 18.167. "
+                "Both halves are for the PILLARS, which break: the Holder's "
+                "are 1.800 x 0.800 at the narrowest slot width and print as "
+                "isolated islands standing free the whole window height, so "
+                "they snap at the base mid-print and end up hanging from the "
+                "bridge that closed over them. Filleting the window corners "
+                "was tried first and is NOT this: it prints worse, because a "
+                "fillet at a window's top corner turns a clean short bridge "
+                "into an overhang. Sides vertical, top horizontal",
     })
 
     thick_floor: bool = field(metadata={

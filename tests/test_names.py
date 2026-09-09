@@ -142,7 +142,7 @@ check("every cad title carries a version, and it is the default release",
 check("cad names 50 distinct projects",
       len({CC.title(row, d) for row, d in rows}), len(rows))
 # The OLD release is named explicitly and never taken from the default: the
-# default moves (it is 7.1b now, was 7.1a and was 7.0 before that), and a test
+# default moves (it is 7.1c now, was 7.1b and 7.1a and was 7.0 before that), and a test
 # that took it for both sides would compare a set with itself the moment it
 # did. `spec/REVISIONS.md`. The new side is the newest release on the line,
 # which during an unreleased release is its current LETTER — written that way

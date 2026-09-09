@@ -72,15 +72,15 @@ stamp, so a cad-built cascade can be told from an Onshape-exported one on the
 shelf — and, since the version went into the project name, in the file too.
 It is NOT the same geometry: 7.1 is where the Lid drops its middle pusher
 socket, and `cad/revisions.py` is the one place a release change lives.
-**An unreleased release is ITERATED BY LETTER and 7.1b is what builds today**
-(Allan, 2026-09-08): `7.1a`, `7.1b`, ... and then plain `7.1` at the lock, so
+**An unreleased release is ITERATED BY LETTER and 7.1c is what builds today**
+(Allan, 2026-09-09): `7.1a`, `7.1b`, ... and then plain `7.1` at the lock, so
 two parts printed from different states of an unfinished 7.1 can be told apart
 on the shelf. **A letter is a release like any other** — a member of
 `RELEASES`, of `lock.SAME_LOCK` and of `STAMP_SIGNATURES` — which is what
 makes it mean something: a change lands as a flag whose `since` is the NEW
 letter, so a 7.1a part stays reproducible instead of being quietly restated.
 `7.1` itself is deliberately NOT on the line until the lock, so nothing can
-stamp an unfinished `CC 7.1`. To bump: the letter into `RELEASES` and
+stamp an unfinished `CC 7.1`. The letters so far: `7.1a`, `7.1b`, `7.1c`. To bump: the letter into `RELEASES` and
 `SAME_LOCK`, `CURRENT` onto it, `since` on the new flag, a `STAMP_SIGNATURES`
 row — the tests take the newest release from `RELEASES[-1]` and need no edit.
 `spec/REVISIONS.md`, "An unreleased release is iterated by LETTER"; prose in
@@ -94,7 +94,7 @@ tree, because what it stages joins Onshape parts in a shipped cascade).
 **Every test that compares against a reference pins 7.0** through
 `tests/reference.py`; the default is a moving target by design.
 **A part now says its release TWICE** and `verify.py --stamps` reads both: the
-engraved `CC 7.1b` (`STAMP_SIGNATURES`) and a
+engraved `CC 7.1c` (`STAMP_SIGNATURES`) and a
 `CardCascade:Version` metadata string `cad.build` writes into every component
 (`mesh3mf.write(metadata=...)`). The glyph is what a person holding the plastic
 reads and it CANNOT tell 7.1 from 7.2, nor 7.1 from 7.1a — the letter is not a
@@ -123,7 +123,7 @@ been printed yet.
   `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
   A version is an opaque STRING — `7.1`, and possibly `7.1.1` or `7.1B` later —
   so nothing parses one: order is the position in `RELEASES`, and `HISTORICAL`
-  names the older versions still asked about (`6.6`). **7.1 carries four
+  names the older versions still asked about (`6.6`). **7.1 carries five
   changes**: the Lid cuts one socket per pusher (four Innovation M lids lose
   their unused MIDDLE socket); **every cascade takes TWO pushers** at any
   size, which restates 24 boxes — a slot, a divider and a pair of rim cutouts
@@ -134,8 +134,23 @@ been printed yet.
   `two_pushers` had just widened 24 of them — spread evenly, centred on the
   pocket, 10.000 of wall kept at each end, so `#calFingerHoleOffset` no longer
   places the cutout (`rear_thumbs_spread`, 2026-09-08).
-  A **7.0** build still cuts three, still lays a 1.600 floor, still cuts the
-  one Onshape cutout and still reproduces every STEP and cached mesh — all 50
+  7.1c adds a fifth, and it is the only flag that reaches TWO parts: the
+  lattice window is **9.000 wide with FOUR rows** where it was 10.000 with
+  three, in the Box's hanging holes and the Holder's `Vertical slits` alike.
+  The pitch and the row band do not move, so the PILLAR between two windows
+  takes the whole 1.000 and is tied back to a bridge after 13.125 rather than
+  18.167. The pillars are what break — the holder's is 1.800 x 0.800 at
+  `calSlotwidth 63` and prints as an ISLAND standing free the whole window
+  height, so it snaps at its base mid-print and hangs from the bridge that
+  closed over it. **Filleting the corners was tried on real prints and is
+  WORSE** (a top-corner fillet is an overhang where a square corner is a clean
+  bridge), so the rule is **sides vertical, top horizontal** and the change is
+  two numbers, not a shape. Read `box.hole_w`/`box.hole_rows` and
+  `holder.window_w`/`holder.window_rows`, never the constants
+  (`stout_lattice`, 2026-09-09).
+  A **7.0** build still cuts three pushers, still lays a 1.600 floor, still
+  cuts the one Onshape cutout, still cuts 10.000 windows in three rows and
+  still reproduces every STEP and cached mesh — all 50
   7.0 boxes rebuild byte-for-byte — which is the point of the mechanism, and
   it is what decided the wrinkle in the last change: several cutouts break a
   fillet chain OCCT will not take, so the outer back ledge leaves

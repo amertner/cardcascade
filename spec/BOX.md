@@ -414,6 +414,69 @@ thousandth of the fillet it would be missing — but on six boxes it moves enoug
 bytes in the written mesh to break the byte-for-byte 7.0 rebuild, and a
 release that has shipped must keep rebuilding to the byte.
 
+## A stouter lattice — a 7.1 RELEASE CHANGE
+
+**From 7.1c a lattice window is `9.000` wide and there are FOUR rows of them**
+(Allan, 2026-09-09), where every release before it has `10.000` and three. A
+release change and not a divergence: a 7.0 build still cuts Onshape's five
+`10.000` windows in three rows and still rebuilds all 50 boxes to the byte
+(`cad/revisions.py`, flag `stout_lattice`; `spec/REVISIONS.md`). The Holder
+takes the same change at the same release — `spec/HOLDER.md`, "A stouter
+lattice" — and so do the front pocket's slits, which are the same openings.
+
+### What moves, and what deliberately does not
+
+The PITCH does not move and neither does the row band. So:
+
+    window   10.000 -> 9.000        only a window's +X edge moves
+    pier     pitch - 10.000         -> pitch - 9.000, a flat +1.000 everywhere
+    rows     3 -> 4, dividing HOLE_ROW_BOTTOM..HOLE_ROW_TOP as before
+    pier run 20.833 -> 15.125       between one bridge and the next
+
+`(calSlotwidth - 2.000)/5` is untouched, `HOLE_INSET` is untouched, and
+`HOLE_ROW_BOTTOM`, `HOLE_ROW_TOP` and `HOLE_ROW_GAP` are untouched. Read
+`box.hole_w(d)` and `box.hole_rows(d)` rather than the constants: both are
+release-dependent from 7.1c and neither takes its old value for granted.
+
+| `calSlotwidth` | pier at 7.1b | pier at 7.1c |
+|---|---|---|
+| 63.0 (FCM) | `2.200` | `3.200` |
+| 65.0 (Dominion) | `2.600` | `3.600` |
+| 67.0 (Innovation Un) | `3.000` | `4.000` |
+| 68.0 (Compile Un) | `3.200` | `4.200` |
+| 69.0 (Innovation Sl) | `3.400` | `4.400` |
+| 70.0 (Compile Sl) | `3.600` | `4.600` |
+
+### Why
+
+The piers break, in print and in the hand. The box's are `1.300` thick — the
+back wall is `WallThickness` less `SLOT_BITE`, not `1.600` — and `2.200` wide
+at the narrowest slot width, standing `20.833` between bridges. In the back
+pocket, where `rear_storage` empties the whole slot band, the pier is not even
+one column: it is a `1.300` and a `1.600` with `3.200` of air between them.
+
+The change is a width and a row count and **not a shape**, and that is the
+whole of the design constraint. Filleting the window corners is the obvious
+move and it was tried first, on test prints: it is WORSE. A fillet at a
+window's TOP corner turns a clean short bridge into a progressively worsening
+overhang, and the window's sides stop running vertical, so every layer steps.
+Coupons with pointed BOTTOMS — the self-supporting direction — printed clean;
+every rounded or pointed TOP printed rough. **Sides vertical, top horizontal**
+is the rule that survived, and a narrower window with more rows obeys it.
+
+Narrowing also shortens every bridge by 10%, which is a small bonus rather
+than a risk; adding a row adds a third more bridges, which is the counterweight
+and is much the smaller term, a pier's stiffness going as the cube of its free
+run.
+
+### What has to be re-run
+
+`hole_openings` nudges a hole edge by `HOLE_CLEAR` wherever it lands EXACTLY on
+a storage divider's face, which is what clears the line contact on the three
+sleeved Innovation boxes. This change moves every window's `+X` edge, so which
+edges coincide is not the same question it was: `tests/test_build_meshes.py` is
+the check and it has to pass at 7.1c as well as at 7.0.
+
 ## `Smooth box edges` is a `0.600` fillet, and there is a ground truth for it
 
 Allan exported `Box Dominion 246S` twice, once with the final fillet suppressed.
@@ -582,6 +645,10 @@ reaching from the card side to the outer wall.
 Three rows, also constant (**not** a function of riser count): `z 3.000..23.833`,
 `25.833..46.667`, `48.667..69.500` — `20.833` tall with `2.000` between, and the
 back solid from `69.500` to the rim.
+
+From 7.1c the window is `9.000` and there are FOUR rows in the same band —
+"A stouter lattice", below. Everything else in this section holds at every
+release: the pitch, the inset, the groups' repeat and the band's ends.
 
 `tests/test_box.py` reproduces every hole position exactly on all six
 references — 15 holes at `HorizontalSlots 3`, 20 at 4, 25 at 5.

@@ -88,7 +88,7 @@ def probe_box(V, T, p, d):
     BW, BD = box.box_width(d), box.box_depth(d)
     inner = BW / 2 - box.WALL
     y0, _y1 = box.slot_band(d)
-    z_row = box.hole_rows()[1]                 # the middle row, mid-height
+    z_row = box.hole_rows(d)[1]                # the middle row, mid-height
     z_mid = (z_row[0] + z_row[1]) / 2 + EPS
     # Hanging holes: an X ray through the OUTER back wall reads them as gaps.
     holes = probe.gaps(probe.spans(V, T, 0, BD / 2 - box.WALL / 2 + EPS, z_mid))

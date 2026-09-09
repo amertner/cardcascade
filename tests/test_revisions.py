@@ -488,6 +488,138 @@ with tempfile.TemporaryDirectory() as tmp:
         fatal, _warn = V.check_stamp(written[v], other)
         check(f"a {v} part is refused as {other}", fatal is not None, True)
 
+# --- 7.1c: a stouter lattice ------------------------------------------------
+print(f"\n=== {NEW}  stout_lattice ===")
+asserted.add("stout_lattice")
+# Two halves, asserted separately because they answer different halves of the
+# failure. The window is narrower, so the PILLAR between two of them is wider
+# — that is bond area, and a pillar snaps across its layers. And there is one
+# more ROW, so the pillar is tied back to a bridge sooner — that is free
+# height, which is what lets the nozzle and the bridge above break it during
+# the print. `spec/BOX.md` and `spec/HOLDER.md`, "A stouter lattice".
+OLD = R.RELEASES[R.position(NEW) - 1]
+
+
+def mullions(d):
+    """The gaps between the five windows of the holder's first window row."""
+    row0 = sorted(holder_part.window_grid(d)[:holder_part.COLS])
+    return [round(row0[c + 1][0] - row0[c][1], 6)
+            for c in range(holder_part.COLS - 1)]
+
+
+def only(d, flag):
+    """`d` with THIS flag on and every other release change off."""
+    return D.Derived(dict(d.items()),
+                     R.Rev(**{f.name: f.name == flag for f in R.flags()}))
+
+
+# --- the width. The pitch does not move, so every 1.000 the window gives up
+# is 1.000 the pillar gains, and only a window's +X edge moves.
+for v, want in ((OLD, 10.0), (NEW, 9.0)):
+    check(f"{v}: every box hanging hole is {want:.3f} wide",
+          sorted({round(b - a, 3) for r in rows() for s in (0, 1)
+                  for a, b in box_part.hanging_holes(at(r, s, v))}), [want])
+    check(f"{v}: every holder window is {want:.3f} wide",
+          sorted({round(x1 - x0, 3) for r in rows() for s in (0, 1)
+                  for x0, x1, _z0, _z1 in holder_part.window_grid(at(r, s, v))}),
+          [want])
+
+moved, gained = set(), set()
+for row_ in rows():
+    for sleeved in (0, 1):
+        do, dn = at(row_, sleeved, OLD), at(row_, sleeved, NEW)
+        if [round(a, 6) for a, _b in box_part.hanging_holes(do)] != \
+           [round(a, 6) for a, _b in box_part.hanging_holes(dn)]:
+            moved.add(f"{do.calModelName} box")
+        if sorted({round(x0, 6) for x0, _x1, _z0, _z1
+                   in holder_part.window_grid(do)}) != \
+           sorted({round(x0, 6) for x0, _x1, _z0, _z1
+                   in holder_part.window_grid(dn)}):
+            moved.add(f"{do.calModelName} holder")
+        ho, hn = box_part.hanging_holes(do), box_part.hanging_holes(dn)
+        gained.add(round((hn[1][0] - hn[0][1]) - (ho[1][0] - ho[0][1]), 6))
+        gained.add(round(mullions(dn)[0] - mullions(do)[0], 6))
+check("no window's -X edge moves — the pitch is untouched", sorted(moved), [])
+check("so the pillar gains exactly what the window gave up, both parts",
+      sorted(gained), [1.0])
+
+# --- the rows. The BAND does not move either: four rows divide
+# HOLE_ROW_BOTTOM..HOLE_ROW_TOP where three did.
+for v, n, tall in ((OLD, 3, 20.833), (NEW, 4, 15.125)):
+    check(f"{v}: the box lattice has {n} rows",
+          sorted({len(box_part.hole_rows(at(r, s, v)))
+                  for r in rows() for s in (0, 1)}), [n])
+    check(f"{v}: and a box pier runs {tall} free",
+          sorted({round(b - a, 3) for r in rows() for s in (0, 1)
+                  for a, b in box_part.hole_rows(at(r, s, v))}), [tall])
+    check(f"{v}: the rows still fill HOLE_ROW_BOTTOM..HOLE_ROW_TOP",
+          sorted({(round(box_part.hole_rows(at(r, s, v))[0][0], 6),
+                   round(box_part.hole_rows(at(r, s, v))[-1][1], 6))
+                  for r in rows() for s in (0, 1)}),
+          [(box_part.HOLE_ROW_BOTTOM, box_part.HOLE_ROW_TOP)])
+    check(f"{v}: the holder has {n} window rows",
+          sorted({len(holder_part.window_grid(at(r, s, v))) // holder_part.COLS
+                  for r in rows() for s in (0, 1)}), [n])
+
+unfilled = set()
+for row_ in rows():
+    for sleeved in (0, 1):
+        for v in (OLD, NEW):
+            dd = at(row_, sleeved, v)
+            _w, hh, z0 = holder_part.outline(dd)
+            top = max(z1 for _a, _b, _c, z1 in holder_part.window_grid(dd))
+            if round(top + holder_part.RAIL - (z0 + hh), 6) != 0.0:
+                unfilled.add((dd.calModelName, v))
+check("the windows and their rails still fill the outline exactly",
+      sorted(unfilled), [])
+
+# --- the worst case in the catalogue, named: FCM at calSlotwidth 63, whose
+# mullion is the thinnest thing either part has.
+worst = next((r, s) for r in rows() for s in (0, 1)
+             if at(r, s, OLD).calSlotwidth == 63.0)
+dwo, dwn = at(*worst, OLD), at(*worst, NEW)
+check(f"the narrowest holder mullion: {OLD} 1.800 -> {NEW} 2.800",
+      [mullions(dwo)[0], mullions(dwn)[0]], [1.8, 2.8])
+gwo, gwn = holder_part.window_grid(dwo)[0], holder_part.window_grid(dwn)[0]
+check(f"and its free run: {OLD} 18.167 -> {NEW} 13.125",
+      [round(gwo[3] - gwo[2], 3), round(gwn[3] - gwn[2], 3)], [18.167, 13.125])
+# The decoupling. 7.0's window width IS `#LipLength`, reused; the rear lip is
+# the same variable doing its real job and it does NOT follow the window.
+check("the rear lip keeps #LipLength — the window has parted from it",
+      [holder_part.LIP_LEN, holder_part.window_w(dwn)], [10.0, 9.0])
+
+# --- built, with THIS flag alone against 7.0: the engraved `CC 7.0`, the
+# pusher count and the floor are then identical, so every difference is the
+# lattice's. It differs BOTH ways — a row boundary moves, so an old rail's
+# material goes and a new one's arrives — and the sharp claim is that all of
+# it lies inside the lattice band and nothing else on the part moves at all.
+for label, part_mod, d70, band in (
+        ("holder", holder_part, at(*worst, "7.0"), None),
+        ("box", box_part, at(*worst, "7.0"),
+         (box_part.HOLE_ROW_BOTTOM, box_part.HOLE_ROW_TOP))):
+    dst = only(d70, "stout_lattice")
+    if band is None:
+        _w, hh, z0 = holder_part.outline(d70)
+        band = (z0, z0 + hh)
+    a, b = part_mod.build(d70), part_mod.build(dst)
+    ba, bb_ = a.bounding_box(), b.bounding_box()
+    check(f"{label}: the part does not grow — same bounding box",
+          [round(v, 4) for v in (bb_.min.X, bb_.min.Y, bb_.min.Z,
+                                 bb_.max.X, bb_.max.Y, bb_.max.Z)],
+          [round(v, 4) for v in (ba.min.X, ba.min.Y, ba.min.Z,
+                                 ba.max.X, ba.max.Y, ba.max.Z)])
+    for way, diff in (("gains", b - a), ("loses", a - b)):
+        check(f"{label}: it {way} material — the lattice is restated, not nudged",
+              diff is not None and diff.volume > 1e-6, True)
+        if diff is None:
+            continue
+        dbb = diff.bounding_box()
+        check(f"{label}: and what it {way} lies inside the lattice band "
+              f"{band[0]:.3f}..{band[1]:.3f}",
+              [dbb.min.Z >= band[0] - 1e-4, dbb.max.Z <= band[1] + 1e-4],
+              [True, True])
+
+
 # --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",

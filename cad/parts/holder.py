@@ -246,11 +246,12 @@ def card_pockets(d, first, part):
 #     HoleOutlineWidth  = calSlotwidth - 6.000
 #     HoleOutlineHeight = 76.500 - calHeightIncrement
 #
-# Rows are three windows of (H - 6)/3 with a RAIL between and above them, so the
-# three windows and three rails fill H exactly. Columns are five windows of a
-# FIXED LIP_LENGTH at (W + 2)/5 pitch, left-aligned on the outline, and the
-# mullion absorbs every bit of the variation. That last point is measured, not
-# assumed: across five slot widths and three games the corpus reads
+# Rows are `window_rows` windows of (H - 2*rows)/rows with a RAIL between and
+# above them, so the windows and their rails fill H exactly. Columns are five
+# windows of a FIXED `window_w` at (W + 2)/5 pitch, left-aligned on the
+# outline, and the mullion absorbs every bit of the variation. That last point
+# is measured, not assumed: across five slot widths and three games the corpus
+# reads
 #
 #     65 -> 10.0 2.2 ...   67 -> 10.0 2.6 ...   68 -> 10.0 2.8 ...
 #     69 -> 10.0 3.0 ...   70 -> 10.0 3.2 ...
@@ -258,10 +259,29 @@ def card_pockets(d, first, part):
 # with the window a flat 10.000 every time. Because the pattern is left-aligned
 # and 5 windows plus 4 mullions come to 4*pitch + 10, `pitch - 12.000` is left
 # over on the right; that asymmetry is the reference's, not an error.
-LIP_LENGTH = 10.000        # `#LipLength`, a constant (Allan)
+# 7.0's window width is `#LipLength` REUSED — the studio writes the window in
+# terms of the lip's own length, and 10.000 is the lip's number, not a window
+# anyone sized. `LIP_LEN` below is the same variable doing its actual job on
+# the rear lip and it does NOT move; from 7.1c these two part company, which
+# is why the window has a name of its own here.
+WINDOW_W = 10.000          # 7.0: `#LipLength`, a constant (Allan)
 RAIL = 2.000               # between the window rows
 ROWS = 3
 COLS = 5
+# From 7.1c the lattice is STOUTER (`stout_lattice`). The MULLION is what
+# breaks: at `calSlotwidth 63` it is 1.800 wide on an 0.800 wall and stands
+# 18.167 with nothing tying it back, and in every layer inside a window row it
+# is an ISLAND — 4 per compartment per wall, each a free cantilever the nozzle
+# brushes and the bridge above pulls on. It snaps at its base mid-print and is
+# then captured by that bridge, which is why it is found hanging from it.
+# 9.000 hands the mullion the whole 1.000 (+56% of section at 63) and a fourth
+# row cuts the free run to 13.125 (tip deflection 0.24x). Sides stay vertical
+# and tops stay horizontal, which is the constraint: filleting these corners
+# was tried on real prints and is WORSE, a top corner fillet being an overhang
+# where a square one is a clean short bridge. `spec/HOLDER.md`, "A stouter
+# lattice".
+WINDOW_W_STOUT = 9.000
+ROWS_STOUT = 4
 OUTLINE_INSET = 3.000      # each side of the slot
 OUTLINE_BASE = 2.000       # above the card pocket's bottom
 OUTLINE_TOP_TERM = 76.500  # HoleOutlineHeight = this - calHeightIncrement
@@ -274,17 +294,31 @@ def outline(d):
             pocket_z(d)[0] + OUTLINE_BASE)
 
 
+def window_w(d):
+    """The window's width. `stout_lattice` narrows it to widen the mullion:
+    the PITCH does not move, so every 1.000 the window gives up is 1.000 the
+    mullion gains, and only a window's +X edge moves."""
+    return WINDOW_W_STOUT if d.rev.stout_lattice else WINDOW_W
+
+
+def window_rows(d):
+    """How many rows the outline is divided into. `stout_lattice` puts four in
+    the same height, which shortens a mullion's free run between rails."""
+    return ROWS_STOUT if d.rev.stout_lattice else ROWS
+
+
 def window_grid(d):
     """(x0, x1, z0, z1) of every lattice window in the FIRST compartment."""
     w, h, z0 = outline(d)
-    win_h = (h - ROWS * RAIL) / ROWS
+    rows = window_rows(d)
+    win_h = (h - rows * RAIL) / rows
     pitch = (w + 2.0) / COLS
     out = []
-    for r in range(ROWS):
+    for r in range(rows):
         zr = z0 + r * (win_h + RAIL)
         for c in range(COLS):
             xc = -w / 2 + c * pitch
-            out.append((xc, xc + LIP_LENGTH, zr, zr + win_h))
+            out.append((xc, xc + window_w(d), zr, zr + win_h))
     return out
 
 

@@ -207,15 +207,15 @@ for name, fn, p in REFS:
               zprofile(x_pier, y0 + 1.6, shape)[0], (0.0, round(rest, 3)))
     # The hanging holes, read off the back wall as gaps along X.
     bar = Box(box.box_width(d) + 20, 0.4, 0.4).moved(
-        Location((0, BD / 2 - 0.95, box.hole_rows()[0][0] + 3.0)))
+        Location((0, BD / 2 - 0.95, box.hole_rows(d)[0][0] + 3.0)))
     pieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
                     for q in (ref & bar).solids())
     gaps = [(round(a[1], 3), round(b[0], 3)) for a, b in zip(pieces, pieces[1:])]
     want = [(round(a, 3), round(b, 3)) for a, b in box.hanging_holes(d)]
     check("hanging hole count", len(gaps), len(want))
     check("hanging hole positions", gaps, want)
-    check("every hanging hole is HOLE_W wide",
-          sorted({round(b - a, 3) for a, b in gaps}), [round(box.HOLE_W, 3)])
+    check("every hanging hole is hole_w wide",
+          sorted({round(b - a, 3) for a, b in gaps}), [round(box.hole_w(d), 3)])
     # The build cuts `hole_openings`, which is `hanging_holes` unless an edge
     # lands on a divider face (HOLE_CLEAR). None of the nine references is one
     # of the three boxes where it does, so here the two must be the same and
@@ -412,7 +412,7 @@ for name, fn, p in REFS:
                   round(c0 - bb.center().X, 3), round(box.LIP_OFFSET, 3), 1e-3)
         # ... and carries the back wall's lattice exactly.
         bar = Box(box_w + 20, 0.2, 0.05).moved(
-            Location((0, (fb + pback) / 2, box.hole_rows()[0][0] + 3.0)))
+            Location((0, (fb + pback) / 2, box.hole_rows(d)[0][0] + 3.0)))
         pieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
                         for q in (shape & bar).solids())
         check(f"{who}: the panel's slits are the back's hanging holes",

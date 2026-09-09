@@ -267,14 +267,17 @@ for name, fn, p, first in REFS:
     # --- the lattice --------------------------------------------------------
     # Three window rows of (H-6)/3 between 2.000 rails, five columns of a FIXED
     # 10.000 at (W+2)/5 pitch. Every window edge is a face of the STEP too.
+    # The references are 7.0, so this is the pre-`stout_lattice` grid; what the
+    # flag makes of it is `tests/test_revisions.py`'s.
     grid = holder.window_grid(d)
-    check("15 windows per compartment", len(grid), holder.ROWS * holder.COLS)
-    check("every window is LIP_LENGTH wide",
+    check("15 windows per compartment", len(grid),
+          holder.window_rows(d) * holder.COLS)
+    check("every window is window_w wide",
           sorted({round(x1 - x0, 3) for x0, x1, _, _ in grid}),
-          [round(holder.LIP_LENGTH, 3)])
+          [round(holder.window_w(d), 3)])
     w, h, _ = holder.outline(d)
-    check("the mullion is the pitch less LIP_LENGTH, not a constant",
-          round((w + 2.0) / holder.COLS - holder.LIP_LENGTH, 3),
+    check("the mullion is the pitch less the window, not a constant",
+          round((w + 2.0) / holder.COLS - holder.window_w(d), 3),
           round((d.calSlotwidth - 6.0 + 2.0) / 5 - 10.0, 3), 1e-3)
     xs, zs = planes(ref, "X"), planes(ref, "Z")
     # NB not x0/x1: those are the PART's ends, used again further down, and
