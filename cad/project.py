@@ -62,11 +62,19 @@ PLATE_STRIDE = 1.2          # plates sit on a grid at 1.2 x the plate size
 FILAMENTS = ("#FFFFFF", "#000000")
 BODY, INLAY = 1, 2          # the only two slots: bodies, and a mark's inlays
 
-# Process settings this repo insists on, whatever the profile says. Arachne
-# varies the wall width to fill what it is given; classic leaves the remainder
-# of a thin wall as gap fill, which on these boxes is exactly where the slot
-# dividers and the lid lettering are. A copy of make_cascade.PRINT_SETTINGS.
-PRINT_SETTINGS = {"wall_generator": "arachne"}
+# Process settings this repo insists on, whatever the profile says: arachne
+# because classic leaves a thin wall's remainder as gap fill, which on these
+# boxes is exactly where the slot dividers and the lid lettering are;
+# `seam_position: back` because `aligned` columns a seam up a slider rib,
+# whose flank is the one surface in a cascade with no slack behind it; and no
+# ironing, which costs time for a finish nothing here needs. A copy of
+# make_cascade.PRINT_SETTINGS, whose comment and PIPELINE.md carry the whole
+# reasoning.
+PRINT_SETTINGS = {
+    "wall_generator": "arachne",
+    "seam_position": "back",
+    "ironing_type": "no ironing",
+}
 
 # What Studio wrote the shipped files with. Kept as the Application string
 # because it is a FORMAT marker — Studio reads it to decide how to interpret

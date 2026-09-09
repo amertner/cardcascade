@@ -126,10 +126,23 @@ def strip_capacity(bed, longest, depth, gap):
                strip_band(bed, longest, depth, gap))
 
 # Process settings this repo insists on, whatever the template/profile says.
-# Arachne varies the wall width to fill what it is given; classic lays down
-# fixed-width walls and leaves the remainder as gap filler, which on these
-# boxes is exactly where the thin slot dividers and the lid lettering are.
-PRINT_SETTINGS = {"wall_generator": "arachne"}
+# Each one is a print DEFECT or a cost this repo will not ship; PIPELINE.md,
+# "Process settings", carries the reasoning.
+#
+#   wall_generator  arachne varies the wall width to fill what it is given;
+#                   classic lays down fixed-width walls and leaves the
+#                   remainder as gap filler, which on these boxes is exactly
+#                   where the thin slot dividers and the lid lettering are.
+#   seam_position   `back` keeps the seam off the box's SLIDER RIBS, whose
+#                   flanks are the one surface in a cascade with no slack
+#                   behind them. `aligned` columns a seam up one of them.
+#   ironing_type    ironing costs a lot of time for a finish nothing here
+#                   needs, and three shipped projects inherited `top`.
+PRINT_SETTINGS = {
+    "wall_generator": "arachne",
+    "seam_position": "back",
+    "ironing_type": "no ironing",
+}
 
 
 def fail(msg):
@@ -149,9 +162,12 @@ def force_print_settings(ps):
 
     `different_settings_to_system[0]` is the PROCESS entry — Studio lists
     there, semicolon-separated, the keys this project changed from its stock
-    preset (in this repo: enable_arc_fitting, sparse_infill_pattern,
-    ironing_type). A changed key missing from that list is what makes Studio
-    display the stock value while the project prints its own."""
+    preset (in this repo: enable_arc_fitting and sparse_infill_pattern from
+    the donors, plus every PRINT_SETTINGS key). A changed key missing from
+    that list is what makes Studio display the stock value while the project
+    prints its own; every PRINT_SETTINGS key is added whether or not this
+    project's value moved, because over-listing only shows a value Studio
+    would show anyway and under-listing is the bug."""
     changed = sorted(k for k, v in PRINT_SETTINGS.items() if ps.get(k) != v)
     if not changed:
         return ps, []

@@ -332,8 +332,16 @@ been printed yet.
   same is true of the hand-exported Lid STEPs, and `cad.build` writes them the
   same way — `Lid`, `Part 2`, `Part 3`, ...
 - Every generated project carries exactly **two filament slots: white 1,
-  black 2**, and `wall_generator: arachne` (forced by
-  `make_cascade.PRINT_SETTINGS` on every path).
+  black 2**, and three process settings forced by
+  `make_cascade.PRINT_SETTINGS` on every path (`cad/project.py` keeps a copy;
+  `tests/test_project.py` holds them equal): `wall_generator: arachne`,
+  `seam_position: back` and `ironing_type: no ironing`. The seam one is a
+  **FIT, not a finish** — under `aligned` the slicer columns the box cavity's
+  seam up the REARMOST slider rib, and the rib's flank is the only surface in
+  a cascade with no slack behind it (0.200 a side, and the rib is captured in
+  the holder's groove), so that seam is what users file off. `back` is safe at
+  any plate angle because the ribs stand INWARD and so are never on the
+  cavity outline's convex hull. `automation/PIPELINE.md`, "Process settings".
 - **A component's ENGRAVED version and its RECORDED version come from different
   places** — Onshape's `Version` primary (`set_variables.build_primary`) against
   `onshape_config.expected_version()` — and they drifted once: 36 of the 128 boxes,

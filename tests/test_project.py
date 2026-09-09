@@ -137,16 +137,26 @@ with tempfile.TemporaryDirectory() as tmp:
     cfg = zf.read("Metadata/model_settings.config").decode()
     check("two slots, white then black", ps["filament_colour"], list(PJ.FILAMENTS))
     check("both slots used", FIL.used_extruders(cfg), [1, 2])
-    check("arachne", ps["wall_generator"], "arachne")
-    check("arachne listed as a process deviation",
-          "wall_generator" in ps["different_settings_to_system"][0].split(";"), True)
+    for k, v in sorted(PJ.PRINT_SETTINGS.items()):
+        check(f"forced: {k}", ps[k], v)
+        check(f"{k} listed as a process deviation",
+              k in ps["different_settings_to_system"][0].split(";"), True)
     check("stock printer preset", ps["printer_settings_id"], FIL.stock_printer_id(ps))
     check("MakerWorld: nothing blocking",
           [x for x in FIL.makerworld_problems(ps) if x[3]], [])
     check("prime tower inside both nozzles' reach on every plate", towers.problems(out), [])
     shipped_ps = json.loads(zipfile.ZipFile(SHIPPED).read("Metadata/project_settings.config"))
-    diff = sorted(k for k in ps if k in shipped_ps and ps[k] != shipped_ps[k])
-    check("settings are the shipped project's (the profile's)", diff, [])
+    # Every key but the ones this repo forces: PRINT_SETTINGS is applied on
+    # every path precisely so a project does NOT keep what its donor gave it
+    # (the shipped tree is `seam_position: aligned` throughout, and three
+    # Dominion projects carry `ironing_type: top`), and the process entry of
+    # `different_settings_to_system` moves with them. Those are checked above,
+    # by value; this holds the other ~560 to the profile.
+    forced = set(PJ.PRINT_SETTINGS) | {"different_settings_to_system"}
+    diff = sorted(k for k in ps
+                  if k in shipped_ps and k not in forced and ps[k] != shipped_ps[k])
+    check("settings are the shipped project's (the profile's), bar PRINT_SETTINGS",
+          diff, [])
     members = sorted(zf.namelist())
     check("members Studio expects present",
           all(m in members for m in ("3D/3dmodel.model", "3D/_rels/3dmodel.model.rels",

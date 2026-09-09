@@ -1547,25 +1547,66 @@ Mini rebuild instead of just the projects that already inherited it.
 
 ## Process settings — `make_cascade.PRINT_SETTINGS`
 
-Every project this repo writes uses the **Arachne** wall generator
-(`wall_generator: arachne`). It varies wall width to fill the space it is
+Three keys, each of them a print defect or a cost this repo will not ship.
+`cad/project.py` carries a copy and `tests/test_project.py` holds the two
+equal, so they cannot drift apart.
+
+**`wall_generator: arachne`.** It varies wall width to fill the space it is
 given; classic lays fixed-width walls and leaves the remainder to gap fill,
 which on these boxes is precisely where the thin slot dividers and the lid
 lettering are.
 
-Setting it in `profiles/*.config` alone is not enough — a project inherits its
-whole config from its donor, and the profile is only consulted when
-`--auto-plates` actually *swaps* the bed. That is why the four Innovation
-projects (built from an arachne donor) carried it while every other project
-carried classic. `make_cascade.force_print_settings` therefore applies
+**`seam_position: back`** (Allan, 2026-09-09), and this one is a FIT, not a
+finish. Under `aligned` the slicer columns the box cavity's seam up a **slider
+rib** — the rearmost, which is the one rib printed within `calSliderDistance/2`
+(2.340 to 6.600 mm across the catalogue) of the rear inside corner, so the
+nozzle reaches it with no run-up either side. A seam there is a full-height
+ridge on the rib's flank, and the flank is the one surface in a cascade with
+**no slack behind it**: `SLOT_W 1.900` against `SLIDER_W 1.500` is 0.200 a
+side, and the rib is captured in the groove, so a bump binds the holder's
+travel directly. Users file it off. Every other surface of that pair is on the
+LATERAL axis, which carries 1.300 mm of slop (holder 0.650 a side in the box;
+`spec/HOLDER.md`, "The side slot is the BOX's rib"), so a seam anywhere there
+only nudges the holder sideways.
+
+`back` is safe for a structural reason rather than a lucky one, which matters
+because `cad/layout.py` gives the box no fixed plate angle (28 of 50 boxes are
+turned on a P1, 48 of 50 on a mini). The ribs stand **inward** from the end
+walls, so they are never on the convex hull of the cavity outline; `back`
+takes the loop's rearmost point, which at any angle is a cavity corner. Checked
+in the slicer on the Box, the Lid and the Holder before it was adopted — on the
+Holder it moves the seam from inside the groove (0.680 mm of diagonal room to
+the rib's tip arris) to the end block's outer face (0.650 to the box wall),
+which is the same order of clearance and visible enough to file if it ever
+matters. `Metadata/model_settings.config` would take a per-object override if
+one part ever wants its own rule; none does today.
+
+**`ironing_type: no ironing`** (Allan, 2026-09-09) — a lot of extra time for a
+finish nothing here needs. 46 of the 49 shipped projects were already at it.
+The other three are `Dominion 400 Card (Mat) Sl`, `472 Card Sl` and `650 Card
+Sl`, and they are the same story arachne was: `profiles/h2c.config` says
+`top`, a profile REPLACES a project's whole settings on a bed swap, and only
+those three of the twelve H2C projects were built through one — the other nine
+came from donors already at `no ironing`. Exactly the inheritance this section
+exists to stop.
+
+Setting any of them in `profiles/*.config` alone is not enough — a project
+inherits its whole config from its donor, and the profile is only consulted
+when `--auto-plates` actually *swaps* the bed. That is why the four Innovation
+projects (built from an arachne donor) carried arachne while every other
+project carried classic. `make_cascade.force_print_settings` therefore applies
 `PRINT_SETTINGS` on **every** path, including `--keep-layout`, and records each
-override in `different_settings_to_system[0]` — the process entry, where Studio
-lists (semicolon-separated) the keys a project changed from its stock preset.
-A changed key missing from that list makes Studio show the stock value while
-the project prints its own.
+in `different_settings_to_system[0]` — the process entry, where Studio lists
+(semicolon-separated) the keys a project changed from its stock preset. A
+changed key missing from that list makes Studio show the stock value while the
+project prints its own, so every `PRINT_SETTINGS` key is listed whether or not
+this project's value moved: over-listing shows a value Studio would show
+anyway, under-listing is the bug.
 
 Existing projects pick this up the next time they pass through `make_cascade`,
-i.e. on any `refresh_cascades.py` run; two keys change and nothing else.
+i.e. on any `refresh_cascades.py` run. Run over the 49 shipped projects the
+three keys converge on all of them, and between them they move 49 seams, 3
+ironing settings and 1 remaining `classic` wall generator.
 
 ## Filament slots — `filaments.py`
 

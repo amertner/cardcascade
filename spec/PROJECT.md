@@ -46,15 +46,19 @@ plate, and the filament colour order (the profile is black then white; every
 cascade is white in slot 1, black in slot 2, with `flush_volumes_matrix`
 swapped to match). Every other key of the 568 is the profile's. The A1 mini
 and H2C projects differ by a handful of hand edits besides (`curr_bed_type`,
-`ironing_type`, `filament_nozzle_map` lengths) that PIPELINE.md records as
-stale or cosmetic; the profile is the reference and the writer writes it.
+`filament_nozzle_map` lengths) that PIPELINE.md records as stale or cosmetic;
+the profile is the reference and the writer writes it. `ironing_type` was one
+of them until 2026-09-09, when it joined `PRINT_SETTINGS` and stopped being
+inherited at all.
 
 So the writer takes the profile whole, sets the colours through
 `filaments.remap` (which turns the flush matrix with them), forces
-`PRINT_SETTINGS` (`wall_generator: arachne`, and the key added to the process
-entry of `different_settings_to_system`, or Studio shows the stock value while
-the project prints its own — `make_cascade.force_print_settings`), and writes
-one tower coordinate per plate.
+`PRINT_SETTINGS` — `wall_generator: arachne`, `seam_position: back` and
+`ironing_type: no ironing`, each key added to the process entry of
+`different_settings_to_system`, or Studio shows the stock value while the
+project prints its own (`make_cascade.force_print_settings`; PIPELINE.md,
+"Process settings", has why each one is there, and the seam is a FIT rather
+than a finish) — and writes one tower coordinate per plate.
 
 Ten shipped projects are on a **P1S**, for which there is no profile:
 Compile 105 and 126, Dominion 300 and 333, FCM Occupations 1. parts.csv's
