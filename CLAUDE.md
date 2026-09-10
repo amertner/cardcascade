@@ -117,7 +117,19 @@ been printed yet.
 
 - The Lid's logo is one place `cad/` **deliberately differs** from
   Onshape: the mark is fitted to the lid instead of drawn at one or two fixed
-  sizes. Two constants in `cad/parts/lid.py` are the whole policy.
+  sizes. Three constants in `cad/parts/lid.py` are the whole policy —
+  `LOGO_WIDTH_FRACTION`, `LOGO_DEPTH_FRACTION` and `LOGO_CLEAR`, the last
+  being how far the ink stays off the outer rounds (0.500, Allan 2026-09-10).
+  The hard clamp is measured **per side on the ink** (`marks.reach`), not as
+  the mark's size against the flat floor: a drawing is not centred on the lid,
+  so the two differ, and the size clamp had let Compile's smallest lid cut
+  0.561 into its round with its height exactly filling the floor. That lid is
+  now the binding case at BOTH ends — 0.8553 for the clearance, and its 0.250
+  strokes are 0.214 there against `text.FLOOR_CUT`'s 0.200, so about 0.06 more
+  clearance would put them under. The plain Innovation mark is also placed on
+  its WORD rather than its bounding box (`marks._centre`): the ring and star
+  stand above the letters and nothing stands below them, so a box datum put
+  the word 1.494 low on the lid. `spec/LID.md`.
 - **A RELEASE change is NOT a divergence**, and `cad/revisions.py` is the one
   place a release change lives (`spec/REVISIONS.md`). A divergence is `cad/`
   against Onshape at the same version, forever; a release change is `cad/` 7.0

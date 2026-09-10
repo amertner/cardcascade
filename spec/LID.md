@@ -467,7 +467,8 @@ PROPORTION — Allan's drawn marks sit at 22..79 % of their tightest lid's width
 
 ```
 want  = min(WIDTH_FRACTION * W / w,  DEPTH_FRACTION * D / h)     0.600, 0.850
-hard  = min((W - 2*OUTER_ROUND) / w, (D - 2*OUTER_ROUND) / h)
+hard  = min over the four SIDES of  (limit - b) / a              marks.reach
+        where limit = half the lid less OUTER_ROUND less LOGO_CLEAR
 scale = min(max(want, 1.0), hard)
 ```
 
@@ -477,16 +478,78 @@ The two clamps are what keep it honest at the ends:
   that would shrink marks already published, and the ask was for bigger;
 * it **is** taken below to satisfy `hard`, because a pocket that runs into an
   outer round breaks the rim. Compile's smallest lid is the one that needs it:
-  its mark is `39.333` deep on a `37.700` lid and comes down to `0.908`.
+  its mark is `39.333` deep on a `37.700` lid and comes down to `0.855`.
   Onshape draws that lid at `0.798`, its own second Compile size.
+
+### `hard` is measured per SIDE, and keeps `LOGO_CLEAR`
+
+Both halves of that were learned on 2026-09-10, from one lid.
+
+`hard` used to compare the mark's SIZE with the flat floor, which is the same
+statement as "the ink stays on the flat floor" only for a mark **centred on
+the lid** — and a drawing is not centred. Onshape drew Compile's `0.618` low
+and FCM's `0.915` off in X. On `S4.7.7.20-Un` the size clamp did exactly what
+it was asked: it took the mark to `0.9076`, where its `35.699` of height
+exactly filled the `35.700` of flat floor. The mark still hung off the bottom,
+because the whole of it sat `0.561` low — so `11.8 mm2` of real ink, its
+lowest region, was cut `0.561` INTO the `1.000` outer round, which is the one
+thing the clamp exists to prevent.
+
+So the clamp is now **per side**, against where the ink actually reaches
+(`marks.reach`), and it keeps **`LOGO_CLEAR 0.500`** clear of the round on top
+of the round itself (Allan: "shrink the mark on that compile cascade until it
+is at least 0.5 mm from the outer round"). A drawn offset scales with the fit,
+so the two questions are genuinely different at every size.
+
+Four lids move, and three of them were only ever just inside:
+
+| lid | was | now | was, from the round |
+|---|---|---|---|
+| `Compile S4.7.7.20-Un` | 0.9076 | **0.8553** | **-0.561**, into it |
+| `Dominion S4.16.10.32-Un` | 1.0 | 0.9772 | 0.011 |
+| `Compile S5.7.7.20-Un` | 1.0 | 0.9835 | 0.165 |
+| `Compile L5.7.7.20-Un` | 1.0 | 0.9835 | 0.165 |
+
+All four now sit at exactly `0.500`, and the next lid in is `0.961`. Three of
+them go BELOW their drawn size, which is the second clamp doing its job —
+`hard` overrides the "never smaller than drawn" floor, as it always has.
+
+**`S4.7.7.20-Un` is now the binding case at both ends at once**, and that is
+worth stating because the next tightening of `LOGO_CLEAR` cannot be free. A
+drawn mark's strokes scale with the fit, so Compile's thinnest — `0.250` at
+its drawn size, the thinnest artwork in the catalogue — is `0.214` at
+`0.8553`, against `text.FLOOR_CUT`'s `0.200`. About `0.06` more of clearance
+would put that lid's strokes under the floor.
+`tests/test_lid_marks.py` asserts that in arithmetic as well as by raster, the
+raster being a `40 px/mm` instrument that quantises to `0.025` and so is no
+longer finer than the margin.
+
+An alternative was measured and not taken: scaling a drawing about its OWN
+centre instead of the lid's would leave `S4.7.7.20-Un` at `0.882` rather than
+`0.855`, for `0.221` of stroke. It moves every drawn mark on all 46 of their
+lids, which is a much larger change than the one asked for, and it is
+`cad/marks.faces` that would have to change — see below.
 
 `WIDTH_FRACTION 0.600` is Dominion's own — `124.693` on a `207.900` lid — and
 it is the constant that does the work, because depth is slack on every deep
 lid. `DEPTH_FRACTION 0.850` is Innovation's big mark on the `62.100` lid it
 was drawn for. Between them, 13 of the 50 lids keep exactly the mark they have
 today and the rest grow; the extremes land at 15..79 % of width and 27..95 %
-of depth. Both constants are Allan's to set — they are two lines in
-`cad/parts/lid.py`.
+of depth. Those constants are Allan's to set, and so is `LOGO_CLEAR` — three
+lines in `cad/parts/lid.py`.
+
+**A drawing scales about the LID's centre, not its own**, whatever
+`cad/marks.faces` looks like it is doing: it reads `art.centre` and moves the
+mark either side of the scale, but `Shape.scale` carries a location through,
+so the pair cancels and the mark simply scales about the origin. Measured,
+both ways round: `faces` and a bare `.scale(n)` agree to `1e-9` on all three
+drawings at every factor tried, and Compile's `0.618` of offset reads `0.561`
+at the `0.908` the fit used to give it. The behaviour is defensible — it is
+what `#LogoScaleFactor` does in Onshape, which divides every dimension in the
+sketch, offsets included — but the code says one thing and does another, and
+which of the two is wanted is Allan's to settle. Nothing depends on the
+answer today: `marks.reach` measures where the ink is rather than reasoning
+about it.
 
 Where a game has more than one DRAWING, the list in `cad/tables.LID_LOGO` is
 largest first and the first that fits the flat floor as drawn is taken, then

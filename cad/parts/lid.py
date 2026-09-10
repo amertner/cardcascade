@@ -459,12 +459,33 @@ PATTERN_PROUD = 0.010
 LOGO_WIDTH_FRACTION = 0.600
 LOGO_DEPTH_FRACTION = 0.850
 
+# And what the mark keeps clear of the outer rounds, on top of the rounds
+# themselves (Allan, 2026-09-10). The hard clamp used to be the flat floor
+# exactly, which left Dominion's `S4.16.10.32-Un` mark `0.011` from the round
+# and Compile's two `20.Un` lids `0.165` — a pocket edge landing where the
+# floor starts to curve away, so the inlay stops sitting flush and the wall
+# under it thins.
+LOGO_CLEAR = 0.500
+
 
 def logo_room(d):
-    """(width, depth) of FLAT outer floor — the hard limit, past which the
-    pocket would run into an outer round."""
+    """(width, depth) of FLAT outer floor — where the outer rounds start to
+    curve away from it."""
     return (lid_width(d) - 2 * OUTER_ROUND,
             lid_depth(d) - 2 * OUTER_ROUND)
+
+
+def logo_limit(d):
+    """(half width, half depth) the mark's INK must stay inside: the flat
+    floor less `LOGO_CLEAR`, measured from the lid's centre.
+
+    Half-extents and not a size, because that is the question a clearance
+    asks: `logo_room` compared against a mark's SIZE says the same thing only
+    while the mark is centred on the lid, and a drawing is not (`marks.reach`).
+    Half of the same floor, so the flat floor is still stated once.
+    """
+    rw, rd = logo_room(d)
+    return (rw / 2 - LOGO_CLEAR, rd / 2 - LOGO_CLEAR)
 
 
 def logo_target(d):
@@ -506,10 +527,17 @@ def logo_scale(d, name):
     mark's letters scale and its strokes do not (`cad/marks.growth`). A drawing
     has `b = 0` and this is then the plain scale it is drawn at.
     """
-    (rw, rd), (tw, td) = logo_room(d), logo_target(d)
+    (tw, td) = logo_target(d)
     (aw, bw), (ah, bh) = MK.growth(d.GameName, name)
-    hard = min((rw - bw) / aw, (rd - bh) / ah)
     want = min((tw - bw) / aw, (td - bh) / ah)
+    # The hard clamp is per SIDE, against where the ink may reach — not the
+    # mark's size against the flat floor, which is the same statement only for
+    # a mark centred on the lid and let Compile's smallest lid cut 0.561 into
+    # its round (`marks.reach`, `logo_limit`).
+    lw, ld = logo_limit(d)
+    hard = min((lim - b) / a
+               for lim, (a, b) in zip((lw, lw, ld, ld), MK.reach(d.GameName, name))
+               if a > 0)
     return min(max(want, 1.0), hard)
 
 

@@ -524,12 +524,17 @@ lid.logo_choice = _choice
 print("\n=== the fit rule ===")
 
 for model, want_file, want_scale in [
-        # the mark is drawn to this lid, so it neither grows nor shrinks
-        ("S4.16.10.32-Un", "lid_logo.dxf", 1.000),
+        # the mark is drawn to this lid, and came down 2.3 % all the same:
+        # LOGO_CLEAR. Its ink was 0.011 from the round before that
+        ("S4.16.10.32-Un", "lid_logo.dxf", 0.977),
         # too deep for the mark as drawn: the width fraction sizes it
         ("L8.50.10.62-Sl", "lid_logo.dxf", 1.655),
-        # shallower than the mark is drawn: shrunk to clear the outer round
-        ("S4.7.7.20-Un", "lid_logo.dxf", 0.908),
+        # shallower than the mark is drawn: shrunk to clear the outer round,
+        # and the lid where that clamp bites hardest — 0.908 filled the flat
+        # floor exactly and still cut 0.561 into the round, the drawing being
+        # 0.618 low as Onshape drew it (spec/LID.md, "`hard` is measured per
+        # SIDE")
+        ("S4.7.7.20-Un", "lid_logo.dxf", 0.855),
         # Innovation's Ultimate mark, generated at its two published sizes:
         # the big one held where it fits as published, the small one sized
         # up by the width fraction where it does not (1.211, not the drawn
@@ -555,23 +560,37 @@ for model, want_file, want_scale in [
 # a pocket that runs into an outer round breaks the rim — and the second is the
 # promise the rule makes: a mark Allan has already published is never made
 # smaller to satisfy a proportion, only ever to fit.
-worst_room, worst_shrink = 0.0, []
+# Measured per SIDE and on the ink itself, not as a size against the flat
+# floor: those are the same statement only for a mark centred on the lid, and
+# a drawing is not — which is how Compile's smallest lid came to cut 0.561
+# into its round with its height exactly filling the floor (`marks.reach`).
+
+
+def slack(game, name, d, n):
+    """How much the mark has to spare on its tightest side at factor `n`,
+    against the line LOGO_CLEAR inside the flat floor."""
+    lw, ld = lid.logo_limit(d)
+    return min(lim - (a * n + b) for lim, (a, b)
+               in zip((lw, lw, ld, ld), marks.reach(game, name)))
+
+
+worst_clear, worst_shrink = None, []
 for _folder, fn, pp, alt in build.lid_catalogue():
     dd = D.derive(pp)
     name, scale = lid.logo_choice(dd, alt)
     if not name:
         check(f"{fn}: has artwork", False, True)
         continue
-    w, h = marks.extent(pp.GameName, name, scale)
-    room_w, room_d = lid.logo_room(dd)
-    worst_room = max(worst_room, w / room_w, h / room_d)
-    if scale < 1.0:
-        # only where the mark genuinely does not fit the flat floor
-        w1, h1 = marks.extent(pp.GameName, name, 1.0)
-        if min(room_w / w1, room_d / h1) >= 1.0:
-            worst_shrink.append(fn)
-check("every mark is inside the flat floor", worst_room <= 1.0, True)
-print(f"       tightest lid uses {worst_room * 100:.1f} % of its flat floor")
+    got = slack(pp.GameName, name, dd, scale)
+    if worst_clear is None or got < worst_clear[0]:
+        worst_clear = (got, fn)
+    if scale < 1.0 and slack(pp.GameName, name, dd, 1.0) >= -1e-9:
+        # only where the mark genuinely does not clear at its drawn size
+        worst_shrink.append(fn)
+check(f"every mark keeps {lid.LOGO_CLEAR} clear of the outer rounds",
+      worst_clear[0] >= -1e-9, True)
+print(f"       tightest is {worst_clear[1]}, "
+      f"{worst_clear[0] + lid.LOGO_CLEAR:.3f} mm from the round")
 check("no mark is shrunk that did not have to be", worst_shrink, [])
 
 # --- the generated Innovation mark ---------------------------------------

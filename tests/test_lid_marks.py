@@ -104,5 +104,21 @@ for (game, name), by_n in sorted(scales.items()):
     print(f"      {game} {name}: thinnest in the catalogue {worst[0]:.3f} mm "
           f"at n={worst[1]:.3f} on {worst[2]}")
 
+# The floor again, in ARITHMETIC. A drawn mark's strokes scale with the fit,
+# so its thinnest stroke at `n` is its drawn one times `n` exactly — where the
+# raster above is a 40 px/mm instrument reading the 1st percentile of a medial
+# axis, which quantises to 0.025 and is no longer finer than the margin. From
+# 2026-09-10 Compile's smallest lid is the binding case at both ends at once:
+# LOGO_CLEAR takes it to n = 0.855, so 0.250 x 0.855 = 0.214 against a 0.200
+# floor, and 0.06 more of clearance would put its strokes under it.
+print("\n=== a drawn mark's thinnest stroke, exactly ===")
+for (game, name), by_n in sorted(scales.items()):
+    if name.startswith("@"):
+        continue                 # generated: its strokes do not scale at all
+    for n in sorted(by_n):
+        check(f"{game} {name} at n={n:.3f} ({by_n[n]}): "
+              f"{DRAWN[(game, name)]} x n >= {floor}",
+              round(DRAWN[(game, name)] * n, 4) >= floor, True)
+
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
 sys.exit(1 if fails else 0)

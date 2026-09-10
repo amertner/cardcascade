@@ -386,6 +386,53 @@ def _extent_at(game, name, n):
 
 
 @lru_cache(maxsize=32)
+def _bbox_at(game, name, n):
+    """(min X, max X, min Y, max Y) of the mark at `n`, in the LID's frame."""
+    fs = faces(game, name, n)
+    if not fs:
+        return None
+    bb = Compound(children=list(fs)).bounding_box()
+    return bb.min.X, bb.max.X, bb.min.Y, bb.max.Y
+
+
+@lru_cache(maxsize=32)
+def reach(game, name):
+    """How far the mark's ink stands from the LID'S CENTRE on each of its four
+    sides — `((a, b), ...)` for right, left, top and bottom, each a positive
+    distance `a*n + b`. None for no such mark.
+
+    `growth` answers a question about SIZE, which is what a PROPORTION of the
+    lid needs. This answers one about PLACE, which is what a CLEARANCE needs,
+    and the two stop being the same the moment a mark is not centred on the
+    lid. Onshape drew Compile's `0.618` low and FCM's `0.915` off in X, and a
+    mark sized by its height alone then hangs off one side by that offset:
+    Compile's smallest lid had `0.561` of its mark cut into the outer round
+    while its height exactly filled the flat floor, which is what this exists
+    to stop (Allan, 2026-09-10).
+
+    Affine for the same reason `growth` is, and read the same way, by two
+    probes rather than by reasoning about it — which is the point, because the
+    two kinds of mark get there differently and one of them surprises. A
+    generated mark's letters scale and its strokes do not. A drawing scales
+    about the LID's centre and not its own, so a drawn offset scales with the
+    fit too (`0.618` becomes `0.561` at `0.908`) — `faces` reads
+    `art.centre` and moves the mark either side of the scale, but `Shape.scale`
+    carries a location through, so the pair cancels and the mark simply scales
+    about the origin. Either way an edge is `a*n + b`.
+
+    The four are kept apart rather than folded into one reach: a mark can be
+    off centre in one direction only, and the clamp should not pay for that
+    twice.
+    """
+    one, two = _bbox_at(game, name, 1.0), _bbox_at(game, name, 2.0)
+    if one is None:
+        return None
+    d1 = (one[1], -one[0], one[3], -one[2])
+    d2 = (two[1], -two[0], two[3], -two[2])
+    return tuple((v2 - v1, 2 * v1 - v2) for v1, v2 in zip(d1, d2))
+
+
+@lru_cache(maxsize=32)
 def growth(game, name):
     """((aw, bw), (ah, bh)) with `size(n) = a*n + b`, or None for no such mark.
 
