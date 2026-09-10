@@ -293,7 +293,15 @@ def camera(view, lo, hi, margin=1.06, aim=None):
         upv = right.cross(fwd).normalized()
         w = sum(abs(getattr(right, a)) * getattr(span, a) for a in "xyz")
         h = sum(abs(getattr(upv, a)) * getattr(span, a) for a in "xyz")
-        cam.ortho_scale = max(w, h) * margin
+        # `ortho_scale` spans the LARGER render dimension, not both — so on a
+        # 4:3 frame it is the width, and fitting a TALL subject to it crops the
+        # top and bottom off. A closed cascade is wider than it is high and
+        # never showed this; a `play` one, holders risen, is taller than it is
+        # wide and lost both ends of itself.
+        scene = bpy.context.scene
+        rx, ry = scene.render.resolution_x, scene.render.resolution_y
+        cam.ortho_scale = (max(w, h * rx / ry) if rx >= ry
+                           else max(h, w * ry / rx)) * margin
         distance = radius * 4
     obj.location = centre - fwd * distance
     obj.rotation_euler = fwd.to_track_quat("-Z", "Y").to_euler()
