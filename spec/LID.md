@@ -532,6 +532,67 @@ and the star over its `i`, and the flourishes that go with `Ultimate` leave
 with it — is a reading of "without it saying Ultimate", and Allan's to
 overrule.
 
+### Both editions ship, on a plate each
+
+From **7.1d** the choice above stops being the builder's and becomes the
+OWNER's. Allan, 2026-09-10: "For those Cascades, I need to include two lids on
+separate plates: one with the Innovation Ultimate logo, and one with the plain
+Innovation logo." So a single-set cascade's project holds **two** lids — the
+plain `Innovation` one it already carried and an `Innovation Ultimate` one
+beside it — and whoever prints it prints the one their shelf should read.
+
+The rule is not "Innovation gets two lids". It is:
+
+> a cascade that carries a **non-default** edition of its game's mark ships
+> the **default** edition too.
+
+`cad/tables.lid_editions` is that sentence — the edition the cascade carries
+first, the game's default after it where they differ — and it is a rule and
+not a second table because it already says everything a table would. The four
+Ultimate cascades carry the default and ship one lid; the two single-set ones,
+sleeved and unsleeved, are the four projects that gain one. Any game that
+grows a second edition later gets this behaviour without a line of code.
+
+It reaches a build as `rev.both_lid_editions` and NOT as a version comparison
+(`spec/REVISIONS.md`), because it is a release change and not a divergence: a
+7.1c project holds one lid, forever, and every project under `cascades/` is
+7.0 and holds one too — which is what keeps `cad.compare` and
+`tests/test_parallel.py` honest at their pinned 7.0.
+
+**Nothing about a lid's geometry changes.** The alternate is the same lid with
+the other mark in its underside, fitted by the same rule as any other
+("Sizing the mark") — so on the `S3.15.10` unsleeved lid the plain mark sits
+at `1.211` and the Ultimate one at `1.000`. Both fit the same width; what
+separates them is DEPTH, the Ultimate composition carrying a second band. Its
+depth term comes to `0.997` there, and the clamp that never takes a published
+mark below its drawn size holds it at `1.000` — comfortably inside the `1.115`
+the flat floor allows. All four alternates take the SMALL `Ultimate` mark,
+`@innovation-ultimate`: these lids are `39.3` to `68.35` deep and the big one
+does not fit them.
+`tests/test_revisions.py` prices the whole difference between the two lids and
+holds it inside the pattern's own `0.000 .. 0.810` band: same bounding box,
+same sockets, same grooves, same engraving, a different mark.
+
+**Three names have to say which lid is which**, and each says it the same way
+— the edition's word, `Ultimate`, appended to the name the cascade's own lid
+already has:
+
+```
+build/Innovation/Lid S3.15.10.20-Un.3mf            the cascade's own, plain
+build/Innovation/Lid S3.15.10.20-Un Ultimate.3mf   the alternate
+Lid 135U        /  Lid 135U Ultimate               the objects in the project
+plate `Lid 135U`  / plate `Lid 135U Ultimate`      the plates
+```
+
+The suffix goes on the ALTERNATE and never on the lid the cascade carries, as
+`box_file`'s `no label holders` does: the plain name stays the name it has
+always had, so every earlier release writes exactly the tree it wrote before.
+The plates are named after their OBJECT rather than after the plate scheme
+(`layout.PLATE_SCHEME`'s `alt` flag), because "Lid 1 of 2" would tell the
+owner nothing about which mark is on it. That is a marker on the scheme entry
+and not a rule read off the objects: every other group of several is either
+copies of one part or a named set that shares a plate and is printed whole.
+
 ### The `#LogoScaleFactor` this replaces
 
 Innovation's logo sketch carries (Allan):

@@ -10,6 +10,8 @@ is deprecated and Allan asked for it to go. It is the one place these tables
 knowingly differ from Onshape, so do not add it back when diffing.
 """
 
+from .refuse import refuse
+
 # gameUnsleevedCardWidth — "The unsleeved width of a card" (mm)
 UNSLEEVED_CARD_WIDTH = {
     "Dominion": 60, "FCM": 60, "Compile": 65,
@@ -81,6 +83,60 @@ LID_LOGO = {
 LID_LOGO_EDITION = {
     "Innovation": {"S3.15.10": "plain", "XS5.15.10": "plain"},
 }
+
+# What an edition is CALLED, where a name has to tell two lids apart: the
+# suffix on the alternate lid's file and on its object in the project, from
+# 7.1d. A game's DEFAULT edition is the `None` key here as it is above, and
+# Innovation's default is the mark that says Ultimate.
+LID_EDITION_NAME = {
+    "Innovation": {None: "Ultimate", "plain": "Innovation"},
+}
+
+
+def lid_editions(game, model):
+    """The editions of `game`'s mark a cascade of this model ships, the one it
+    CARRIES first.
+
+    A cascade that carries its game's default mark ships that alone, and that
+    is 46 of the 50. One that carries another edition ships the default TOO,
+    on a plate of its own, so its owner prints whichever the shelf should read
+    (Allan, 2026-09-10): Innovation's two single-set cascades say just
+    `Innovation` and get an `Innovation Ultimate` lid beside it.
+
+    `model` is `calModelName`, keyed on up to its third dot exactly as
+    `LID_LOGO_EDITION` is — this is a question about which SETS the box holds
+    and not about any dimension.
+
+    The second is what `rev.both_lid_editions` admits, and it is the flag and
+    not this function that a release turns on: every caller before 7.1d takes
+    `[0]` alone.
+    """
+    own = (LID_LOGO_EDITION.get(game) or {}).get(".".join(model.split(".")[:3]))
+    return (own,) if own is None else (own, None)
+
+
+def has_lid_alternate(game, model):
+    """Is there a SECOND edition for this cascade to ship?
+
+    Only a cascade whose mark is not its game's default has one. WHETHER it
+    ships is the release's question and not this one's — `cad/build.py` asks
+    both, `rev.both_lid_editions` first.
+    """
+    return len(lid_editions(game, model)) > 1
+
+
+def lid_edition_name(game, edition):
+    """The word that names an edition in a file or an object name.
+
+    A refusal rather than a `None` to concatenate: a second edition with no
+    name would otherwise write `Lid <model> None.3mf` and be found on the
+    shelf, not here.
+    """
+    name = (LID_EDITION_NAME.get(game) or {}).get(edition)
+    if name is None:
+        refuse(f"{game}'s {edition!r} lid edition has no name to put in a "
+               f"file (cad/tables.LID_EDITION_NAME)")
+    return name
 
 
 # The five Innovation expansions whose topper mark `cad/parts/topper.MARKS`

@@ -26,6 +26,7 @@ from .. import derive as D
 from ..geom import slab, text_solid, tray
 from .. import lock as L
 from .. import marks as MK
+from ..refuse import refuse
 from .. import tables as TB
 from .. import text as T
 
@@ -474,18 +475,28 @@ def logo_target(d):
             lid_depth(d) * LOGO_DEPTH_FRACTION)
 
 
-def logo_edition(d):
-    """Which of the game's marks this cascade carries, or None for its default.
+def logo_edition(d, alternate=False):
+    """Which of the game's marks this lid carries, or None for its default.
 
     Keyed on the base model — `calModelName` up to its third dot — because it
     is a question about which sets the box holds. Innovation's two single-set
     cascades say just "Innovation" where the other four say "Innovation
-    Ultimate" (`TB.LID_LOGO_EDITION`).
+    Ultimate" (`TB.lid_editions`).
+
+    `alternate` asks for the SECOND edition such a cascade ships from 7.1d
+    (`rev.both_lid_editions`): the game's default mark, on a lid of its own.
+    A cascade that already carries the default has no alternate and asking for
+    one is a bug in the caller, not a lid to build — `build.lid_editions_built`
+    is the gate, and it asks the release first.
     """
-    rule = TB.LID_LOGO_EDITION.get(d.GameName)
-    if not rule:
-        return None
-    return rule.get(".".join(d.calModelName.split(".")[:3]))
+    editions = TB.lid_editions(d.GameName, d.calModelName)
+    if not alternate:
+        return editions[0]
+    if len(editions) < 2:
+        refuse(f"{d.calModelName} carries its game's only lid mark; there is "
+               f"no alternate edition to build (cad/tables.lid_editions)")
+    return editions[1]
+
 
 
 def logo_scale(d, name):
@@ -502,7 +513,7 @@ def logo_scale(d, name):
     return min(max(want, 1.0), hard)
 
 
-def logo_choice(d):
+def logo_choice(d, alternate=False):
     """(mark, nominal factor) — which of the game's marks this lid gets and how
     far it is sized, or (None, 0.0) for a game with no artwork on file.
 
@@ -513,7 +524,7 @@ def logo_choice(d):
     size it was PUBLISHED at (`marks.GENERATED`): the plain mark once, the
     Ultimate mark at both of the sizes Allan's sketch shipped.
     """
-    names = (TB.LID_LOGO.get(d.GameName) or {}).get(logo_edition(d))
+    names = (TB.LID_LOGO.get(d.GameName) or {}).get(logo_edition(d, alternate))
     if not names:
         return None, 0.0
     chosen = None
@@ -528,7 +539,7 @@ def logo_choice(d):
     return chosen, logo_scale(d, chosen)
 
 
-def logo_art(d):
+def logo_art(d, alternate=False):
     """The game's mark as filled faces in the lid's frame; [] for a lid
     that carries none.
 
@@ -536,17 +547,17 @@ def logo_art(d):
     reference lid — so `cad.marks` sizes it about its OWN centre and at n = 1
     it stays exactly where Onshape put it. A generated mark is built centred.
     """
-    name, n = logo_choice(d)
+    name, n = logo_choice(d, alternate)
     return MK.faces(d.GameName, name, n) if name else []
 
 
-def logo_pattern(d, part):
+def logo_pattern(d, part, alternate=False):
     """(the body with its pocket cut, the inlay solids).
 
     Both come from one set of regions, so the inlay cannot drift out of the
     pocket: they are the same extrusion at two Z ranges.
     """
-    faces = logo_art(d)
+    faces = logo_art(d, alternate)
     if not faces:
         return part, []
     # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
@@ -599,7 +610,7 @@ def outer_edges(d, part):
     return out
 
 
-def build_all(d):
+def build_all(d, alternate=False):
     """(the Lid BODY, its logo inlays) — both from ONE extrusion of the mark.
 
     The inlays are separate solids because they print in the second filament
@@ -612,7 +623,7 @@ def build_all(d):
     reaches it, so the order is free and the cheap one is taken.
     """
     part = shell(d)
-    part, inlays = logo_pattern(d, part)
+    part, inlays = logo_pattern(d, part, alternate)
     part = sockets(d, part)
     part = closing_grooves(d, part)
     part = floor_text(d, part)
@@ -623,6 +634,6 @@ def build_all(d):
     return fillet(outer_edges(d, part), OUTER_ROUND), inlays
 
 
-def build(d):
+def build(d, alternate=False):
     """The Lid BODY as a build123d Part, from a `derive.Derived`."""
-    return build_all(d)[0]
+    return build_all(d, alternate)[0]

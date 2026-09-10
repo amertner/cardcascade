@@ -333,6 +333,10 @@ exactly, which is why every test that compares against a reference pins its
 release through `tests/reference.py` rather than taking the default: the
 default is 7.1 and will move again. `spec/REVISIONS.md` is the record and
 `tests/test_revisions.py` asserts every flag at both releases.
+A flag does not have to reach a PART: `both_lid_editions` (7.1d) is read by
+`build.lid_editions_built` and `cascade.parts`, because what it changes is how
+many lids a cascade has and not what any one of them is. The rule is the same
+wherever it is read — a named question, never a version comparison.
 
 ## One record below `derive`
 

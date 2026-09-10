@@ -95,7 +95,13 @@ for _folder, fn, p in B.box_catalogue():
         box._fits(txt, final, span)          # raises DoesNotFit if not
 
 print("=== lids ===")
-for _game, fn, p in B.lid_catalogue():
+for _game, fn, p, alt in B.lid_catalogue():
+    if alt:
+        # The alternate edition is the same lid with the other mark in its
+        # underside (7.1d, `rev.both_lid_editions`). Its floor text is the
+        # cascade's, character for character, so it would only restate the
+        # primary's three lines under a second filename.
+        continue
     d = D.derive(p)
     record("Lid", fn, "product", T.fit_size(d.ProductName, lid.logo_width(d)),
            lid.logo_size(d), T.LOGO_FONT, True)
