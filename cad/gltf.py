@@ -120,8 +120,22 @@ def slot_for(name):
 
 
 def _hex(colour):
+    """`#RRGGBB` as glTF's `baseColorFactor` — which is LINEAR, not sRGB.
+
+    A hex colour is what a person writes and what Studio shows, so it is sRGB;
+    the factor the spec asks for is linear. Handing the bytes over unconverted
+    lifts every dark colour: `#1B1B1B` lands at 0.106 and a renderer displays
+    it back as 0.36, a mid grey, which is what the label's black lettering
+    came out as. White survives it (0.957 against 0.905), which is why a
+    cascade of white parts never showed the fault.
+    """
     c = colour.lstrip("#")
-    return [int(c[i:i + 2], 16) / 255.0 for i in (0, 2, 4)] + [1.0]
+    return [_linear(int(c[i:i + 2], 16) / 255.0) for i in (0, 2, 4)] + [1.0]
+
+
+def _linear(u):
+    """One sRGB channel, decoded. The IEC 61966-2-1 curve, verbatim."""
+    return u / 12.92 if u <= 0.04045 else ((u + 0.055) / 1.055) ** 2.4
 
 
 def colour_of(name, filaments, parts):

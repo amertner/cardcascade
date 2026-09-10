@@ -110,6 +110,16 @@ The project's own colours are `#FFFFFF` and `#000000` — accurate, and a
 white-on-white cascade. So the slot assignment comes from the geometry and the
 colours from the command line.
 
+**A hex colour is sRGB and `baseColorFactor` is LINEAR**, so `cad.gltf` decodes
+one into the other (`_linear`, the IEC 61966-2-1 curve). Handing the bytes over
+raw is the obvious thing to do and it is wrong in one direction only: it LIFTS
+dark colours, `#1B1B1B` landing at 0.106 where it belongs at 0.011 and coming
+back off the screen as a mid grey. White is nearly unaffected — 0.957 against
+0.905 — which is exactly why a cascade of white parts rendered for months
+without showing it, and why the fault surfaced on the first BLACK thing in a
+frame: a front label's lettering. A saturated colour loses its depth the same
+way, the blue lid included.
+
 ## What makes it read as a print rather than as CAD
 
 In the order each one buys something:
@@ -128,8 +138,27 @@ In the order each one buys something:
    need the same exposure. `KEY` was CALIBRATED by rendering, not derived — at
    900 the frame came out pure white.
 
+## Framing an axis view
+
+The six axis views are orthographic and framed by `ortho_scale`, which spans
+the **larger render dimension only** — on the default 4:3 frame, the width. So
+fitting a view to `max(width, height)` frames a wide subject and CROPS a tall
+one, and the rule is that anything past 3:4 loses its ends. A cascade on the
+shelf is half as high as it is wide (0.482 closed, 0.485 with the lid on) and
+never showed it; a `play` one, holders risen, is 0.829 and lost 17 mm off the
+top and bottom, and every side elevation — 62.1 mm of depth against 105 to 182
+of height — lost a quarter of itself at every state. `camera()` takes the
+render's own aspect from the scene, which is why `settings()` runs before it.
+
 ## Known gaps
 
+* **`KEY` is about a stop hot now, and has not been recalibrated.** It was set
+  by rendering white parts against a frame that also carried every dark colour
+  LIFTED, so correcting the colour space left the exposure where the whites
+  clip and a black inlay still reads grey. `--exposure -1.0` holds both and is
+  what the labelled front elevation was shot at; the honest fix is to bring
+  `KEY` down to about 27 and give `--exposure` back to the shot, which wants
+  re-rendering the frames that calibrated it.
 * **Layer lines run the wrong way on holders and toppers.** They print on a
   plate turned 45 degrees (`PIPELINE.md`) while the box and the lid print
   upright, so a per-part print orientation would be needed to get them right.
