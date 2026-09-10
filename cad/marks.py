@@ -105,12 +105,13 @@ def _units(size):
 def innovation_plain(size):
     """The plain Innovation mark at `size`, in the lid's frame.
 
-    Returned as a tuple of faces, bbox-centred on the origin, and MIRRORED in
-    X: the pattern is cut into the far side of the lid's floor, and Compile's,
-    FCM's and Innovation's marks all read the right way round from there.
+    Returned as a tuple of faces on the origin — its bounding box in X, its
+    WORD in Y (see `_centre`) — and MIRRORED in X: the pattern is cut into the
+    far side of the lid's floor, and Compile's, FCM's and Innovation's marks
+    all read the right way round from there.
     """
-    faces, _base, _letter_I = _wordmark(size)
-    shape = _centre(faces)
+    faces, base, letter_I = _wordmark(size)
+    shape = _centre(faces, word=(base, letter_I.bounding_box().max.Y))
     return tuple(f.mirror(Plane.YZ) for f in shape)
 
 
@@ -176,11 +177,52 @@ def _star(tittle, u):
     return arms
 
 
-def _centre(faces):
-    """Put a mark's bounding box on the origin."""
+def _centre(faces, word=None):
+    """Put a mark on the origin: its bounding box, or — where `word` is a
+    `(baseline, cap height)` pair — its bounding box in X and that band's
+    middle in Y.
+
+    ## Why a mark is not always centred on its box
+
+    A box is the right datum for a COMPOSITION, whose parts balance each other
+    about it. It is the wrong one for a single line of type carrying ornaments
+    on ONE side, which is what the plain Innovation mark is: the ring stands
+    `3.195` above the cap height and the star `2.174`, `Innovation` has no
+    descender, and so the box reaches `2.236` higher than the tallest letter
+    and only `0.208` below the baseline. Centred on it, the WORD sits `1.494`
+    low on the lid at n = 1 (Allan, 2026-09-10, with the lid on screen: "The
+    Innovation logo (without Ultimate) is a little bit low on the lid").
+
+    The measurement that settles it is the ink CENTROID against the box
+    centre. The plain mark's is `2.693` BELOW it; the Ultimate mark's, which
+    has `Ultimate` and its three flourishes underneath to answer the ring and
+    the star above, is `0.391` above. So the imbalance belongs to the plain
+    mark and not to the way marks are placed, and `innovation_ultimate` keeps
+    its box.
+
+    The band is BASELINE to CAP HEIGHT — the box a line of type is centred on
+    — and not the letters' own bounding box: the `i`'s tittle rises above the
+    cap in Noto Serif, as the ring and the star do, and an ornament above the
+    letters is exactly what this datum is for. Centring the ink centroid
+    instead was drawn and looked at, and it overshoots: the word then sits
+    visibly ABOVE the middle, because the centroid is dragged down by the
+    x-height mass in any word set in caps and lowercase.
+
+    In X the box stays the datum. The ring puts `LINE_WIDTH` of itself outside
+    the `I`, so the word is `0.300` off centre there — a fifth of what it was
+    in Y, on a mark four times as wide.
+
+    This is `cad/` policy, not a transcription: Allan's own crop of the
+    Ultimate artwork is box-centred (`make_lid_logo_dxf --recentre`, and the
+    two `lid_logo_plain*.dxf` sit within `0.176` of the lid's centre), and
+    `spec/LID.md` records the divergence. `tests/test_lid.py` asserts it from
+    both ends — the built mark's word on the centre, the drawn crop's box on
+    it — so a rebuild that quietly went back to the box would fail.
+    """
     xs = [f.bounding_box() for f in faces]
     cx = (min(b.min.X for b in xs) + max(b.max.X for b in xs)) / 2
-    cy = (min(b.min.Y for b in xs) + max(b.max.Y for b in xs)) / 2
+    cy = ((word[0] + word[1]) / 2 if word else
+          (min(b.min.Y for b in xs) + max(b.max.Y for b in xs)) / 2)
     return [f.moved(Location((-cx, -cy, 0))) for f in faces]
 
 

@@ -618,6 +618,73 @@ takes `52.739` of mark at `0.850`, to `1.0007`. The cached corpus agrees with
 the fit rather than with the factor, and the four Innovation lids that carry
 the big mark are exactly the four `15.15` rows.
 
+### The plain mark sits on its WORD, not on its box
+
+Allan, 2026-09-10, with the lid on screen: "The Innovation logo (without
+Ultimate) is a little bit low on the lid." It was, and the cause is that a
+mark is placed by its **bounding box** while this one's box is not centred on
+anything a reader looks at:
+
+```
+                        n = 1, mm, in the mark's own frame
+ring, top                        3.195  above the cap height
+star, top                        2.174  above the cap height
+tittle, top                      0.959  above the cap height  (Noto Serif's i)
+CAP HEIGHT                       0.000
+baseline                       -14.881
+round letters, overshoot        -15.089  the whole of what is below the word
+```
+
+The ring and the star stand **above** the letters and `Innovation` has no
+descender, so the box reaches `2.236` higher than the tallest letter — the
+tittle — and only `0.208` below the baseline, the round letters' overshoot. Centring the box therefore puts the WORD `1.494` low at n = 1 — which
+is what the eye sees, because the ring and star are `0.600` strokes and the
+letters are solid.
+
+**The measurement that settles it is the ink centroid**, which is
+area-weighted and so reads the visual mass rather than the extremes:
+
+| mark | ink centroid, against its box centre |
+|---|---|
+| plain | **-2.693** |
+| Ultimate | +0.391 |
+| Ultimate, big | +0.804 |
+
+So the imbalance belongs to the plain mark and not to the way marks are
+placed. The Ultimate composition answers its ring and star with `Ultimate`
+and three flourishes underneath, and it stays box-centred; only
+`marks.innovation_plain` changes.
+
+The datum is **baseline to cap height** — the box a line of type is centred on
+— and deliberately not two other candidates, both of which were drawn on the
+lid outline and looked at:
+
+* the **letters' own bounding box** would include the `i`'s tittle, which
+  rises above the cap in Noto Serif exactly as the ornaments do;
+* the **ink centroid** overshoots, and visibly: the word then reads as sitting
+  ABOVE the middle, because in any word set in caps and lowercase the centroid
+  is dragged down by the x-height mass.
+
+In X the box stays the datum: the ring puts `LINE_WIDTH` of itself outside the
+`I`, so the word is `0.300` off centre there — a fifth of the Y error, on a
+mark four times as wide.
+
+**This is a DIVERGENCE from the reference crop**, and it stands beside the
+fitted mark as the Lid's own.
+Allan's own crops are box-centred — `make_lid_logo_dxf --recentre` puts the
+kept band back on the full mark's own centre, and the two
+`lid_logo_plain*.dxf` land within `0.176` of the lid's centre — so the build
+now puts the same shape `1.493` (and `2.209` at n = 1.6) higher than the
+drawing has it. `tests/test_lid.py` asserts both ends: the crop's box on the
+lid's centre, the build's word on it.
+
+Nothing else moves. The mark's bounding-box SIZE is unchanged, so
+`marks.growth`, `lid.logo_scale` and every lid's chosen scale are exactly what
+they were; and the mark's reach about the lid's centre stays well inside the
+flat floor — the deepest any Innovation mark now reaches is `0.898` of the
+room, on `S3.15.10.20-Un`'s Ultimate alternate, and the plain lids are
+further inside than that.
+
 ### The Innovation mark, rebuilt
 
 Allan's Innovation logo is not imported artwork, unlike Dominion's: he

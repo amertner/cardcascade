@@ -609,6 +609,36 @@ for n, ref in ((1.0, "lid_logo_plain.dxf"), (1.6, "lid_logo_plain_big.dxf")):
     check(f"n={n}: worst region edge", round(worst, 3), 0.0, 0.12)
     print(f"       worst region edge {worst:.4f} mm over {len(b)} regions")
 
+# WHERE it sits is `cad/` policy and, from 2026-09-10, a deliberate
+# divergence from the crop — asserted from both ends, as every divergence in
+# this repo is. The crop is BOX-centred (`make_lid_logo_dxf --recentre` puts
+# it back on the full mark's own centre); the build is WORD-centred, because
+# the ring stands above the cap height and the star above that while
+# `Innovation` has no descender, so a box datum lands the word low on the lid.
+# Allan, with the lid on screen: "a little bit low". `marks._centre`.
+for n, want in ((1.0, 1.493), (1.6, 2.209)):
+    built = Compound(children=list(
+        marks.faces("Innovation", "@innovation-plain", n))).bounding_box()
+    ref = "lid_logo_plain.dxf" if n == 1.0 else "lid_logo_plain_big.dxf"
+    drawn = Compound(children=list(art.logo("Innovation", ref))).bounding_box()
+    bc = (built.min.Y + built.max.Y) / 2
+    dc = (drawn.min.Y + drawn.max.Y) / 2
+    # The two are the same SHAPE to 0.12 (above), so the difference of their
+    # box centres IS how much higher the build puts the word.
+    check(f"n={n}: the build stands the same word about {want} higher than "
+          f"the crop does", round(bc - dc, 3), want, 0.2)
+    check(f"n={n}: and the crop's own box is on the lid's centre — box-datum",
+          round(dc, 3), 0.0, 0.2)
+    # And the datum itself, from the font metrics the mark is built from: the
+    # box is displaced by exactly the gap between the two datums, which is the
+    # same statement as "baseline to cap is on the origin" and fails the day
+    # `_centre` goes back to the box.
+    raw_faces, base, letter_I = marks._wordmark(round(marks.NOMINAL_SIZE * n, 6))
+    raw = Compound(children=list(raw_faces)).bounding_box()
+    gap = (raw.min.Y + raw.max.Y) / 2 - (base + letter_I.bounding_box().max.Y) / 2
+    check(f"n={n}: it is the WORD on the origin, not the box", round(bc, 4),
+          round(gap, 4), 1e-3)
+
 # The strokes are the point: they must NOT scale.
 w1, _ = marks.extent("Innovation", "@innovation-plain", 1.0)
 w2, _ = marks.extent("Innovation", "@innovation-plain", 2.0)
