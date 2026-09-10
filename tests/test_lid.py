@@ -418,15 +418,14 @@ for name, fn, P in REFS:
         # lines and matches to 0.000; Innovation's carries 361 arcs and 234
         # B-splines and lands at 0.09 %.
         check("inlay volume", round(mv, 3), round(rv, 3), rv * 1e-3)
-        # ORIENTATION, asserted from both ends. Dominion's drawing was a half
-        # turn from Compile's, FCM's and Innovation's — upside down on a
-        # closed box whichever way the lid went on — and was turned about its
-        # own centre on 2026-09-04 (Allan; spec/LID.md). The Dominion
-        # reference STEP still carries the OLD orientation, so the build's
-        # regions must be the reference's turned 180 degrees about the mark's
-        # centre, region for region, and must NOT be the reference's as they
-        # stand; Innovation's generated mark was never turned and must match
-        # as drawn. Volume and footprint cannot see a half turn; this can.
+        # ORIENTATION, asserted from both ends. Dominion's drawing was turned
+        # a half turn on 2026-09-04 on the strength of a photograph of the
+        # OTHER game, and turned back on 2026-09-11 when a printed Dominion
+        # lid came out upside down (Allan; spec/LID.md). So every mark,
+        # Dominion's included, must be the reference's region for region as
+        # drawn — and Dominion's must NOT be the reference's turned, so the
+        # half turn cannot creep back unseen. Volume and footprint cannot see
+        # a half turn; this can.
         def regions(inlays, turn):
             bb = Compound(children=inlays).bounding_box()
             cx, cy = (bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2
@@ -447,14 +446,12 @@ for name, fn, P in REFS:
             return all(any(abs(x - u) < 0.1 and abs(y - v) < 0.1
                            and abs(w - q) < 0.03 * w for u, v, q in b)
                        for x, y, w in a)
-        turned = name.startswith("Dominion")
-        check(f"the build's regions are the STEP's"
-              f"{' turned a half turn' if turned else ' as drawn'}",
-              matched(regions(ref_inlays, turned), regions(mine_inlays, False)),
+        check("the build's regions are the STEP's as drawn",
+              matched(regions(ref_inlays, False), regions(mine_inlays, False)),
               True)
-        if turned:
-            check("... and not the STEP's as drawn (the turn is real)",
-                  matched(regions(ref_inlays, False),
+        if name.startswith("Dominion"):
+            check("... and not the STEP's turned a half turn",
+                  matched(regions(ref_inlays, True),
                           regions(mine_inlays, False)), False)
         rb = Compound(children=ref_inlays).bounding_box()
         mb = Compound(children=mine_inlays).bounding_box()

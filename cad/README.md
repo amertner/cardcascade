@@ -247,9 +247,11 @@ to 0.001. Two findings came out of it:
   logo, and Dominion's disagreed with Compile's, FCM's and Innovation's. One
   game was upside down whichever way was chosen, on the shipped product as
   much as here: `cad/` rotates no artwork, and its inlays matched the cached
-  Onshape lids to 0.001. Settled 2026-09-04 from a photograph of the shipped
-  Innovation boxes: Dominion's DXF is turned, and `tests/test_lid.py` holds it
-  to the old reference turned (`spec/LID.md`).
+  Onshape lids to 0.001. Dominion's DXF was turned on 2026-09-04 from a
+  photograph of the shipped Innovation boxes, and turned BACK on 2026-09-11
+  when a printed Dominion lid came out upside down; `tests/test_lid.py` holds
+  it to the reference as drawn, and which premise of the "disagree" argument
+  is wrong is open (`spec/LID.md`).
 
 `spec/ASSEMBLY.md` has both. The second is the case for treating renders as
 part of the checking rather than its output: it is invisible to every number

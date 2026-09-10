@@ -891,7 +891,28 @@ decomposes to `a*n + b`. The corrected export puts the run's inner end at
 `24.0078 n - 1.000`, and that is what is built; the sketch's own dimension
 scheme for it is still not known, only its output at both sizes.
 
-### Dominion's mark WAS 180° out from the other three — turned 2026-09-04
+### Dominion's mark — turned 2026-09-04, turned BACK 2026-09-11
+
+**Turned back.** A test print of a cad-built 7.1 Dominion lid (Allan,
+2026-09-11) came out with the mark upside down, so the turn below was wrong
+and `logos/Dominion/lid_logo.dxf` is the ORIGINAL drawing again, byte for byte
+(`git checkout 147c3c5`) — which is exactly the turn undone, and exactly what
+Onshape shipped. It went into 7.1 without a new letter: the turn had been a
+change to the DRAWING, read at every release, never a flag in
+`cad/revisions.py`, and 7.1 has not been released. So every release's
+Dominion lid matches the reference STEP and the 24 cached lids in
+`individual/` again, and `tests/test_lid.py` holds the build to the reference
+as drawn and REJECTS it turned.
+
+What that leaves open: the argument below still says Dominion's drawing is a
+half turn from the other three, and the Innovation photograph still says
+Innovation's reads upright. A printed lid of each game reading correctly
+means one of the two premises is wrong — the reading of the four drawings
+from `+Z`, or the assumption that a lid is judged against the same front on
+every game. Nothing is changed on Compile, FCM or Innovation until a printed
+lid of one of them is looked at the same way.
+
+The record of the 2026-09-04 turn, as it was written:
 
 Seen from `+Z` — the direction the floor's engraving reads from — Compile's,
 FCM's and Innovation's marks are mirrored left-to-right and the right way up,
@@ -921,8 +942,9 @@ Allan's to settle, not the model's:
 * the two fit constants, `LOGO_WIDTH_FRACTION` and `LOGO_DEPTH_FRACTION`;
 * whether the plain Innovation composition is the right reading of "without it
   saying Ultimate";
-* ~~whether Dominion's mark is a half turn out, or the other three are~~ —
-  Dominion's was, and it is turned (above);
+* whether the four marks agree — Dominion's was turned on 2026-09-04 and
+  turned back on 2026-09-11 when a print came out upside down (above), so a
+  printed lid of Compile, FCM or Innovation is what settles the other three;
 * the marks that are still outlines — Dominion, Compile and FCM — whose
   strokes scale with the fit where the two generated Innovation marks hold
   their own.
@@ -986,8 +1008,10 @@ statement; the area check is corroboration at `0.5 mm2`.
   `Ultimate` — is a reading, not an export. The mark that renders it is
   measured off Allan's own drawings to `0.019`; whether it is the right
   composition is his call.
-- ~~**Dominion's mark is a half turn out** from Compile's, FCM's and
-  Innovation's.~~ Turned 2026-09-04; see "Dominion's mark WAS 180° out".
+- **Whether the four marks agree.** Dominion's was turned 2026-09-04 and
+  turned back 2026-09-11 on a printed lid; see "Dominion's mark — turned
+  2026-09-04, turned BACK 2026-09-11". A printed lid of another game settles
+  the rest.
 - **Stroke weight on the marks that are still outlines** — now FLOORED, not
   open (Allan, 2026-09-04): the mark is an inlay in a pocket and takes the
   cut floor, `0.200` mm, and `tests/test_lid_marks.py` rasterises every

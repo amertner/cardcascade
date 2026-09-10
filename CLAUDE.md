@@ -341,12 +341,14 @@ been printed yet.
   app is what runs it.
 - A **render is part of the checking, not the output of it.** A closed lid goes
   on EITHER WAY ROUND — both turns measure 0.0000 mm3 and both seat the closing
-  bump — so only the logo can tell, and **three of the four games' lid marks
-  WERE 180 degrees from the fourth** until Dominion's drawing was turned on
-  2026-09-04 (`spec/LID.md`); the 24 cached Dominion lids still have the old
-  turn. One game read upside down whichever way the lid went on, on the
-  shipped product as much as in `cad/`. Look at the pictures; no number sees
-  this.
+  bump — so only the logo can tell. **Dominion's lid mark was turned 180
+  degrees on 2026-09-04 and turned BACK on 2026-09-11**: the turn was argued
+  from renders and a photo of the OTHER game, and the first printed Dominion
+  lid came out upside down. The DXF is Onshape's original again and matches
+  the 24 cached Dominion lids. Renders still show Dominion's mark a half turn
+  from the other three, so something in that argument is wrong and it is OPEN
+  (`spec/LID.md`) — a printed lid is the authority, and pictures are how you
+  find the question, not how you settle it.
 
 ## Ground rules
 

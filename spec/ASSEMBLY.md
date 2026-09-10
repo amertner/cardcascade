@@ -108,10 +108,14 @@ rebuild.
 
 `Y` is used, because three of the four read correctly under it, and the
 photograph of three closed Innovation boxes reading upright from the
-labelled front says the three are right. Allan had Dominion's DXF turned
-(`spec/LID.md`, "Dominion's mark WAS 180° out"), so all four now read
-upright under the `Y` turn, and `tests/test_lid.py` holds Dominion's regions
-to the old reference turned.
+labelled front says the three are right. Allan had Dominion's DXF turned on
+2026-09-04 — and turned BACK on 2026-09-11, when a printed Dominion lid came
+out upside down (`spec/LID.md`, "Dominion's mark — turned 2026-09-04, turned
+BACK 2026-09-11"). So the table above is again the state of the drawings,
+Dominion reads upside down under `Y` in a RENDER, and the physical product
+says otherwise; which premise is wrong is open until a printed lid of another
+game is looked at the same way. `tests/test_lid.py` holds Dominion's regions
+to the reference as drawn.
 
 The route to this is worth recording, because it is a lesson about method
 twice over. The placement was first written as `Y`, then changed to `X` on the
@@ -399,10 +403,11 @@ that holds on one cascade and not on 50 is the finding worth having.
 
 * ~~Which way the pusher's depth axis runs in storage.~~ Not open: two axes are
   forced by features and the third by right-handedness.
-* ~~**Which lid mark is the reference, and which three turn.**~~ Settled
-  2026-09-04: the three were the reference, Dominion's DXF turned — the
-  Innovation photo of three closed boxes was the authority the note below
-  asked for. The rest of this entry is kept as it was written. Parked (Allan,
+* **Which lid mark is the reference, and which three turn.** REOPENED
+  2026-09-11. Settled 2026-09-04 as "the three were the reference, Dominion's
+  DXF turned", on the Innovation photo of three closed boxes; unsettled when
+  a printed Dominion lid with the turned DXF came out upside down and the
+  turn was undone. The rest of this entry is kept as it was written. Parked (Allan,
   2026-09-03 — away from the printed boxes). Nothing geometric in the lid
   distinguishes the two ways it closes, so the physical product is the only
   authority: look at a closed box, and whichever game reads upright is the
