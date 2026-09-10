@@ -67,14 +67,14 @@ from .refuse import refuse
 # defaults to; an older one is still buildable and is what every reference
 # STEP and cached mesh in `individual/` is compared against.
 #
-# `7.1a`, `7.1b` and `7.1c` are 7.1 being ITERATED, and the LETTER is the point
-# (Allan, 2026-09-08): see "An unreleased release is iterated by LETTER" below.
+# `7.1a` .. `7.1d` are 7.1 being ITERATED, and the LETTER is the point (Allan,
+# 2026-09-08): see "An unreleased release is iterated by LETTER" below.
 # `7.1` itself is deliberately NOT on the line — it is what the last letter is
 # renamed to at the lock, and until then nothing can build or stamp it. An
 # earlier letter STAYS: parts stamped `CC 7.1a` exist, and a version you can
 # hold has to remain buildable.
-RELEASES = ("7.0", "7.1a", "7.1b", "7.1c")
-CURRENT = "7.1c"
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d")
+CURRENT = "7.1d"
 
 
 @dataclass(frozen=True)
@@ -135,6 +135,21 @@ class Rev:
                 "was tried first and is NOT this: it prints worse, because a "
                 "fillet at a window's top corner turns a clean short bridge "
                 "into an overhang. Sides vertical, top horizontal",
+    })
+
+    both_lid_editions: bool = field(metadata={
+        "since": "7.1d",
+        "spec": "spec/LID.md, 'Both editions ship, on a plate each'",
+        "what": "a cascade that carries a NON-DEFAULT edition of its game's "
+                "mark ships the default one as well, as a second Lid on a "
+                "plate of its own (Allan, 2026-09-10). That is Innovation's "
+                "two single-set cascades and so four projects: each gets the "
+                "plain `Innovation` lid it already carried and an `Innovation "
+                "Ultimate` lid beside it, and its owner prints whichever the "
+                "shelf should read. No lid's GEOMETRY moves — the alternate "
+                "is the same lid with the other mark in its underside, fitted "
+                "by the same rule — so this is a change to what a project "
+                "CONTAINS, as `two_pushers` was",
     })
 
     thick_floor: bool = field(metadata={

@@ -19,8 +19,10 @@ What is decided here, in order:
 2. THE PLATES — one per role group in PLATE_SCHEME order, pushers riding with
    the box. A group splits when a big object that must rotate fills its plate
    diagonally and would leave no room for flat companions (the box and its
-   pushers on a P1), and when more thin strips (holders, toppers) than one
-   plate holds need several.
+   pushers on a P1), when more thin strips (holders, toppers) than one plate
+   holds need several, and when the group is marked `alt` and holds more than
+   one distinct object — two editions of one lid, which are ALTERNATIVES and
+   go one per plate.
 3. THE PACKING, per plate — thin strips turned 45 degrees and packed along
    two bed edges from a shared corner, or in one centred diagonal band when
    that holds more; flat objects grid-searched into the free corners; a
@@ -67,15 +69,36 @@ TOWER_INSET = 4.0     # the tower keeps this far inside its rectangle's every ed
 BIG = 20.0            # an object longer than bed - BIG is turned 45 degrees
 THIN = 30.0           # a strip is thinner than this
 
+
+class Group(NamedTuple):
+    """One entry of the plate scheme: the plate's name and the roles that go
+    on it. `alt` marks a group whose objects are ALTERNATIVES rather than a
+    set — see `PLATE_SCHEME`."""
+    label: str
+    roles: tuple
+    alt: bool = False
+
+
 # One plate per role group, in this order. Pushers ride with the Box.
+#
+# `alt` is the Lid's alone: from 7.1d a cascade whose mark is not its game's
+# default edition ships BOTH lids and its owner prints one of them
+# (`cad/cascade.parts`), so they go one per plate, each plate named after its
+# object — `Lid 90U` and `Lid 90U Ultimate`. It is not a rule that could be
+# read off the objects: every OTHER group of several is either copies of one
+# part (pushers, holders) or a named set that shares a plate and is printed
+# whole (the six toppers). Alternatives that were already separate stay
+# separate the way they always were, by role: a TokenHolder and a
+# HalfTokenHolder are alternatives for one pocket and have a scheme entry
+# each.
 PLATE_SCHEME = [
-    ("Box + pushers", ("Box", "Pusher")),
-    ("Lid", ("Lid",)),
-    ("Holders", ("Holder", "FirstHolder")),
-    ("Toppers", ("Topper",)),
-    ("Token holders", ("TokenHolder",)),
-    ("Half token holders", ("HalfTokenHolder",)),
-    ("Labels", ("Label",)),
+    Group("Box + pushers", ("Box", "Pusher")),
+    Group("Lid", ("Lid",), alt=True),
+    Group("Holders", ("Holder", "FirstHolder")),
+    Group("Toppers", ("Topper",)),
+    Group("Token holders", ("TokenHolder",)),
+    Group("Half token holders", ("HalfTokenHolder",)),
+    Group("Labels", ("Label",)),
 ]
 ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "Box", "Lid",
          "Holder", "Topper", "Pusher", "Label")
@@ -289,9 +312,18 @@ def plate_groups(objects, bed):
     bw, bd = PJ.BEDS[bed].size
     side = min(bw, bd)
     groups = []
-    for label, roles in PLATE_SCHEME:
+    for label, roles, alt in PLATE_SCHEME:
         idxs = [i for i, o in enumerate(objects) if role(o.name) in roles]
         if not idxs:
+            continue
+        # ALTERNATIVES, not a set: the owner prints one of them, so they get a
+        # plate each, named by the object. One object is the ordinary case and
+        # keeps the scheme's own label — a cascade with one lid lays out today
+        # exactly as it did before 7.1d.
+        names = list(dict.fromkeys(objects[i].name for i in idxs))
+        if alt and len(names) > 1:
+            for name in names:
+                groups.append((name, [i for i in idxs if objects[i].name == name]))
             continue
         # A big object that must rotate fills its plate diagonally and leaves
         # no room for flat companions (the box's pushers on a P1): give the

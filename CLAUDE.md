@@ -72,7 +72,7 @@ stamp, so a cad-built cascade can be told from an Onshape-exported one on the
 shelf — and, since the version went into the project name, in the file too.
 It is NOT the same geometry: 7.1 is where the Lid drops its middle pusher
 socket, and `cad/revisions.py` is the one place a release change lives.
-**An unreleased release is ITERATED BY LETTER and 7.1c is what builds today**
+**An unreleased release is ITERATED BY LETTER and 7.1d is what builds today**
 (Allan, 2026-09-09): `7.1a`, `7.1b`, ... and then plain `7.1` at the lock, so
 two parts printed from different states of an unfinished 7.1 can be told apart
 on the shelf. **A letter is a release like any other** — a member of
@@ -80,9 +80,11 @@ on the shelf. **A letter is a release like any other** — a member of
 makes it mean something: a change lands as a flag whose `since` is the NEW
 letter, so a 7.1a part stays reproducible instead of being quietly restated.
 `7.1` itself is deliberately NOT on the line until the lock, so nothing can
-stamp an unfinished `CC 7.1`. The letters so far: `7.1a`, `7.1b`, `7.1c`. To bump: the letter into `RELEASES` and
-`SAME_LOCK`, `CURRENT` onto it, `since` on the new flag, a `STAMP_SIGNATURES`
-row — the tests take the newest release from `RELEASES[-1]` and need no edit.
+stamp an unfinished `CC 7.1`. The letters so far: `7.1a`, `7.1b`, `7.1c`,
+`7.1d`. To bump: the letter into `RELEASES` and `SAME_LOCK`, `CURRENT` onto
+it, `since` on the new flag, a `STAMP_SIGNATURES` row — the tests take the
+newest release from `RELEASES[-1]` and a flag's own OLD end from its `since`
+(`test_revisions.before`), so neither needs an edit.
 `spec/REVISIONS.md`, "An unreleased release is iterated by LETTER"; prose in
 `spec/` that says "from 7.1" means the release and is true of every letter in
 it. **A release's parts go in their own tree and the default
@@ -94,7 +96,7 @@ tree, because what it stages joins Onshape parts in a shipped cascade).
 **Every test that compares against a reference pins 7.0** through
 `tests/reference.py`; the default is a moving target by design.
 **A part now says its release TWICE** and `verify.py --stamps` reads both: the
-engraved `CC 7.1c` (`STAMP_SIGNATURES`) and a
+engraved `CC 7.1d` (`STAMP_SIGNATURES`) and a
 `CardCascade:Version` metadata string `cad.build` writes into every component
 (`mesh3mf.write(metadata=...)`). The glyph is what a person holding the plastic
 reads and it CANNOT tell 7.1 from 7.2, nor 7.1 from 7.1a — the letter is not a
@@ -106,7 +108,7 @@ at the end of the merged Dominion codes is `M . U n`, the same shape as
 for it (`verify._dotted`). Eight parts went unreadable before that gate went
 in, which is what the 128-component `--stamps` run is for.
 `verify.py --stamps --tree build` audits a cad tree that way (metadata on all
-258 parts, engraving as well on the Box/Lid/Pusher trio) and is the check to
+264 parts, engraving as well on the Box/Lid/Pusher trio) and is the check to
 run before publishing a release. The older route — `python -m cad.promote` staging built parts under
 the planner's names for `refresh_cascades.py --components` — still works for
 all but four token holders (`spec/TOKENHOLDER.md`'s size-letter collision)
@@ -123,7 +125,7 @@ been printed yet.
   `if d.rev.lid_socket_per_pusher:` — and NEVER as a version comparison.
   A version is an opaque STRING — `7.1`, and possibly `7.1.1` or `7.1B` later —
   so nothing parses one: order is the position in `RELEASES`, and `HISTORICAL`
-  names the older versions still asked about (`6.6`). **7.1 carries five
+  names the older versions still asked about (`6.6`). **7.1 carries six
   changes**: the Lid cuts one socket per pusher (four Innovation M lids lose
   their unused MIDDLE socket); **every cascade takes TWO pushers** at any
   size, which restates 24 boxes — a slot, a divider and a pair of rim cutouts
@@ -148,11 +150,23 @@ been printed yet.
   two numbers, not a shape. Read `box.hole_w`/`box.hole_rows` and
   `holder.window_w`/`holder.window_rows`, never the constants
   (`stout_lattice`, 2026-09-09).
+  7.1d adds a sixth, and it changes no geometry at all: a cascade that carries
+  a **non-default edition** of its game's mark ships the DEFAULT edition too,
+  as a second Lid **on a plate of its own**. That is Innovation's two
+  single-set cascades and so four projects — each keeps the plain `Innovation`
+  lid it carried and gains an `Innovation Ultimate` one, and its owner prints
+  whichever the shelf should read (Allan, 2026-09-10). The rule is
+  `tables.lid_editions` and is a RULE, not a table: the edition the cascade
+  carries, then the game's default where they differ. The alternate is the
+  same lid with the other mark in its underside — `Lid <model> Ultimate.3mf`,
+  object `Lid 135U Ultimate`, and the two plates are named after their objects
+  because "Lid 1 of 2" says nothing about which mark is on it
+  (`both_lid_editions`, `spec/LID.md`).
   A **7.0** build still cuts three pushers, still lays a 1.600 floor, still
-  cuts the one Onshape cutout, still cuts 10.000 windows in three rows and
-  still reproduces every STEP and cached mesh — all 50
-  7.0 boxes rebuild byte-for-byte — which is the point of the mechanism, and
-  it is what decided the wrinkle in the last change: several cutouts break a
+  cuts the one Onshape cutout, still cuts 10.000 windows in three rows, still
+  ships ONE lid per cascade, and still reproduces every STEP and cached mesh —
+  all 50 7.0 boxes rebuild byte-for-byte — which is the point of the mechanism,
+  and it is what decided the wrinkle in the lattice change: several cutouts break a
   fillet chain OCCT will not take, so the outer back ledge leaves
   `sharp_edges` only where they do — dropping it always would move bytes, not
   geometry, on six 7.0 boxes.

@@ -115,6 +115,12 @@ both slice the same and `filaments.used_extruders` reads both.
   shipped project has it: with several projects open it is the lid that says
   which cascade a plate belongs to (Allan, 2026-09-05; `project.object_name`).
   The other legacy suffixes (`TokenHolder Full`) are dropped.
+- A cascade carrying a NON-DEFAULT edition of its game's mark ships a second
+  lid from 7.1d, and that one adds the EDITION to the same name —
+  `Lid 135U Ultimate` beside `Lid 135U`. The two are alternatives, so they go
+  on a plate each and each plate is named after its object rather than after
+  the scheme (`layout.PLATE_SCHEME`, `alt`). `spec/LID.md`, "Both editions
+  ship, on a plate each".
 - Parts keep the names the component file gives them (`Lid`, `Part 2`, ...).
 - Plates are `<scheme name> — <project title>`, as `make_cascade` writes them;
   Bambu forbids `<>:/\|?*"` in a plate name.
@@ -150,9 +156,11 @@ the two to the same placements on Dominion 168 while both exist. In order:
    rule is the fallback for a blank.
 2. **The plates** — one per role group (box with its pushers, lid, holders,
    toppers, token holders, half token holders), split where a rotated box
-   leaves no room for flat pushers, and where more thin strips than a plate
-   holds need several. Shipped projects were laid out by hand and often
-   differ here (Dominion's Mat boxes: five plates shipped, six by the rule).
+   leaves no room for flat pushers, where more thin strips than a plate
+   holds need several, and where a group holds ALTERNATIVES rather than a set
+   — the two editions of a single-set Innovation lid, one per plate. Shipped
+   projects were laid out by hand and often differ here (Dominion's Mat boxes:
+   five plates shipped, six by the rule).
 3. **The packing** — thin strips at 45 degrees along two bed edges from a
    shared corner, or one centred diagonal band when that holds more; flat
    objects grid-searched into the free corners; a plate with nothing to

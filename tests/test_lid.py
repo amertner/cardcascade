@@ -174,8 +174,8 @@ _EXPORTED_WITH = {
 }
 _PIN_FN = None
 _choice = lid.logo_choice
-lid.logo_choice = lambda d: (_EXPORTED_WITH.get(_PIN_FN)
-                                or (TB.LID_LOGO[d.GameName][None][-1], 1.0))
+lid.logo_choice = lambda d, alternate=False: (
+    _EXPORTED_WITH.get(_PIN_FN) or (TB.LID_LOGO[d.GameName][None][-1], 1.0))
 
 
 for name, fn, P in REFS:
@@ -541,7 +541,7 @@ for model, want_file, want_scale in [
         # that fraction on the S one
         ("XS5.15.10.32-Un", "@innovation-plain", 1.000),
         ("S3.15.10.20-Un", "@innovation-plain", 1.211)]:
-    hit = [(pp, dd) for _f, fn, pp in build.lid_catalogue()
+    hit = [(pp, dd) for _f, fn, pp, _alt in build.lid_catalogue()
            for dd in [D.derive(pp)] if fn == f"Lid {model}.3mf"]
     if not hit:
         check(f"{model}: in the catalogue", False, True)
@@ -556,9 +556,9 @@ for model, want_file, want_scale in [
 # promise the rule makes: a mark Allan has already published is never made
 # smaller to satisfy a proportion, only ever to fit.
 worst_room, worst_shrink = 0.0, []
-for _folder, fn, pp in build.lid_catalogue():
+for _folder, fn, pp, alt in build.lid_catalogue():
     dd = D.derive(pp)
-    name, scale = lid.logo_choice(dd)
+    name, scale = lid.logo_choice(dd, alt)
     if not name:
         check(f"{fn}: has artwork", False, True)
         continue

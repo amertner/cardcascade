@@ -58,7 +58,11 @@ def parts(row, d):
       count of rear slots: 2 for Innovation and for S boxes, 3 for M and L);
     * `RisingSliders` Holders — one of them the deeper FirstHolder when the row
       overrides the first slot's capacity;
-    * one Lid;
+    * one Lid — and from 7.1d a SECOND one, on its own plate, where the
+      cascade's mark is not its game's default edition: Innovation's two
+      single-set cascades carry the plain `Innovation` mark and ship an
+      `Innovation Ultimate` lid beside it, for the owner to choose between
+      (`rev.both_lid_editions`, `build.lid_editions_built`);
     * Dominion: a TokenHolder where the row's `TokenHolder` column says `full`,
       and a HalfTokenHolder as well on a merged (Mat) row — the two are
       alternatives for one pocket, and the cascade ships both;
@@ -73,7 +77,8 @@ def parts(row, d):
         out += [("Holder", B.holder_file(d))] * (d.RisingSliders - 1)
     else:
         out += [("Holder", B.holder_file(d))] * d.RisingSliders
-    out.append((PJ.object_name("Lid", d), B.lid_file(d)))
+    for alt in B.lid_editions_built(d):
+        out.append((PJ.object_name("Lid", d, alt), B.lid_file(d, alt)))
     if d.GameName == "Dominion" and (row.get("TokenHolder") or "").strip().lower() == "full":
         out.append(("TokenHolder", B.token_holder_file(d, half=False)))
         if d.MatPocket:

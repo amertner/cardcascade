@@ -30,7 +30,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from build123d import Box as _Box, Location as _Loc              # noqa: E402
-from cad import derive as D, lock as L, params, revisions as R   # noqa: E402
+from cad import build as B, cascade as CC, derive as D, lock as L  # noqa: E402
+from cad import layout as LY, params, project as PJ, revisions as R  # noqa: E402
 from cad.refuse import Refused                                   # noqa: E402
 from cad import assembly as A                                    # noqa: E402
 from cad.parts import box as box_part, holder as holder_part, lid  # noqa: E402
@@ -54,6 +55,24 @@ def check(label, got, want, tol=1e-6):
     if not ok:
         fails.append(f"{label}: {got!r} vs {want!r}")
     return ok
+
+
+def since(flag):
+    """The release a flag ships in, taken from the flag itself."""
+    return next(f.metadata["since"] for f in R.flags() if f.name == flag)
+
+
+def before(flag):
+    """The release just before a flag ships — the OLD end of its comparison.
+
+    From the flag's own `since` and NEVER from `RELEASES[-1]`: the newest
+    release is the flag's own only while the flag is the latest change, and
+    the next iteration letter would otherwise have a flag compared with a
+    release that already carries it — a check that cannot fail and says
+    nothing. `7.1d` is what found that: `stout_lattice` shipped at `7.1c` and
+    its OLD end became `7.1c` itself.
+    """
+    return R.previous(since(flag))
 
 
 def rows():
@@ -99,7 +118,7 @@ check("an unknown release is refused, not silently built", refused, True)
 
 
 # --- the Lid cuts one socket per pusher -------------------------------------
-print(f"\n=== {NEW}  lid_socket_per_pusher ===")
+print(f"\n=== {since('lid_socket_per_pusher')}  lid_socket_per_pusher ===")
 asserted.add("lid_socket_per_pusher")
 # The four Innovation M lids, named. Any other row in the catalogue must be
 # IDENTICAL across the two releases: the flag changes these and nothing else.
@@ -186,7 +205,7 @@ check("the two releases write the same number of solids",
 
 
 # --- 7.1: every cascade takes two pushers -----------------------------------
-print(f"\n=== {NEW}  two_pushers ===")
+print(f"\n=== {since('two_pushers')}  two_pushers ===")
 asserted.add("two_pushers")
 # 24 of the 50 lose their third slot: 16 Dominion, 6 FCM, 2 Compile. Innovation
 # and every S box were on two already, so the count is the assertion.
@@ -245,7 +264,7 @@ for v in R.RELEASES:
 
 
 # --- 7.1: the floor is 2.000, and it grows UPWARD ---------------------------
-print(f"\n=== {NEW}  thick_floor ===")
+print(f"\n=== {since('thick_floor')}  thick_floor ===")
 asserted.add("thick_floor")
 # The claim has two halves and they are asserted separately: the floor IS
 # thicker, and NOTHING ELSE MOVED. The second half is the whole reason the
@@ -331,7 +350,7 @@ print(f"  (the tightest headroom left is {min(heads):.3f} mm)")
 
 
 # --- 7.1b: a thumb cutout every 70 mm of back pocket ------------------------
-print(f"\n=== {NEW}  rear_thumbs_spread ===")
+print(f"\n=== {since('rear_thumbs_spread')}  rear_thumbs_spread ===")
 asserted.add("rear_thumbs_spread")
 # Before the flag the pocket has ONE cutout however wide it is, and it is
 # `#calFingerHoleOffset` that places it. Both halves are asserted: the older
@@ -489,7 +508,7 @@ with tempfile.TemporaryDirectory() as tmp:
         check(f"a {v} part is refused as {other}", fatal is not None, True)
 
 # --- 7.1c: a stouter lattice ------------------------------------------------
-print(f"\n=== {NEW}  stout_lattice ===")
+print(f"\n=== {since('stout_lattice')}  stout_lattice ===")
 asserted.add("stout_lattice")
 # Two halves, asserted separately because they answer different halves of the
 # failure. The window is narrower, so the PILLAR between two of them is wider
@@ -497,7 +516,7 @@ asserted.add("stout_lattice")
 # more ROW, so the pillar is tied back to a bridge sooner — that is free
 # height, which is what lets the nozzle and the bridge above break it during
 # the print. `spec/BOX.md` and `spec/HOLDER.md`, "A stouter lattice".
-OLD = R.RELEASES[R.position(NEW) - 1]
+OLD = before("stout_lattice")
 
 
 def mullions(d):
@@ -618,6 +637,119 @@ for label, part_mod, d70, band in (
               f"{band[0]:.3f}..{band[1]:.3f}",
               [dbb.min.Z >= band[0] - 1e-4, dbb.max.Z <= band[1] + 1e-4],
               [True, True])
+
+
+# --- 7.1d: both editions of a mark ship, on a plate each --------------------
+print(f"\n=== {since('both_lid_editions')}  both_lid_editions ===")
+asserted.add("both_lid_editions")
+# Nothing about a lid's SHAPE changes here: what changes is how many lids a
+# project holds. So the assertions are of three kinds — which cascades gain
+# one (named, and no others), what the second one carries, and that the two
+# go on a plate each — and the geometry claim is the negative one: the two
+# lids differ in the mark and in nothing else at all.
+LID_OLD, LID_NEW = before("both_lid_editions"), since("both_lid_editions")
+# The two single-set Innovation cascades, both sleevings: four projects.
+BOTH = {"S3.15.10.20.Un", "S3.15.10.32.Sl",
+        "XS5.15.10.32.Un", "XS5.15.10.45.Sl"}
+
+
+def lids_of(row, sleeved, version):
+    """The Lid objects `cad.cascade` puts in a project, (name, file) each."""
+    d = at(row, sleeved, version)
+    return [(n, fn) for n, fn in CC.parts(row, d) if n.startswith("Lid")]
+
+
+gained, kept, wrong = set(), 0, []
+for r in rows():
+    for sleeved in (0, 1):
+        old_lids = lids_of(r, sleeved, LID_OLD)
+        new_lids = lids_of(r, sleeved, LID_NEW)
+        model = at(r, sleeved, LID_OLD).calModelName
+        if len(old_lids) != 1:
+            wrong.append(f"{model}: {len(old_lids)} lids at {LID_OLD}")
+        if len(new_lids) == 2:
+            gained.add(model)
+        elif new_lids == old_lids:
+            kept += 1
+        else:
+            wrong.append(f"{model}: {len(new_lids)} lids at {LID_NEW}")
+check(f"{LID_OLD}: every cascade in the catalogue ships ONE lid, and every "
+      f"other cascade still does at {LID_NEW}", wrong, [])
+check(f"{LID_NEW}: the cascades that ship two are the single-set ones",
+      sorted(gained), sorted(BOTH))
+print(f"  ({kept} cascades ship one lid at both releases)")
+
+# What the second one IS. The cascade keeps the mark it carried — the plain
+# `Innovation` — and the alternate is the game's DEFAULT edition, which is the
+# one that says Ultimate. Named from both ends so a swap of the two would fail
+# here rather than print a shelf full of the wrong word.
+row_ss = next(r for r in rows() if at(r, 0, LID_NEW).calModelName == "S3.15.10.20.Un")
+dss = at(row_ss, 0, LID_NEW)
+check("the cascade's own lid carries the plain mark",
+      lid.logo_choice(dss, False)[0], "@innovation-plain")
+check("the alternate carries the game's default (Ultimate) mark",
+      lid.logo_choice(dss, True)[0].startswith("@innovation-ultimate"), True)
+check("the alternate's FILE says which edition it is",
+      B.lid_file(dss, True), "Lid S3.15.10.20-Un Ultimate.3mf")
+check("and the cascade's own keeps the name it always had",
+      B.lid_file(dss, False), "Lid S3.15.10.20-Un.3mf")
+check("the OBJECT in the project says it too",
+      [PJ.object_name("Lid", dss, False), PJ.object_name("Lid", dss, True)],
+      ["Lid 135U", "Lid 135U Ultimate"])
+# A cascade that already carries its game's default has no alternate to ask
+# for, and asking is a caller's bug rather than a lid to build.
+dult = at(next(r for r in rows()
+               if at(r, 0, LID_NEW).calModelName == "S5.15.15.45.Un"), 0, LID_NEW)
+try:
+    lid.logo_choice(dult, True)
+    refused = False
+except Refused:
+    refused = True
+check("a cascade with one edition refuses to build an alternate", refused, True)
+
+
+# A plate each, and named by the object so the owner can tell which is which
+# in Studio. `plate_groups` reads a name and a footprint off each object and
+# nothing else, so a stub is the whole of what it needs.
+class _Stub:
+    def __init__(self, name, size):
+        self.name, self.size = name, size
+
+
+def plates_for(names):
+    objs = [_Stub(n, (200.0, 40.0, 20.0) if n.startswith("Lid")
+                  else (150.0, 60.0, 30.0)) for n in names]
+    return [nm for nm, _idxs in LY.plate_groups(objs, "p1")]
+
+
+check("two editions go on a plate each, named by the object",
+      plates_for(["Box", "Lid 135U", "Lid 135U Ultimate"]),
+      ["Box + pushers", "Lid 135U", "Lid 135U Ultimate"])
+check("and one lid still takes the scheme's own plate name",
+      plates_for(["Box", "Lid 135U"]), ["Box + pushers", "Lid"])
+
+# The geometry: the two lids are the SAME lid. Everything that is not the mark
+# — the shell, the sockets, the closing grooves, the floor's engraving, the
+# outer rounds — has to be identical, so the whole of the difference lies in
+# the pattern's own Z band. The XS lid is the catalogue's smallest and so the
+# cheapest to build twice.
+dxs = at(next(r for r in rows()
+              if at(r, 0, LID_NEW).calModelName == "XS5.15.10.32.Un"), 0, LID_NEW)
+own, other = lid.build(dxs, False), lid.build(dxs, True)
+bo, bt = own.bounding_box(), other.bounding_box()
+check("the two editions are the same lid: same bounding box",
+      [round(v, 4) for v in (bt.min.X, bt.min.Y, bt.min.Z, bt.max.X, bt.max.Y, bt.max.Z)],
+      [round(v, 4) for v in (bo.min.X, bo.min.Y, bo.min.Z, bo.max.X, bo.max.Y, bo.max.Z)])
+for way, diff in (("gains", other - own), ("loses", own - other)):
+    check(f"the alternate {way} material — it is a different mark, not the same one",
+          diff is not None and diff.volume > 1e-6, True)
+    if diff is None:
+        continue
+    dbb = diff.bounding_box()
+    check(f"and what it {way} lies inside the pattern's band "
+          f"0.000..{lid.PATTERN_DEPTH:.3f}",
+          [dbb.min.Z >= -1e-4, dbb.max.Z <= lid.PATTERN_DEPTH + 1e-4],
+          [True, True])
 
 
 # --- every change has a case here ------------------------------------------

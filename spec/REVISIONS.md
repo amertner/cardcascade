@@ -71,14 +71,14 @@ What every reference STEP in `spec/reference/` and every cached mesh in
 the corpus tests assert, and `tests/reference.py` is why they keep asserting it
 when the default moves.
 
-### 7.1 — the cad-built release, being iterated as `7.1c`
+### 7.1 — the cad-built release, being iterated as `7.1d`
 
-Currently on the line as **`7.1c`** and not as `7.1`: the release is unfinished,
+Currently on the line as **`7.1d`** and not as `7.1`: the release is unfinished,
 and the letter is what a part built today is stamped and titled with (see "An
-unreleased release is iterated by LETTER"). Everything below is what `7.1c`
-is; the next change opens `7.1d`. `7.1a` and `7.1b` are still on the line and
-still buildable — parts stamped with them exist — and each is only the flags
-at or before its own letter.
+unreleased release is iterated by LETTER"). Everything below is what `7.1d`
+is; the next change opens `7.1e`. `7.1a`, `7.1b` and `7.1c` are still on the
+line and still buildable — parts stamped with them exist — and each is only
+the flags at or before its own letter.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -149,6 +149,26 @@ And `7.1c` adds a fifth, the only one that reaches TWO parts at once:
   and not a shape, is **sides vertical, top horizontal**. `spec/BOX.md` and
   `spec/HOLDER.md`, "A stouter lattice".
 
+And `7.1d` adds a sixth, the only one that changes no geometry at all:
+
+* **`both_lid_editions`** (`7.1d`) — a cascade that carries a NON-DEFAULT
+  edition of its game's mark ships the default edition too, as a second Lid on
+  a plate of its own (Allan, 2026-09-10: "I need to include two lids on
+  separate plates: one with the Innovation Ultimate logo, and one with the
+  plain Innovation logo"). That is Innovation's two single-set cascades and so
+  four projects — `S3.15.10` and `XS5.15.10`, sleeved and unsleeved — each of
+  which keeps the plain `Innovation` lid it already carried and gains an
+  `Innovation Ultimate` one beside it, for its owner to choose between at the
+  printer. The rule is stated once, as a rule and not a table
+  (`tables.lid_editions`): the edition the cascade carries, then the game's
+  default where the two differ. Nothing a lid IS changes — the alternate is
+  the same lid with the other mark in its underside, fitted by the same rule —
+  so this is a change to what a project CONTAINS, which `two_pushers` already
+  was in its second half. The alternate takes the edition's word as a suffix
+  (`Lid S3.15.10.20-Un Ultimate.3mf`, object `Lid 135U Ultimate`) and the two
+  plates are named after their objects, because "Lid 1 of 2" would not say
+  which mark is on it. `spec/LID.md`, "Both editions ship, on a plate each".
+
 **The flags are separable and the tests keep them so.** Two of the four reach
 the Lid, so comparing 7.0 with 7.1 shows 28 lids changing and says nothing about
 which flag did what; `tests/test_revisions.py` turns one flag on at a time
@@ -210,7 +230,7 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is **`7.1c`**: a plain `cad.build` or `cad.cascade` builds
+`revisions.CURRENT` is **`7.1d`**: a plain `cad.build` or `cad.cascade` builds
 the current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
 regress against is the shipped tree, which the Onshape pipeline built at 7.0 —
@@ -229,11 +249,11 @@ default moves — the one failure a regression corpus must not have.
 `CURRENT` is not a finished thing. The way this repo is worked (Allan,
 2026-09-06) is: **sit at a version for a while, accumulate changes in it, then
 lock it and release it.** The letter is how those accumulating states are told
-apart (Allan, 2026-09-08): **`7.1a`, `7.1b`, `7.1c`, ... and then plain `7.1`
-at the lock.**
+apart (Allan, 2026-09-08): **`7.1a`, `7.1b`, `7.1c`, `7.1d`, ... and then plain
+`7.1` at the lock.**
 
 **The problem it solves is physical.** While 7.1 is being worked on its
-geometry moves — four times already — and every part printed along the way
+geometry moves — five times already — and every part printed along the way
 says `CC 7.1`. A shelf of them cannot say which is which, and the stamp is the
 only thing a person holding the plastic can read. A letter makes each state
 nameable on the part itself.

@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import mesh3mf
+from . import tables as TB
 from .refuse import refuse
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -281,13 +282,23 @@ def plate_title(scheme, title):
     return PLATE_SAFE.sub("-", f"{scheme} — {title}")
 
 
-def object_name(role, d):
+def object_name(role, d, alternate=False):
     """What Studio's object list shows. Every role is its own name except the
     Lid, which carries the card capacity and the sleeving — `Lid 168U` — as
     every shipped project has it (Allan, 2026-09-05): with several projects
-    open it is the lid that says which cascade a plate belongs to."""
+    open it is the lid that says which cascade a plate belongs to.
+
+    `alternate` names the SECOND lid such a cascade ships from 7.1d, and it is
+    named by the EDITION its mark is — `Lid 90U Ultimate` — because the two
+    lids are the same cascade's and the mark is the whole of the difference.
+    It still starts `Lid`, which is what `layout.role` reads, and the two go
+    on a plate each (`layout.plate_groups`)."""
     if role == "Lid":
-        return f"Lid {d.calTotalCards}{'S' if d.isSleeved else 'U'}"
+        name = f"Lid {d.calTotalCards}{'S' if d.isSleeved else 'U'}"
+        if alternate:
+            edition = TB.lid_editions(d.GameName, d.calModelName)[1]
+            name += " " + TB.lid_edition_name(d.GameName, edition)
+        return name
     return role
 
 

@@ -107,7 +107,7 @@ def box_file(d):
     return "Box " + model_stem(d.calModelName) + suffix + ".3mf"
 
 
-def lid_file(d):
+def lid_file(d, alternate=False):
     """`Lid <model>.3mf`, the name `individual/` uses.
 
     Keyed on `calModelName` exactly as the Box is, which means a Mat cascade
@@ -115,18 +115,45 @@ def lid_file(d):
     Nothing in the geometry depends on `MatPocket`, so the two are identical
     files today; they part company when the floor's engraved `calModelName` is
     built, and the CAD is the authority on that code (CLAUDE.md).
+
+    From 7.1d a cascade whose mark is not its game's default ships a SECOND
+    lid carrying the default mark (`rev.both_lid_editions`), and that one
+    takes the edition's name as a suffix — `Lid S3.15.10.20-Un Ultimate.3mf`
+    beside `Lid S3.15.10.20-Un.3mf`. The suffix goes on the ALTERNATE and
+    never on the lid the cascade carries, the way `box_file`'s `no label
+    holders` does: the plain name stays the name it has always had, so every
+    earlier release writes the tree it wrote before.
     """
-    return "Lid " + model_stem(d.calModelName) + ".3mf"
+    stem = "Lid " + model_stem(d.calModelName)
+    if alternate:
+        stem += " " + TB.lid_edition_name(
+            d.GameName, TB.lid_editions(d.GameName, d.calModelName)[1])
+    return stem + ".3mf"
+
+
+def lid_editions_built(d):
+    """[alternate?] — the lids this cascade's release ships, `False` for the
+    one it carries and `True` for the alternate edition beside it.
+
+    The alternate is 7.1d's (`rev.both_lid_editions`); before it, and for the
+    46 cascades that carry their game's default mark, a cascade has one lid.
+    """
+    if d.rev.both_lid_editions and TB.has_lid_alternate(d.GameName, d.calModelName):
+        return [False, True]
+    return [False]
 
 
 def lid_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary)] — every distinct lid, deduplicated."""
+    """[(folder, filename, Primary, alternate)] — every distinct lid,
+    deduplicated. `alternate` is the builder's `extra`."""
     out = {}
     for _row, p in params.cascades(csv, game, version):
-        fn = lid_file(D.derive(p))
-        if model and model.lower() not in fn.lower():
-            continue
-        out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+        d = D.derive(p)
+        for alt in lid_editions_built(d):
+            fn = lid_file(d, alt)
+            if model and model.lower() not in fn.lower():
+                continue
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p, alt))
     return [out[k] for k in sorted(out)]
 
 
@@ -172,9 +199,11 @@ def write_component(path, bodies, d, **extra):
             "new": before is None, **extra}
 
 
-def build_lid(d, _extra, path):
+def build_lid(d, extra, path):
     """Build one lid and write the 3MF. Like the Box, a Lid sits at the part
-    studio's origin, which is the assembly's.
+    studio's origin, which is the assembly's. `extra` is truthy for the
+    ALTERNATE edition of the game's mark, the second lid a single-set
+    Innovation cascade ships from 7.1d (`lid_file`).
 
     A lid is MORE THAN ONE BODY: the logo pattern's inlays print in the second
     filament, so Onshape exports them as their own objects and so does this.
@@ -184,7 +213,7 @@ def build_lid(d, _extra, path):
     first) to keep a rebuild byte-identical.
     """
     from .parts import lid as lid_part
-    part, inlays = lid_part.build_all(d)
+    part, inlays = lid_part.build_all(d, alternate=bool(extra))
     bodies = [("Lid", part)]
     bodies += [(f"Part {i}", s) for i, s in enumerate(
         sorted(inlays, key=lambda s: (-round(s.volume, 6),
@@ -588,8 +617,7 @@ def holder_key(p, first):
 def specs_for(kind, args, src):
     """[(folder, filename, Primary, extra)] for `--list`, and the job specs."""
     if kind == "lid":
-        items = [(f, fn, p, None) for f, fn, p in
-                 lid_catalogue(args.csv, args.game, args.model, args.version)]
+        items = lid_catalogue(args.csv, args.game, args.model, args.version)
     elif kind == "holder":
         items = holder_catalogue(args.csv, args.game, args.model, args.version)
     elif kind == "tokenholder":
