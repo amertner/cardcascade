@@ -28,8 +28,9 @@ GENERATION = "7.0"
 # which is the right way round. `tests/test_revisions.py` holds the two lists
 # to each other. An ITERATION LETTER is a release like any other
 # (`cad/revisions.py`, "An unreleased release is iterated by LETTER"), so each
-# new one is admitted here too — and plain `7.1` will be, at the lock.
-SAME_LOCK = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d")
+# new one is admitted here too — and plain `7.1` is, from its lock on
+# 2026-09-10. The letters stay admitted beside it: each is still buildable.
+SAME_LOCK = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1")
 
 
 def lock_generation(version):

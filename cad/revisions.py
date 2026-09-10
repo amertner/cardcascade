@@ -58,6 +58,14 @@ letter is frozen, which is exactly what a version stamped on plastic has to be.
 The letters STAY on it: parts printed at `7.1b` exist, and this repo's rule is
 that a version you can hold must remain describable and buildable. `7.1` sits
 after them all, so it carries every flag they introduced.
+
+**7.1 was locked on 2026-09-10** and this is what it looks like: `RELEASES`
+ends `..., "7.1d", "7.1"`, `CURRENT` is `7.1`, `lock.SAME_LOCK` admits it, and
+not one flag's `since` moved — they still name the letter each change shipped
+in, which is what keeps the letters meaning something and what
+`tests/test_revisions.py` isolates them by. The next change opens `7.2a`, not
+`7.1e`: `7.1` is on the line now, so a change after it is a change after the
+release.
 """
 from dataclasses import dataclass, field, fields
 
@@ -67,14 +75,18 @@ from .refuse import refuse
 # defaults to; an older one is still buildable and is what every reference
 # STEP and cached mesh in `individual/` is compared against.
 #
-# `7.1a` .. `7.1d` are 7.1 being ITERATED, and the LETTER is the point (Allan,
+# `7.1a` .. `7.1d` were 7.1 being ITERATED, and the LETTER was the point (Allan,
 # 2026-09-08): see "An unreleased release is iterated by LETTER" below.
-# `7.1` itself is deliberately NOT on the line — it is what the last letter is
-# renamed to at the lock, and until then nothing can build or stamp it. An
-# earlier letter STAYS: parts stamped `CC 7.1a` exist, and a version you can
-# hold has to remain buildable.
-RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d")
-CURRENT = "7.1d"
+#
+# **7.1 is LOCKED** (Allan, 2026-09-10) and sits at the END of the line, which
+# is what the lock means: the line is ordered, a flag is on from its `since`
+# onward, so the last release carries every change the letters introduced and
+# `7.1` is `7.1d`'s geometry under a `CC 7.1` stamp. The letters STAY, and are
+# not renamed or removed: a version that has been built has to remain
+# describable and buildable, and each of them is still only the flags at or
+# before its own letter. The next design change opens `7.2a`.
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1")
+CURRENT = "7.1"
 
 
 @dataclass(frozen=True)

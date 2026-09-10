@@ -71,14 +71,23 @@ What every reference STEP in `spec/reference/` and every cached mesh in
 the corpus tests assert, and `tests/reference.py` is why they keep asserting it
 when the default moves.
 
-### 7.1 — the cad-built release, being iterated as `7.1d`
+### 7.1 — the cad-built release, LOCKED 2026-09-10
 
-Currently on the line as **`7.1d`** and not as `7.1`: the release is unfinished,
-and the letter is what a part built today is stamped and titled with (see "An
-unreleased release is iterated by LETTER"). Everything below is what `7.1d`
-is; the next change opens `7.1e`. `7.1a`, `7.1b` and `7.1c` are still on the
-line and still buildable — parts stamped with them exist — and each is only
-the flags at or before its own letter.
+On the line as plain **`7.1`**, at the END of it, and `CURRENT`. That is what
+the lock means here: the line is ordered and a flag is on from its `since`
+onward, so the last release carries every change the letters introduced — `7.1`
+is `7.1d`'s geometry under a `CC 7.1` stamp, and its six flags are all six
+below.
+
+`7.1a` .. `7.1d` STAY on the line, unrenamed, each still only the flags at or
+before its own letter. They are what the release was built as while it was
+being worked on, and a version that has been built has to remain describable
+and buildable. Not one flag's `since` moved at the lock either: they still name
+the letter each change shipped in, which is what the letters are for and what
+`tests/test_revisions.py` isolates them by.
+
+**The next design change opens `7.2a`**, not `7.1e`. `7.1` is on the line now,
+so a change after it is a change after the release.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -230,7 +239,7 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is **`7.1d`**: a plain `cad.build` or `cad.cascade` builds
+`revisions.CURRENT` is **`7.1`**: a plain `cad.build` or `cad.cascade` builds
 the current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
 regress against is the shipped tree, which the Onshape pipeline built at 7.0 —
@@ -250,10 +259,10 @@ default moves — the one failure a regression corpus must not have.
 2026-09-06) is: **sit at a version for a while, accumulate changes in it, then
 lock it and release it.** The letter is how those accumulating states are told
 apart (Allan, 2026-09-08): **`7.1a`, `7.1b`, `7.1c`, `7.1d`, ... and then plain
-`7.1` at the lock.**
+`7.1` at the lock** — which happened on 2026-09-10, after four of them.
 
 **The problem it solves is physical.** While 7.1 is being worked on its
-geometry moves — five times already — and every part printed along the way
+geometry moved — five times over four letters — and every part printed that way
 says `CC 7.1`. A shelf of them cannot say which is which, and the stamp is the
 only thing a person holding the plastic can read. A letter makes each state
 nameable on the part itself.
@@ -284,9 +293,11 @@ letters STAY on it. Parts printed at `7.1b` exist, and the rule this repo
 keeps everywhere is that a version you can hold must remain describable and
 buildable; `7.1` sitting after them all carries every flag they introduced.
 
-**`7.1` itself is not on the line until then**, deliberately: while the release
-is unfinished, nothing can build it, stamp it or title a project with it, so
-there is no way to put an unfinished `CC 7.1` on a part by accident.
+**`7.1` was not on the line until then**, deliberately: while the release was
+unfinished, nothing could build it, stamp it or title a project with it, so
+there was no way to put an unfinished `CC 7.1` on a part by accident. It went
+on at the lock, on 2026-09-10, after four letters — and the same will hold for
+`7.2`, which is not on the line while `7.2a` is being worked on.
 
 **Prose in `spec/` says "from 7.1" and means the release**, not the letter —
 the geometry sections were written about the release and stay true of every

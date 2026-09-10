@@ -72,19 +72,23 @@ stamp, so a cad-built cascade can be told from an Onshape-exported one on the
 shelf — and, since the version went into the project name, in the file too.
 It is NOT the same geometry: 7.1 is where the Lid drops its middle pusher
 socket, and `cad/revisions.py` is the one place a release change lives.
-**An unreleased release is ITERATED BY LETTER and 7.1d is what builds today**
-(Allan, 2026-09-09): `7.1a`, `7.1b`, ... and then plain `7.1` at the lock, so
-two parts printed from different states of an unfinished 7.1 can be told apart
-on the shelf. **A letter is a release like any other** — a member of
-`RELEASES`, of `lock.SAME_LOCK` and of `STAMP_SIGNATURES` — which is what
-makes it mean something: a change lands as a flag whose `since` is the NEW
-letter, so a 7.1a part stays reproducible instead of being quietly restated.
-`7.1` itself is deliberately NOT on the line until the lock, so nothing can
-stamp an unfinished `CC 7.1`. The letters so far: `7.1a`, `7.1b`, `7.1c`,
-`7.1d`. To bump: the letter into `RELEASES` and `SAME_LOCK`, `CURRENT` onto
-it, `since` on the new flag, a `STAMP_SIGNATURES` row — the tests take the
-newest release from `RELEASES[-1]` and a flag's own OLD end from its `since`
-(`test_revisions.before`), so neither needs an edit.
+**7.1 is LOCKED and plain `7.1` is what builds today** (Allan, 2026-09-10). It
+sits at the END of `RELEASES`, which is what a lock IS here: the line is
+ordered and a flag is on from its `since` onward, so the last release carries
+every change the letters introduced — `7.1` is `7.1d`'s geometry under a
+`CC 7.1` stamp. **An unreleased release is ITERATED BY LETTER** and this one
+took four: `7.1a` .. `7.1d`, so that two parts printed from different states of
+an unfinished 7.1 could be told apart on the shelf. They STAY on the line,
+unrenamed, each only the flags at or before its own letter, and no flag's
+`since` moved at the lock — a version that has been built has to remain
+buildable. **A letter is a release like any other** — a member of `RELEASES`,
+of `lock.SAME_LOCK` and of `STAMP_SIGNATURES`.
+**The next design change opens `7.2a`**, not `7.1e`: add the letter to
+`RELEASES` and `SAME_LOCK`, move `CURRENT` onto it, `since` on the new flag, a
+`STAMP_SIGNATURES` row — the tests take the newest release from `RELEASES[-1]`
+and a flag's own OLD end from its `since` (`test_revisions.before`), so neither
+needs an edit. `7.2` itself stays OFF the line until ITS lock, so nothing can
+stamp an unfinished `CC 7.2`.
 `spec/REVISIONS.md`, "An unreleased release is iterated by LETTER"; prose in
 `spec/` that says "from 7.1" means the release and is true of every letter in
 it. **A release's parts go in their own tree and the default
@@ -96,7 +100,7 @@ tree, because what it stages joins Onshape parts in a shipped cascade).
 **Every test that compares against a reference pins 7.0** through
 `tests/reference.py`; the default is a moving target by design.
 **A part now says its release TWICE** and `verify.py --stamps` reads both: the
-engraved `CC 7.1d` (`STAMP_SIGNATURES`) and a
+engraved `CC 7.1` (`STAMP_SIGNATURES`) and a
 `CardCascade:Version` metadata string `cad.build` writes into every component
 (`mesh3mf.write(metadata=...)`). The glyph is what a person holding the plastic
 reads and it CANNOT tell 7.1 from 7.2, nor 7.1 from 7.1a — the letter is not a
