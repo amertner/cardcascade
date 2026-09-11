@@ -249,9 +249,11 @@ to 0.001. Two findings came out of it:
   much as here: `cad/` rotates no artwork, and its inlays matched the cached
   Onshape lids to 0.001. Dominion's DXF was turned on 2026-09-04 from a
   photograph of the shipped Innovation boxes, and turned BACK on 2026-09-11
-  when a printed Dominion lid came out upside down; `tests/test_lid.py` holds
-  it to the reference as drawn, and which premise of the "disagree" argument
-  is wrong is open (`spec/LID.md`).
+  when a printed Dominion lid came out upside down. A printed Innovation lid
+  did too, and its generated mark now goes in turned
+  (`tables.LID_LOGO_TURNED`); the photograph had been misread. Compile and
+  FCM are predicted upside down as well and are open until printed
+  (`spec/LID.md`).
 
 `spec/ASSEMBLY.md` has both. The second is the case for treating renders as
 part of the checking rather than its output: it is invisible to every number

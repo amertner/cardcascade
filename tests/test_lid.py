@@ -418,23 +418,20 @@ for name, fn, P in REFS:
         # lines and matches to 0.000; Innovation's carries 361 arcs and 234
         # B-splines and lands at 0.09 %.
         check("inlay volume", round(mv, 3), round(rv, 3), rv * 1e-3)
-        # ORIENTATION, asserted from both ends. Dominion's drawing was turned
-        # a half turn on 2026-09-04 on the strength of a photograph of the
-        # OTHER game, and turned back on 2026-09-11 when a printed Dominion
-        # lid came out upside down (Allan; spec/LID.md). So every mark,
-        # Dominion's included, must be the reference's region for region as
-        # drawn — and Dominion's must NOT be the reference's turned, so the
-        # half turn cannot creep back unseen. Volume and footprint cannot see
-        # a half turn; this can.
+        # ORIENTATION, asserted from both ends. Printed 7.1 lids settled it
+        # (Allan, 2026-09-11; spec/LID.md): Dominion's drawing is right as
+        # Onshape drew it — its 2026-09-04 turn is undone — and Innovation's
+        # mark goes in a half turn about the lid's centre
+        # (`TB.LID_LOGO_TURNED`). So a turned game's build must be the
+        # reference turned and NOT the reference as it stands, and every other
+        # game's the reverse, so a half turn cannot come or go unseen. Volume
+        # and footprint cannot see a half turn; this can.
         def regions(inlays, turn):
-            bb = Compound(children=inlays).bounding_box()
-            cx, cy = (bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2
-            out = []
-            for s_ in inlays:
-                c = s_.center()
-                x, y = (2 * cx - c.X, 2 * cy - c.Y) if turn else (c.X, c.Y)
-                out.append((x, y, s_.volume))
-            return out
+            """Each region's (x, y, volume) — turned a half turn about the
+            LID's centre, the origin, where `lid.logo_art` turns a mark."""
+            s = -1 if turn else 1
+            return [(s * q.center().X, s * q.center().Y, q.volume)
+                    for q in inlays]
 
         def matched(a, b):
             """Every region of `a` has one of `b` within 0.1 mm of centroid
@@ -446,18 +443,22 @@ for name, fn, P in REFS:
             return all(any(abs(x - u) < 0.1 and abs(y - v) < 0.1
                            and abs(w - q) < 0.03 * w for u, v, q in b)
                        for x, y, w in a)
-        check("the build's regions are the STEP's as drawn",
-              matched(regions(ref_inlays, False), regions(mine_inlays, False)),
+        turned = P.GameName in TB.LID_LOGO_TURNED
+        as_drawn, half_turn = " as drawn", " turned a half turn"
+        check(f"the build's regions are the STEP's"
+              f"{half_turn if turned else as_drawn}",
+              matched(regions(ref_inlays, turned), regions(mine_inlays, False)),
               True)
-        if name.startswith("Dominion"):
-            check("... and not the STEP's turned a half turn",
-                  matched(regions(ref_inlays, True),
-                          regions(mine_inlays, False)), False)
+        check(f"... and not the STEP's{as_drawn if turned else half_turn}",
+              matched(regions(ref_inlays, not turned),
+                      regions(mine_inlays, False)), False)
         rb = Compound(children=ref_inlays).bounding_box()
         mb = Compound(children=mine_inlays).bounding_box()
-        check("inlay footprint",
+        want = ((-rb.max.X, -rb.min.X, -rb.max.Y, -rb.min.Y) if turned
+                else (rb.min.X, rb.max.X, rb.min.Y, rb.max.Y))
+        check(f"inlay footprint{' (turned)' if turned else ''}",
               [round(v, 3) for v in (mb.min.X, mb.max.X, mb.min.Y, mb.max.Y)],
-              [round(v, 3) for v in (rb.min.X, rb.max.X, rb.min.Y, rb.max.Y)])
+              [round(v, 3) for v in want])
         # The one number that says the two features agree: the inlay sits
         # PATTERN_PROUD below the underside and its top is PATTERN_DEPTH above
         # that, so it fills a pocket cut 0.810 up from z = 0.

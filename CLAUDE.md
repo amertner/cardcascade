@@ -345,8 +345,11 @@ been printed yet.
   degrees on 2026-09-04 and turned BACK on 2026-09-11**: the turn was argued
   from renders and a photo of the OTHER game, and the first printed Dominion
   lid came out upside down. The DXF is Onshape's original again and matches
-  the 24 cached Dominion lids. Renders still show Dominion's mark a half turn
-  from the other three, so something in that argument is wrong and it is OPEN
+  the 24 cached Dominion lids. A printed Innovation lid was upside down too,
+  and its GENERATED mark goes in turned about the lid's centre
+  (`tables.LID_LOGO_TURNED`, applied in `lid.logo_art`, so `marks.py` stays
+  in the drawings' frame). Compile and FCM render with Innovation's mark as
+  drawn and so are PREDICTED upside down; they are open until printed
   (`spec/LID.md`) — a printed lid is the authority, and pictures are how you
   find the question, not how you settle it.
 

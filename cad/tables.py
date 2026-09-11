@@ -73,6 +73,19 @@ LID_LOGO = {
                    "plain": ("@innovation-plain",)},
 }
 
+# The games whose mark goes into the lid TURNED a half turn about the lid's
+# centre (`lid.logo_art`), every edition and size of it. Innovation, because a
+# printed 7.1 lid read upside down (Allan, 2026-09-11) — the same finding that
+# turned Dominion's drawing back the same day (`spec/LID.md`).
+#
+# A set here and not a turned file because Innovation's marks are GENERATED:
+# there is no drawing to turn, and `cad/marks.py` stays in the frame of the
+# drawings it is checked against, so those comparisons do not move. About the
+# LID's centre and not the mark's own box, because the origin is the
+# placement datum — the plain mark centres its WORD there (`marks._centre`),
+# and a turn about its box would undo that.
+LID_LOGO_TURNED = frozenset({"Innovation"})
+
 # Which EDITION of a game's mark a cascade carries — keyed on the base model,
 # `calModelName` up to its third dot, because this is a question about which
 # sets the box holds and not about any dimension.

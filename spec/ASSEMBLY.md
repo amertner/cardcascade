@@ -111,11 +111,13 @@ photograph of three closed Innovation boxes reading upright from the
 labelled front says the three are right. Allan had Dominion's DXF turned on
 2026-09-04 — and turned BACK on 2026-09-11, when a printed Dominion lid came
 out upside down (`spec/LID.md`, "Dominion's mark — turned 2026-09-04, turned
-BACK 2026-09-11"). So the table above is again the state of the drawings,
-Dominion reads upside down under `Y` in a RENDER, and the physical product
-says otherwise; which premise is wrong is open until a printed lid of another
-game is looked at the same way. `tests/test_lid.py` holds Dominion's regions
-to the reference as drawn.
+BACK 2026-09-11"). A printed Innovation lid read upside down the same day,
+and its mark now goes into the lid turned (`cad/tables.LID_LOGO_TURNED`), so
+the table above is the state of the DRAWINGS and Innovation's built mark now
+reads with Dominion's. The photograph was misread. Compile and FCM still
+read under `Y`, and the prints predict they are upside down too; that is
+open until a printed lid of each is looked at. `tests/test_lid.py` holds
+Dominion's regions to the reference as drawn and Innovation's to it turned.
 
 The route to this is worth recording, because it is a lesson about method
 twice over. The placement was first written as `Y`, then changed to `X` on the

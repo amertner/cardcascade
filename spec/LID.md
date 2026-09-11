@@ -904,13 +904,27 @@ Dominion lid matches the reference STEP and the 24 cached lids in
 `individual/` again, and `tests/test_lid.py` holds the build to the reference
 as drawn and REJECTS it turned.
 
-What that leaves open: the argument below still says Dominion's drawing is a
-half turn from the other three, and the Innovation photograph still says
-Innovation's reads upright. A printed lid of each game reading correctly
-means one of the two premises is wrong — the reading of the four drawings
-from `+Z`, or the assumption that a lid is judged against the same front on
-every game. Nothing is changed on Compile, FCM or Innovation until a printed
-lid of one of them is looked at the same way.
+**Innovation's is turned, the same day.** A printed 7.1 Innovation lid read
+upside down too (Allan, 2026-09-11). Its marks are GENERATED, so there is no
+drawing to turn: `cad/tables.LID_LOGO_TURNED` names the game, and
+`lid.logo_art` turns its mark a half turn about the LID's centre after the
+fit has sized it. It is the lid's centre and not the mark's box because the
+origin is the placement datum — the plain mark puts its WORD there
+(`marks._centre`) and a turn about the box would undo that. The fit does not
+move: `logo_limit` is the same on opposite sides, and a half turn only swaps
+`marks.reach`'s sides. `cad/marks.py` still builds in the frame of the
+drawings it is checked against, so those comparisons are untouched.
+`tests/test_lid.py` holds the two Innovation references to their STEPs
+turned about the lid's centre and REJECTS them as drawn. Like Dominion's it
+is not a release flag and went into 7.1, unreleased, as it stands.
+
+So the 2026-09-04 reading was backwards: Dominion was right as drawn and
+Innovation — read then as the reference — is the one that turns, and the
+Innovation photograph that decided it was misread. That makes Dominion and
+Innovation agree, and renders showed Compile's and FCM's reading with
+Innovation's AS DRAWN — which predicts that they are upside down too. That is
+a prediction and not a print, so neither is turned until a printed lid of
+each has been looked at.
 
 The record of the 2026-09-04 turn, as it was written:
 
@@ -942,9 +956,10 @@ Allan's to settle, not the model's:
 * the two fit constants, `LOGO_WIDTH_FRACTION` and `LOGO_DEPTH_FRACTION`;
 * whether the plain Innovation composition is the right reading of "without it
   saying Ultimate";
-* whether the four marks agree — Dominion's was turned on 2026-09-04 and
-  turned back on 2026-09-11 when a print came out upside down (above), so a
-  printed lid of Compile, FCM or Innovation is what settles the other three;
+* whether Compile's and FCM's marks are upside down — Dominion's is right as
+  drawn and Innovation's is turned, both on printed lids (2026-09-11, above),
+  and renders put the other two with Innovation's as drawn; a printed lid of
+  each settles it;
 * the marks that are still outlines — Dominion, Compile and FCM — whose
   strokes scale with the fit where the two generated Innovation marks hold
   their own.
@@ -1008,10 +1023,11 @@ statement; the area check is corroboration at `0.5 mm2`.
   `Ultimate` — is a reading, not an export. The mark that renders it is
   measured off Allan's own drawings to `0.019`; whether it is the right
   composition is his call.
-- **Whether the four marks agree.** Dominion's was turned 2026-09-04 and
-  turned back 2026-09-11 on a printed lid; see "Dominion's mark — turned
-  2026-09-04, turned BACK 2026-09-11". A printed lid of another game settles
-  the rest.
+- **Whether Compile's and FCM's marks are upside down.** On printed lids
+  (2026-09-11) Dominion's is right as drawn and Innovation's is turned; see
+  "Dominion's mark — turned 2026-09-04, turned BACK 2026-09-11". Renders
+  predict the other two turn as Innovation's did; a printed lid of each
+  settles it.
 - **Stroke weight on the marks that are still outlines** — now FLOORED, not
   open (Allan, 2026-09-04): the mark is an inlay in a pocket and takes the
   cut floor, `0.200` mm, and `tests/test_lid_marks.py` rasterises every

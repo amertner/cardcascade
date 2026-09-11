@@ -574,9 +574,19 @@ def logo_art(d, alternate=False):
     A drawing is already in that frame — lifted from, or exported beside, a
     reference lid — so `cad.marks` sizes it about its OWN centre and at n = 1
     it stays exactly where Onshape put it. A generated mark is built centred.
+
+    A game in `TB.LID_LOGO_TURNED` has its mark turned a half turn about the
+    lid's centre here, after it is sized. The fit does not need to know:
+    `logo_limit` is the same on opposite sides, and a half turn only swaps
+    `marks.reach`'s right with its left and its top with its bottom.
     """
     name, n = logo_choice(d, alternate)
-    return MK.faces(d.GameName, name, n) if name else []
+    if not name:
+        return []
+    faces = MK.faces(d.GameName, name, n)
+    if d.GameName in TB.LID_LOGO_TURNED:
+        faces = [f.rotate(Axis.Z, 180) for f in faces]
+    return faces
 
 
 def logo_pattern(d, part, alternate=False):
