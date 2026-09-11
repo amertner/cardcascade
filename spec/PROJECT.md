@@ -2,7 +2,8 @@
 
 `cad/project.py` writes a Bambu Studio project 3MF from parts, plates and
 placements, with no donor. This is the record of what such a file has to
-contain, read off the 46 shipped cascade projects under `cascades/` and off
+contain, read off the 46 shipped cascade projects the Onshape pipeline wrote
+(`spec/reference/shipped-7.0/`; they were `cascades/` until 7.1) and off
 `automation/make_cascade.py`, which has mutated donors into every one of
 them since 6.x. Where the two disagree the shipped files win; where a rule
 was learned the hard way `make_cascade.py`'s comments say so and the rule is
@@ -228,8 +229,8 @@ and 560 Sleeved — with every plate returning 0.
 `build/cascades/<Game>/`, the bed from the row's `3D printer` column, the
 source hash, row hash, model and version written into the file's metadata,
 `filaments` and `towers` run on the result and `--slice` for Studio's
-verdict. `python -m cad.compare` then holds every shipped project under
-`cascades/` to its twin: the same roles in the same numbers, each object's
+verdict. `python -m cad.compare` then holds every project the Onshape
+pipeline shipped (`spec/reference/shipped-7.0/`) to its twin: the same roles in the same numbers, each object's
 size within its role's known divergence (a 7.0 holder up to 1.6 longer than
 a 6.6; the rest 0.05), both slots used the same way, the tower legal,
 MakerWorld clean; the layout itself — where on a plate a part sits — is not

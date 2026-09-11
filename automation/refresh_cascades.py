@@ -41,10 +41,17 @@ import plan_exports as P
 import provenance as PROV
 
 HERE = Path(__file__).parent          # automation/
-ROOT = HERE.parent                    # repo root — cascades/ and individual/ live here
+ROOT = HERE.parent                    # repo root — individual/ lives here
+
+# The projects THIS pipeline shipped, at 7.0. They were `cascades/` until
+# 2026-09-11, when the cad-built 7.1 set took that tree over (tagged `v7.1`;
+# the last Onshape state is tagged `v7.0`), and they live on as the regression
+# corpus `cad.compare` and the tests hold the rebuild to. Pointed here and not
+# at `cascades/` so that a legacy refresh cannot write over a cad project.
+SHIPPED = ROOT / "spec" / "reference" / "shipped-7.0"
 
 # Where components are read from and where refreshed projects are written.
-# The defaults are the shipped pipeline: individual/ in, cascades/ in place.
+# The defaults are the shipped pipeline: individual/ in, SHIPPED in place.
 # `--components` points at another root laid out the same way — what
 # `python -m cad.promote` writes under build/components/ — and `--out` writes
 # the refreshed project under DIR/<Game folder>/ instead of over the shipped
@@ -393,7 +400,7 @@ def assemble_one(game, spec, casc, dry):
     """Refresh one cascade in place with make_cascade --keep-layout. Returns
     (status, detail) where status is 'ok' | 'skip' | 'fail'."""
     folder = spec["folder"]
-    template, canon = find_project(ROOT / "cascades" / folder, game, casc)
+    template, canon = find_project(SHIPPED / folder, game, casc)
     if template is None:
         return "skip", f"no cascade project to swap into — {canon}"
 
@@ -471,7 +478,7 @@ def rebuild_one(game, spec, casc, dry):
     object name (donors often leave it 'Part 1'), and picks the bed from
     parts.csv. Returns (status, detail): 'ok' | 'skip' | 'fail'."""
     folder = spec["folder"]
-    donor, canon = find_project(ROOT / "cascades" / folder, game, casc)
+    donor, canon = find_project(SHIPPED / folder, game, casc)
     if donor is None:
         return "skip", f"no donor project to rebuild from — {canon}"
 
@@ -574,7 +581,7 @@ def standardize_names(selection, auto, dry):
           " (FCM: 'FCM <label><S|U> (<Short> <model>).3mf')\n")
     renames = []                             # (old Path, new Path)
     for game, spec, _, cs in selection:
-        d = ROOT / "cascades" / spec["folder"]
+        d = SHIPPED / spec["folder"]
         for c in cs:
             canon = project_name(game, c)
             if (d / canon).exists():

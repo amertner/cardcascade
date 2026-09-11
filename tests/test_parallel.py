@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""A 7.0 build still prints what shipped: every project under `cascades/` has
-a cad twin with the same parts in it.
+"""A 7.0 build still prints what shipped: every project the Onshape pipeline
+shipped (`spec/reference/shipped-7.0/`, which was `cascades/` until the 7.1
+set took that tree over) has a cad twin with the same parts in it.
 
 Writes every cascade with `cad.cascade` AT 7.0 and holds each shipped project
 to its twin with `cad.compare`: the same roles in the same numbers, each

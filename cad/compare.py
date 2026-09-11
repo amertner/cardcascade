@@ -3,7 +3,9 @@
     .venv/bin/python -m cad.compare                 # all 48 shipped cascades
     .venv/bin/python -m cad.compare --game Dominion --name 168
 
-For each project under `cascades/<Game>/` this finds the project `cad.cascade`
+For each project the Onshape pipeline shipped — `spec/reference/shipped-7.0/
+<Game>/`, which was `cascades/` until 7.1 took that tree over — this finds the
+project `cad.cascade`
 wrote under `build/cascades/<Game>/` (by model code, the way
 `refresh_cascades.find_project` does) and compares what a print would see:
 
@@ -45,7 +47,9 @@ sys.path.insert(0, str(ROOT / "automation"))
 import filaments as FIL                                  # noqa: E402
 import towers                                            # noqa: E402
 
-SHIPPED = ROOT / "cascades"
+# The Onshape pipeline's projects, `cascades/` until the cad-built 7.1 set took
+# that tree over on 2026-09-11 (tags `v7.0` and `v7.1`). Same bytes, moved.
+SHIPPED = ROOT / "spec" / "reference" / "shipped-7.0"
 CAD = ROOT / "build" / "cascades"
 
 
@@ -158,9 +162,8 @@ def main(argv=None):
     ap.add_argument("--strict", action="store_true")
     ap.add_argument("--version", default=REF_VERSION, choices=RELEASES,
                     help=f"which release's twins to compare against (default "
-                         f"{REF_VERSION}, the release everything under "
-                         f"cascades/ was built at — a later one is MEANT to "
-                         f"differ)")
+                         f"{REF_VERSION}, the release the Onshape pipeline "
+                         f"shipped at — a later one is MEANT to differ)")
     args = ap.parse_args(argv)
     CAD_AT = cad_dir(args.version)
     games = [args.game] if args.game else sorted(p.name for p in SHIPPED.iterdir()

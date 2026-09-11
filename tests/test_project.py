@@ -40,7 +40,8 @@ def shipped(folder, model):
     """The shipped project carrying `model`, whatever named it. The name is not
     stable — the version went into it on 2026-09-05 — but the model code in the
     bracket is, and it is unique per cascade (`refresh_cascades.find_project`)."""
-    hits = sorted((ROOT / "cascades" / folder).glob(f"*({model}).3mf"))
+    hits = sorted((ROOT / "spec" / "reference" / "shipped-7.0" / folder)
+                  .glob(f"*({model}).3mf"))
     assert len(hits) == 1, f"{model}: {len(hits)} shipped projects"
     return hits[0]
 

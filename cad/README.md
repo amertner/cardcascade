@@ -8,7 +8,8 @@ rebuild of the Onshape model and is now the model: new work, changed geometry
 and releases go through `cad.build` / `cad.cascade`, and this file and `spec/`
 are where the design lives. `automation/PIPELINE.md` describes the pipeline it
 replaced, which stays runnable for legacy and verification — it built
-everything under `cascades/`, and `individual/` plus `spec/reference/` are the
+every 7.0 project, now `spec/reference/shipped-7.0/` (it was `cascades/` until
+the 7.1 release took that tree over), and `individual/` plus `spec/reference/` are the
 corpus that keeps a 7.0 build honest. Everything downstream of a component
 `.3mf` — `make_cascade.py`, `verify.py`, `filaments.py`, `towers.py`,
 `refresh_cascades.py` — is unchanged and unaware.
@@ -17,9 +18,9 @@ corpus that keeps a 7.0 build honest. Everything downstream of a component
 Holder and the Topper** — the Lid including its logo pattern for all four
 games, the TokenHolder in both its configurations, the Topper for all six
 expansions. Nothing built here has been PRINTED yet, which is a different
-statement from what is authoritative: `cascades/` is the record of what shipped
-under the old pipeline, and each of those is superseded the next time it is cut
-from `cad/`.
+statement from what is authoritative. Since 2026-09-11 `cascades/` holds the
+cad-built 7.1 release, copied from `build/cascades/` and tagged `v7.1`; what
+the old pipeline shipped is `spec/reference/shipped-7.0/`, tagged `v7.0`.
 
 The Lid's mark is the one place `cad/` deliberately differs from Onshape: it
 is FITTED to the lid — the biggest mark that fits, sized to a proportion of

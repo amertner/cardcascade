@@ -6,7 +6,9 @@
 > This one stays runnable and this file stays accurate, for two reasons and no
 > others:
 >
-> * **legacy** — it built every project under `cascades/`, so anything on a
+> * **legacy** — it built every project that was under `cascades/` until the
+>   7.1 release (now `spec/reference/shipped-7.0/`, tagged `v7.0`, and where
+>   `refresh_cascades` reads and writes), so anything on a
 >   shelf or on MakerWorld came from here, and a question about a shipped
 >   cascade is answered here;
 > * **verification** — `individual/` and `spec/reference/` are the regression
@@ -41,7 +43,7 @@ parts.csv ─┐
 components ─┘        │
   spec (components.py)├─▶ [2 EXPORT] (uses onshape_test.py's recipe) → individual/<Game>/*.3mf  (budget-gated)
                      │
-                     └─▶ [3 ASSEMBLE] make_cascade.py driven by manifest → cascades/<Game>/*.3mf (0 API)
+                     └─▶ [3 ASSEMBLE] make_cascade.py driven by manifest → spec/reference/shipped-7.0/<Game>/*.3mf (0 API)
 ```
 
 Planning and assembly are free and offline-testable; the API surface is one

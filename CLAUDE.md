@@ -11,14 +11,16 @@ labels. Everything here generates printable 3MF projects.
 | Geometry from | build123d, generated locally | build123d, generated locally | Onshape, exported via API |
 | Config | `cc.cfg` | `automation/parts.csv` | `automation/parts.csv` |
 | Read first | `README.md` | `cad/README.md`, `spec/` | `automation/PIPELINE.md` |
-| Output | `cascades/<Game>/labels/` | `build/<Game>/` parts, `build/cascades/<Game>/` projects (gitignored) | `cascades/<Game>/` |
+| Output | `cascades/<Game>/labels/` | `build/<Game>/` parts, `build/cascades/<Game>/` projects (gitignored); a RELEASE is copied into `cascades/<Game>/` and tagged | `spec/reference/shipped-7.0/<Game>/` (was `cascades/` until 7.1) |
 
 **`cad/` is the authority as of 2026-09-06** (Allan). A new cascade, a
 changed part and a release all go through `cad.build` / `cad.cascade`; that is
 where the geometry is decided and where a change belongs.
 
 **`automation/` is LEGACY and VERIFICATION**, and both words matter. Legacy:
-it is what shipped every project under `cascades/`, so it stays runnable and
+it is what shipped every 7.0 project — `spec/reference/shipped-7.0/`, which
+was `cascades/` until the cad-built 7.1 set took that tree over on 2026-09-11
+(tags `v7.0` and `v7.1`) — so it stays runnable and
 its decisions stay recorded — but it is not where new work goes, and the
 Onshape studio is no longer the source of truth a divergence has to justify
 itself against. Verification: `individual/` and `spec/reference/` are the
@@ -59,9 +61,15 @@ over: `cad/` is the authority and **`python -m cad.compare`** is now a
 REGRESSION check rather than a bid for trust — all 46 shipped projects print
 the same parts as their cad twins (`tests/test_parallel.py`), and a difference
 there means look at the change, not at whether the rebuild is ready.
-`cascades/` is what has been printed to date and stays as it is until a
-cascade is next cut from `cad/`. **`cad.compare` and `tests/test_parallel.py`
-pin 7.0** for that reason: the shipped tree is 7.0, and from 7.1 a twin is
+**`cascades/` is the current RELEASE, cut from `cad/`** — since 2026-09-11 the
+50 cad-built 7.1 projects, copied from `build/cascades/` under their stable
+names and tagged `v7.1`; the next release is the same copy and a new tag. The
+Onshape pipeline's 48 projects moved, unchanged, to
+`spec/reference/shipped-7.0/` (tagged `v7.0` where they stood), and that is
+the tree `cad.compare`, `test_parallel`, `test_layout`, `test_project`,
+`test_smoke`, `test_names` and `refresh_cascades` read — `refresh_cascades`
+writes THERE, so the legacy pipeline cannot overwrite a release. **`cad.compare`
+and `tests/test_parallel.py` pin 7.0** for that reason: the shipped tree is 7.0, and from 7.1 a twin is
 MEANT to print differently (two pushers against three), so comparing the
 current release against it would report the intended change as failures.
 `cad.build --part all --version 7.0` writes the tree they need. **Everything is 7.0 going forward** (Allan,

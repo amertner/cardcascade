@@ -95,7 +95,7 @@ for game, spec in C.GAMES.items():
         expected.setdefault(spec["folder"], {})[RC.project_name(game, c)] = c
 
 for folder, names in sorted(expected.items()):
-    on_disk = {p.name for p in (ROOT / "cascades" / folder).glob("*.3mf")}
+    on_disk = {p.name for p in (RC.SHIPPED / folder).glob("*.3mf")}
     unnamed = sorted(on_disk - set(names))
     check(f"{folder}: no project is named outside the rule", unnamed, [])
     # Not every row has a project (290 Card has none), so the reverse is not a
@@ -104,7 +104,7 @@ for folder, names in sorted(expected.items()):
     for name, c in sorted(names.items()):
         if name not in on_disk:
             continue
-        got, _how = RC.find_project(ROOT / "cascades" / folder, c["ctx"]["game"], c)
+        got, _how = RC.find_project(RC.SHIPPED / folder, c["ctx"]["game"], c)
         check(f"{folder}: find_project takes {name!r} as canonical",
               got and got.name, name)
 
