@@ -107,8 +107,8 @@ def innovation_plain(size):
 
     Returned as a tuple of faces on the origin — its bounding box in X, its
     WORD in Y (see `_centre`) — and MIRRORED in X: the pattern is cut into the
-    far side of the lid's floor, and Compile's, FCM's and Innovation's marks
-    all read the right way round from there.
+    far side of the lid's floor. Which way up it then reads on a printed lid
+    is `tables.LID_LOGO_TURNED`'s question, not this one's (`spec/LID.md`).
     """
     faces, base, letter_I = _wordmark(size)
     shape = _centre(faces, word=(base, letter_I.bounding_box().max.Y))
@@ -249,7 +249,8 @@ ULT_INK_BOTTOM = -12.6196     # n, below the baseline (the baseline is 12.620 n)
 # bar line 7.500 n below the baseline, at a pitch of 2.8125 n. The run's inner
 # end — the edge nearest the U — sits at 24.0078 n LESS 1.000 from the I's
 # centre; the 1.000 is absolute, and it is what two drawings alone could not
-# separate from the scaled part (spec/LID.md, "measured, not yet built").
+# separate from the scaled part (spec/LID.md, "`Ultimate` — generated, from the
+# corrected sketch").
 DASH_LEN = 1.500
 DASH_PITCH = 2.8125
 BAR_LINE = -7.500             # n: the dashes' top edge and the bar's

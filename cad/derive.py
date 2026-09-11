@@ -58,14 +58,13 @@ class Derived:
     """
     __slots__ = ("_v", "rev")
 
-    def __init__(self, v, rev=None):
+    def __init__(self, v, rev):
         object.__setattr__(self, "_v", dict(v))
         # `rev` is NOT a studio variable and so is not in `_v`: it is what the
         # RELEASE being built says about the design (`cad/revisions.py`), the
         # one thing below `derive` that Onshape has no counterpart for. It
         # rides on the Derived so that every feature still takes `d` alone.
-        object.__setattr__(self, "rev", rev if rev is not None
-                           else REV.of(v.get("Version", REV.CURRENT)))
+        object.__setattr__(self, "rev", rev)
 
     def __getattr__(self, k):
         try:
@@ -162,7 +161,7 @@ def derive(p):
                                 + v["calFirstSliderDistance"])
     # --- pre-7.0 tab placement; superseded by calTabCentreDistance ----------
     # Transcribed because the studio still has them; NOTHING reads them, as
-    # cad/ builds 7.0 only. calTabDistance is the pre-7.0 tab-centre
+    # cad/ builds only the 7.0 lock (`lock.SAME_LOCK`). calTabDistance is the pre-7.0 tab-centre
     # separation and matches the 14 still-6.6 pushers on disk exactly.
     v["calNumTabs"] = 2 if v["calPusherTotalDepth"] > 18.0 else 1
     v["calTabDistance"] = (v["calPusherTotalDepth"]

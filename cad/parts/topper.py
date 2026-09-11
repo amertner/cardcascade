@@ -300,15 +300,6 @@ def inner_hole(d):
     return part.part.moved(Location((x0 + INNER_END_INSET, 0, 0)))
 
 
-def slot_x(d):
-    """Centre X of each SLOT — `calSlotwidth * k`, one per HorizontalSlots.
-
-    The front-wall removal is centred on these, where the ribs and bands are
-    centred on the BOUNDARIES between them.
-    """
-    return [d.calSlotwidth * k for k in range(d.HorizontalSlots)]
-
-
 def _arc(start, centre, end):
     """A quarter arc from `start` to `end` about `centre`, as a ThreePointArc
     through the arc's midpoint.
@@ -358,7 +349,9 @@ def front_removal(d):
     r = FRONT_FILLET
     hw = (d.calSlotwidth - 2 * BAND_HALF) / 2
     out = None
-    for c in slot_x(d):
+    # Centred on the SLOT centres (the holder's compartments), where the ribs
+    # and bands are centred on the BOUNDARIES between them.
+    for c in H.compartment_x(d):
         xl, xr = c - hw, c + hw
         with BuildPart() as part:
             with BuildSketch(Plane.XZ):
@@ -419,7 +412,7 @@ def lip_room_x(d):
     xs = [x for x, _y in H.lip_plan(d, first=False)]
     lo, hi = min(xs), max(xs)
     return sorted((c - hi, c - lo) if s < 0 else (c + lo, c + hi)
-                  for c in slot_x(d) for s in (+1, -1))
+                  for c in H.compartment_x(d) for s in (+1, -1))
 
 
 def lip_rooms(d):

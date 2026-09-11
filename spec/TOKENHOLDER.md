@@ -281,8 +281,8 @@ the two cascades ships a tray labelled for the other. The same collision hits
 
 `cad.build` therefore names the file by `calTokenHolderModel`, as it carries
 the Pusher's first-riser axis for the same reason, and the catalogue comes out
-at **22 files against `individual/`'s 18**. `--legacy-names` writes the old
-names for a promotion and refuses when two model codes would land on one file.
+at **22 files against `individual/`'s 18**. `cad.promote`, the legacy route
+onto the planner's names, refuses where two model codes would land on one file.
 CLAUDE.md's "the CAD is the authority on a box's model code" is the rule being
 followed.
 

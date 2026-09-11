@@ -117,10 +117,9 @@ def slider_distance(d, first):
     is the only evidence that could tell these apart — everywhere else the two
     are equal — and it settles both the depth and the slant.
 
-    Takes the Primary for consistency with its siblings here, not because it
-    reads it. It nearly did: Compile's `210 Card` was 12 cards deep where its
-    own row and its own sibling row both said 7, which looked like a per-game
-    or per-row term. It was a mis-configured export — re-exported, it lands on
+    Nothing game- or row-specific is read. It nearly was: Compile's `210 Card`
+    was 12 cards deep where its own row and its own sibling row both said 7,
+    which looked like a per-game or per-row term. It was a mis-configured export — re-exported, it lands on
     this rule to the thousandth under both card thicknesses. Nothing is
     special-cased, and there is nothing here left for the game to change.
     """
@@ -673,7 +672,7 @@ TEXT_GAP = 4.000           # the least space left between the two blocks
 def text_blocks(d, first):
     """(name, capacity) — the two strings, in reading order."""
     cards = d.FirstSlidingSlotCards if first else d.CardsPerSlidingSlot
-    return (f"CC {d.Version} - {d.GameName}",
+    return (f"{d.calVersion} - {d.GameName}",
             f"{cards} {'Sleeved' if d.isSleeved else 'Unsleeved'}")
 
 

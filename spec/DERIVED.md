@@ -95,10 +95,11 @@ Pusher key needs the same, and the two files need distinguishing names.
 `(game, risers, cards, first, sleeved)` — 34 entries against the planner's 32 —
 and names the override one `Pusher 6x10-12-Sl.3mf`, following parts.csv's own
 model-code convention (`M6.21.10/12`, `/` folded to `-` as
-`components.cascade_filename` already does). `--legacy-names` writes the old
-names and refuses when two geometries would land on one, so the collision is
-now loud rather than latent. `plan_exports.compose` and the four affected files
-in `individual/` still need the same change before anything can be promoted.
+`components.cascade_filename` already does). The legacy `cad.promote` refuses
+where two geometries would land on one planner name, so the collision is loud
+rather than latent. `plan_exports.compose` and the four affected files in
+`individual/` keep the old key; with the Onshape pipeline legacy, nothing waits
+on them.
 
 **And the reading above is confirmed.** Read the generation off each canonical
 pusher's lock and it matches parts.csv's `Build` pinning on all 30 rows the

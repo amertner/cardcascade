@@ -41,7 +41,7 @@ DETAIL_FONT = str(FONT_DIR / "OpenSans-Bold.ttf")
 
 # Orbitron Bold's left side bearing on "C", as a fraction of the font size,
 # measured from the file (56/1000). Both logo lines begin with C (ProductName
-# is "Card Cascade" or "Craft Cascade"; calVersion is "CC <v>"), so the bearing
+# is "Card Cascade"; calVersion is "CC <v>"), so the bearing
 # is what turns their shared text origin into an ink position.
 _LSB_C = 0.056
 

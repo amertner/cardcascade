@@ -1,13 +1,13 @@
-"""The parallel run's scorecard: every shipped project against its cad twin.
+"""The 7.0 regression check: every Onshape-shipped project against its cad twin.
 
     .venv/bin/python -m cad.compare                 # all 48 shipped cascades
     .venv/bin/python -m cad.compare --game Dominion --name 168
 
 For each project the Onshape pipeline shipped — `spec/reference/shipped-7.0/
 <Game>/`, which was `cascades/` until 7.1 took that tree over — this finds the
-project `cad.cascade`
-wrote under `build/cascades/<Game>/` (by model code, the way
-`refresh_cascades.find_project` does) and compares what a print would see:
+project `cad.cascade` wrote for the same release (`cad_dir`; by model code,
+the way `refresh_cascades.find_project` does) and compares what a print would
+see:
 
   * the printer, and the number of plates;
   * the roles present and how many of each — the same box, lid, pushers,
@@ -37,7 +37,7 @@ from pathlib import Path
 from . import layout as LY, project as PJ
 from .revisions import RELEASES
 
-# What everything under `cascades/` was built at: the Onshape pipeline's
+# What everything under `SHIPPED` was built at: the Onshape pipeline's
 # generation. NOT `revisions.CURRENT`, and deliberately a literal — the
 # current release moves and the shipped tree does not.
 REF_VERSION = "7.0"
@@ -50,21 +50,22 @@ import towers                                            # noqa: E402
 # The Onshape pipeline's projects, `cascades/` until the cad-built 7.1 set took
 # that tree over on 2026-09-11 (tags `v7.0` and `v7.1`). Same bytes, moved.
 SHIPPED = ROOT / "spec" / "reference" / "shipped-7.0"
-CAD = ROOT / "build" / "cascades"
 
 
-def cad_dir(version=None):
-    """Where the twins for a RELEASE are, `build/cascades` for the current one.
+def cad_dir(version):
+    """Where `cad.cascade` writes the twins for a RELEASE.
 
     Which release to compare against is not a detail: everything under
-    `cascades/` was built by the Onshape pipeline at 7.0, and a later release
+    `SHIPPED` was built by the Onshape pipeline at 7.0, and a later release
     is MEANT to differ from it — 7.1 ships two pushers where a 7.0 box has
     three (`spec/REVISIONS.md`). So the claim this module can make forever is
     "a 7.0 build still prints what shipped", and comparing a 7.1 twin with a
     7.0 project reports real, intended differences.
     """
     from . import build as B
-    return (CAD if version is None else B.out_for(version) / "cascades")
+    return B.out_for(version) / "cascades"
+
+
 # size tolerance per role, mm — the known divergences between the cached
 # parts and the rebuilt ones (spec/HOLDER.md: 30 of 50 shipped holders are
 # 6.6, 1.5 shorter than a 7.0; the rest match to 0.05)

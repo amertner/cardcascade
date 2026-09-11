@@ -19,12 +19,9 @@ Two tiers, because the parts do not all come from the same place
   against what `LOCK_STANDARD.md` and the part modules say it should be. A
   margin outside its band is a warning with its number, never a pass.
 
-The Holder is not intersected, though it could be now that
-`cad/parts/holder.py` is finished: an assembly places the CACHED mesh by
-default, because `individual/` is what shipped, and its mates are checked as
-margins off that same mesh. Intersecting the source Holder against a cached
-everything-else would measure the difference between the two rather than a
-fit.
+The Holder is not intersected: an assembly places the CACHED mesh by default
+(`individual/`, the Onshape 7.0 corpus — see `cad.assemble`), which has no
+B-rep to intersect, and its mates are checked as margins off that same mesh.
 """
 import argparse
 import sys
@@ -172,12 +169,12 @@ def tread_margins(d):
     drops = pusher_part.slider_drops(d)
     W = d.calPusherTotalDepth
     oy = A.pusher_socketed(d, A.play_sockets(d)[0]).origin[1]
-    for j, _first in A.holders(d):
+    for j, first in A.holders(d):
         k = d.RisingSliders - j
         back = oy - (W - sum(drops[:k]))
         front = oy - (W - sum(drops[:k - 1]))
         pl = A.holder_play(d, j)
-        depth = holder_part.holder_depth(d, _first)
+        depth = holder_part.holder_depth(d, first)
         out.append(Margin(f"holder {j}: on its tread, back",
                           back - pl.origin[1], None))
         out.append(Margin(f"holder {j}: on its tread, front",
@@ -245,27 +242,40 @@ def cached_holder(d, folder, first=False):
     return {"slot": walls[0][1], "width": float(x_hi - x_lo)}
 
 
-def interference(d, state, tokens=False):
+def _once(built, key, make):
+    """`built[key]`, made on first asking. One cascade's parts are the same in
+    every state, so `--state all` builds each once rather than once a state."""
+    if key not in built:
+        built[key] = make()
+    return built[key]
+
+
+def interference(d, state, tokens=False, built=None):
     """[(a, b, mm3)] for every pair of SOURCE-built parts, placed.
 
     Box, Lid, Pusher and — where the row ships one, `tokens` — the
     TokenHolder: the whole of the lock mechanism, and the only parts `cad/`
-    can hand a B-rep for. Anything non-zero is a defect.
+    can hand a B-rep for. Anything non-zero is a defect. `built` is the
+    cascade's parts from an earlier state, and is filled in for the next.
     """
     from .parts import box as bp, lid as lp, pusher as pp, token_holder as tp
-    solids = [("Box", bp.build(d), A.box(d))]
-    pusher = pp.build(d)
+    built = {} if built is None else built
+    solids = [("Box", _once(built, "Box", lambda: bp.build(d)), A.box(d))]
+    pusher = _once(built, "Pusher", lambda: pp.build(d))
+    lid = lambda: _once(built, "Lid", lambda: lp.build(d))       # noqa: E731
     if state == A.PLAY:
         solids += [(f"Pusher@{s}", pusher, A.pusher_socketed(d, s))
                    for s in A.play_sockets(d)]
-        solids.append(("Lid", lp.build(d), A.lid_under(d)))
+        solids.append(("Lid", lid(), A.lid_under(d)))
     else:
         solids += [(f"Pusher[{k}]", pusher, A.pusher_stored(d, k))
                    for k in A.pushers(d)]
         if state == A.CLOSED_LID:
-            solids.append(("Lid", lp.build(d), A.lid_closed(d)))
+            solids.append(("Lid", lid(), A.lid_closed(d)))
     if tokens:
-        solids.append(("TokenHolder", tp.build(d, False), A.token_holder(d)))
+        solids.append(("TokenHolder",
+                       _once(built, "TokenHolder", lambda: tp.build(d, False)),
+                       A.token_holder(d)))
 
     placed = [(n, pl.location() * s) for n, s, pl in solids]
     out = []
@@ -276,11 +286,13 @@ def interference(d, state, tokens=False):
     return out
 
 
-def report(d, folder, state, solids=True, tokens=False):
+def report(d, folder, state, solids=True, tokens=False, built=None):
     """Print one cascade's fit in one state. True if everything passed.
-    `tokens` says whether the row ships a token holder to check."""
+    `tokens` says whether the row ships a token holder to check; `built`
+    carries the cascade's parts and holder meshes from state to state."""
     print(f"\n{folder}/{d.calModelName}  [{state}]")
-    cached = cached_holders(d, folder)
+    built = {} if built is None else built
+    cached = _once(built, "holders", lambda: cached_holders(d, folder))
     margins = list(lid_margins(d))
     if state == A.PLAY:
         margins += socketed_pusher_margins(d) + tread_margins(d)
@@ -292,7 +304,7 @@ def report(d, folder, state, solids=True, tokens=False):
     ok = all(m.ok for m in margins)
     if solids:
         print("  -- interference, source-built parts --")
-        for a, b, v in interference(d, state, tokens):
+        for a, b, v in interference(d, state, tokens, built):
             flag = "ok " if v <= 1e-6 else "HIT"
             if v > 1e-6:
                 ok = False
@@ -317,10 +329,11 @@ def main(argv=None):
     rows = assemble.catalogue(args.csv, args.game, args.model, args.version)
     states = A.STATES if args.state == "all" else (args.state,)
     ok = True
-    for folder, d, tokens, _sn in rows:
+    for folder, d, tokens, _toppers in rows:
+        built = {}
         for state in states:
             ok &= report(d, folder, state, solids=not args.no_solids,
-                         tokens=tokens)
+                         tokens=tokens, built=built)
     print("\nPASS" if ok else "\nFAIL")
     return 0 if ok else 1
 

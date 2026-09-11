@@ -1,5 +1,6 @@
-"""Stage `build/` components under the planner's own names, so the existing
-cascade pipeline can consume them in place of `individual/`.
+"""LEGACY: stage built components under the planner's names for refresh_cascades.
+
+The Onshape pipeline can then consume them in place of `individual/`.
 
 `cad.build` names a file by what is engraved on it — `Holder S4.16.10.32-Un`,
 `TokenHolder M21-Sl`, a pusher with its first-riser axis — where
@@ -13,13 +14,14 @@ writes that root:
     python -m cad.promote --game Dominion               # a game
     python -m cad.promote                               # everything built
 
-copying each `build/<Game>/<cad name>.3mf` to
+copying each `build/v7.0/<Game>/<cad name>.3mf` to
 `build/components/<Game>/<planner name>.3mf`, and then
 
     automation/refresh_cascades.py --components build/components \\
-        --out build/cascades --game Dominion --name 168 --auto
+        --out build/promoted --game Dominion --name 168 --auto
 
-builds the project from them without touching `cascades/` or `individual/`.
+builds the project from them without touching `cascades/`, `individual/` or
+`cad.cascade`'s own `build/cascades/`.
 Nothing here writes into `individual/`: that is a promotion of a different
 kind, and the two collisions the planner's keys carry (`spec/TOKENHOLDER.md`,
 `cad/README.md` decision 5) are refused rather than resolved — where two
@@ -39,16 +41,14 @@ sys.path.insert(0, str(ROOT / "automation"))
 import components as C                                  # noqa: E402
 import plan_exports as P                                # noqa: E402
 from . import build as B, derive as D, lock as L, params  # noqa: E402
-from . import revisions as R                            # noqa: E402
 
 # The tree promotion reads, and it is the LOCK GENERATION's and not the
 # current release's: what is staged goes into a shipped cascade whose other
 # parts are Onshape 7.0 exports. Build it with
 # `cad.build --part all --version 7.0` — which writes `build/v7.0/` — before
 # promoting. See `stage`'s comment on the pinned Primary.
-BUILD = ROOT / "build"
-SOURCE = BUILD if L.GENERATION == R.CURRENT else BUILD / f"v{L.GENERATION}"
-DEFAULT_OUT = BUILD / "components"
+SOURCE = B.out_for(L.GENERATION)
+DEFAULT_OUT = ROOT / "build" / "components"
 
 
 def built_name(item, d):
@@ -80,7 +80,7 @@ def stage(games, out, model=None, name=None, dry=False):
     staged, missing, collisions, unmade = [], [], [], []
     copied = set()
     for game, spec in games:
-        plan = P.compute_plan(game, spec, str(ROOT / "automation" / "parts.csv"))
+        plan = P.compute_plan(game, spec, str(B.CSV))
         folder = spec["folder"]
         for casc in plan.cascades:
             if model and model.lower() not in casc["model"].lower():
@@ -153,12 +153,12 @@ def main():
     for src, dst in staged:
         print(f"  {str(src.relative_to(SOURCE)):40s} -> {dst.relative_to(args.out)}")
     if unmade:
-        print(f"\nnot built by cad/ ({len(unmade)}) — these stay Onshape's:")
+        print(f"\nnot built by cad/ ({len(unmade)}) — labels are labelmaker.py's:")
         for u in unmade:
             print(f"  {u}")
     if missing:
-        print(f"\nMISSING in build/ ({len(missing)}) — run `python -m cad.build "
-              f"--part all` first:")
+        print(f"\nMISSING in {SOURCE.relative_to(ROOT)}/ ({len(missing)}) — run "
+              f"`python -m cad.build --part all --version {L.GENERATION}` first:")
         for m in missing:
             print(f"  {m}")
     if collisions:

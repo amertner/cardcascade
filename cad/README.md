@@ -299,9 +299,10 @@ A pusher's depth depends on `FirstSlidingSlotCards`, but `plan_exports` keys it
 on `Pusher 6x10-*.3mf` and differ by 1.20 mm sleeved. `build.py` writes
 `Pusher 6x10-12-Sl.3mf` for the override, following parts.csv's own model-code
 convention (`M6.21.10/12`, with `/` folded to `-`). Four files are consequently
-named differently from `individual/` and two are new; `--legacy-names` writes
-the old names and refuses when two geometries would land on one. Promotion needs
-the planner's key to gain the axis first.
+named differently from `individual/` and two are new. `pusher_file(d,
+legacy=True)` gives the old name, which is how `tests/test_pusher_regression.py`
+finds a pusher's cached twin, and the legacy `cad.promote` refuses where two
+built files would land on one planner name.
 
 **6. Where the rebuild diverges from Onshape, it says so and tests both sides.**
 The Box's hanging holes are cut through the rear storage dividers in Onshape —

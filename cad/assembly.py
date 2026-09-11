@@ -268,17 +268,14 @@ def lid_closed(d):
 
     Nothing geometric separates them, so the LID GOES ON EITHER WAY ROUND. The
     only thing that can tell is the logo pattern, which is in the floor's outer
-    face — the face that points up once the lid is on — and **the four games'
-    marks do not agree with each other**: Dominion's reads upright under a turn
-    about X and Compile's, FCM's and Innovation's under a turn about Y, so one
-    game is upside down whichever is chosen. Nothing in `cad/` rotates the
-    artwork; the four `logos/<Game>/lid_logo.dxf` disagree, and the cached
-    Onshape lids carry the same inlays to 0.001, so this is on the shipped
-    product too. `spec/ASSEMBLY.md` records it; Allan decides which DXF turns.
+    face — the face that points up once the lid is on.
 
-    **Y is chosen because three of the four read correctly under it.** That is a
-    majority, not a proof, and it is the honest description of the state of the
-    evidence.
+    **Y is used**, and which way up each game's mark then reads is settled by
+    a PRINTED lid, not by this placement or a render of it: renders argued
+    Dominion's drawing turned on 2026-09-04, and a printed Dominion lid turned
+    it back on 2026-09-11. A printed Innovation lid put that game's mark in
+    turned the same day (`tables.LID_LOGO_TURNED`); Compile and FCM are open
+    until a lid of each is printed. `spec/ASSEMBLY.md` records it.
 
     The `WallThickness` in the placement is the LID's OWN floor, which stays
     1.600 at every release — the box's is `box.floor_top` and from 7.1 they are
@@ -308,14 +305,13 @@ def lid_under(d):
 def play_sockets(d):
     """Which of the lid's sockets the cascade's pushers stand in: all of them.
 
-    It used to be a rule with a special case. A lid took its socket count from
-    the plain size rule and an Innovation M got three where its cascade ships
-    two, so the pushers took the OUTER pair and the middle socket stood empty
-    in every render. Since 2026-09-06 `lid.socket_count` IS
-    `box.pusher_slot_count` and the middle one is cut — the two parts agree, so
-    every socket is filled and the mapping is the identity.
+    From 7.1 `lid.socket_count` IS `box.pusher_slot_count`
+    (`rev.lid_socket_per_pusher`), so the two parts agree and the mapping is
+    the identity. At 7.0 the four Innovation M lids still cut a third, middle
+    socket for a cascade that ships two pushers, and a 7.0 play assembly
+    stands a pusher in that one too.
 
-    The pushers land in the same places they did: the socket span does not
+    The pushers land in the same places either way: the socket span does not
     depend on the count (`lid.socket_centres`).
     """
     from .parts import lid as lid_part

@@ -220,8 +220,10 @@ def assembly_contact(paths, target, views=(HERO,), cell=760, cols=4):
 
     Several views because one is not enough to check a cascade: the hero
     shows the closed product, and `bottom` on the PLAY state is the only
-    picture that shows the lid's mark the way round it prints — which is how
-    Dominion's was found upside down (spec/LID.md). `cols` is rounded down
+    picture that shows the lid's mark the way round it prints. It finds the
+    question and a printed lid answers it: a render argued Dominion's mark
+    upside down on 2026-09-04, and a print turned that back (spec/LID.md).
+    `cols` is rounded down
     to a multiple of the view count so an assembly's views sit in one row.
     """
     if isinstance(views, str):

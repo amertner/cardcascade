@@ -27,12 +27,12 @@ geometry and not about file formats:
   `Holder S-16-r4-Un` runs Z -45.250.. against `holder.base_z` -45.250, and its
   X centres on `holder.x_span`'s).
 
-Anything missing from `build/` is built on the spot. The Holder defaults to
-the CACHED mesh even though `cad/parts/holder.py` is finished now, because
-`individual/` is the geometry that actually shipped and an assembly is a
-statement about a real cascade. `--holder source` builds it instead, and is no
-longer a compromise — it is also the only way to assemble the two
-`M6.21.10-12` cascades, whose first-riser holder was never exported.
+Anything missing from `build/` is built on the spot. The Holder and the
+Toppers come from `individual/` — the Onshape 7.0 corpus, 30 of whose 50
+holders are 6.6 — whatever release is assembled. `--holder source` builds the
+holder from `cad/parts/holder.py` instead, as the released cascades print it,
+and it is the only way to assemble the two `M6.21.10-12` cascades, whose
+first-riser holder was never exported.
 """
 import argparse
 import sys
@@ -147,11 +147,11 @@ def holder_file(d, first=False):
 def holder_mesh(d, folder, first=False, source=False):
     """The holder an assembly places, in its part frame.
 
-    Cached by default, because `individual/` is what shipped. `source=True`
-    builds it from `cad/parts/holder`, which is finished and regressed against
-    all 50 cached holders — so it is an equal alternative now rather than a
-    compromise, and it is the only way to assemble the two `M6.21.10-12`
-    cascades at all, their first-riser holder never having been exported.
+    Cached by default — `individual/`'s, the Onshape 7.0 corpus. `source=True`
+    builds it from `cad/parts/holder`, regressed against all 50 cached holders
+    and what the released cascades print; it is the only way to assemble the
+    two `M6.21.10-12` cascades, their first-riser holder never having been
+    exported.
     """
     if source:
         from .parts import holder as holder_part
@@ -165,14 +165,10 @@ def holder_mesh(d, folder, first=False, source=False):
     return _one(path)
 
 
-# The six Innovation toppers, from `components.GAMES["Innovation"]["toppers"]`.
-# One per riser in catalogue order, back to front; nothing in the geometry
-# picks which expansion goes where, and a cascade with more risers than
-# expansions repeats.
+# The six Innovation toppers, one per riser in this order, back to front;
+# nothing in the geometry picks which expansion goes where, and a cascade with
+# more risers than expansions repeats.
 TOPPERS = ("Cities", "Echoes", "Artifacts", "Figures", "Unseen", "Blank")
-
-# Rows that carry no toppers, by parts.csv Short name — `components.no_toppers`.
-NO_TOPPERS = {"Single Set", "Single Mini"}
 
 
 def topper_meshes(d, folder, expansion):
@@ -190,15 +186,14 @@ def topper_meshes(d, folder, expansion):
     return _all(path)
 
 
-def topper_risers(d, short_name=None):
-    """[(riser, first)] that carry a topper. Innovation only."""
-    if d.GameName != "Innovation" or short_name in NO_TOPPERS:
-        return []
-    return A.holders(d)
+def topper_risers(d, toppers=False):
+    """[(riser, first)] that carry a topper: every riser where the row ships
+    toppers (`build.ships_toppers`), none where it does not."""
+    return A.holders(d) if toppers else []
 
 
 def assemble(d, state, folder, out_dir, take_tokens=False,
-             half=False, holder_source=False, short_name=None):
+             half=False, holder_source=False, toppers=False):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
     parts, instances = [], []
@@ -225,11 +220,11 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
                 [place(d, j) for j in js])
 
     # Toppers — Innovation only, one per riser, and only where the row has them
-    # (`components.no_toppers`: a box built for ONE set has nothing for a
-    # topper to say). Each is its own cached component, so each is its own mesh
-    # with one instance; the expansion order is the catalogue's and is
-    # arbitrary as far as the geometry is concerned.
-    for j, first in topper_risers(d, short_name):
+    # (`build.ships_toppers`: a box built for ONE set has nothing for a topper
+    # to say). Each is its own cached component, so each is its own mesh with
+    # one instance; the expansion order is `TOPPERS`' and is arbitrary as far
+    # as the geometry is concerned.
+    for j, first in topper_risers(d, toppers):
         pl = (A.topper if closed else A.topper_play)(d, j, first)
         for mesh in topper_meshes(d, folder, TOPPERS[j % len(TOPPERS)]):
             add(mesh, [pl])
@@ -253,11 +248,12 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
 
 
 def catalogue(csv=CSV, game=None, model=None, version=CURRENT):
-    """[(folder, Derived, tokens, short name)] — every cascade, both sleevings.
+    """[(folder, Derived, tokens, toppers)] — every cascade, both sleevings.
 
-    `tokens` is parts.csv's own `TokenHolder` column, which is per ROW and not
-    derivable from the geometry: only the sets whose expansions need one carry
-    it (`plan_exports.compose`).
+    `tokens` and `toppers` are per ROW and not derivable from the geometry —
+    only the sets whose expansions need a token holder carry one, and a
+    single-set cascade carries no toppers — so they are asked of the row, the
+    way `cad.build`'s catalogues ask (`ships_token_holder`, `ships_toppers`).
 
     `version` is the RELEASE assembled, because a release can change a part —
     a 7.1 Lid has one socket per pusher where a 7.0 one has three
@@ -267,9 +263,8 @@ def catalogue(csv=CSV, game=None, model=None, version=CURRENT):
         d = D.derive(p)
         if not B.model_matches(d, model):
             continue
-        tokens = (row.get("TokenHolder") or "").strip().lower()
-        out.append((d.GameName, d, tokens not in ("", "none"),
-                    (row.get("Short name") or "").strip()))
+        out.append((d.GameName, d, B.ships_token_holder(row),
+                    B.ships_toppers(row, d)))
     return out
 
 
@@ -287,9 +282,9 @@ def main(argv=None):
                          "checkable at each (cad/revisions.py)")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--holder", choices=("cached", "source"), default="cached",
-                    help="where the Holder comes from. Cached by default, "
-                         "because individual/ is what shipped; source builds "
-                         "the (now finished) cad/parts/holder instead")
+                    help="where the Holder comes from: cached (individual/, "
+                         "the Onshape 7.0 corpus) or source (cad/parts/holder, "
+                         "as the released cascades print it)")
     ap.add_argument("--half", action="store_true",
                     help="on a merged row, place the HALF token holder instead "
                          "of the FULL — they are alternatives for one slot")
@@ -298,7 +293,7 @@ def main(argv=None):
     rows = catalogue(args.csv, args.game, args.model, args.version)
     states = A.STATES if args.state == "all" else (args.state,)
     if args.list:
-        for folder, d, _tk, _sn in rows:
+        for folder, d, _tokens, _toppers in rows:
             print(f"  {folder}/{d.calModelName}")
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
@@ -306,14 +301,14 @@ def main(argv=None):
     print(f"  holders: {args.holder}")
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
     skipped = []
-    for folder, d, tokens, short_name in rows:
+    for folder, d, tokens, toppers in rows:
         for state in states:
             try:
                 parts, instances = assemble(d, state, folder, args.out,
                                             take_tokens=tokens,
                                             half=args.half,
                                             holder_source=args.holder == "source",
-                                            short_name=short_name)
+                                            toppers=toppers)
             except MissingCached as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break

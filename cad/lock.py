@@ -11,7 +11,7 @@ Every dimension is a constant across all 32 pushers. A design is one number:
 """
 
 # The catalogue IS the 7.0 lock, and cad/ builds only that lock — see
-# cad/README.md, "One generation". A pre-7.0 pusher put its tabs at a fixed
+# cad/README.md, decision 4, "One lock: 7.0's". A pre-7.0 pusher put its tabs at a fixed
 # inset from the two depth edges (4.20 front, 4.00 back, notch always) and
 # nothing here reproduces that; `pusher.build` refuses rather than stamp the
 # wrong version on it.

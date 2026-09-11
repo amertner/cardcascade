@@ -139,7 +139,7 @@ def text_line(d):
     code instead, because a token holder's identity is its slot, not its game
     (it only has one).
     """
-    return f"CC {d.Version} {model_name(d)}"
+    return f"{d.calVersion} {model_name(d)}"
 
 
 def text_size(d, half):

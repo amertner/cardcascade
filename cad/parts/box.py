@@ -84,10 +84,9 @@ def pusher_slots(d):
 
 
 def pusher_slot_count(d):
-    """`#calPusherSlots` — `derive.py`'s, which owns the rule (2 for an S box
-    and for every Innovation box, else 3). `components.pushers_for` computes
-    the same thing from the size letter and gets Innovation XS wrong (no `XS`
-    key, so it falls through to 3 against the box's 2)."""
+    """`#calPusherSlots` — `derive.py`'s, which owns the rule: 2 at every size
+    from 7.1 (`rev.two_pushers`); at 7.0, 2 for an S box and for every
+    Innovation box, else 3."""
     return d.calPusherSlots
 
 

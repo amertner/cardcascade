@@ -93,7 +93,7 @@ def socket_count(d):
       of disagreeing (Allan, 2026-09-06).
 
     A REVISION CHANGE, not a divergence: a 7.0 build still reproduces the
-    STEP and all 44 cached lids exactly. `cad/revisions.py` owns the flag,
+    STEP and all 48 cached lids exactly. `cad/revisions.py` owns the flag,
     `spec/LID.md` ("The middle socket is gone") owns the reasoning, and
     `tests/test_revisions.py` asserts both releases.
 
@@ -455,7 +455,8 @@ PATTERN_PROUD = 0.010
 # 62.100 lid it was drawn for. Between them they leave 20 of the catalogue's 50
 # lids exactly as they are today and grow the rest.
 #
-# Both are Allan's to set, and so is `LID_LOGO_EDITION` beside them.
+# Both are Allan's to set, and so are `LOGO_CLEAR` below and
+# `tables.LID_LOGO_EDITION`.
 LOGO_WIDTH_FRACTION = 0.600
 LOGO_DEPTH_FRACTION = 0.850
 
@@ -545,7 +546,7 @@ def logo_choice(d, alternate=False):
     """(mark, nominal factor) — which of the game's marks this lid gets and how
     far it is sized, or (None, 0.0) for a game with no artwork on file.
 
-    The marks are listed largest first, so the first that fits the flat floor
+    The marks are listed largest first, so the first that fits `logo_limit`
     as drawn is the biggest that fits. If none does — the lid is smaller than
     every drawing — the last, smallest one is taken and shrunk to fit. A
     generated mark has no drawn size of its own, so it is listed once per
@@ -589,21 +590,27 @@ def logo_art(d, alternate=False):
     return faces
 
 
+def _prisms(d, alternate=False):
+    """The mark's regions extruded `PATTERN_DEPTH` up from the underside: the
+    one extrusion that is both the pocket and, moved down, the inlays."""
+    # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
+    # whichever way they were drawn, and six of the Innovation logo's 31
+    # regions come back facing -Z. Extruded along their normals those six
+    # went DOWN — cutting nothing and leaving their inlays floating below
+    # the lid, which cost exactly their 134.484 mm2 x 0.810.
+    return [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
+            for f in logo_art(d, alternate)]
+
+
 def logo_pattern(d, part, alternate=False):
     """(the body with its pocket cut, the inlay solids).
 
     Both come from one set of regions, so the inlay cannot drift out of the
     pocket: they are the same extrusion at two Z ranges.
     """
-    faces = logo_art(d, alternate)
-    if not faces:
+    prisms = _prisms(d, alternate)
+    if not prisms:
         return part, []
-    # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
-    # whichever way they were drawn, and six of the Innovation logo's 31
-    # regions come back facing -Z. Extruded along their normals those six
-    # went DOWN — cutting nothing and leaving their inlays floating below
-    # the lid, which cost exactly their 134.484 mm2 x 0.810.
-    prisms = [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1)) for f in faces]
     # ONE cut with every region, into the BARE SHELL (`build` calls this
     # first): the regions are disjoint, the pocket is in the underside and
     # nothing later touches it, and a body of ten faces is cut in a fraction
@@ -618,11 +625,9 @@ def logo_pattern(d, part, alternate=False):
 
 
 def inlays(d):
-    """Just the logo's inlay solids — what `build` cuts the pocket for."""
-    faces = logo_art(d)
-    return [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
-            .moved(Location((0, 0, -PATTERN_PROUD)))
-            for f in faces]
+    """The logo's inlay solids alone, without building the lid — the prisms
+    `logo_pattern` cuts, moved down as it moves them."""
+    return [q.moved(Location((0, 0, -PATTERN_PROUD))) for q in _prisms(d)]
 
 
 # --- the outer rounds ------------------------------------------------------

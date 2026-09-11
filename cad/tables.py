@@ -1,9 +1,10 @@
-"""Per-game lookups, transcribed verbatim from the Onshape variable studio.
+"""Per-game lookups, keyed by GameName.
 
-Every table here is keyed by GameName and is a straight transcription — the
-Onshape variable each came from is named above it. `Colours`, which Onshape
-knows about and `automation/components.py` does not, is kept so the
-transcription can be diffed against the studio without a mental exclusion.
+The first block is transcribed verbatim from the Onshape variable studio, the
+variable each came from named above it. `Colours`, which Onshape knows about
+and `automation/components.py` does not, is kept so the transcription can be
+diffed against the studio without a mental exclusion. The lid-mark and topper
+tables after it are `cad/`'s own policy (`spec/LID.md`, `spec/TOPPER.md`).
 
 **`CraftGutermann` is deliberately absent.** The studio still has it; the design
 is deprecated and Allan asked for it to go. It is the one place these tables
@@ -52,7 +53,7 @@ SIZE_LETTER = {2: "XS", 3: "S", 4: "M", 5: "L"}
 # each file came from and what it was checked against.
 #
 # Per game, and per edition of a game's mark, the drawn VARIANTS of it, largest
-# first. `lid.logo_art` takes the first that fits the lid's flat floor and then
+# first. `lid.logo_choice` takes the first that fits `lid.logo_limit` and then
 # scales it to fill — so a game needs a second file only where its two sizes
 # are not a scale of each other. Compile's are (its small mark is the big one
 # at 1/1.25297, line weights and all, which is why one file serves its six

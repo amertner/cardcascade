@@ -11,7 +11,7 @@
     .venv/bin/python -m cad.build --part holder   # every holder — 1 min pooled
     .venv/bin/python -m cad.build --part tokenholder  # Dominion only
     .venv/bin/python -m cad.build --part topper   # Innovation only
-    .venv/bin/python -m cad.build --part all      # all six — 5 min pooled
+    .venv/bin/python -m cad.build --part all      # all six — about 3 min pooled
     .venv/bin/python -m cad.build --part all      # again: 0 s, all skipped
     .venv/bin/python -m cad.build --jobs 1        # serial; --force rebuilds
 
@@ -27,8 +27,8 @@ Output is the same interface Onshape's exports are — see `cad/mesh3mf.py` — 
 the same assembly position, so a file here is comparable, part for part, with
 the one in `individual/`. It is written to `build/`, never over `individual/`:
 that directory is 242 components that cost a year's API budget to make and
-cannot be re-fetched, and it stays the ground truth until a component type has
-passed regression (`tests/test_pusher_regression.py`).
+cannot be re-fetched, and it is the permanent regression corpus a 7.0 build is
+held to (`tests/reference.py`).
 
 ## Naming, and the axis the old key is missing
 
@@ -43,10 +43,9 @@ the name, following parts.csv's own model-code convention (`S2.40.12/30`, with
     first riser 12     Pusher 6x10-12-Sl.3mf
 
 Four files are consequently named differently from `individual/` (the 246 Card
-and 472 Card pushers, which have overrides and no collision), and two are new.
-`--legacy-names` writes the old names instead, which is what a promotion into
-`individual/` would need until the planner's key is fixed; it refuses when two
-geometries would land on one name.
+and 472 Card pushers, which have overrides and no collision), and two are new;
+`pusher_file(d, legacy=True)` gives the old name, which is how
+`tests/test_pusher_regression.py` finds a pusher's cached twin.
 """
 import argparse
 import hashlib
@@ -112,9 +111,8 @@ def lid_file(d, alternate=False):
 
     Keyed on `calModelName` exactly as the Box is, which means a Mat cascade
     gets its own lid where `plan_exports` keys one `("Lid", model)` for both.
-    Nothing in the geometry depends on `MatPocket`, so the two are identical
-    files today; they part company when the floor's engraved `calModelName` is
-    built, and the CAD is the authority on that code (CLAUDE.md).
+    The two are different files: the floor engraves `calModelName`, which
+    carries the Mat branch's `-M`.
 
     From 7.1d a cascade whose mark is not its game's default ships a SECOND
     lid carrying the default mark (`rev.both_lid_editions`), and that one
@@ -176,7 +174,7 @@ def component_metadata(d, path):
     """
     return {"Title": path.stem,
             "Application": "Card Cascade cad.build",
-            "Description": f"{d.calModelName} at CC {d.Version}",
+            "Description": f"{d.calModelName} at {d.calVersion}",
             mesh3mf.VERSION_KEY: d.Version}
 
 
@@ -312,20 +310,27 @@ def topper_shape_key(d):
 # the cache, which is where that would show up.
 SINGLE_SET = "one expansion"
 
-def topper_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary)] — every distinct topper.
 
-    Innovation only, single-set cascades excluded: the blank and every
-    expansion whose mark `topper.MARKS` has, which is all five
+def ships_toppers(row, d):
+    """Does this row's cascade carry toppers? Innovation only, and not a
+    single-set cascade (`SINGLE_SET`). The catalogue, `cad.cascade` and
+    `cad.assemble` all ask it here."""
+    return (d.GameName == "Innovation"
+            and SINGLE_SET not in (row.get("Set/Extension") or "").lower())
+
+
+def topper_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
+    """[(folder, filename, Primary, expansion)] — every distinct topper.
+
+    Innovation only, single-set cascades excluded (`ships_toppers`): the blank
+    and every expansion whose mark `topper.MARKS` has, which is all five
     (`tables.TOPPERS`). See spec/TOPPER.md.
     """
     out, shapes = {}, {}
     for row, p in params.cascades(csv, game, version):
-        if p.GameName != "Innovation":
-            continue
-        if SINGLE_SET in (row.get("Set/Extension") or "").lower():
-            continue
         d = D.derive(p)
+        if not ships_toppers(row, d):
+            continue
         key = topper_shape_key(d)
         for expansion in TB.TOPPERS:
             fn = topper_file(d, expansion)
@@ -333,11 +338,10 @@ def topper_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
                 continue
             seen = shapes.get(fn)
             if seen is not None and seen != key:
-                raise ValueError(
-                    f"two parameter sets want to be {fn!r} and are not the "
-                    f"same shape: {seen} vs {key}. The filename is "
-                    f"Onshape's and carries no riser count; see "
-                    f"build.topper_file.")
+                refuse(f"two parameter sets want to be {fn!r} and are not the "
+                       f"same shape: {seen} vs {key}. The filename is "
+                       f"Onshape's and carries no riser count; see "
+                       f"build.topper_file.")
             shapes[fn] = key
             out.setdefault((p.GameName, fn), (p.GameName, fn, p, expansion))
     return [out[k] for k in sorted(out)]
@@ -376,7 +380,7 @@ def build_box(d, _extra, path):
     return write_component(path, [("Box", box_part.build(d))], d)
 
 
-def pusher_catalogue(csv=CSV, game=None, legacy=False, version=R.CURRENT):
+def pusher_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct pusher, deduplicated.
 
     The key is the full one: the game, the riser count, the cards per slot, the
@@ -384,24 +388,18 @@ def pusher_catalogue(csv=CSV, game=None, legacy=False, version=R.CURRENT):
     """
     out = {}
     for _row, p in params.cascades(csv, game, version):
+        fn = pusher_file(D.derive(p))
+        if model and model.lower() not in fn.lower():
+            continue
         key = (p.GameName, p.RisingSliders, p.CardsPerSlidingSlot,
                p.FirstSlidingSlotCards if p.isFirstSlidingSlotOverride else 0,
                p.isSleeved)
-        out.setdefault(key, (p.GameName, pusher_file(D.derive(p), legacy), p))
-    if legacy:
-        names, clash = {}, []
-        for folder, fn, p in out.values():
-            prev = names.setdefault((folder, fn), p)
-            if prev is not p:
-                clash.append(f"{folder}/{fn}")
-        if clash:
-            refuse("--legacy-names: two distinct geometries share a name: "
-                   + ", ".join(sorted(clash)))
+        out.setdefault(key, (p.GameName, fn, p))
     return [out[k] for k in sorted(out)]
 
 
-def token_holder_file(d, half, legacy=False):
-    """`TokenHolder <model>.3mf`, or the name `individual/` uses.
+def token_holder_file(d, half):
+    """`TokenHolder <model>.3mf`.
 
     Keyed on `calTokenHolderModel`, which is what the part has engraved on it,
     where `plan_exports` keys `(front capacity, merged, sleeved)` and names the
@@ -413,45 +411,36 @@ def token_holder_file(d, half, legacy=False):
     today and the cached file is stamped `M21.Sl` for both.
 
     So this builder carries the letter in the name, as it carries the Pusher's
-    first-riser axis, and `--legacy-names` writes the old name for a promotion
-    into `individual/` — refusing when two model codes would land on one file.
+    first-riser axis.
     """
     kind = "HalfTokenHolder" if half else "TokenHolder"
-    if legacy:
-        cap, mat = d.calTokenHolderModel, ""
-        # `M21-M.Sl` -> capacity `21`, merged; `M21.Sl` -> capacity `21`.
-        body = cap.split(".")[0]
-        if body.endswith("-M"):
-            body, mat = body[:-2], " merged"
-        digits = "".join(c for c in body if c.isdigit())
-        slv = "Sl" if cap.endswith(".Sl") else "Un"
-        return f"{kind} {digits}-{slv}{mat}.3mf"
     return f"{kind} {model_stem(d.calTokenHolderModel)}.3mf"
 
 
-def token_holder_catalogue(csv=CSV, game=None, model=None, legacy=False,
-                           version=R.CURRENT):
+def ships_token_holder(row):
+    """Does this row ask for a token holder? parts.csv's `TokenHolder` column,
+    `full` or `none`, blank meaning none — Dominion's rows alone set it. The
+    catalogue, `cad.cascade` and `cad.assemble` all ask it here."""
+    return (row.get("TokenHolder") or "").strip().lower() not in ("", "none")
+
+
+def token_holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary, half)] — every distinct token holder.
 
-    A row asks for one through parts.csv's `TokenHolder` column (`full` or
-    `none`); the HALF is a Mat-box feature, so a merged row yields both, which
-    is what `plan_exports.compose` emits and what `PIPELINE.md` records.
+    A row asks for one (`ships_token_holder`); the HALF is a Mat-box feature,
+    so a merged row yields both, which is what `plan_exports.compose` emits
+    and what `PIPELINE.md` records.
     """
-    out, clash = {}, {}
+    out = {}
     for row, p in params.cascades(csv, game, version):
-        if (row.get("TokenHolder") or "").strip().lower() in ("", "none"):
+        if not ships_token_holder(row):
             continue
         d = D.derive(p)
         for half in ((False, True) if p.MatPocket else (False,)):
-            fn = token_holder_file(d, half, legacy)
+            fn = token_holder_file(d, half)
             if model and model.lower() not in fn.lower():
                 continue
-            key = (p.GameName, fn)
-            ident = (d.calTokenHolderModel, half)
-            if legacy and clash.setdefault(key, ident) != ident:
-                refuse(f"--legacy-names: {fn} would carry both "
-                       f"{clash[key][0]} and {ident[0]}")
-            out.setdefault(key, (p.GameName, fn, p, half))
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p, half))
     return [out[k] for k in sorted(out)]
 
 
@@ -614,23 +603,19 @@ def holder_key(p, first):
             p.FirstSlidingSlotCards, p.isSleeved, p.Version, first)
 
 
+# Every kind's catalogue, `(csv, game, model, version) -> items`. The Box's and
+# the Pusher's yield (folder, filename, Primary) — they have no `extra` — and
+# the rest (folder, filename, Primary, extra).
+CATALOGUES = {"lid": lid_catalogue, "holder": holder_catalogue,
+              "tokenholder": token_holder_catalogue, "topper": topper_catalogue,
+              "box": box_catalogue, "pusher": pusher_catalogue}
+
+
 def specs_for(kind, args, src):
     """[(folder, filename, Primary, extra)] for `--list`, and the job specs."""
-    if kind == "lid":
-        items = lid_catalogue(args.csv, args.game, args.model, args.version)
-    elif kind == "holder":
-        items = holder_catalogue(args.csv, args.game, args.model, args.version)
-    elif kind == "tokenholder":
-        items = token_holder_catalogue(args.csv, args.game, args.model,
-                                       args.legacy_names, args.version)
-    elif kind == "topper":
-        items = topper_catalogue(args.csv, args.game, args.model, args.version)
-    elif kind == "box":
-        items = [(f, fn, p, None) for f, fn, p in
-                 box_catalogue(args.csv, args.game, args.model, args.version)]
-    else:
-        items = [(f, fn, p, None) for f, fn, p in
-                 pusher_catalogue(args.csv, args.game, args.legacy_names, args.version)]
+    items = CATALOGUES[kind](args.csv, args.game, args.model, args.version)
+    if kind in ("box", "pusher"):
+        items = [(f, fn, p, None) for f, fn, p in items]
     groups = {}
     for folder, fn, p, extra in items:
         key = (holder_key(p, extra) if kind == "holder"
@@ -669,8 +654,6 @@ def main(argv=None):
                          "releases cannot land in one tree under the same "
                          "filenames)")
     ap.add_argument("--csv", default=CSV, type=Path)
-    ap.add_argument("--legacy-names", action="store_true",
-                    help="use plan_exports' names (drops the first-riser axis)")
     ap.add_argument("--list", action="store_true", help="print, do not build")
     ap.add_argument("--part", choices=KINDS + ("all",), default="pusher",
                     help="what to build; `all` is the lot, a few minutes with "

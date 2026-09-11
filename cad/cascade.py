@@ -13,16 +13,18 @@ everything, `cad.project` writes the file, and the two project guards run on
 it before it counts. `--build` runs `cad.build --part all` first, which the
 stamps make a no-op when nothing changed; `--slice` has BambuStudio slice
 every plate and requires return_code 0, the only check that sees a tower in
-unprintable space. Projects go to `build/cascades/<Game>/` unless `--out`
-says otherwise — the parallel period's tree, beside `cascades/`.
+unprintable space. Projects go to `build/cascades/<Game>/`
+(`build/v<version>/cascades/` for another release) unless `--out` says
+otherwise; a release is copied from there into `cascades/`.
 
 `--publish` writes the set that LEAVES the repo, to `build/dist/<version>/`:
 the same projects with the version in their file names. In the repo a name is
 an identity and the version lives in the title and the engraving; on a
 download the name is the first thing its owner reads. See `filename`.
 
-The composition rules are `automation/PIPELINE.md`'s ("Component composition")
-and `automation/components.py`'s per-game policy, restated in `parts`.
+The composition rules are `automation/PIPELINE.md`'s ("Component composition"),
+restated in `parts`; which rows ship toppers and token holders is asked of
+`cad.build` (`ships_toppers`, `ships_token_holder`), as its catalogues ask it.
 """
 import argparse
 import hashlib
@@ -54,8 +56,9 @@ def parts(row, d):
     the cascade `row` (with its sleeving already in `d`) is made of, in the
     order the plate scheme lists them.
 
-    * one Box, `calPusherSlots` Pushers (`#calPusherSlots` is the studio's
-      count of rear slots: 2 for Innovation and for S boxes, 3 for M and L);
+    * one Box, `calPusherSlots` Pushers (`#calPusherSlots` is the count of
+      rear slots: 2 at every size from 7.1; at 7.0, 2 for Innovation and for
+      S boxes, 3 for M and L);
     * `RisingSliders` Holders — one of them the deeper FirstHolder when the row
       overrides the first slot's capacity;
     * one Lid — and from 7.1d a SECOND one, on its own plate, where the
@@ -63,11 +66,11 @@ def parts(row, d):
       single-set cascades carry the plain `Innovation` mark and ship an
       `Innovation Ultimate` lid beside it, for the owner to choose between
       (`rev.both_lid_editions`, `build.lid_editions_built`);
-    * Dominion: a TokenHolder where the row's `TokenHolder` column says `full`,
-      and a HalfTokenHolder as well on a merged (Mat) row — the two are
-      alternatives for one pocket, and the cascade ships both;
-    * Innovation: the six Toppers, one per expansion plus Blank, except on
-      the rows `components.no_toppers` names (a box built for ONE set has
+    * a TokenHolder where the row's `TokenHolder` column asks for one
+      (Dominion's alone), and a HalfTokenHolder as well on a merged (Mat) row
+      — the two are alternatives for one pocket, and the cascade ships both;
+    * Innovation: the six Toppers, one per expansion plus Blank, except on a
+      single-set row (`build.ships_toppers`: a box built for ONE set has
       nothing for a topper to say).
     """
     out = [("Box", B.box_file(d))]
@@ -79,13 +82,11 @@ def parts(row, d):
         out += [("Holder", B.holder_file(d))] * d.RisingSliders
     for alt in B.lid_editions_built(d):
         out.append((PJ.object_name("Lid", d, alt), B.lid_file(d, alt)))
-    if d.GameName == "Dominion" and (row.get("TokenHolder") or "").strip().lower() == "full":
+    if B.ships_token_holder(row):
         out.append(("TokenHolder", B.token_holder_file(d, half=False)))
         if d.MatPocket:
             out.append(("HalfTokenHolder", B.token_holder_file(d, half=True)))
-    spec = C.GAMES.get(d.GameName) or {}
-    short = (row.get("Short name") or "").strip()
-    if d.GameName == "Innovation" and short not in spec.get("no_toppers", set()):
+    if B.ships_toppers(row, d):
         for exp in TB.TOPPERS:
             out.append((f"Topper {exp}", B.topper_file(d, exp)))
     return out

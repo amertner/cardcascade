@@ -12,9 +12,8 @@ Local frame (the part studio's, not the assembly's):
     Z   thickness, 0 at the back face, PLATE at the front, tabs stand proud
 
 A hand-exported STEP, and a component 3MF, arrive in ASSEMBLY position:
-`assembly_offset` below is that transform. Tests still align on the bounding
-box, as tests/test_pusher.py does, because that stays right whatever the
-placement turns out to be.
+`assembly_offset` below is that transform; tests/test_pusher.py aligns on the
+bounding box.
 """
 from build123d import (BuildPart, BuildSketch, BuildLine, Polyline, Plane,
                        Locations, Box, Mode, Pos, Rot, add, make_face, extrude,
@@ -94,11 +93,10 @@ def build(d, text=True):
         raise ValueError(
             f"cad/ builds the {L.GENERATION} lock only, so a Primary at "
             f"{d.Version!r} would get {L.GENERATION} tabs under a "
-            f"'CC {d.Version}' stamp — the mixed-generation part parts.csv's "
-            f"Build column exists to prevent. Leave the 6.6 pushers to "
-            f"individual/ until their cascades migrate. (A release that shares "
-            f"the 7.0 lock is admitted in lock.SAME_LOCK; what else differs "
-            f"between releases is cad/revisions.py.)")
+            f"'CC {d.Version}' stamp. A pre-7.0 pusher is not reproducible "
+            f"here; those in individual/ are regression corpus only. (A "
+            f"release that shares the 7.0 lock is admitted in lock.SAME_LOCK; "
+            f"what else differs between releases is cad/revisions.py.)")
     W = d.calPusherTotalDepth
     inc = d.calHeightIncrement
     yc = -W / 2

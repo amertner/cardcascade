@@ -48,7 +48,8 @@ and the part stamped with it stays reproducible. A letter that were only a
 build marker, with the flags still keyed on `7.1`, would let two different
 geometries wear the same stamp, which is the thing this is here to stop.
 
-**Bumping.** A design change during 7.1 opens the next letter: add it to
+**Bumping.** A design change to a release not yet locked opens its next letter
+— after the 7.1 lock, that is `7.2a`: add it to
 `RELEASES` and `lock.SAME_LOCK`, move `CURRENT` on, give the new flag
 `since: "<the new letter>"`, and leave the earlier letters' flags alone —
 monotonicity carries them forward. Nothing is rebuilt in place; the earlier
@@ -184,9 +185,11 @@ class Rev:
 # position and no flags.
 #
 # One consequence, recorded because it is easy to trip over: the engraved
-# stamp reader can only read a `digit . digit` word (`verify._dotted`), so a
-# version of any other shape — `7.1.1`, `7.1B` — is checkable by its METADATA
-# alone. That is a limit on the reader, not on the version.
+# stamp reader reads `digit . digit`, and a trailing mark after it only where
+# the `CC` before vouches for the word — a mark it cannot identify, the letter
+# being no counter (`verify._dotted`). So a version of any other shape —
+# `7.1.1`, `7.1B` — is checkable by its METADATA alone. That is a limit on the
+# reader, not on the version.
 
 
 def position(version):
@@ -259,11 +262,6 @@ def of(version):
 def flags():
     """Every change field, with its `since` and `spec` metadata."""
     return fields(Rev)
-
-
-def changes_at(version):
-    """The flags this release INTRODUCES, for a report or a test."""
-    return tuple(f.name for f in fields(Rev) if f.metadata["since"] == version)
 
 
 def previous(version):
