@@ -93,8 +93,6 @@ check cad output.
   a closed lid fits either way round. Dominion's DXF is Onshape's original and
   Innovation's mark is turned (`tables.LID_LOGO_TURNED`), both checked on
   printed lids; Compile and FCM are open until printed (`spec/LID.md`).
-- The two `M6.21.10-12` cascades have no cached holder mesh: `cad.assemble`
-  skips them unless `--holder source`.
 
 ## Ground rules
 

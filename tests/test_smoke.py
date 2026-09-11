@@ -104,15 +104,15 @@ with tempfile.TemporaryDirectory() as tmp:
     check("fit reports the interference tier", "interference" in out)
     check("fit reports no failure", "FAIL" not in out)
 
-    print("\n=== cad.assemble --holder source ===")
-    # The one cascade with NO cached holder, so the source is the only way.
-    # Written under build/, where the box and pusher already are: an --out
-    # elsewhere would have both built again into it.
+    print("\n=== cad.assemble, the first-riser holder Onshape never exported ===")
+    # Onshape never exported this cascade's first-riser holder; the built one
+    # is what an assembly places. Written under build/, where the box and
+    # pusher already are: an --out elsewhere would have both built again into it.
     made = ROOT / "build" / "assemblies" / "Dominion" / "M6.21.10-12.45-M-Un closed.3mf"
     made.unlink(missing_ok=True)
-    run("assemble --holder source", PY, "-m", "cad.assemble", "--model",
-        "M6.21.10-12.45-M-Un", "--holder", "source", "--state", "closed")
-    check("assembly written from source holders", made.exists(),
+    run("assemble M6.21.10-12.45-M-Un", PY, "-m", "cad.assemble", "--model",
+        "M6.21.10-12.45-M-Un", "--state", "closed")
+    check("assembly written with its built first-riser holder", made.exists(),
           f"{made.stat().st_size // 1024 if made.exists() else 0} KB")
 
     print("\n=== render/cascade.py in Blender ===")

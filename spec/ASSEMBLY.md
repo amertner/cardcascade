@@ -326,20 +326,16 @@ with its own cost, not a placement decision.
 
 ## Where the parts come from
 
-A resolver, because two of them are not finished:
+| part | source |
+|---|---|
+| Box, Lid, Pusher, TokenHolder, Holder | `cad.build`'s, from `build/` — built on the spot where missing; `cad.fit` also builds the lock parts as B-reps |
+| Topper | cached `individual/Innovation/Topper *.3mf` — `cad/parts/topper.py` builds all six, but the assembly has not been moved onto them |
 
-| part | default | why |
-|---|---|---|
-| Box, Lid, Pusher, TokenHolder | `cad/` source (B-rep) | done, and they are the whole lock mechanism |
-| Holder | cached `individual/<Game>/Holder *.3mf` | `cad/parts/holder.py` is finished, but `individual/` is what SHIPPED, and an assembly is a statement about a real cascade |
-| Topper | cached `individual/Innovation/Topper *.3mf` | `cad/parts/topper.py` builds all six, but as with the Holder the cache is what SHIPPED |
-
-`cad.assemble --holder source` swaps the build123d Holder in, and is how the
-Holder's convergence gets watched. It is also the only way to assemble the two
-`M6.21.10-12` cascades at all: `Holder M-21-r6-{Un,Sl} (first)` has never been
-exported from Onshape, so they have no first-riser holder on disk. With cached
-holders they are skipped and named, rather than quietly given a standard holder
-of the wrong DEPTH. The run prints which source it used.
+The Holder came from `individual/` until 2026-09-11, when Allan retired the
+cached Onshape holders from the assembly. Taking `cad.build`'s puts the holder
+the released cascades print under the fit test — at 7.1, the stouter lattice —
+and it assembles the two `M6.21.10-12` cascades, whose first-riser holder
+Onshape never exported and which used to be skipped.
 
 ## What the fit test measures
 
@@ -347,8 +343,8 @@ Per pair of placed parts:
 
 * **Interference** — exact B-rep common volume where both sides are source,
   which covers Box/Lid/Pusher/TokenHolder, i.e. every surface of the lock.
-  Mesh-level AABB then triangle intersection where a cached Holder is involved.
-  Any non-zero volume is a failure.
+  The Holder is not intersected; its mates are the margins below, measured off
+  its built mesh. Any non-zero volume is a failure.
 * **Margin** — minimum distance on each *named* mate, reported against what the
   standard says it should be:
 
@@ -366,7 +362,7 @@ Per pair of placed parts:
   A margin outside its band is a warning with its number, not a pass.
 
 `tests/test_assembly.py` asserts the table over the whole catalogue, the way
-`test_lid_corpus.py` asserts the Lid's rules over all 44 cached lids. A margin
+`test_lid_corpus.py` asserts the Lid's rules over all 48 cached lids. A margin
 that holds on one cascade and not on 50 is the finding worth having.
 
 ## Output
@@ -421,7 +417,3 @@ that holds on one cascade and not on 50 is the finding worth having.
   (`logo_scale`, `logo_offset`), and a half turn preserves that exactly — same
   size, same position, same fit. Cost is a wash either way: Dominion is 24 of
   the 50 lids, the other three games 26 between them.
-* **`--holder source` is now an equal alternative, not a compromise.** The
-  Holder is finished and regressed against all 50 cached ones, so the two
-  sources should agree; where they do not, the report says which part came from
-  where.

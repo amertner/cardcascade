@@ -19,9 +19,8 @@ Two tiers, because the parts do not all come from the same place
   against what `LOCK_STANDARD.md` and the part modules say it should be. A
   margin outside its band is a warning with its number, never a pass.
 
-The Holder is not intersected: an assembly places the CACHED mesh by default
-(`individual/`, the Onshape 7.0 corpus — see `cad.assemble`), which has no
-B-rep to intersect, and its mates are checked as margins off that same mesh.
+The Holder is not intersected: its mates are checked as margins, measured off
+the built holder's mesh — the part an assembly places.
 """
 import argparse
 import sys
@@ -117,28 +116,25 @@ def socketed_pusher_margins(d):
     return out
 
 
-def holder_margins(d, cached=None):
+def holder_margins(d, holders=None):
     """The holder on its rib.
 
-    `cached` maps `first` to the slot and width measured off the mesh an
-    assembly actually places, because that is the part in the box. It is keyed
-    on `first` and not shared: **a FirstHolder is DEEPER** — its depth is
-    `calFirstSliderDistance - 0.400` — so its side slot, which is centred on
-    its own depth, sits somewhere else entirely. Measuring every riser against
-    the standard holder's slot is what the first version of this did, and the
-    catalogue pass caught it on all six first-riser rows and nowhere else.
-
-    A row whose FirstHolder has never been exported (`Holder M-21-r6-Un
-    (first)` does not exist) gets its standard risers checked and that one
-    reported, rather than the whole cascade skipped.
+    `holders` maps `first` to the slot and width measured off the mesh an
+    assembly actually places (`built_holders`), because that is the part in
+    the box. It is keyed on `first` and not shared: **a FirstHolder is
+    DEEPER** — its depth is `calFirstSliderDistance - 0.400` — so its side
+    slot, which is centred on its own depth, sits somewhere else entirely.
+    Measuring every riser against the standard holder's slot is what the first
+    version of this did, and the catalogue pass caught it on all six
+    first-riser rows and nowhere else.
     """
     out = []
     for j, first in A.holders(d):
-        info = (cached or {}).get(first)
+        info = (holders or {}).get(first)
         if info is None:
             out.append(Margin(f"holder {j}: rib in the side slot",
                               float("nan"), None,
-                              note="no cached mesh — not checked"))
+                              note="slot not found on the mesh — not checked"))
             continue
         slot_lo, slot_hi = info["slot"]
         want = (slot_hi - slot_lo - box_part.SLIDER_W) / 2
@@ -149,7 +145,7 @@ def holder_margins(d, cached=None):
                           hi - rib1, want))
         out.append(Margin(f"holder {j}: rib in the side slot, front",
                           rib0 - lo, want))
-    plain = (cached or {}).get(False)
+    plain = (holders or {}).get(False)
     if plain:
         inner = box_part.box_width(d) / 2 - D.WallThickness
         out.append(Margin("holder: clearance in the box, each side",
@@ -205,26 +201,25 @@ def lid_margins(d):
     return out
 
 
-def cached_holders(d, folder):
+def built_holders(d, folder, out_dir=None):
     """`{first: {slot, width}}` for the holders an assembly places, measured
-    off their meshes. A key is absent when that mesh is not on disk."""
+    off their meshes in `out_dir` — the release's own tree by default, built
+    first where missing. A key is absent when the slot is not found."""
     out = {}
     for first in {f for _j, f in A.holders(d)}:
-        info = cached_holder(d, folder, first)
+        info = built_holder(d, folder, first, out_dir)
         if info is not None:
             out[first] = info
     return out
 
 
-def cached_holder(d, folder, first=False):
-    """The slot and width of one cached holder, measured off its mesh.
-    `None` when it is not on disk."""
+def built_holder(d, folder, first=False, out_dir=None):
+    """The slot and width of one built holder, measured off its mesh.
+    `None` when the slot is not found on it."""
     import numpy as np
-    from . import assemble
-    try:
-        _n, verts, _t = assemble.holder_mesh(d, folder, first)
-    except assemble.MissingCached:      # the one expected way to have none
-        return None
+    from . import assemble, build as B
+    _n, verts, _t = assemble.holder_mesh(d, out_dir or B.out_for(d.Version),
+                                         folder, first)
     v = np.asarray(verts)
     x_lo, x_hi = v[:, 0].min(), v[:, 0].max()
     end = v[(v[:, 0] <= x_lo + holder_part.END_BLOCK + 1e-6)]
@@ -292,13 +287,13 @@ def report(d, folder, state, solids=True, tokens=False, built=None):
     carries the cascade's parts and holder meshes from state to state."""
     print(f"\n{folder}/{d.calModelName}  [{state}]")
     built = {} if built is None else built
-    cached = _once(built, "holders", lambda: cached_holders(d, folder))
+    holders = _once(built, "holders", lambda: built_holders(d, folder))
     margins = list(lid_margins(d))
     if state == A.PLAY:
         margins += socketed_pusher_margins(d) + tread_margins(d)
     else:
         margins += stored_pusher_margins(d)
-    margins += holder_margins(d, cached)
+    margins += holder_margins(d, holders)
     for m in margins:
         print(m)
     ok = all(m.ok for m in margins)

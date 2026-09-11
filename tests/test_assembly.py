@@ -12,6 +12,10 @@ The interference tier is NOT run here. It builds a Box and a Lid per cascade,
 which is minutes each; run `.venv/bin/python -m cad.fit --state all` on the
 cascade you care about instead.
 
+The holder mates are measured off the BUILT holders (`build/`, made on the
+spot where missing), so every cascade has one and a mate that cannot be
+measured is a failure, not a note.
+
 Two things are asserted beyond the margins themselves:
 
 * **the tread offset is a CONSTANT.** `spec/ASSEMBLY.md` derives 0.150 between
@@ -39,14 +43,14 @@ def fail(label, msg):
 
 
 rows = assemble.catalogue()
-seen = {"cascades": 0, "margins": 0, "skipped": [], "unchecked": []}
+seen = {"cascades": 0, "margins": 0}
 offsets = set()
 
-for folder, d, _tokens, _sn in rows:
+for folder, d, _tokens, _toppers in rows:
     model = f"{folder}/{d.calModelName}"
-    cached = fit.cached_holders(d, folder)
-    if not cached:
-        seen["skipped"].append(model)
+    holders = fit.built_holders(d, folder)
+    if not holders:
+        fail(model, "no side slot found on its built holder")
         continue
     seen["cascades"] += 1
     for state in A.STATES:
@@ -55,11 +59,11 @@ for folder, d, _tokens, _sn in rows:
             margins += fit.socketed_pusher_margins(d) + fit.tread_margins(d)
         else:
             margins += fit.stored_pusher_margins(d)
-        margins += fit.holder_margins(d, cached)
+        margins += fit.holder_margins(d, holders)
         for m in margins:
             seen["margins"] += 1
-            if m.got != m.got:            # not checked: no cached mesh
-                seen["unchecked"].append(f"{model} {m.name}")
+            if m.got != m.got:            # NaN: the slot was not found
+                fail(f"{model} [{state}] {m.name}", m.note)
                 continue
             if not m.ok:
                 fail(f"{model} [{state}] {m.name}", f"{m.got:.3f} vs {m.want:.3f}")
@@ -84,12 +88,5 @@ else:
 
 print(f"\n  {seen['cascades']} cascades x {len(A.STATES)} states, "
       f"{seen['margins']} margins checked")
-if seen["skipped"]:
-    print(f"  skipped (no cached holder): {', '.join(seen['skipped'])}")
-if seen["unchecked"]:
-    n = len(set(seen["unchecked"]))
-    print(f"  {n} holder mate(s) not checked, no cached mesh: "
-          f"{', '.join(sorted(set(seen['unchecked']))[:3])}"
-          + (" ..." if n > 3 else ""))
 print(f"\n{'FAILED: ' + '; '.join(fails) if fails else 'PASS'}")
 sys.exit(1 if fails else 0)

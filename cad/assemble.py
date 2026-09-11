@@ -16,23 +16,19 @@ refuses a build item carrying a transform, and an assembly is made of them.
 ## Where the meshes come from
 
 Every part is taken in its PART frame, because that is the frame
-`cad/assembly.py` places. Two of the three sources are not in it already and
-are corrected here rather than in the placement, which stays a statement about
-geometry and not about file formats:
+`cad/assembly.py` places. One source is not in it already and is corrected
+here rather than in the placement, which stays a statement about geometry and
+not about file formats:
 
-* a **Box** in `build/` is at the part origin — `cad.build` says so;
+* a **Box**, **Lid**, **Holder** or **TokenHolder** in `build/` is at its part
+  origin — `cad.build` writes them so;
 * a **Pusher** in `build/` carries `pusher.assembly_offset`, the transform an
   Onshape export arrives in, so it is subtracted back off;
-* a **Holder** comes from `individual/`, which IS its part frame (checked:
-  `Holder S-16-r4-Un` runs Z -45.250.. against `holder.base_z` -45.250, and its
-  X centres on `holder.x_span`'s).
+* a **Topper** comes from `individual/`, the Onshape 7.0 corpus, in the frame
+  `assembly.topper` places.
 
-Anything missing from `build/` is built on the spot. The Holder and the
-Toppers come from `individual/` — the Onshape 7.0 corpus, 30 of whose 50
-holders are 6.6 — whatever release is assembled. `--holder source` builds the
-holder from `cad/parts/holder.py` instead, as the released cascades print it,
-and it is the only way to assemble the two `M6.21.10-12` cascades, whose
-first-riser holder was never exported.
+Anything missing from `build/` is built on the spot. The Toppers are the one
+part still read from `individual/`, whatever release is assembled.
 """
 import argparse
 import sys
@@ -119,50 +115,15 @@ def pusher_mesh(d, out_dir, folder):
 
 
 class MissingCached(Exception):
-    """No cached component in `individual/` for this row — a holder with no
-    source one to fall back on, or a topper.
-
-    Not a bug and not rare: `Holder M-21-r6-Un (first)` has never been exported
-    from Onshape, so the two `M6.21.10-12` cascades have no first-riser holder
-    on disk at all. Substituting the standard holder would put a part of the
-    wrong DEPTH under the fit test, which is worse than saying so. So the
-    cascade is skipped and named, and `--holder source` is the way through it.
-    """
+    """No cached topper in `individual/` for this row. The cascade is skipped
+    and named rather than assembled without its toppers."""
 
 
-def holder_file(d, first=False):
-    """`plan_exports.holder`'s name for the CACHED holder in `individual/` —
-    NOT `build.holder_file`, which names the rebuilt one by its model code.
-    Compile and Innovation holders SPAN the box, so they are keyed on the
-    horizontal count; the rest are per-slot and keyed on the size letter and
-    the front capacity."""
-    slv = "Sl" if d.isSleeved else "Un"
-    if d.GameName in ("Compile", "Innovation"):
-        return (f"Holder {d.HorizontalSlots}x{d.CardsPerSlidingSlot}"
-                f"-r{d.RisingSliders}-{slv}.3mf")
-    return (f"Holder {d.calSizeLetter}-{d.FrontPocketCardCapacity}"
-            f"-r{d.RisingSliders}-{slv}" + (" (first)" if first else "") + ".3mf")
-
-
-def holder_mesh(d, folder, first=False, source=False):
-    """The holder an assembly places, in its part frame.
-
-    Cached by default — `individual/`'s, the Onshape 7.0 corpus. `source=True`
-    builds it from `cad/parts/holder`, regressed against all 50 cached holders
-    and what the released cascades print; it is the only way to assemble the
-    two `M6.21.10-12` cascades, their first-riser holder never having been
-    exported.
-    """
-    if source:
-        from .parts import holder as holder_part
-        part = holder_part.build(d, first)
-        name = "FirstHolder" if first else "Holder"
-        return (name, *mesh3mf.triangulate(part))
-    path = ROOT / "individual" / folder / holder_file(d, first)
-    if not path.exists():
-        raise MissingCached(
-            f"no cached {path.name} in individual/{folder}")
-    return _one(path)
+def holder_mesh(d, out_dir, folder, first=False):
+    """The holder an assembly places, in its part frame: `cad.build`'s — the
+    one the released cascades print — built first if it is not there yet."""
+    return _one(_built(out_dir / folder / B.holder_file(d, first),
+                       B.build_holder, d, first))
 
 
 # The six Innovation toppers, one per riser in this order, back to front;
@@ -193,7 +154,7 @@ def topper_risers(d, toppers=False):
 
 
 def assemble(d, state, folder, out_dir, take_tokens=False,
-             half=False, holder_source=False, toppers=False):
+             half=False, toppers=False):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]."""
     parts, instances = [], []
@@ -216,7 +177,7 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
     for first in (False, True):
         js = [j for j, f in A.holders(d) if f == first]
         if js:
-            add(holder_mesh(d, folder, first, holder_source),
+            add(holder_mesh(d, out_dir, folder, first),
                 [place(d, j) for j in js])
 
     # Toppers — Innovation only, one per riser, and only where the row has them
@@ -281,10 +242,6 @@ def main(argv=None):
                          "release can change a part, so the mechanism is "
                          "checkable at each (cad/revisions.py)")
     ap.add_argument("--list", action="store_true")
-    ap.add_argument("--holder", choices=("cached", "source"), default="cached",
-                    help="where the Holder comes from: cached (individual/, "
-                         "the Onshape 7.0 corpus) or source (cad/parts/holder, "
-                         "as the released cascades print it)")
     ap.add_argument("--half", action="store_true",
                     help="on a merged row, place the HALF token holder instead "
                          "of the FULL — they are alternatives for one slot")
@@ -298,7 +255,6 @@ def main(argv=None):
         print(f"\n  {len(rows)} cascade{'' if len(rows) == 1 else 's'}")
         return 0
 
-    print(f"  holders: {args.holder}")
     print(f"  {'file':52s} {'parts':>6s} {'inst':>5s} {'tris':>8s} {'KB':>6s}")
     skipped = []
     for folder, d, tokens, toppers in rows:
@@ -307,7 +263,6 @@ def main(argv=None):
                 parts, instances = assemble(d, state, folder, args.out,
                                             take_tokens=tokens,
                                             half=args.half,
-                                            holder_source=args.holder == "source",
                                             toppers=toppers)
             except MissingCached as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
