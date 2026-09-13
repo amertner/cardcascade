@@ -599,6 +599,43 @@ for name, fn, p, first in REFS:
             check("every lump's Y box matches the STEP's", round(dy, 3), 0.0, 0.4)
 
 
+# --- the deep holder at the back: its scallop follows its taller rear ---------
+# No reference is deep-at-back (`slant_rear == slant_top` on all ten), so this
+# is checked on the built part alone: the Three Expansions RearHolder, whose
+# rear top rises 4 to 5 above `slant_top`. Its scallop must be centred on that
+# top line, FINGER_R deep like every other holder's, not on `slant_top`, which
+# put it that much deeper (Allan, 2026-09-13, off the print). Sampled at the
+# Y = 0 wall's mid-depth, where the true circle survives the modelled fillet.
+print("\n=== deep holder at the back: the scallop ===")
+d8 = D.derive(row_params("Three Expansions", 0))
+check("the row puts its deep slot at the back", holder.deep_at_back(d8, True), True)
+check("... and its rear top rises above slant_top",
+      holder.slant_rear(d8, True) - holder.slant_top(d8) > 1.0, True)
+rear8 = holder.build(d8, True, text=False, rear=True)
+
+
+def _top_at(shape, x, y):
+    col = Box(0.08, 0.06, 400).moved(Location((x, y, 0)))
+    got = shape & col
+    if not got or not got.solids():
+        return None
+    return round(max(q.bounding_box().max.Z for q in got.solids()), 3)
+
+
+for xc in holder.compartment_x(d8):
+    check(f"the scallop's lowest point at x={round(xc, 1)} is slant_rear - FINGER_R",
+          _top_at(rear8, xc, -0.40),
+          round(holder.slant_rear(d8, True) - holder.FINGER_R, 3), 1e-3)
+check("... which is NOT slant_top - FINGER_R",
+      _top_at(rear8, 0.0, -0.40) != round(holder.slant_top(d8) - holder.FINGER_R, 3),
+      True)
+# Off the scallop the wall reaches its full, raised top line, read at the
+# probe's near edge (its box spans Y -0.43..-0.37 and reports the highest Z).
+check("beside the scallop the wall top is slant_rear",
+      _top_at(rear8, holder.FINGER_R + holder.FINGER_FILLET + 1.0, -0.40),
+      round(holder.slant_z(d8, True, -0.37), 3), 1e-3)
+
+
 if HELD_OUT:
     print("\n=== held out ===")
 for name, fn, short, sl in HELD_OUT:

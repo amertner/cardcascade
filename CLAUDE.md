@@ -171,9 +171,10 @@ check cad output.
   the BACK instead of the studio's front: the back rib, the pusher's last
   drop, a standard holder at the lip (`derive.isDeepSlotAtBack`; read
   `assembly.holder_rib` for which rib the deep holder rides), and the deep
-  holder itself loses its rear lips and takes the plain slant with a taller
-  rear (`holder.deep_at_back`, `slant_rear`). `Three Expansions` uses it. A
-  row property, not a release flag.
+  holder itself loses its rear lips, takes the plain slant with a taller
+  rear (`holder.deep_at_back`, `slant_rear`) and centres its thumb scallop on
+  that taller rear (`finger_cutouts`). `Three Expansions` uses it. A row
+  property, not a release flag.
 - `cad.assemble --cards` draws numbered, per-expansion card stacks in every
   slot for a render (`spec/RENDER.md`, "Cards in the slots"); they go to a
   separate `... cards.3mf` and are never parts.

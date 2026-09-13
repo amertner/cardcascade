@@ -257,7 +257,9 @@ constraint, and it is why this change is two numbers and no new geometry.
 ## `Finger Cutouts` is a `12.000` circle on the slant top
 
 One per compartment, on its centre, and its centre sits exactly on the UPPER
-slant plane at the front face — so its lowest point is
+slant plane at the front face (`slant_rear`, which is `slant_top` on every
+holder but the deep one at the back — see "The deep holder at the back") — so
+its lowest point is
 
     slant_top - 12.000 = 32.250
 
@@ -947,8 +949,20 @@ for the holder in front are cut from that height), its REAR rises instead:
 49.3 / 49.6 rather than 44.25 on the two M8 rows, 96.5 / 96.9 in the closed
 box against the sockets' underside at 100. `cad.fit` now reports "socket
 underside over the tallest holder" off the built meshes so a future row
-cannot exceed that quietly. The finger scallop stays centred on `slant_top`,
-at the card tops, so it simply cuts deeper into the taller rear wall.
+cannot exceed that quietly.
+
+**Its thumb scallop is centred on that taller rear top** (`finger_cutouts`
+places the circle at `slant_rear`, not `slant_top`; Allan, 2026-09-13, off the
+print). The first cut of this holder left the scallop centred on `slant_top`,
+at the card tops, so it simply cut deeper into the taller wall: the whole rise
+(the rear tops above less 44.25) below the top line, a cutout 4 to 5 deeper than every
+other holder's `12.000`, and the print showed it sitting below the top
+line. Centred on the wall's own top line the cut is `FINGER_R` deep on every
+holder, and nothing else moves: `slant_rear` is `slant_top` on every holder
+that is not deep-at-back, and the scallop stops at the far wall's inner face
+(`finger_tool`), so raising the circle only shallows the cut in the tall wall.
+Recorded as part of the row property, not a release flag, like the two
+findings above.
 
 
 ## The RearHolder — a 7.2 RELEASE CHANGE, every cascade

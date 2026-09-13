@@ -155,13 +155,15 @@ def x_span(d):
 
 def deep_at_back(d, first):
     """Is this the deeper first-riser holder of a row that puts it at the
-    BACK (`Deep slot = back`, `derive.isDeepSlotAtBack`)? Two things differ
+    BACK (`Deep slot = back`, `derive.isDeepSlotAtBack`)? Three things differ
     there (Allan, 2026-09-13, off the first print): it carries NO rear lips —
     nothing stands behind it to hook, only the box's back wall, 0.950 away,
-    which the lips of a shallow slant reach past — and its top runs at the
-    PLAIN holders' slant, anchored at the front edge, where the holder in
-    front rests its lips, so its rear rises instead. `slant_slope`,
-    `slant_rear`, `rear_lips`."""
+    which the lips of a shallow slant reach past; its top runs at the PLAIN
+    holders' slant, anchored at the front edge, where the holder in front
+    rests its lips, so its rear rises instead; and its thumb scallop is
+    centred on that taller rear top, so the cut stays FINGER_R deep like
+    every other holder's. `slant_slope`, `slant_rear`, `rear_lips`,
+    `finger_cutouts`."""
     return bool(first) and bool(d.isDeepSlotAtBack)
 
 
@@ -371,9 +373,12 @@ def lattice(d, first, part):
 
 
 # `Finger Cutouts` — one per compartment, on its centre. A plain circle of
-# FINGER_R with its centre ON the upper slant plane at the front face, so its
-# lowest point is `slant_top - FINGER_R` = 32.250, which is one of the constant
-# Z-planes on all three references whatever the depth or the rise.
+# FINGER_R with its centre ON the upper slant plane where it meets the Y = 0
+# face (`slant_rear`), so its lowest point is `slant_top - FINGER_R` = 32.250
+# on every reference — one of the constant Z-planes on all three whatever the
+# depth or the rise — and FINGER_R below the taller rear top of the deep holder
+# at the back (`deep_at_back`), the one holder whose `slant_rear` is not
+# `slant_top`.
 #
 # The radius is 12.000 and NOT the 12.400 the circular edges report — the same
 # trap as the Box's thumb, and for the same reason: `Fillet 1` puts 0.400 on
@@ -422,7 +427,12 @@ def finger_cutouts(d, first, part):
     """Cut the finger scallops through the full depth."""
     depth = holder_depth(d, first)
     tool = finger_tool(depth)
-    return part.cut(*[tool.moved(Location((x, 0.0, slant_top(d))))
+    # Centred on the Y = 0 wall's OWN top line: `slant_rear`, which is
+    # `slant_top` on every holder but the deep one at the back, whose rear
+    # rises 4 to 5. Centred on `slant_top` there, the cut ran that much deeper
+    # than FINGER_R into that wall on the two M8.16 rows (Allan, 2026-09-13,
+    # off the print: the cutout sat below the top line).
+    return part.cut(*[tool.moved(Location((x, 0.0, slant_rear(d, first))))
                       for x in compartment_x(d)])
 
 
