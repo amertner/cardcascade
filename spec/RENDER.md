@@ -49,6 +49,20 @@ without any of this.
 
 ## Cards in the slots
 
+**For a poster, `cad.scene` dresses the play-state assembly instead** (added
+2026-09-13, `make_posters.py --render`): the row's lid colour from
+`posters.json`'s `render` palette with contrast-picked inlays, a real
+`labelmaker` label in the front holder (`assembly.label_plate`), and — with
+`render.stacks` on; Allan turned it off the same day, so the shipped posters
+show empty slots — stacks that read like the game's cards — Innovation an age per column with the six
+expansions front to back and the toppers ordered to match, Compile a
+protocol a slot, FCM an occupation, Dominion a kingdom card — each named on
+its front and coloured per stack. A riser stack is clipped just under its
+topper's top edge, so what shows is what the holder's and topper's windows
+show, the numeral in the window. `<stem> poster.3mf` beside the assemblies
+is the scene, inspectable.
+
+
 `cad.assemble --cards` fills every slot with a card stack — a box the size of
 the cards the slot holds, standing where they stand — and puts the set's
 number on its front face, so a render shows a cascade IN USE: which slot holds

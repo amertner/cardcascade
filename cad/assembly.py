@@ -261,6 +261,30 @@ def token_holder(d):
                  origin=(token_slot_x(d), front, box_part.floor_top(d)))
 
 
+# --- the front label -------------------------------------------------------
+
+def label_width(d):
+    """The label the front holder takes: `labelmaker`'s wide front, or the
+    62 where the box is too narrow for it (`box.front_label_len`)."""
+    return box_part.front_label_len(d) - box_part.LABEL_HOLDER_EXTRA
+
+
+def label_plate(d):
+    """A slide-in label as it sits in the front holder, for a render.
+
+    `labelmaker.make_label` builds a label flat: x 0..width, y 0..22.2 (its
+    height), z 0..1.2 (the white base, then the raised detail). Stood up with
+    a quarter turn about X (height to +Z, thickness to -Y, the detail toward
+    the viewer) it goes centred on the box's x, its bottom edge on the slot's
+    floor (`LABEL_Z0 + LABEL_GROOVE_IN`), and its back face at the bottom of
+    the groove — the pad stands LABEL_PROUD off the wall at `y = -BoxDepth/2`
+    and the groove runs LABEL_GROOVE back into it."""
+    y_back = -box_part.box_depth(d) / 2 - box_part.LABEL_PROUD + box_part.LABEL_GROOVE
+    return Place(x_dir=(1, 0, 0), z_dir=(0, -1, 0),
+                 origin=(-label_width(d) / 2, y_back,
+                         box_part.LABEL_Z0 + box_part.LABEL_GROOVE_IN))
+
+
 # --- the Lid ---------------------------------------------------------------
 #
 # The lid's frame relates to the box's by a plain Y shift and, when it is on,

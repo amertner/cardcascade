@@ -192,10 +192,12 @@ def card_meshes(d, state, sets=None):
 
 
 def assemble(d, state, folder, out_dir, take_tokens=False,
-             half=False, toppers=False, cards=None):
+             half=False, toppers=False, cards=None, topper_order=TOPPERS):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
     `instances` [(part index, Place)]. `cards` is None for none, or the
-    expansion names to fill the slots with (`card_meshes`)."""
+    expansion names to fill the slots with (`card_meshes`). `topper_order`
+    is the expansion per riser, `j = 0` the back one (`cad.scene` matches
+    it to the cards it puts behind each topper)."""
     parts, instances = [], []
 
     def add(mesh, places):
@@ -224,7 +226,7 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
     # as the geometry is concerned.
     for j, first in topper_risers(d, toppers):
         pl = (A.topper if closed else A.topper_play)(d, j, first)
-        for mesh in topper_meshes(d, folder, TOPPERS[j % len(TOPPERS)]):
+        for mesh in topper_meshes(d, folder, topper_order[j % len(topper_order)]):
             add(mesh, [pl])
 
     # The token holder is the FULL one: a merged row ships a HALF as well, but
