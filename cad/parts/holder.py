@@ -191,6 +191,13 @@ def slant_rear(d, first):
     the steeper slant makes over its depth."""
     if not deep_at_back(d, first):
         return slant_top(d)
+    if d.rev.seated_lips:
+        # The plain diagonal continued through it: the holder in front has
+        # its rear top `calHeightIncrement` lower and `calFirstSliderDistance`
+        # forward of this one's, and its lips seat only if this one's front
+        # edge is on that line (`spec/HOLDER.md`, "Lips that seat").
+        return (slant_top(d) + slant_slope(d, first) * slider_distance(d, first)
+                - d.calHeightIncrement)
     own = D.cascade_slope(d, slider_distance(d, first))
     return slant_top(d) + (slant_slope(d, first) - own) * holder_depth(d, first)
 
@@ -525,11 +532,22 @@ LIP_CHAMFER = 1.200        # `Chamfer lip`, 45 degrees, measured in Y
 # NOT `#LipHeight` — that is SLANT_STEP, the band's VERTICAL thickness. This is
 # how far the lip reaches ALONG the slant, and no studio variable is known for
 # it; it is measured 2.100 on all five references across five different slopes.
-LIP_REACH = 2.100          # along the slant plane, from Y = 0
+LIP_REACH = 2.100          # along the slant plane, from Y = 0 — 7.0 to 7.2d
 
 
 def lip_reach_y(d, first):
-    """How far a lip stands proud in Y — LIP_REACH taken along the slant."""
+    """How far a lip stands proud in Y.
+
+    From 7.2e (`rev.seated_lips`) the gap to the holder behind plus its front
+    wall — `CardHolderGap + WALL`, 1.200 on every slope — so the lip spans the
+    gap, fills the rest notched through that wall, and stops at the wall's
+    inner face (`spec/HOLDER.md`, "Lips that seat"). Before it, LIP_REACH
+    taken along the slant: 0.378 in Y on the steepest holder, which did not
+    reach the holder behind, to 1.805 on the flattest, a millimetre past its
+    wall into the card pocket.
+    """
+    if d.rev.seated_lips:
+        return D.CardHolderGap + WALL
     slope = slant_slope(d, first)
     return LIP_REACH / math.sqrt(1.0 + slope * slope)
 
@@ -546,22 +564,43 @@ def lip_plan(d, first):
     # than LIP_CHAMFER the chamfer plane simply runs out of lip; it does not
     # start closer in. Getting that backwards leaves the base 12.052 wide
     # instead of 12.400 on the three references where y1 < LIP_CHAMFER.
-    if y1 <= LIP_CHAMFER:
+    # (`<=` with a hair of slack: from 7.2e the reach is `0.4 + 0.8`, the
+    # chamfer's own depth to within a rounding error, and the six-point
+    # outline would carry a zero-length edge.)
+    if y1 <= LIP_CHAMFER + 1e-6:
         return [(lo - LIP_CHAMFER, 0.0), (hi + LIP_CHAMFER, 0.0),
                 (hi + LIP_CHAMFER - y1, y1), (lo - LIP_CHAMFER + y1, y1)]
     return [(lo - LIP_CHAMFER, 0.0), (hi + LIP_CHAMFER, 0.0),
             (hi, LIP_CHAMFER), (hi, y1), (lo, y1), (lo, LIP_CHAMFER)]
 
 
+def lip_band_z(d, first, y, lower=False):
+    """Z of the plane a rear lip's top (or `lower`, its underside) follows at
+    `y` behind the rear face.
+
+    The holder's own slant through 7.2d. From 7.2e (`rev.seated_lips`) the
+    PLAIN slope from `slant_top`, whatever the holder: a lip is a key for the
+    rest of the holder behind it, and that holder is a plain one — the deep
+    FirstHolder at the front is flatter than the holder it hooks, and a lip
+    shaped to its own slant dipped 0.04 under that holder's rest floor at its
+    tip (0.6 mm3 on `S2.40.12-30.32.Un`, found by `cad.fit`). Both slants
+    meet the rear face at `slant_top`, so the two agree at `y = 0`."""
+    if d.rev.seated_lips:
+        z = slant_top(d) + slant_slope(d, False) * y
+        return z - SLANT_STEP if lower else z
+    return slant_z(d, first, y, lower)
+
+
 def slant_band(d, first, x0, x1):
-    """The prism between the two slant planes, over X in [x0, x1]."""
+    """The prism between the two lip planes (`lip_band_z`), over X in
+    [x0, x1]."""
     with BuildPart() as part:
         with BuildSketch(Plane.YZ):
             with BuildLine():
-                Polyline((0.0, slant_z(d, first, 0.0, lower=True)),
-                         (0.0, slant_z(d, first, 0.0)),
-                         (4.0, slant_z(d, first, 4.0)),
-                         (4.0, slant_z(d, first, 4.0, lower=True)),
+                Polyline((0.0, lip_band_z(d, first, 0.0, lower=True)),
+                         (0.0, lip_band_z(d, first, 0.0)),
+                         (4.0, lip_band_z(d, first, 4.0)),
+                         (4.0, lip_band_z(d, first, 4.0, lower=True)),
                          close=True)
             make_face()
         extrude(amount=x1 - x0)
@@ -618,9 +657,40 @@ def rear_lips(d, first, part, rear=False):
 # stops changing once the sweep passes ~20, so anything longer is the same
 # cut. 200 clears the tallest holder's diagonal from any start.
 LIP_REST_THROUGH = 200.0
-REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan) — see `lip_rests`
+REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan) — see `lip_rests`; 7.0 to 7.2d
+# From 7.2e: the rest is the lip's BASE plus this a side, and the lip's band
+# plus this deep, so the tread carries the holder and the lip floats this much
+# above the rest's floor — and still fits with the holder anywhere in the
+# 0.200 its rib allows.
+REST_CLEARANCE = 0.200
+
+
+def rest_depth(d):
+    """How deep the rest is cut below the upper slant plane, from 7.2e.
+
+    The lip band (`SLANT_STEP`) plus `REST_CLEARANCE` — or deeper where the
+    Box's lip needs it: that lip is fixed on the box, and in play its underside
+    sits `assembly.box_lip_seat` below the front holder's surface, 2.000 to
+    3.5 across the catalogue. One number per cascade, cut on every holder kind
+    (a deeper notch under a rear lip costs nothing) so the front holder, which
+    is the plain one, takes the box lip as the others take a holder's.
+    """
+    from .. import assembly as A
+    return max(SLANT_STEP, A.box_lip_seat(d)) + REST_CLEARANCE
+
+
 def lip_rests(d, first, part):
     """Cut the lip rests.
+
+    From 7.2e (`rev.seated_lips`, `spec/HOLDER.md` "Lips that seat"): the
+    same oblique prism along the slant, but its section is a plain rectangle
+    — the lip's base `LIP_LEN + 2 * LIP_CHAMFER` plus `REST_CLEARANCE` a side,
+    `rest_depth` below the upper plane and 1.000 above it so no face of the
+    cut is coincident with the slant — and it starts MID-CAVITY, so the whole
+    front wall is notched on every row. Onshape's `2 * calSlotDepth` start
+    below is what left 333 Sl a 0.332 notch and 246 Sl none at all; its
+    chamfered mouth is what the lip's chamfered base rode on. The rest of
+    this docstring is the 7.0 reading, which every release before 7.2e keeps.
 
     The section is the lip's OWN LENGTH by SLANT_STEP — `LIP_LEN` wide, 10.000,
     with no chamfer allowance and no clearance — extruded along the slant. That
@@ -656,22 +726,34 @@ def lip_rests(d, first, part):
     would give.
     """
     slope = slant_slope(d, first)
-    t0 = 2.0 * d.calSlotDepth
     unit = 1.0 / math.sqrt(1.0 + slope * slope)
     dirv = Vector(0.0, -unit, -slope * unit)
-    top = LIP_LEN / 2 + REST_CHAMFER
-    bottom = LIP_LEN / 2 + REST_CHAMFER - SLANT_STEP * unit
-    h = SLANT_STEP / 2
-    with BuildSketch(Plane.XZ) as sk:
-        with BuildLine():
-            Polyline((-bottom, -h), (bottom, -h), (top, h), (-top, h), close=True)
-        make_face()
+    if d.rev.seated_lips:
+        t0 = holder_depth(d, first) / 2 / unit          # mid-cavity, along the slant
+        half_w = LIP_LEN / 2 + LIP_CHAMFER + REST_CLEARANCE
+        up, down = 1.0, rest_depth(d)
+        with BuildSketch(Plane.XZ) as sk:
+            with BuildLine():
+                Polyline((-half_w, -down), (half_w, -down), (half_w, up),
+                         (-half_w, up), close=True)
+            make_face()
+        z_at = 0.0
+    else:
+        t0 = 2.0 * d.calSlotDepth
+        top = LIP_LEN / 2 + REST_CHAMFER
+        bottom = LIP_LEN / 2 + REST_CHAMFER - SLANT_STEP * unit
+        h = SLANT_STEP / 2
+        with BuildSketch(Plane.XZ) as sk:
+            with BuildLine():
+                Polyline((-bottom, -h), (bottom, -h), (top, h), (-top, h), close=True)
+            make_face()
+        z_at = -SLANT_STEP / 2
     x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
     tools = []
     for xc in compartment_x(d):
         for sign in (+1, -1):
             at = Vector(xc + sign * x_mid, 0.0,
-                        slant_rear(d, first) - SLANT_STEP / 2) + dirv * t0
+                        slant_rear(d, first) + z_at) + dirv * t0
             face = sk.sketch.moved(Location(at))
             tools.append(extrude(face, amount=LIP_REST_THROUGH, dir=dirv))
     return part.cut(*tools)

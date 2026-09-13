@@ -412,6 +412,48 @@ def holder_play(d, j):
                          tread_z(d, j) + holder_z_base(d)))
 
 
+# --- the lips, in play -------------------------------------------------------
+#
+# From 7.2e (`rev.seated_lips`) every lip seats in the rest of the part behind
+# it when the cascade is open, and the two numbers that fixes come from the
+# PLACEMENTS, so they are stated here and read by the parts (`box.lip_tool`,
+# `holder.rest_depth`) rather than transcribed into either. `spec/HOLDER.md`,
+# "Lips that seat".
+
+def front_holder_gap(d):
+    """From the divider panel's BACK face to the front holder's FRONT face, in
+    Y — the gap the Box's lip has to cross before it enters that holder's
+    rest, as `CardHolderGap` (0.400) is the gap between two holders. 1.250 on
+    every row: the frontmost rib is centred on its card slot, the holder on
+    its rib, and the panel sits `calFrontPocketDepth + FRONT_DIVIDER` behind
+    the front wall."""
+    j = len(box_part.slider_ribs(d)) - 1
+    pl = holder_closed(d, j)
+    depth = holder_part.holder_depth(d, holder_rib(d, j)[2])
+    return (pl.origin[1] - depth) - box_part.pocket_span(d)[2]
+
+
+def box_lip_seat(d):
+    """How far below the front holder's slant surface the Box lip's UNDERSIDE
+    sits, in play, measured at the divider panel's back face where the lip
+    leaves it: the depth a rest has to be for that lip to seat.
+
+    The lip is fixed on the box (`box.LIP_Z`, 85.500 to 87.500); the holder
+    rides its tread, so its slant plane at the panel is
+    `tread + half_height + slant_z(-(depth + gap))`. With the slant the
+    diagonal (`derive.cascade_slope`) that is `4 - 0.85 * slope` below the
+    surface — 2.000 at a slope of 2.35, more on a flatter cascade — which is
+    why the rest is deepened per row rather than the lip moved: raised, the
+    lip's root would stand above the panel's 87.500 top on every flat row.
+    """
+    j = len(box_part.slider_ribs(d)) - 1
+    first = holder_rib(d, j)[2]
+    pl = holder_play(d, j)
+    y = -(holder_part.holder_depth(d, first) + front_holder_gap(d))
+    surface = pl.origin[2] + holder_part.slant_z(d, first, y)
+    return surface - box_part.LIP_Z
+
+
 # --- the Topper ------------------------------------------------------------
 #
 # `spec/TOPPER.md` and `cad/parts/topper.py` are the authority here, and they

@@ -209,7 +209,9 @@ Two part-studio formulas that TWO parts share are written here once, as
 functions rather than variables (they take an argument the studio does not
 have): `cascade_slope(d, slider_distance)`, the Holder's `Top slant angle` and,
 inverted at `calFirstSliderDistance`, the Box's lip angle — transcribed as
-reciprocals of each other in the two parts until now; and
+reciprocals of each other in the two parts until now (and from 7.2e,
+`rev.seated_lips`, simply `calHeightIncrement / slider_distance`, the
+cascade's own diagonal: `spec/HOLDER.md`, "Lips that seat"); and
 `back_slot_pitch(d)`, `#dBackSlotWidth = calPusherTotalDepth + 4.0`, which the
 Box had inline three times and the assembly once. A part-studio formula one
 part uses (the Lid's text offsets, the Topper's `#LogoEdgeDist`) stays in that

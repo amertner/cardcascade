@@ -1139,6 +1139,113 @@ check("the plain box goes LAST, on a plate of its own, named for what it lacks",
 check("and its role is its own, not the Box's", LY.role("PlainBox"), "PlainBox")
 
 
+# --- 7.2e: lips that seat ---------------------------------------------------
+print(f"\n=== {since('seated_lips')}  seated_lips ===")
+asserted.add("seated_lips")
+# Three formulas become one rule (spec/HOLDER.md, "Lips that seat"): the slant
+# is the diagonal `inc / sd`, a lip reaches the gap plus one wall in Y, and
+# the rest is notched through the whole front wall, the lip's base plus a
+# clearance wide and deep. Asserted at both ends on the cascade whose print
+# found it, 333 Sl — the old numbers as well as the new — then the rule over
+# every row through `cad.fit`'s own margins, and BUILT: consecutive holders
+# and the box with its front holder, placed in play, share no volume from the
+# flag on where 333 Sl shared 46 mm3 before it.
+from cad import fit as FIT                                       # noqa: E402
+SL_OLD, SL_NEW = before("seated_lips"), since("seated_lips")
+
+
+def row_of(model, sleeved):
+    return next(r for r in rows() if at(r, sleeved, SL_NEW).calModelName == model)
+
+
+d_o, d_n = at(row_of("S9.21.10.62.Sl", 1), 1, SL_OLD), at(row_of("S9.21.10.62.Sl", 1), 1, SL_NEW)
+s_o, s_n = holder_part.slant_slope(d_o, False), holder_part.slant_slope(d_n, False)
+check(f"{SL_OLD}: 333 Sl's slant is the studio's (inc-1)/(sd-1.2), 1.2037", round(s_o, 4), 1.2037)
+check(f"{SL_NEW}: ... and the diagonal inc/sd, 1.1508", round(s_n, 4), round(d_n.calHeightIncrement / d_n.calSliderDistance, 4))
+check(f"{SL_OLD}: its lip reaches 2.100 ALONG the slant, 1.342 in Y",
+      (round(holder_part.lip_reach_y(d_o, False) * math.sqrt(1 + s_o * s_o), 3),
+       round(holder_part.lip_reach_y(d_o, False), 3)), (2.1, 1.342))
+check(f"{SL_NEW}: ... and the gap plus the wall, 1.200 in Y, on every slope",
+      sorted({round(holder_part.lip_reach_y(at(r, s, SL_NEW), f), 6)
+              for r in rows() for s in (0, 1) for f in (False, True)}), [1.2])
+m_o = box_part.lip_slope(d_o)
+check(f"{SL_OLD}: the box lip is 1.250 from the front holder and reaches 1.342 in Y — 0.092 into it",
+      (round(A.front_holder_gap(d_o), 3), round(box_part.LIP_DEPTH * m_o / math.sqrt(1 + m_o * m_o), 3)),
+      (1.25, 1.342))
+check(f"{SL_NEW}: ... and reaches the gap plus the wall, 2.050",
+      round(A.front_holder_gap(d_n) + holder_part.WALL, 3), 2.05)
+check(f"{SL_NEW}: the rest is at least the lip band plus REST_CLEARANCE deep on every row",
+      min(holder_part.rest_depth(at(r, s, SL_NEW)) for r in rows() for s in (0, 1))
+      >= holder_part.SLANT_STEP + holder_part.REST_CLEARANCE - 1e-9, True)
+check(f"{SL_NEW}: ... and exactly that where the box lip does not need more (Compile S4 Un)",
+      round(holder_part.rest_depth(at(row_of("S4.7.7.20.Un", 0), 0, SL_NEW)), 3), 2.2)
+
+# The old relation, stated so re-converging is seen: at 7.2d 333 Sl's lip band
+# sits 0.444 ABOVE the notch band of the holder behind, and the deep 246 Sl
+# holder has no notch at all in its front wall (the cut starts in front of it).
+pb, pf = A.holder_play(d_o, 0), A.holder_play(d_o, 1)
+dz_old = ((pf.origin[2] + holder_part.slant_z(d_o, False, 0.0))
+          - (pb.origin[2] + holder_part.slant_z(d_o, False, pf.origin[1] - pb.origin[1])))
+check(f"{SL_OLD}: 333 Sl's lip band is 0.444 above the rest band behind it", round(dz_old, 3), 0.444)
+off_old = [str(m).strip() for m in FIT.lip_margins(d_o) if "floor" in m.name and abs(m.got) > 1e-6]
+check(f"{SL_OLD}: cad.fit reports it (the margins carry no want before the flag)",
+      len(off_old) > 0, True)
+bad = []
+for r in rows():
+    for s in (0, 1):
+        d_r = at(r, s, SL_NEW)
+        for m in FIT.lip_margins(d_r):
+            if not m.ok or (m.want is None and m.got < holder_part.REST_CLEARANCE - 1e-9):
+                bad.append(f"{d_r.calModelName}: {m}")
+check(f"{SL_NEW}: every lip on every row seats: rest floor clearance as cut, tip at the wall's "
+      "inner face, the box lip at least REST_CLEARANCE above its floor", bad, [])
+
+# BUILT: what the review measured, at both ends.
+def lip_hits(d):
+    hs = A.holders(d)
+    parts = {}
+    def holder(first, rear):
+        return parts.setdefault((first, rear), holder_part.build(d, first, text=False, rear=rear))
+    placed = [(A.holder_play(d, j).location() * holder(f, A.rear_of(d, j)), f) for j, f in hs]
+    seen, hits = set(), []
+    for (sb, fb), (sf, ff) in zip(placed, placed[1:]):
+        if (fb, ff) in seen:
+            continue
+        seen.add((fb, ff))
+        c = sb & sf
+        hits.append(round(c.volume if c is not None else 0.0, 3))
+    c = box_part.build(d) & placed[-1][0]
+    hits.append(round(c.volume if c is not None else 0.0, 3))
+    return hits
+
+
+hits_old = lip_hits(d_o)
+check(f"{SL_OLD}: built and placed in play, 333 Sl's holder lands on the one behind (46 mm3) "
+      "and the box lip on its front holder (3 mm3)",
+      [v > 40 for v in hits_old[:1]] + [v > 2 for v in hits_old[1:]], [True, True])
+for model, sleeved in (("S9.21.10.62.Sl", 1), ("M2.60.18-40.62.Sl", 1),
+                       ("M8.16.10-16.62.Sl", 1), ("S4.7.7.20.Un", 0),
+                       ("S2.40.12-30.32.Un", 0), ("S2.40.12-30.45.Sl", 1)):
+    d_m = at(row_of(model, sleeved), sleeved, SL_NEW)
+    hits = lip_hits(d_m)
+    check(f"{SL_NEW}: {model} — no holder touches the one behind, nor the box its front holder",
+          hits, [0.0] * len(hits))
+
+# The lip is IN the notch, not floating over it: on 333 Sl the lip's own
+# solid, placed, lies under the holder-behind's upper slant plane — the
+# band the rest is cut from — over its whole reach past the gap.
+d_m = d_n
+plain = holder_part.build(d_m, False, text=False)
+lips = plain & _Box(1000, 10, 1000).moved(_Loc((0, 5, 0)))          # Y > 0: the lips
+pb, pf = A.holder_play(d_m, 0), A.holder_play(d_m, 1)
+bb = (pf.location() * lips).bounding_box()
+surface_at_tip = pb.origin[2] + holder_part.slant_z(d_m, False, bb.max.Y - pb.origin[1])
+check(f"{SL_NEW}: 333 Sl's lip tip stops at the wall's inner face behind it",
+      round(bb.max.Y - (pb.origin[1] - holder_part.holder_depth(d_m, False) + holder_part.WALL), 3), 0.0)
+check(f"{SL_NEW}: ... with its top on that holder's slant surface there",
+      round(bb.max.Z - surface_at_tip, 3), 0.0)
+
+
 # --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",

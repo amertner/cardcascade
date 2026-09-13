@@ -320,9 +320,9 @@ One flag:
   to the slot width (Allan, 2026-09-13). `spec/LID.md`, "The text block
   grows with the lid".
 
-### 7.2d — OPEN 2026-09-13
+### 7.2d — 2026-09-13
 
-`CURRENT`; `build/` is 7.2d. One flag:
+One flag:
 
 * **`plain_box_plate`** (`7.2d`, 2026-09-13) — a cascade whose parts.csv
   row sets **`Plain box`** ships a SECOND box on a plate of its own, at the
@@ -343,6 +343,34 @@ One flag:
   `layout.PLATE_SCHEME` plate, `Box without label holders`. A row whose own
   box already has no holders is refused a twin. `spec/BOX.md`, "A plain box
   on a plate of its own".
+
+### 7.2e — OPEN 2026-09-13
+
+`CURRENT`; `build/` is 7.2e. One flag:
+
+* **`seated_lips`** (`7.2e`, 2026-09-13) — every lip seats in the rest of
+  the part behind it when the cascade is open, and reaches no further
+  (Allan, off flat cascades whose lips were "a bit too long": they should
+  overlap the holder behind, fit into the indent there, and no more). The
+  review found three unrelated formulas doing that job — the lip's reach
+  (`2.100` ALONG the slant, `0.38` to `1.81` in Y), the rest's start
+  (`2 * calSlotDepth` along the slant, leaving 333 Sl a `0.332` notch and
+  246 Sl none) and the slant itself (`(inc-1)/(sd-1.2)`, which puts a lip
+  `0.4` to `5.5` above the notch it should sit in) — and measured the
+  result on the placed B-reps: 246 Sl's holder lands on the one behind by
+  134 mm³, 333 Sl's by 46, M8.16 Sl's by 35, and the Box's lip, `1.250`
+  from its holder, reaches only six front holders and meets the wall under
+  the notch on each. One rule replaces them: the slant is the cascade's own
+  diagonal, `calHeightIncrement / sliderDistance` (`derive.cascade_slope`,
+  so the Box's lip angle and the Topper's slant follow), a lip reaches the
+  gap plus one wall in Y (`1.200` for a holder's, `2.050` for the box's),
+  and the rest is notched through the whole front wall, the lip's base plus
+  `REST_CLEARANCE` (`0.200`) a side and `rest_depth` deep — the lip band plus
+  the clearance, or deeper where the box lip, fixed at `85.500`, needs it
+  (`assembly.box_lip_seat`). The deep holder at the back continues the plain
+  diagonal exactly. Slopes move a few degrees on steep rows and hardly at all
+  on flat ones. `cad.fit` builds and intersects every holder from here, and
+  `lip_margins` reports each lip's seat. `spec/HOLDER.md`, "Lips that seat".
 
 ## What a release moves besides its flags
 

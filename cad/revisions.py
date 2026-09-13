@@ -93,12 +93,13 @@ from .refuse import refuse
 # it is where the `Three Expansions` row and its ROW options (`Deep slot`,
 # `Sleeved card width`, `Toppers`) arrived — a row option is not a release
 # change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, **7.2c** (the
-# same day) `larger_lid_text`, and **7.2d is OPEN** (the same day again)
-# with `plain_box_plate`. `cascades/` stays the 7.1 release until 7.2 locks;
-# `build/` is 7.2d.
+# same day) `larger_lid_text`, **7.2d** (the same day again)
+# `plain_box_plate`, and **7.2e is OPEN** (the same day still) with
+# `seated_lips`. `cascades/` stays the 7.1 release until 7.2 locks; `build/`
+# is 7.2e.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
-            "7.2d")
-CURRENT = "7.2d"
+            "7.2d", "7.2e")
+CURRENT = "7.2e"
 
 
 @dataclass(frozen=True)
@@ -245,6 +246,28 @@ class Rev:
                 "plate 1 with its pushers, and the plain one is an "
                 "alternative to it, printed instead of it. Which rows: the "
                 "column, asked only through `build.ships_plain_box`",
+    })
+
+    seated_lips: bool = field(metadata={
+        "since": "7.2e",
+        "spec": "spec/HOLDER.md, 'Lips that seat'",
+        "what": "every lip seats in the rest of the part behind it when the "
+                "cascade is open, and reaches no further (Allan, 2026-09-13, "
+                "off flat cascades whose lips were too long). Three formulas "
+                "become one rule: the slant is the cascade's own diagonal, "
+                "`calHeightIncrement / sliderDistance` (`derive.cascade_"
+                "slope`), so a holder's lip band lands exactly on the notch "
+                "band of the holder behind; a lip reaches the gap plus one "
+                "wall in Y — 1.200 for a holder's rear lips, 2.050 for the "
+                "box's — instead of 2.100 along the slant, which was 0.38 to "
+                "1.81 in Y; and the rest is notched through the whole front "
+                "wall, the lip's base plus REST_CLEARANCE wide and deep "
+                "enough for the box lip too, instead of starting "
+                "2*calSlotDepth along the slant, which left 333-Sl a 0.33 "
+                "notch and 246-Sl none. Before the flag the lips of 246 Sl, "
+                "333 Sl and M8.16 Sl land on the wall behind (134 / 46 / 35 "
+                "mm3 in play) and the box lip touches only six front holders, "
+                "all under their notch",
     })
 
 

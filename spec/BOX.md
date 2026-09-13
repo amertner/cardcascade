@@ -955,6 +955,15 @@ plan       LipLength = 10.000 with a LipChamfer = 1.200 45-degree chamfer at
 angle      tan = (calFirstSliderDistance - 1.200) / (calHeightIncrement - 1.000)
 ```
 
+(7.0 through 7.2d. From 7.2e — `rev.seated_lips`, `spec/HOLDER.md` "Lips
+that seat" — the angle is the diagonal's, `calFirstSliderDistance /
+calHeightIncrement`, and the lip reaches `assembly.front_holder_gap + WALL`
+= `2.050` in Y rather than `2.100` along the ramp, so it crosses the `1.250`
+to the front holder, fills the rest notched through that holder's `0.800`
+wall, and stops. The section, `LIP_Z`, `LIP_HEIGHT` and the plan chamfer are
+unchanged, and the front holder's rest is cut deep enough for it,
+`assembly.box_lip_seat`.)
+
 **The angle is the HOLDER's diagonal cutout angle** (Allan) — the group opens
 with `Import Holder patterns`, and that is what comes across. It is the one
 thing here that could not be reached from the Box alone, and the reason is

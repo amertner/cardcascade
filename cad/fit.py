@@ -19,8 +19,12 @@ Two tiers, because the parts do not all come from the same place
   against what `LOCK_STANDARD.md` and the part modules say it should be. A
   margin outside its band is a warning with its number, never a pass.
 
-The Holder is not intersected: its mates are checked as margins, measured off
-the built holder's mesh — the part an assembly places.
+The Holder's rib and tread mates are checked as margins, measured off the
+built holder's mesh — the part an assembly places. Its LIPS are intersected:
+from 7.2e every holder is also built as a B-rep (without its text) and joins
+the interference pass, because the one thing `cad.fit` had never seen was a
+lip landing on the holder behind it (`spec/HOLDER.md`, "Lips that seat"), and
+`lip_margins` says where each lip sits in its rest when the cascade is open.
 """
 import argparse
 import sys
@@ -178,6 +182,63 @@ def tread_margins(d):
     return out
 
 
+def lip_margins(d):
+    """Every lip in its rest, in play — the fit 7.2e (`rev.seated_lips`) is
+    for, from the placements and the part rules (`spec/HOLDER.md`, "Lips that
+    seat"). Reported at every release: before the flag the numbers say what
+    was wrong.
+
+    * a rear lip's underside above the rest floor of the holder behind: the
+      band `SLANT_STEP` under the lip's own upper plane against that holder's
+      plane less `rest_depth` — `rest_depth - SLANT_STEP` from 7.2e, which is
+      `REST_CLEARANCE` unless the box lip needed the rest deeper (the tread
+      carries the holder either way);
+    * the lip's tip past that holder's front wall's inner face — 0.000 from
+      7.2e: across the gap, through the wall, no further;
+    * the same two for the Box's lip in the front holder, whose floor may be
+      deeper than the lip needs on a steep cascade (`assembly.box_lip_seat`).
+    """
+    out = []
+    hs = A.holders(d)
+    rest = (holder_part.rest_depth(d) if d.rev.seated_lips
+            else holder_part.SLANT_STEP)
+    # `REST_CLEARANCE`, or more where the box lip made the rest deeper than a
+    # rear lip needs (`holder.rest_depth`): one notch depth per cascade.
+    want = rest - holder_part.SLANT_STEP if d.rev.seated_lips else None
+    seen = set()
+    for (jb, fb), (jf, ff) in zip(hs, hs[1:]):
+        if (fb, ff) in seen:
+            continue
+        seen.add((fb, ff))
+        pb, pf = A.holder_play(d, jb), A.holder_play(d, jf)
+        under = pf.origin[2] + holder_part.lip_band_z(d, ff, 0.0, lower=True)
+        floor = (pb.origin[2]
+                 + holder_part.slant_z(d, fb, pf.origin[1] - pb.origin[1]) - rest)
+        who = f"holder {jf}{' (deep)' if ff else ''} in holder {jb}{' (deep)' if fb else ''}"
+        out.append(Margin(f"play: {who}, lip above the rest floor",
+                          under - floor, want))
+        wall_in = (pb.origin[1] - holder_part.holder_depth(d, fb)
+                   + holder_part.WALL)
+        out.append(Margin(f"play: {who}, lip tip past the wall's inner face",
+                          pf.origin[1] + holder_part.lip_reach_y(d, ff) - wall_in,
+                          0.0 if d.rev.seated_lips else None))
+    jf, ff = hs[-1]
+    pf = A.holder_play(d, jf)
+    who = f"box lip in holder {jf}{' (deep)' if ff else ''}"
+    out.append(Margin(f"play: {who}, lip above the rest floor",
+                      rest - A.box_lip_seat(d), None,
+                      note=f"must be >= {holder_part.REST_CLEARANCE:.3f}"
+                           if d.rev.seated_lips else "must be > 0"))
+    m = box_part.lip_slope(d)
+    reach = (A.front_holder_gap(d) + holder_part.WALL if d.rev.seated_lips
+             else box_part.LIP_DEPTH * m / (1.0 + m * m) ** 0.5)
+    wall_in = (pf.origin[1] - holder_part.holder_depth(d, ff) + holder_part.WALL)
+    out.append(Margin(f"play: {who}, lip tip past the wall's inner face",
+                      box_part.pocket_span(d)[2] + reach - wall_in,
+                      0.0 if d.rev.seated_lips else None))
+    return out
+
+
 def lid_margins(d, holders=None):
     """The lid over the box, and the box in the lid. `holders` is
     `built_holders`' reading, for the tallest holder under the sockets."""
@@ -271,13 +332,21 @@ def interference(d, state, tokens=False, built=None):
     """[(a, b, mm3)] for every pair of SOURCE-built parts, placed.
 
     Box, Lid, Pusher and — where the row ships one, `tokens` — the
-    TokenHolder: the whole of the lock mechanism, and the only parts `cad/`
-    can hand a B-rep for. Anything non-zero is a defect. `built` is the
-    cascade's parts from an earlier state, and is filled in for the next.
+    TokenHolder: the whole of the lock mechanism; and every Holder, built
+    without its text, on its rib in the state asked. Anything non-zero is a
+    defect. `built` is the cascade's parts from an earlier state, and is
+    filled in for the next.
     """
     from .parts import box as bp, lid as lp, pusher as pp, token_holder as tp
     built = {} if built is None else built
     solids = [("Box", _once(built, "Box", lambda: bp.build(d)), A.box(d))]
+    for j, first in A.holders(d):
+        rear = A.rear_of(d, j)
+        key = f"Holder{'-deep' if first else ''}{'-rear' if rear else ''}"
+        solid = _once(built, key,
+                      lambda f=first, r=rear: holder_part.build(d, f, text=False, rear=r))
+        place = A.holder_play(d, j) if state == A.PLAY else A.holder_closed(d, j)
+        solids.append((f"Holder@{j}", solid, place))
     pusher = _once(built, "Pusher", lambda: pp.build(d))
     lid = lambda: _once(built, "Lid", lambda: lp.build(d))       # noqa: E731
     if state == A.PLAY:
@@ -312,7 +381,7 @@ def report(d, folder, state, solids=True, tokens=False, built=None):
     holders = _once(built, "holders", lambda: built_holders(d, folder))
     margins = list(lid_margins(d, holders))
     if state == A.PLAY:
-        margins += socketed_pusher_margins(d) + tread_margins(d)
+        margins += socketed_pusher_margins(d) + tread_margins(d) + lip_margins(d)
     else:
         margins += stored_pusher_margins(d)
     margins += holder_margins(d, holders)

@@ -299,7 +299,18 @@ def cascade_slope(d, slider_distance):
     Measured off the slant faces' normals on three Holder references (1.7857 /
     0.7812 / 1.2037 predicted and read) and off the diagonal of all 50 cached
     holders for the Box.
+
+    **From 7.2e (`rev.seated_lips`) the slant IS the diagonal**:
+    `calHeightIncrement / slider_distance`. In play consecutive holders' rear
+    faces are `slider_distance` apart and `calHeightIncrement` apart in Z,
+    so with this slope one holder's slant plane continues the next one's and
+    its rear lips — the band under that plane — land exactly on the notch
+    band of the holder behind (`spec/HOLDER.md`, "Lips that seat"). The
+    studio's `-1` / `-1.2` put a lip `(1.2*inc - sd)/(sd - 1.2)` above the
+    notch instead: 0.4 on 333 Sl, 5.5 on FCM, where it hooked nothing.
     """
+    if d.rev.seated_lips:
+        return d.calHeightIncrement / slider_distance
     rise = max(d.calSlotDepth + 2.0, d.calHeightIncrement - 1.0)
     return rise / (slider_distance - 1.2)
 

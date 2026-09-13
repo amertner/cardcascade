@@ -396,8 +396,9 @@ thing the lower plane does, and it is why it exists. Their top rides the upper
 plane extended past `Y = 0`, so the whole holder's `Z` maximum is
 `slant_top + slope * reach` rather than `slant_top`.
 
-**They reach `LIP_REACH = 2.100` ALONG the slant**, not in `Y`. Measured `Y`
-against `Y * sqrt(1 + slope^2)`:
+**They reach `LIP_REACH = 2.100` ALONG the slant**, not in `Y` — through
+7.2d; from 7.2e they reach `1.200` in Y on every slope ("Lips that seat",
+below). Measured `Y` against `Y * sqrt(1 + slope^2)`:
 
 | holder | slope | `Y` reach | along the slant |
 |---|---|---|---|
@@ -696,6 +697,10 @@ catalogue, is the only reference where that wall still reaches up there.
 
 ### `Lip Rest` is an OBLIQUE prism
 
+(The three sections below are the 7.0 rest, which every release through 7.2d
+keeps. From 7.2e the rest is the same oblique prism with a different section
+and start — "Lips that seat", below.)
+
 A REMOVE: the lip's face, extruded along `LipPlane` "through all" from a start
 of `#calSlotDepth * 2`. Three things about it are measured rather than assumed.
 
@@ -965,3 +970,90 @@ lips, and `tests/test_revisions.py` asserts both ends: the roles a project
 holds, the two Three Expansions rows' RearHolder being the deep one, and that
 the flag alone removes exactly the lips (all of the lost volume behind the
 rear face) and adds nothing.
+
+
+## Lips that seat — a 7.2e RELEASE CHANGE, every lip
+
+Allan's flat cascades (2026-09-13) had lips that were "a bit too long": a lip
+should overlap the holder behind, fit into the indent there, and no more. The
+review measured all three things a lip depends on and found them set by
+three unrelated formulas that agree only by accident:
+
+| | 7.0 – 7.2d | across the catalogue |
+|---|---|---|
+| lip reach | `2.100` ALONG the slant (`LIP_REACH`) | `0.378` to `1.805` in Y, against a `0.400` gap and a `0.800` wall: nothing, up to a millimetre into the pocket behind |
+| rest notch | starts `2 * calSlotDepth` along the slant | `3.0`–`4.7` deep into the front wall on steep holders, `0.332` on 333 Sl, `0.930` on M8.40 Sl, NONE on 246 Sl (the start is in front of the wall) |
+| where the lip sits in play | slant `(inc-1)/(sd-1.2)` | the lip band `(1.2*inc - sd)/(sd - 1.2)` ABOVE the notch band behind it: `+0.44` on 333 Sl, `+1.4` on Dominion Un, `+2.6`..`+5.5` on Compile and FCM, where it hooks nothing at all |
+
+Where the reach outruns the notch and the band is low enough, the lip lands
+on the un-notched wall of the holder behind and the holder hangs there
+instead of sitting on its tread. Built and placed in play (`cad.fit` had never
+intersected a holder): 246 Sl **134 mm³**, 333 Sl **46**, M8.16 Sl **35**;
+and the Box's lip, with the same `2.100` rule against a holder `1.250` away,
+never reaches 46 of the 52 front holders and on the six it does reach meets
+the wall UNDER the notch (its top is ~2 below the slant surface there): 80,
+34, 27, 3, 3 and 1 mm³. A few `0.1`–`0.3` mm³ contacts elsewhere are the
+lip's plan chamfer riding the rest's flank chamfer, which are not the same
+shape.
+
+From 7.2e (`rev.seated_lips`) **one rule replaces the three** — in play the
+slant tops form ONE diagonal, every lip is the band under it carried across
+the gap and through one wall, and every rest is that band's shadow through
+the wall, with a clearance so the tread carries the holder and not the lip:
+
+* **The slant is the diagonal.** `derive.cascade_slope` returns
+  `calHeightIncrement / sliderDistance`. Consecutive holders' rear faces are
+  `sd` apart and `inc` apart in Z in play, so a holder's upper plane
+  continues the one behind and its lip band lands exactly on the notch band
+  (dZ `0.000` on every row). The Box's `lip_slope` and the Topper's slant
+  follow, being the same function. Slopes move a few degrees on steep rows
+  (Compile `4.25` → `3.46`) and hardly at all on flat ones (333 `1.204` →
+  `1.151`, the deep S2.40 `0.781` → `0.784`).
+* **A rear lip reaches `CardHolderGap + WALL` = `1.200` in Y**
+  (`lip_reach_y`), whatever the slope — across the gap, through the wall,
+  stopping at its inner face. The plan is then always the trapezoid
+  (`12.400` base to `10.000` tip over the chamfer's own `1.200`). Along the
+  slant that is up to `4.3` on the steepest holder; it is the slant band
+  itself, so its overhang is the slant's.
+* **The Box's lip reaches `front_holder_gap + WALL` = `2.050` in Y**
+  (`box.lip_tool`; `assembly.front_holder_gap` is the `1.250`). `LIP_Z`
+  `85.500`, `LIP_HEIGHT` `2.000` and the plan chamfer are unchanged; the
+  chamfer now always completes.
+* **The rest is notched through the whole front wall** (`lip_rests`): the
+  same oblique prism along the slant, started MID-CAVITY rather than
+  `2 * calSlotDepth` along the slant, with a plain rectangular section — the
+  lip's base plus `REST_CLEARANCE` (`0.200`) a side, `12.800`, so the lip
+  fits with the holder anywhere in the `0.200` its rib allows, and no flank
+  chamfer — `rest_depth` below the upper plane and `1.000` above it.
+* **`rest_depth` is one number per cascade**: `max(SLANT_STEP,
+  assembly.box_lip_seat) + REST_CLEARANCE`. The box lip is fixed at
+  `85.500`–`87.500` and the front holder rides its tread, so with the slant
+  the diagonal the lip's underside is `4 - 0.85 * slope` below that holder's
+  surface at the panel: `2.000` at a slope of `2.35`, up to `3.5` on the
+  flattest deep holder. The rest is deepened to take it rather than the lip
+  raised, because raised by that much the lip's root stands above the
+  panel's `87.500` top on every flat row. Every holder kind takes the same
+  depth — the front holder is the plain one — so on a flat cascade a REAR
+  lip floats `rest_depth - SLANT_STEP` above its floor (`1.2` on 333 Sl)
+  where a steep one floats the bare `0.200`; either way the tread carries
+  the holder and the lip's top is flush with the surface behind it.
+* **A lip's band is the PLAIN slope's** (`lip_band_z`), whatever holder
+  carries it: the lip is a key for the rest behind it, which is cut along a
+  plain holder's slant. The deep FirstHolder at the front is flatter than
+  the holder it hooks, and a lip shaped to its own slant dipped `0.04` under
+  that rest's floor at its tip — `0.6` mm³ on `S2.40.12-30.32.Un`, which
+  `cad.fit`'s new interference pass found on the first catalogue run.
+* **The deep holder at the back** continues the plain diagonal: its rear top
+  is `slant_top + plain_slope * calFirstSliderDistance - calHeightIncrement`
+  (`slant_rear`), so the plain holder in front seats exactly rather than
+  `~0.2` proud as the `(plain - own) * depth` form left it.
+
+`cad.fit` now builds every holder as a B-rep and intersects it with
+everything in both states, and `lip_margins` reports, in play, each lip's
+clearance above its rest floor and its tip against the wall's inner face
+(`0.000`), the box lip's included. `tests/test_revisions.py` asserts both
+ends: 333 Sl's old slope, reach, `+0.444` band offset and 46 mm³ at 7.2d; the
+new slope and `1.200`/`2.050` on every row; every margin on every row; zero
+common volume on 333 Sl, 246 Sl, M8.16 Sl and Compile S4 Un placed in play;
+and the built lip's tip and top on the wall's inner face and the slant surface
+behind it.

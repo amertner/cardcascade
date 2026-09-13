@@ -46,15 +46,15 @@ check cad output.
 
 - `RELEASES` is an ordered line: `7.0` (the Onshape generation), `7.1a`..`7.1d`,
   `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a`, `7.2b`,
-  `7.2c`, `7.2d` (open 2026-09-13, `CURRENT`, what `build/` is). A version is an opaque STRING —
+  `7.2c`, `7.2d`, `7.2e` (open 2026-09-13, `CURRENT`, what `build/` is). A version is an opaque STRING —
   nothing parses one; order is position in `RELEASES`.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2d is open** with one flag, `plain_box_plate`; `7.2c` carries
-  `larger_lid_text`, `7.2b` `unmarked_lid` and `7.2a` `rear_holder` (the
-  `low_profile` change it was opened for was withdrawn, 2026-09-13). **The
-  next design change opens `7.2e`.** Steps:
+- **7.2e is open** with one flag, `seated_lips`; `7.2d` carries
+  `plain_box_plate`, `7.2c` `larger_lid_text`, `7.2b` `unmarked_lid` and
+  `7.2a` `rear_holder` (the `low_profile` change it was opened for was
+  withdrawn, 2026-09-13). **The next design change opens `7.2f`.** Steps:
   `spec/REVISIONS.md`, "Adding the next release". `7.2` stays off the line
   until its lock, and letters are never removed — a version that was printed
   must stay buildable.
@@ -64,6 +64,13 @@ check cad output.
   `build.plain_box_twin` for its Derived; object `PlainBox`, plate `Box
   without label holders`). An alternative to plate 1's box, not a part of
   the assembly.
+- **Every lip seats** from 7.2e (`spec/HOLDER.md`, "Lips that seat"): the
+  slant is the diagonal `calHeightIncrement / sliderDistance`
+  (`derive.cascade_slope`), a lip reaches the gap plus one wall in Y
+  (`holder.lip_reach_y` 1.200; the box's 2.050), and the rest is notched
+  through the whole front wall, `holder.rest_depth` deep — read
+  `assembly.front_holder_gap` / `box_lip_seat`, never 1.250 or 85.5. `cad.fit
+  --state play` intersects every holder and reports each lip's seat.
 - Every cascade ships an **unmarked lid** on a plate of its own from 7.2b: no
   mark in the underside and `(C) Mertner` (`lid.CREDIT`) where the game's
   name is. A lid is one of three `tables.LID_VARIANTS`; `build.lid_variants_built`

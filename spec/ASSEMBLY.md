@@ -207,6 +207,14 @@ honest picture of what is on the shelf.
   `x = k * calHeightIncrement`, so the whole set rises `calHeightIncrement` a
   riser and the slant tops make one diagonal.
 
+From 7.2e two numbers the LIPS need come from these placements
+(`spec/HOLDER.md`, "Lips that seat"), stated here and read by the parts:
+`front_holder_gap` — the divider panel's back face to the front holder's
+front face, `1.250` on every row, which the Box's lip crosses before it
+enters that holder's rest; and `box_lip_seat` — how far below the front
+holder's slant surface, at the panel, the box lip's underside sits in play,
+which is how deep every holder's rest is cut (`holder.rest_depth`).
+
 The `FirstHolder` is the deeper one and takes the first (frontmost) rib, which
 is the one `slider_ribs` places at `calFirstSliderDistance`.
 With `Deep slot` = back the deep holder takes rib 0 instead (`holder_rib`).

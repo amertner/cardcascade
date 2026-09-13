@@ -108,6 +108,18 @@ for _row in params.load_rows(ROOT / "automation" / "parts.csv"):
 check("the rise term wins the slant's max() on every row", _worst[0] > 0, True)
 check("... by 0.667 at the tightest, S9.21.10.62-Sl", (round(_worst[0], 3), _worst[1]),
       (0.667, "S9.21.10.62.Sl"))
+# That max() is the formula up to 7.2d. From 7.2e (`rev.seated_lips`) the
+# slant is the cascade's own diagonal, `calHeightIncrement / sliderDistance`,
+# and the default release carries it (`tests/test_revisions.py` holds both
+# ends; spec/HOLDER.md, "Lips that seat").
+_bad = 0
+for _row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for _sl in (0, 1):
+        _d = derive.derive(params.from_row(_row, _sl))
+        for _sd in (_d.calSliderDistance, _d.calFirstSliderDistance):
+            if abs(derive.cascade_slope(_d, _sd) - _d.calHeightIncrement / _sd) > 1e-9:
+                _bad += 1
+check("at the default release the slant is the diagonal inc/sd, at both slider distances", _bad, 0)
 
 print(f"\n{'PASS' if not fails else 'FAIL: ' + ', '.join(fails)}")
 sys.exit(1 if fails else 0)

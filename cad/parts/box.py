@@ -23,6 +23,7 @@ from build123d import (Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
                        revolve)
 
 from .. import derive as D
+from . import holder as holder_part      # its WALL, which the box lip reaches through
 from ..geom import slab, text_solid, tray
 from .. import lock as L
 from .. import text as T
@@ -697,7 +698,7 @@ def thumb_tool(d):
 # face for the front holder to catch on.
 LIP_OFFSET = 20.400               # lip centre, from the thumb centre
 LIP_LENGTH = D.LipLength          # 10.000, the top face
-LIP_DEPTH = D.LipDepth            # 2.100, along the ramp
+LIP_DEPTH = D.LipDepth            # 2.100, along the ramp — 7.0 to 7.2d
 LIP_HEIGHT = D.LipHeight          # 2.000, in Z
 LIP_CHAMFER = D.LipChamfer        # 1.200, 45 degrees in the XY plane
 LIP_Z = 85.500                    # where it leaves the panel's back face
@@ -743,7 +744,18 @@ def lip_tool(d):
     _fw, _fb, back = pocket_span(d)
     m = lip_slope(d)
     unit = (1.0 + m * m) ** 0.5
-    rise, out = LIP_DEPTH / unit, LIP_DEPTH * m / unit
+    if d.rev.seated_lips:
+        # The gap to the front holder plus its front wall, in Y — the same
+        # rule as the holder's own lips (`holder.lip_reach_y`): across the
+        # gap, through the rest, and no further. `LIP_DEPTH` along the ramp is
+        # 0.38 to 1.81 in Y, and the holder is 1.250 away, so before 7.2e the
+        # lip reached only six front holders and met the wall under their
+        # notch on each (`spec/HOLDER.md`, "Lips that seat").
+        from .. import assembly as A
+        out = A.front_holder_gap(d) + holder_part.WALL
+        rise = out / m
+    else:
+        rise, out = LIP_DEPTH / unit, LIP_DEPTH * m / unit
     half = LIP_LENGTH / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
@@ -761,11 +773,11 @@ def lip_tool(d):
         with BuildSketch(Plane.XY):
             Polygon((-half, back - 1.0), (half, back - 1.0), (half, back),
                     (half - LIP_CHAMFER, back + LIP_CHAMFER),
-                    (half - LIP_CHAMFER, back + LIP_DEPTH + 1),
-                    (-half + LIP_CHAMFER, back + LIP_DEPTH + 1),
+                    (half - LIP_CHAMFER, back + out + 1),
+                    (-half + LIP_CHAMFER, back + out + 1),
                     (-half + LIP_CHAMFER, back + LIP_CHAMFER),
                     (-half, back), align=None)
-        extrude(amount=LIP_Z + LIP_HEIGHT + LIP_DEPTH + 5)
+        extrude(amount=LIP_Z + LIP_HEIGHT + rise + 5)
     return prism.part & foot.part
 
 
