@@ -119,9 +119,9 @@ def socketed_pusher_margins(d):
 def holder_margins(d, holders=None):
     """The holder on its rib.
 
-    `holders` maps `first` to the slot and width measured off the mesh an
-    assembly actually places (`built_holders`), because that is the part in
-    the box. It is keyed on `first` and not shared: **a FirstHolder is
+    `holders` maps `(first, rear)` to the slot and width measured off the mesh
+    an assembly actually places (`built_holders`), because that is the part
+    in the box. It is keyed on the deep flag and not shared: **a FirstHolder is
     DEEPER** — its depth is `calFirstSliderDistance - 0.400` — so its side
     slot, which is centred on its own depth, sits somewhere else entirely.
     Measuring every riser against the standard holder's slot is what the first
@@ -130,7 +130,7 @@ def holder_margins(d, holders=None):
     """
     out = []
     for j, first in A.holders(d):
-        info = (holders or {}).get(first)
+        info = (holders or {}).get((first, A.rear_of(d, j)))
         if info is None:
             out.append(Margin(f"holder {j}: rib in the side slot",
                               float("nan"), None,
@@ -145,7 +145,7 @@ def holder_margins(d, holders=None):
                           hi - rib1, want))
         out.append(Margin(f"holder {j}: rib in the side slot, front",
                           rib0 - lo, want))
-    plain = (holders or {}).get(False)
+    plain = (holders or {}).get((False, False)) or next(iter((holders or {}).values()), None)
     if plain:
         inner = box_part.box_width(d) / 2 - D.WallThickness
         out.append(Margin("holder: clearance in the box, each side",
@@ -222,24 +222,25 @@ def lid_margins(d, holders=None):
 
 
 def built_holders(d, folder, out_dir=None):
-    """`{first: {slot, width}}` for the holders an assembly places, measured
-    off their meshes in `out_dir` — the release's own tree by default, built
-    first where missing. A key is absent when the slot is not found."""
+    """`{(first, rear): {slot, width, top}}` for the holders an assembly
+    places (`assembly.holder_kinds`), measured off their meshes in `out_dir`
+    — the release's own tree by default, built first where missing. A key is
+    absent when the slot is not found."""
     out = {}
-    for first in {f for _j, f in A.holders(d)}:
-        info = built_holder(d, folder, first, out_dir)
+    for (first, rear), _js in A.holder_kinds(d):
+        info = built_holder(d, folder, first, out_dir, rear)
         if info is not None:
-            out[first] = info
+            out[(first, rear)] = info
     return out
 
 
-def built_holder(d, folder, first=False, out_dir=None):
-    """The slot and width of one built holder, measured off its mesh.
+def built_holder(d, folder, first=False, out_dir=None, rear=False):
+    """The slot, width and top of one built holder, measured off its mesh.
     `None` when the slot is not found on it."""
     import numpy as np
     from . import assemble, build as B
     _n, verts, _t = assemble.holder_mesh(d, out_dir or B.out_for(d.Version),
-                                         folder, first)
+                                         folder, first, rear)
     v = np.asarray(verts)
     x_lo, x_hi = v[:, 0].min(), v[:, 0].max()
     end = v[(v[:, 0] <= x_lo + holder_part.END_BLOCK + 1e-6)]

@@ -756,6 +756,79 @@ for way, diff in (("gains", other - own), ("loses", own - other)):
           [True, True])
 
 
+# --- 7.2a: the rearmost holder is a RearHolder, without rear lips ----------
+print(f"\n=== {since('rear_holder')}  rear_holder ===")
+asserted.add("rear_holder")
+# Every holder's rear lips hook the holder behind it; the rearmost has only
+# the box's back wall behind it, 0.950 away, which a shallow slant's lips
+# reach past. So from 7.2a riser 0 is built as a RearHolder — the same holder
+# without the lips — and the change is asserted three ways: what a project
+# CONTAINS, what the flag alone REMOVES from the part, and that the deep
+# holder at the back takes the RearHolder name rather than FirstHolder.
+RH_OLD, RH_NEW = before("rear_holder"), since("rear_holder")
+
+
+HOLDER_ROLES = ("Holder", "FirstHolder", "RearHolder")
+
+
+def roles_of(row, sleeved, version):
+    d = at(row, sleeved, version)
+    return sorted(n for n, _fn in CC.parts(row, d) if n in HOLDER_ROLES)
+
+
+def want_roles(d):
+    n = d.RisingSliders
+    if d.isDeepSlotAtBack:
+        return sorted(["RearHolder"] + ["Holder"] * (n - 1))
+    if d.isFirstSlidingSlotOverride:
+        return sorted(["RearHolder", "FirstHolder"] + ["Holder"] * (n - 2))
+    return sorted(["RearHolder"] + ["Holder"] * (n - 1))
+
+
+bad_old, bad_new, bad_rear = [], [], []
+for r in rows():
+    for sleeved in (0, 1):
+        do, dn = at(r, sleeved, RH_OLD), at(r, sleeved, RH_NEW)
+        old, new = roles_of(r, sleeved, RH_OLD), roles_of(r, sleeved, RH_NEW)
+        if "RearHolder" in old or len(old) != do.RisingSliders:
+            bad_old.append(do.calModelName)
+        if new != want_roles(dn):
+            bad_new.append((dn.calModelName, new, want_roles(dn)))
+        if ([A.rear_of(dn, j) for j, _f in A.holders(dn)] != [True] + [False] * (dn.RisingSliders - 1)
+                or any(A.rear_of(do, j) for j, _f in A.holders(do))):
+            bad_rear.append(dn.calModelName)
+check(f"{RH_OLD}: no cascade ships a RearHolder, and every one ships RisingSliders holders", bad_old, [])
+check(f"{RH_NEW}: every cascade ships exactly one RearHolder in a Holder's place", bad_new, [])
+check(f"{RH_NEW}: riser 0 is the rear holder and no other is; at {RH_OLD} none is", bad_rear, [])
+
+# The deep holder at the back is the RearHolder, under that name, with the
+# deep depth; a deep holder at the front stays a FirstHolder beside a plain
+# RearHolder.
+d8 = next(at(r, 0, RH_NEW) for r in rows() if at(r, 0, RH_NEW).calModelName == "M8.16.10-16.45.Un")
+check("Three Expansions: RearHolder is the deep one and there is no FirstHolder",
+      [k for k, _js in A.holder_kinds(d8)], [(True, True), (False, False)])
+check("... and its file says so", B.holder_file(d8, True, True), "RearHolder M8.16.10-16.45-Un.3mf")
+d_front = next(at(r, 1, RH_NEW) for r in rows()
+               if at(r, 1, RH_NEW).isFirstSlidingSlotOverride and not at(r, 1, RH_NEW).isDeepSlotAtBack
+               and at(r, 1, RH_NEW).RisingSliders > 2)
+check(f"{d_front.calModelName}: a plain RearHolder at the back and the FirstHolder at the front",
+      [k for k, _js in A.holder_kinds(d_front)], [(False, True), (False, False), (True, False)])
+
+# Built, with THIS flag alone against the release before it: the RearHolder
+# is the plain holder less its lips and nothing else — it loses material, all
+# of it behind the rear face (Y > 0), and gains none. On the deepest plain
+# holder in the catalogue.
+d_rh = at(box_row, 0, "7.0")
+plain = holder_part.build(d_rh, False)
+rear = holder_part.build(d_rh, False, rear=True)
+gone = plain - rear
+check("the RearHolder gains nothing", (rear - plain) is None or round((rear - plain).volume, 6) == 0.0, True)
+check("and what it loses is the lips: all behind the rear face",
+      [gone is not None and gone.volume > 1.0, gone is not None and round(gone.bounding_box().min.Y, 3) >= 0.0],
+      [True, True])
+print(f"  (the lips are {0.0 if gone is None else gone.volume:.2f} mm3 on {d_rh.calModelName})")
+
+
 # --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",

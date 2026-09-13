@@ -185,6 +185,7 @@ PART_COLOURS = {
     "Pusher": (214, 154, 92),
     "Holder": (226, 226, 226),
     "FirstHolder": (206, 206, 206),
+    "RearHolder": (216, 216, 216),
     "TokenHolder": (196, 138, 168),
     "HalfTokenHolder": (176, 124, 152),
     "Topper": (176, 186, 208),

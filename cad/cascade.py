@@ -34,7 +34,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-from . import build as B, derive as D, layout as LY, params, project as PJ, tables as TB
+from . import assembly as A, build as B, derive as D, layout as LY, params, project as PJ, tables as TB
 from .revisions import CURRENT, RELEASES
 from .refuse import Refused, refuse
 
@@ -60,7 +60,9 @@ def parts(row, d):
       rear slots: 2 at every size from 7.1; at 7.0, 2 for Innovation and for
       S boxes, 3 for M and L);
     * `RisingSliders` Holders — one of them the deeper FirstHolder when the row
-      overrides the first slot's capacity;
+      overrides the first slot's capacity, and from 7.2a the rearmost one a
+      RearHolder without rear lips (`rev.rear_holder`), which is the deep one
+      itself where the row puts the deep slot at the back;
     * one Lid — and from 7.1d a SECOND one, on its own plate, where the
       cascade's mark is not its game's default edition: Innovation's two
       single-set cascades carry the plain `Innovation` mark and ship an
@@ -75,11 +77,9 @@ def parts(row, d):
     """
     out = [("Box", B.box_file(d))]
     out += [("Pusher", B.pusher_file(d))] * d.calPusherSlots
-    if d.isFirstSlidingSlotOverride:
-        out.append(("FirstHolder", B.holder_file(d, first=True)))
-        out += [("Holder", B.holder_file(d))] * (d.RisingSliders - 1)
-    else:
-        out += [("Holder", B.holder_file(d))] * d.RisingSliders
+    for (first, rear), js in A.holder_kinds(d):
+        role = "RearHolder" if rear else ("FirstHolder" if first else "Holder")
+        out += [(role, B.holder_file(d, first, rear))] * len(js)
     for alt in B.lid_editions_built(d):
         out.append((PJ.object_name("Lid", d, alt), B.lid_file(d, alt)))
     if B.ships_token_holder(row):

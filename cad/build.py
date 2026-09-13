@@ -54,6 +54,7 @@ import sys
 import time
 from pathlib import Path
 
+from . import assembly as A
 from . import derive as D
 from . import mesh3mf
 from . import params
@@ -221,8 +222,9 @@ def build_lid(d, extra, path):
     return write_component(path, bodies, d)
 
 
-def holder_file(d, first=False):
-    """`Holder <model>.3mf`, or `FirstHolder ...` for the first-riser one.
+def holder_file(d, first=False, rear=False):
+    """`Holder <model>.3mf`, `FirstHolder ...` for the deeper first-riser one,
+    or `RearHolder ...` for the rearmost, lipless one (`rev.rear_holder`).
 
     Keyed on `calModelName` like the Box and the Lid. That is a wider key than
     the geometry needs — a holder does not depend on the front capacity or the
@@ -236,31 +238,32 @@ def holder_file(d, first=False):
     for it, and missing the card count, which sets the depth. Both are in
     `calModelName`.
     """
-    kind = "FirstHolder" if first else "Holder"
+    kind = "RearHolder" if rear else ("FirstHolder" if first else "Holder")
     return f"{kind} {model_stem(d.calModelName)}.3mf"
 
 
 def holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary, first)] — every distinct holder.
+    """[(folder, filename, Primary, (first, rear))] — every distinct holder.
 
-    A row with a first-riser override yields TWO: the standard holder and the
-    deeper `FirstHolder` that replaces one of them, exactly as
-    `plan_exports.compose` emits them.
+    The kinds a cascade is built from are `assembly.holder_kinds`: the plain
+    Holder, the deeper `FirstHolder` where the row overrides the first slot
+    and keeps it at the front, and from 7.2a the `RearHolder` — the rearmost
+    one without rear lips, which is the deep one itself where the row puts
+    the deep slot at the back (`rev.rear_holder`).
     """
     out = {}
     for _row, p in params.cascades(csv, game, version):
         d = D.derive(p)
-        for first in ((False, True) if p.isFirstSlidingSlotOverride
-                      else (False,)):
-            fn = holder_file(d, first)
+        for (first, rear), _js in A.holder_kinds(d):
+            fn = holder_file(d, first, rear)
             if model and model.lower() not in fn.lower():
                 continue
-            out.setdefault((p.GameName, fn), (p.GameName, fn, p, first))
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p, (first, rear)))
     return [out[k] for k in sorted(out)]
 
 
-def build_holder(d, first, path):
-    """Build one holder and write the 3MF.
+def build_holder(d, extra, path):
+    """Build one holder and write the 3MF. `extra` is `(first, rear)`.
 
     The object name is the one `plan_exports` uses, so the file drops straight
     in. NB `individual/`'s own first-riser files name their body `Holder` — the
@@ -270,8 +273,10 @@ def build_holder(d, first, path):
     role `plan_exports` emits is `FirstHolder` either way.
     """
     from .parts import holder as holder_part
-    part = holder_part.build(d, first)
-    return write_component(path, [("FirstHolder" if first else "Holder", part)], d)
+    first, rear = extra
+    part = holder_part.build(d, first, rear=rear)
+    role = "RearHolder" if rear else ("FirstHolder" if first else "Holder")
+    return write_component(path, [(role, part)], d)
 
 
 def topper_file(d, expansion="Blank"):
@@ -604,14 +609,16 @@ def run_jobs(specs, jobs):
         return list(ex.map(_job, specs))
 
 
-def holder_key(p, first):
+def holder_key(p, extra):
     """What a holder's geometry depends on: everything in its Primary but the
     front capacity and the Mat branch, which `holder_file` carries through
-    `calModelName` and the part never reads. Two files with one key are one
-    build — the six Mat twins, byte-identical before this deduplicated them."""
+    `calModelName` and the part never reads, plus its kind `(first, rear)`.
+    Two files with one key are one build — the six Mat twins, byte-identical
+    before this deduplicated them."""
     return (p.GameName, p.HorizontalSlots, p.RisingSliders,
             p.CardsPerSlidingSlot, p.isFirstSlidingSlotOverride,
-            p.FirstSlidingSlotCards, p.isSleeved, p.Version, first)
+            p.FirstSlidingSlotCards, p.isSleeved, p.Version,
+            p.SleevedCardWidth, p.DeepSlotAtBack, tuple(extra))
 
 
 # Every kind's catalogue, `(csv, game, model, version) -> items`. The Box's and

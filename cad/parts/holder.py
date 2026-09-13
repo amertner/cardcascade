@@ -568,12 +568,14 @@ def slant_band(d, first, x0, x1):
     return part.part.moved(Location((x0, 0, 0)))
 
 
-def rear_lips(d, first, part):
+def rear_lips(d, first, part, rear=False):
     """Add the lips: the plan outline, clipped to the band between the slants.
 
-    None on the deep holder at the back (`deep_at_back`): the lips hook the
-    holder behind, and behind it is the box's back wall."""
-    if deep_at_back(d, first):
+    None on a REAR holder (`rear`, the `rear_holder` release change), nor on
+    the deep holder at the back whatever the release (`deep_at_back`): the
+    lips hook the holder behind, and behind the rearmost holder is the box's
+    back wall, 0.950 away, which a shallow slant's lips reach past."""
+    if rear or deep_at_back(d, first):
         return part
     pts = lip_plan(d, first)
     # Tall enough to reach the slant band, which sits around Z = 44; extruding
@@ -796,8 +798,12 @@ def bottom_text(d, first, part):
     return part.cut(*engraving(d, first))
 
 
-def build(d, first=False, text=True):
+def build(d, first=False, text=True, rear=False):
     """The Holder as a build123d Part, from a `derive.Derived`.
+
+    `first` is the DEEPER first-riser holder; `rear` is the REARMOST one, which
+    carries no rear lips (`rear_lips`) and is otherwise the plain holder, or
+    the deep one where the deep slot is at the back (`deep_at_back`).
 
     `text=False` leaves the underside blank — the Pusher has the same flag —
     for a caller that wants to price the engraving separately (`engraving`).
@@ -807,6 +813,6 @@ def build(d, first=False, text=True):
     part = lattice(d, first, part)
     part = finger_cutouts(d, first, part)
     part = side_slots(d, first, part)
-    part = rear_lips(d, first, part)
+    part = rear_lips(d, first, part, rear)
     part = lip_rests(d, first, part)
     return bottom_text(d, first, part) if text else part

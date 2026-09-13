@@ -88,12 +88,12 @@ from .refuse import refuse
 # before its own letter.
 #
 # **7.2a is OPEN** (Allan, 2026-09-11): the first letter after the 7.1 lock.
-# It carries NO flag yet — the `low_profile` change it was opened for was
-# withdrawn on 2026-09-13 before the line moved on (`spec/REVISIONS.md`) —
-# and it is where the `Three Expansions` row and its ROW options (`Deep
-# slot`, `Sleeved card width`, `Toppers`) arrived; a row option is not a
-# release change. `cascades/` stays the 7.1 release until 7.2 locks;
-# `build/` is 7.2a.
+# The `low_profile` change it was opened for was withdrawn on 2026-09-13
+# before the line moved on (`spec/REVISIONS.md`); its one flag is
+# `rear_holder`, and it is where the `Three Expansions` row and its ROW
+# options (`Deep slot`, `Sleeved card width`, `Toppers`) arrived — a row
+# option is not a release change. `cascades/` stays the 7.1 release until
+# 7.2 locks; `build/` is 7.2a.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a")
 CURRENT = "7.2a"
 
@@ -182,6 +182,21 @@ class Rev:
                 "feature of the lock are exactly where they were and the "
                 "0.400 comes out of the interior, which has 12.900 of "
                 "headroom on all 50 rows. The Lid keeps its 1.600 floor",
+    })
+
+    rear_holder: bool = field(metadata={
+        "since": "7.2a",
+        "spec": "spec/HOLDER.md, 'The RearHolder'",
+        "what": "every cascade's REARMOST holder is a `RearHolder`: the same "
+                "holder without its rear lips, which hook the holder behind "
+                "and behind the rearmost there is only the box's back wall, "
+                "0.950 away, which a shallow slant's lips reach past (0.3-0.4 "
+                "of interference on Dominion's 8- and 9-riser cascades, 0.65 "
+                "on a deep holder at the back; Allan, 2026-09-13). It replaces "
+                "one plain Holder in every project, and where the rearmost "
+                "slot is the deep one (`Deep slot` = back) it replaces the "
+                "FirstHolder, taking that holder's depth and slant under the "
+                "RearHolder name. Before the flag every holder has lips",
     })
 
 

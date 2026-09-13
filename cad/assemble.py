@@ -119,11 +119,12 @@ class MissingCached(Exception):
     and named rather than assembled without its toppers."""
 
 
-def holder_mesh(d, out_dir, folder, first=False):
+def holder_mesh(d, out_dir, folder, first=False, rear=False):
     """The holder an assembly places, in its part frame: `cad.build`'s — the
-    one the released cascades print — built first if it is not there yet."""
-    return _one(_built(out_dir / folder / B.holder_file(d, first),
-                       B.build_holder, d, first))
+    one the released cascades print — built first if it is not there yet.
+    `first` is the deep one, `rear` the RearHolder (`assembly.rear_of`)."""
+    return _one(_built(out_dir / folder / B.holder_file(d, first, rear),
+                       B.build_holder, d, (first, rear)))
 
 
 # The six Innovation toppers, one per riser in this order, back to front;
@@ -212,11 +213,9 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
             [A.pusher_socketed(d, s) for s in A.play_sockets(d)])
 
     place = A.holder_closed if closed else A.holder_play
-    for first in (False, True):
-        js = [j for j, f in A.holders(d) if f == first]
-        if js:
-            add(holder_mesh(d, out_dir, folder, first),
-                [place(d, j) for j in js])
+    for (first, rear), js in A.holder_kinds(d):
+        add(holder_mesh(d, out_dir, folder, first, rear),
+            [place(d, j) for j in js])
 
     # Toppers — Innovation only, one per riser, and only where the row has them
     # (`build.ships_toppers`: a box built for ONE set has nothing for a topper

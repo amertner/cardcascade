@@ -35,16 +35,21 @@ check cad output.
 
 - `RELEASES` is an ordered line: `7.0` (the Onshape generation), `7.1a`..`7.1d`,
   `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a` (open
-  2026-09-11, `CURRENT`, what `build/` is; no flag yet). A version is an opaque STRING —
+  2026-09-11, `CURRENT`, what `build/` is). A version is an opaque STRING —
   nothing parses one; order is position in `RELEASES`.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2a is open and carries no flag yet** — the `low_profile` change it was
-  opened for was withdrawn (2026-09-13) — so the next design change is
-  7.2a's first flag, not a new letter. Steps: `spec/REVISIONS.md`, "Adding
-  the next release". `7.2` stays off the line until its lock, and letters are
-  never removed — a version that was printed must stay buildable.
+- **7.2a is open** with one flag, `rear_holder` (the `low_profile` change it
+  was opened for was withdrawn, 2026-09-13). **The next design change opens
+  `7.2b`.** Steps: `spec/REVISIONS.md`, "Adding the next release". `7.2`
+  stays off the line until its lock, and letters are never removed — a
+  version that was printed must stay buildable.
+- Every cascade's rearmost holder is a **`RearHolder`** from 7.2a: the same
+  holder without rear lips (`holder.build(..., rear=True)`), replacing one
+  plain Holder, or the FirstHolder itself where `Deep slot` = back. Which
+  riser: `assembly.rear_of`; the kinds a cascade is built from:
+  `assembly.holder_kinds`.
 - **A row can carry its own options** without a flag: parts.csv's `Deep
   slot`, `Sleeved card width` and `Toppers` columns (below). What 7.2a holds
   so far is the `Three Expansions` row and those.

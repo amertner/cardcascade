@@ -944,3 +944,24 @@ box against the sockets' underside at 100. `cad.fit` now reports "socket
 underside over the tallest holder" off the built meshes so a future row
 cannot exceed that quietly. The finger scallop stays centred on `slant_top`,
 at the card tops, so it simply cuts deeper into the taller rear wall.
+
+
+## The RearHolder — a 7.2 RELEASE CHANGE, every cascade
+
+The finding above generalises (Allan, 2026-09-13): the rearmost holder of
+EVERY cascade has nothing behind it but the back wall, so its rear lips do no
+work there and, at low rises, reach into the wall. From 7.2a (`rev.rear_holder`)
+riser 0 is built as a **`RearHolder`** — `holder.build(d, first, rear=True)`,
+the same holder with `rear_lips` skipped — under its own file and object name
+(`build.holder_file(d, first, rear)`, `RearHolder <model>.3mf`), replacing
+one plain `Holder` in the project. Where the row puts the deep slot at the back
+the RearHolder IS the deep holder: `first=True, rear=True`, its depth and
+slant `deep_at_back`'s, and there is no `FirstHolder` file for that row. Where
+the deep slot is at the front the FirstHolder stays and a plain RearHolder sits
+behind the plain ones. `assembly.rear_of` says which riser, `holder_kinds`
+which distinct holders a cascade needs and on which risers; `cad.assemble`,
+`cad.cascade` and `cad.fit` all read it. At 7.1 and before every holder has
+lips, and `tests/test_revisions.py` asserts both ends: the roles a project
+holds, the two Three Expansions rows' RearHolder being the deep one, and that
+the flag alone removes exactly the lips (all of the lost volume behind the
+rear face) and adds nothing.

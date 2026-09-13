@@ -69,7 +69,7 @@ def cad_dir(version):
 # size tolerance per role, mm — the known divergences between the cached
 # parts and the rebuilt ones (spec/HOLDER.md: 30 of 50 shipped holders are
 # 6.6, 1.5 shorter than a 7.0; the rest match to 0.05)
-TOL = {"Holder": 1.6, "FirstHolder": 1.6}
+TOL = {"Holder": 1.6, "FirstHolder": 1.6, "RearHolder": 1.6}
 DEFAULT_TOL = 0.05
 
 

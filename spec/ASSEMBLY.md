@@ -209,6 +209,11 @@ honest picture of what is on the shelf.
 
 The `FirstHolder` is the deeper one and takes the first (frontmost) rib, which
 is the one `slider_ribs` places at `calFirstSliderDistance`.
+With `Deep slot` = back the deep holder takes rib 0 instead (`holder_rib`).
+And from 7.2a riser 0's holder is the **`RearHolder`**, the same holder without
+its rear lips (`assembly.rear_of`, `holder_kinds`; `spec/HOLDER.md`, "The
+RearHolder"): where the deep slot is at the back the RearHolder is the deep
+one and there is no FirstHolder.
 
 ### TokenHolder — a half turn about Z, and the FULL only
 

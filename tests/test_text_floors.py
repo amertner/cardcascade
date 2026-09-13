@@ -109,7 +109,7 @@ for _game, fn, p, alt in B.lid_catalogue():
         record("Lid", fn, line, cap / T.CAP, cap / T.CAP, T.LOGO_FONT, True)
 
 print("=== holders ===")
-for _folder, fn, p, first in B.holder_catalogue():
+for _folder, fn, p, (first, _rear) in B.holder_catalogue():
     d = D.derive(p)
     s = holder.text_size(d, first)
     record("Holder", fn, "name", s, s, T.LOGO_FONT, False)

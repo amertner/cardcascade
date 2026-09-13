@@ -187,9 +187,29 @@ def holder_closed(d, j):
 
 
 def holders(d):
-    """[(j, first)] — one per riser, back to front."""
+    """[(j, first)] — one per riser, back to front. `first` is the DEEP
+    holder's flag (its depth and slant); which riser is the REAR holder, the
+    one built without lips, is `rear_of`."""
     n = len(box_part.slider_ribs(d))
     return [(j, holder_rib(d, j)[2]) for j in range(n)]
+
+
+def rear_of(d, j):
+    """Is riser `j` the RearHolder — the rearmost, built without rear lips
+    (`rev.rear_holder`, 7.2a)? Riser 0 is the back one. Before the flag no
+    riser is: every holder has lips."""
+    return bool(d.rev.rear_holder) and j == 0
+
+
+def holder_kinds(d):
+    """The distinct holders a cascade is built from, each with the risers it
+    stands on: `[((first, rear), [j, ...])]`, back to front. Up to three —
+    the RearHolder, the plain Holder, and the FirstHolder where the row
+    overrides the first slot and the deep one is at the front."""
+    out = {}
+    for j, first in holders(d):
+        out.setdefault((first, rear_of(d, j)), []).append(j)
+    return sorted(out.items(), key=lambda kv: kv[1][0])
 
 
 def pushers(d):

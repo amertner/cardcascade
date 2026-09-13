@@ -62,7 +62,7 @@ def check(label, got, want, tol=0.0):
 
 def role(name):
     """A shipped object's role from its (legacy-suffixed) name."""
-    for r in ("HalfTokenHolder", "TokenHolder", "FirstHolder", "Holder", "Pusher", "Lid", "Box", "Topper"):
+    for r in ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "Holder", "Pusher", "Lid", "Box", "Topper"):
         if name.startswith(r):
             return r
     return name

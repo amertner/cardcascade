@@ -110,7 +110,7 @@ both slice the same and `filaments.used_extruders` reads both.
 
 ## Naming
 
-- Objects are named by ROLE — `Box`, `Pusher`, `Holder`, `FirstHolder`,
+- Objects are named by ROLE — `Box`, `Pusher`, `Holder`, `FirstHolder`, `RearHolder`,
   `TokenHolder`, `HalfTokenHolder`, `Topper <Expansion>` — except the Lid,
   which carries the card capacity and the sleeving, `Lid 168U`, as every
   shipped project has it: with several projects open it is the lid that says

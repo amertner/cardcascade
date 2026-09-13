@@ -36,6 +36,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "automation"))
 
 from cad import cascade as CC, derive as D, layout as LY, params, project as PJ  # noqa: E402
+from cad import revisions as R                                   # noqa: E402
 import reference as REF                                        # noqa: E402
 from cad.refuse import Refused                                                   # noqa: E402
 import filaments as FIL                                                          # noqa: E402
@@ -64,12 +65,18 @@ def check(label, ok, detail=""):
         fails.append(label)
 
 
-def rows():
+def rows(version=None):
+    """Every catalogue row at both sleevings — at the REFERENCE release by
+    default (section 1 compares against a shipped 7.0 project), or at
+    `version`: section 2 lays out what `build/` holds, which is CURRENT's
+    composition — from 7.2a a RearHolder where 7.0 named a Holder or a
+    FirstHolder (`rev.rear_holder`)."""
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         if (row.get("Status") or "").strip() == "Parked":
             continue
         for sleeved in (0, 1):
-            p = REF.from_row(row, sleeved)
+            p = (REF.from_row(row, sleeved) if version is None
+                 else params.from_row(row, sleeved, version))
             yield row, D.derive(p)
 
 
@@ -176,7 +183,7 @@ with tempfile.TemporaryDirectory() as tmp:
     AT_THE_LIMIT = set()
     written = {}
     n_ok = 0
-    for row, d in rows():
+    for row, d in rows(R.CURRENT):
         model = d.calModelName
         try:
             objs = CC.objects(row, d)

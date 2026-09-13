@@ -94,14 +94,14 @@ class Group(NamedTuple):
 PLATE_SCHEME = [
     Group("Box + pushers", ("Box", "Pusher")),
     Group("Lid", ("Lid",), alt=True),
-    Group("Holders", ("Holder", "FirstHolder")),
+    Group("Holders", ("Holder", "FirstHolder", "RearHolder")),
     Group("Toppers", ("Topper",)),
     Group("Token holders", ("TokenHolder",)),
     Group("Half token holders", ("HalfTokenHolder",)),
     Group("Labels", ("Label",)),
 ]
-ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "Box", "Lid",
-         "Holder", "Topper", "Pusher", "Label")
+ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "Box",
+         "Lid", "Holder", "Topper", "Pusher", "Label")
 
 
 def role(name):
@@ -303,7 +303,7 @@ def _dims(obj):
 
 def _gap(obj):
     """Thin strips pack tight; everything else keeps GAP."""
-    return STRIP_GAP if role(obj.name) in ("Holder", "FirstHolder", "Topper") else GAP
+    return STRIP_GAP if role(obj.name) in ("Holder", "FirstHolder", "RearHolder", "Topper") else GAP
 
 
 def plate_groups(objects, bed):
@@ -490,7 +490,7 @@ def _shelves(objects, idxs, dims, bw, bd, quarter):
     def row_gap_role(row):
         rs = {role(objects[i].name) for i in row}
         r = rs.pop() if len(rs) == 1 else None
-        return r if r in ("Holder", "FirstHolder", "Topper") else None
+        return r if r in ("Holder", "FirstHolder", "RearHolder", "Topper") else None
 
     # the tight gap between rows only when BOTH rows are the same strip
     # kind (topper to topper), else GAP

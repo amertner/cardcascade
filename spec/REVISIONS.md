@@ -88,7 +88,7 @@ the letter each change shipped in, which is what the letters are for and what
 
 **The first letter after the lock is `7.2a`** (2026-09-11), not `7.1e`: `7.1`
 is on the line, so a change after it is a change after the release. `7.2a` is
-below — open, and so far without a flag.
+below — open, with `rear_holder`.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -192,9 +192,24 @@ pitch narrower, so the row it lays down there is not the row it lays down at
 reason a `Rev` is a record of independent booleans rather than a version number
 to compare against.
 
-### 7.2a — OPEN 2026-09-11, no flag yet
+### 7.2a — OPEN 2026-09-11
 
 `CURRENT`. `cascades/` stays the 7.1 release until 7.2 locks; `build/` is 7.2a.
+One flag so far:
+
+* **`rear_holder`** (`7.2a`, 2026-09-13) — every cascade's rearmost holder is
+  a **`RearHolder`**: the same holder without its rear lips. The lips hook
+  the holder behind, and behind the rearmost there is only the box's back
+  wall, 0.950 away; a shallow slant's lips reach past it (0.3–0.4 mm of
+  interference on Dominion's 8- and 9-riser cascades, 0.65 on a deep holder
+  at the back — measured by intersecting the placed holder with the box,
+  `spec/HOLDER.md`, "The RearHolder"). It replaces one plain Holder in every
+  project, and where the row puts the deep slot at the BACK it replaces the
+  FirstHolder, keeping that holder's depth and slant under the RearHolder
+  name (`holder.build(..., rear=True)`, `assembly.rear_of`,
+  `assembly.holder_kinds`, `build.holder_file`). The plain and first holders
+  are byte-identical to 7.1's. Allan: generalised from the Three Expansions
+  print, where the rear holder was the first to be built without lips.
 
 **Opened for a flag that was withdrawn.** `low_profile` (2026-09-11) made
 `S3.15.10.32-Sl` a 100 box with a 35 lid and a 3 mm, 3.2-wide, 12.2-wide
@@ -234,8 +249,8 @@ over the card top" and "over the tallest holder".
   `build.ships_toppers`).
 
 A row option is not a release change: no existing part moves, so there is no
-flag and nothing for `tests/test_revisions.py` to assert at two ends — except
-the one thing the new row DID change about an existing case, the
+flag for it and nothing for `tests/test_revisions.py` to assert at two ends —
+except the one thing the new row DID change about an existing case, the
 `lid_socket_per_pusher` set, which now names six Innovation M lids.
 
 ## What a release moves besides its flags
