@@ -1011,6 +1011,24 @@ The chamfer is measured **from the outer face**, so it reaches the wall exactly
 and `chamfer()` on a plain pad reproduces it without any construction geometry.
 The slot is chamfered the same way off its own deep face.
 
+### A plain box on a plate of its own — a 7.2d RELEASE CHANGE
+
+From 7.2d (`rev.plain_box_plate`, Allan 2026-09-13) a cascade whose parts.csv
+row sets **`Plain box`** ships a SECOND box, without either label holder, on
+the last plate of its project — Compile's three rows. Nothing here is new
+geometry: it is the `isLabelHoldersOnBox = 0` branch below ("Still open",
+first entry), the box the `Label holders` column has built since 2026-09-05,
+whose envelope is `#BoxWidth + 2.000` by `#BoxDepth + 4.500`. What is new is
+that a project CARRIES it beside the ordinary box, the way it carries an
+unmarked lid beside its own: an alternative, printed instead of plate 1's
+box by an owner who wants no label on the shelf. `build.plain_box_twin`
+re-derives the cascade with `LabelHolders` 0, so the file is `box_file`'s
+`Box <model> no label holders.3mf` and the part builds through `build_box`
+unchanged; `build.ships_plain_box` reads the column and is the only place
+the flag is asked; the object is a `PlainBox` (a role of its own — `Box ...`
+would prefix-match onto the pusher plate) on `layout.PLATE_SCHEME`'s last
+entry, `Box without label holders`. `spec/REVISIONS.md`, 7.2d.
+
 ### The front holder is NOT one size — the XS box takes a 62
 
 `Box Innovation 130U` measures its front holder's outer face at `62.400`, where
@@ -1409,7 +1427,9 @@ future kernel that manages them fails the suite rather than passing quietly.
   the same envelope — `#BoxWidth + 2.000` by `#BoxDepth + 4.500`, a closing
   bump each end and the rear block, so of the `2.600` and `6.100` the
   finished box adds the holders are `0.600` and `1.600` — differing only
-  where every box does (the dividers stay whole; the text).
+  where every box does (the dividers stay whole; the text). From 7.2d a row
+  can ship that box as well as its own, on a last plate — "A plain box on a
+  plate of its own" above.
 - ~~The `2.600` width offset: `1.600` on `-X` and `1.000` on `+X`, owner not
   yet identified.~~ Identified — see "The label holders" above: the side
   holder is on the `-X` end only and the closing bump on `+X`, and it is not

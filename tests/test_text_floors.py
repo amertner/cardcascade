@@ -159,6 +159,9 @@ want = sorted([
     ("Pusher", "Pusher 2x18-40-Sl.3mf", "version"),
     ("Pusher", "Pusher 3x6-Un.3mf", "detail"),
     ("Box", "Box S4.7.7.20-Un.3mf", "version"),
+    # the same box without its label holders (7.2d, `Plain box`): the same
+    # floor text, so the same floored version line
+    ("Box", "Box S4.7.7.20-Un no label holders.3mf", "version"),
     ("Box", "Box S2.40.12-30.32-Un.3mf", "model+game"),
     ("Box", "Box S2.40.12-30.32-Un.3mf", "version"),
     ("Box", "Box L3.18.6.20-Sl.3mf", "version"),

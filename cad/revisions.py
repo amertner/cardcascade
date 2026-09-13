@@ -92,11 +92,13 @@ from .refuse import refuse
 # the line moved on (`spec/REVISIONS.md`); its one flag is `rear_holder`, and
 # it is where the `Three Expansions` row and its ROW options (`Deep slot`,
 # `Sleeved card width`, `Toppers`) arrived — a row option is not a release
-# change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, and **7.2c is
-# OPEN** (the same day) with `larger_lid_text`. `cascades/` stays the 7.1
-# release until 7.2 locks; `build/` is 7.2c.
-RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c")
-CURRENT = "7.2c"
+# change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, **7.2c** (the
+# same day) `larger_lid_text`, and **7.2d is OPEN** (the same day again)
+# with `plain_box_plate`. `cascades/` stays the 7.1 release until 7.2 locks;
+# `build/` is 7.2d.
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
+            "7.2d")
+CURRENT = "7.2d"
 
 
 @dataclass(frozen=True)
@@ -227,6 +229,22 @@ class Rev:
                 "1.5 but the four shallowest, S lids 1.0-1.37, XS 1.07-1.18; "
                 "the Card Cascade block is untouched. Before the flag every lid's block is 3.5/3.5/"
                 "3.0 cap",
+    })
+
+    plain_box_plate: bool = field(metadata={
+        "since": "7.2d",
+        "spec": "spec/BOX.md, 'A plain box on a plate of its own'",
+        "what": "a cascade whose parts.csv row sets `Plain box` ships a "
+                "SECOND box on a plate of its own, at the END of the project: "
+                "the same box built without its front and side label holders "
+                "(`isLabelHoldersOnBox = 0`, the option the `Label holders` "
+                "column has turned off since 2026-09-05), for an owner who "
+                "wants no label on the shelf (Allan, 2026-09-13: Compile's "
+                "three rows). A change to what a project CONTAINS, as "
+                "`unmarked_lid` was: no box moves, the ordinary one stays on "
+                "plate 1 with its pushers, and the plain one is an "
+                "alternative to it, printed instead of it. Which rows: the "
+                "column, asked only through `build.ships_plain_box`",
     })
 
 

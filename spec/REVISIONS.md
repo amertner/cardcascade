@@ -88,8 +88,9 @@ the letter each change shipped in, which is what the letters are for and what
 
 **The first letter after the lock is `7.2a`** (2026-09-11), not `7.1e`: `7.1`
 is on the line, so a change after it is a change after the release. `7.2a` is
-below, with `rear_holder`, `7.2b` after it with `unmarked_lid`, and `7.2c`
-after that — open, with `larger_lid_text`.
+below, with `rear_holder`, `7.2b` after it with `unmarked_lid`, `7.2c` after
+that with `larger_lid_text`, and `7.2d` after that — open, with
+`plain_box_plate`.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -289,9 +290,9 @@ One flag:
   has no `©`. `lid.CREDIT`, `spec/LID.md` "An unmarked lid, on a plate of
   its own".
 
-### 7.2c — OPEN 2026-09-13
+### 7.2c — 2026-09-13
 
-`CURRENT`; `build/` is 7.2c. One flag:
+One flag:
 
 * **`larger_lid_text`** (`7.2c`, 2026-09-13) — the Lid's three-line text
   block (capacity, game name or credit, model) is **scaled up where the lid
@@ -318,6 +319,30 @@ One flag:
   block, its version and the staircase do not scale: they are already sized
   to the slot width (Allan, 2026-09-13). `spec/LID.md`, "The text block
   grows with the lid".
+
+### 7.2d — OPEN 2026-09-13
+
+`CURRENT`; `build/` is 7.2d. One flag:
+
+* **`plain_box_plate`** (`7.2d`, 2026-09-13) — a cascade whose parts.csv
+  row sets **`Plain box`** ships a SECOND box on a plate of its own, at the
+  END of the project: the same box built without its front and side label
+  holders, for an owner who wants no label on the shelf (Allan: Compile's
+  three rows, so six projects). The geometry is the `Label holders` option's
+  (`isLabelHoldersOnBox = 0`, in the catalogue since 2026-09-05 and held to
+  a reference STEP by `tests/test_box.py`); what is new is that a project
+  CARRIES it, as `unmarked_lid` carries a second lid — no box moves, the
+  ordinary one stays on plate 1 with its pushers, and the plain one is an
+  alternative to it, printed instead of it. `build.plain_box_twin` is the
+  cascade's own Derived re-derived with `LabelHolders` 0, so its file is
+  `box_file`'s `Box <model> no label holders.3mf` and `build_box` needs no
+  variant; `build.ships_plain_box` is the ONLY place the flag is asked, and
+  the column is a row property the way `TokenHolder` and `Toppers` are. The
+  object is a `PlainBox` — a role of its own, because `layout.role` matches
+  a prefix and `Box ...` would seat it with the pushers — on the last
+  `layout.PLATE_SCHEME` plate, `Box without label holders`. A row whose own
+  box already has no holders is refused a twin. `spec/BOX.md`, "A plain box
+  on a plate of its own".
 
 ## What a release moves besides its flags
 
@@ -367,7 +392,7 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is the newest release on the line (**`7.2c`** as of
+`revisions.CURRENT` is the newest release on the line (**`7.2d`** as of
 2026-09-13): a plain `cad.build` or `cad.cascade` builds the current release
 (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they

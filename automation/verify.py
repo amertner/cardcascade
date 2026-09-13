@@ -546,6 +546,7 @@ def pusher_lock(data):
 # `_dotted` has to accept the trailing mark, or the version is not found on the
 # line at all.
 STAMP_SIGNATURES = {
+    "7.2d": ("none", "none"),
     "7.2c": ("none", "none"),
     "7.2b": ("none", "none"),
     "7.2a": ("none", "none"),

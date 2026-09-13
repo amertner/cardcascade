@@ -92,7 +92,12 @@ class Group(NamedTuple):
 # whole (the six toppers). Alternatives that were already separate stay
 # separate the way they always were, by role: a TokenHolder and a
 # HalfTokenHolder are alternatives for one pocket and have a scheme entry
-# each.
+# each — and so, from 7.2d, is the PlainBox: the box without its label
+# holders, an alternative to the box on plate 1 (`rev.plain_box_plate`,
+# Compile's rows). It is LAST, after everything a cascade needs, where an
+# owner who wants the ordinary box never reaches it. Its role does not start
+# with `Box`, because `role` is a prefix match and would seat it with the
+# pushers.
 PLATE_SCHEME = [
     Group("Box + pushers", ("Box", "Pusher")),
     Group("Lid", ("Lid",), alt=True),
@@ -101,9 +106,10 @@ PLATE_SCHEME = [
     Group("Token holders", ("TokenHolder",)),
     Group("Half token holders", ("HalfTokenHolder",)),
     Group("Labels", ("Label",)),
+    Group("Box without label holders", ("PlainBox",)),
 ]
-ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "Box",
-         "Lid", "Holder", "Topper", "Pusher", "Label")
+ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "PlainBox",
+         "Box", "Lid", "Holder", "Topper", "Pusher", "Label")
 
 
 def role(name):

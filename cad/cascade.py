@@ -76,7 +76,11 @@ def parts(row, d):
       — the two are alternatives for one pocket, and the cascade ships both;
     * Innovation: the six Toppers, one per expansion plus Blank, except on a
       single-set row (`build.ships_toppers`: a box built for ONE set has
-      nothing for a topper to say).
+      nothing for a topper to say);
+    * from 7.2d a PlainBox, LAST, where the row's `Plain box` column asks
+      for one (`build.ships_plain_box`: Compile's rows): the same Box
+      without its label holders, on a plate of its own at the end of the
+      project, an alternative to the box on plate 1 (`rev.plain_box_plate`).
     """
     out = [("Box", B.box_file(d))]
     out += [("Pusher", B.pusher_file(d))] * d.calPusherSlots
@@ -92,6 +96,8 @@ def parts(row, d):
     if B.ships_toppers(row, d):
         for exp in TB.TOPPERS:
             out.append((f"Topper {exp}", B.topper_file(d, exp)))
+    if B.ships_plain_box(row, d):
+        out.append(("PlainBox", B.box_file(B.plain_box_twin(d))))
     return out
 
 

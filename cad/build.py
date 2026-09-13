@@ -48,6 +48,7 @@ and 472 Card pushers, which have overrides and no collision), and two are new;
 `tests/test_pusher_regression.py` finds a pusher's cached twin.
 """
 import argparse
+import dataclasses
 import hashlib
 import os
 import sys
@@ -392,15 +393,60 @@ def box_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct box, deduplicated.
 
     Boxes do NOT share across games or sleeving, and `calModelName` separates
-    every axis that changes the geometry, so it is the whole key.
+    every axis that changes the geometry, so it is the whole key — plus the
+    one option it does not carry: a row that ships a plain box
+    (`ships_plain_box`) yields its twin as well, under the twin's own Primary
+    (`LabelHolders` 0), which is what `_job` derives and what the stamp
+    hashes, so `build_box` needs no variant.
     """
     out = {}
-    for _row, p in params.cascades(csv, game, version):
-        fn = box_file(D.derive(p))
-        if model and model.lower() not in fn.lower():
-            continue
-        out.setdefault((p.GameName, fn), (p.GameName, fn, p))
+    for row, p in params.cascades(csv, game, version):
+        d = D.derive(p)
+        ds = [(d, p)]
+        if ships_plain_box(row, d):
+            ds.append((plain_box_twin(d), dataclasses.replace(p, LabelHolders=0)))
+        for dd, pp in ds:
+            fn = box_file(dd)
+            if model and model.lower() not in fn.lower():
+                continue
+            out.setdefault((pp.GameName, fn), (pp.GameName, fn, pp))
     return [out[k] for k in sorted(out)]
+
+
+def ships_plain_box(row, d):
+    """Does this row's cascade ship a SECOND box, without label holders, on a
+    plate of its own at the end of the project? From 7.2d
+    (`rev.plain_box_plate`), and only where parts.csv's `Plain box` column
+    says so — Compile's three rows (Allan, 2026-09-13). The catalogue and
+    `cad.cascade` ask it here, and this is the ONLY place the flag is asked.
+
+    A column and not a game: the plain box changes nothing about the row's
+    own parts, so it is a row property like `TokenHolder` and `Toppers`, read
+    off the row the same way, and any game can opt in.
+    """
+    if not d.rev.plain_box_plate:
+        return False
+    return (row.get("Plain box") or "").strip().lower() in ("true", "1", "yes")
+
+
+def plain_box_twin(d):
+    """The same cascade's Derived with the label holders OFF — what the plain
+    box on the last plate is built from, and what names its file
+    (`box_file`'s ` no label holders`).
+
+    Every Primary field rides on the Derived by name (`derive` starts from
+    `asdict(p)`), so the Primary is rebuilt from it with `LabelHolders` 0 and
+    re-derived; nothing else moves, the model code included. A row whose own
+    box already has no holders (`Label holders` FALSE) is refused: its twin
+    would be the same file, and a project does not ship one box twice.
+    """
+    if not d.isLabelHoldersOnBox:
+        refuse(f"{d.calModelName}: the box already has no label holders, so a "
+               f"plain twin would be the same box; drop `Plain box` or "
+               f"`Label holders` FALSE from its row")
+    p = params.Primary(**{f.name: getattr(d, f.name)
+                          for f in dataclasses.fields(params.Primary)})
+    return D.derive(dataclasses.replace(p, LabelHolders=0))
 
 
 def build_box(d, _extra, path):

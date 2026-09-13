@@ -30,7 +30,8 @@ GENERATION = "7.0"
 # (`cad/revisions.py`, "An unreleased release is iterated by LETTER"), so each
 # new one is admitted here too — and plain `7.1` is, from its lock on
 # 2026-09-10. The letters stay admitted beside it: each is still buildable.
-SAME_LOCK = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c")
+SAME_LOCK = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
+             "7.2d")
 
 
 def lock_generation(version):

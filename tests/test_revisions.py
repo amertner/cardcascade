@@ -1070,6 +1070,75 @@ for way, diff in (("gains", mlt - m70), ("loses", m70 - mlt)):
 print(f"  (the block gains {(mlt - m70).volume:.2f} mm3 of ink on {d_m70.calModelName})")
 
 
+# --- 7.2d: a plain box, without label holders, on a plate of its own ------
+print(f"\n=== {since('plain_box_plate')}  plain_box_plate ===")
+asserted.add("plain_box_plate")
+# Like `unmarked_lid`, a change to what a project CONTAINS: a cascade whose
+# row sets `Plain box` ships a second box, LAST, built without its label
+# holders — the `Label holders` option's geometry (`tests/test_box.py` holds
+# that to a reference STEP), so nothing is built here. Asserted at both ends
+# over every row: no PlainBox before the flag; from it, exactly the rows with
+# the column, one each, last, named apart on disk, the rest of the project
+# untouched; the twin's Derived; the refusal; and the plate it lands on.
+PB_OLD, PB_NEW = before("plain_box_plate"), since("plain_box_plate")
+PB_FILE = " no label holders.3mf"
+
+
+def plain_of(row, sleeved, version):
+    return [(n, fn) for n, fn in CC.parts(row, at(row, sleeved, version)) if n == "PlainBox"]
+
+
+wrong, shipping = [], set()
+for r in rows():
+    asks = (r.get("Plain box") or "").strip().upper() == "TRUE"
+    for sleeved in (0, 1):
+        old, new = plain_of(r, sleeved, PB_OLD), plain_of(r, sleeved, PB_NEW)
+        model = at(r, sleeved, PB_NEW).calModelName
+        if old:
+            wrong.append(f"{model}: a PlainBox at {PB_OLD}")
+        if asks:
+            shipping.add(model)
+            parts_new = CC.parts(r, at(r, sleeved, PB_NEW))
+            if (len(new) != 1 or parts_new[-1][0] != "PlainBox"
+                    or parts_new[-1][1] != B.box_file(at(r, sleeved, PB_NEW)).replace(".3mf", PB_FILE)
+                    or parts_new[:-1] != CC.parts(r, at(r, sleeved, PB_OLD))):
+                wrong.append(f"{model}: {PB_NEW} parts end {parts_new[-2:]}")
+        elif new:
+            wrong.append(f"{model}: a PlainBox without the column")
+check(f"{PB_OLD}: no cascade ships a PlainBox; {PB_NEW}: every row with `Plain box` "
+      f"ships exactly one, last, named apart, and nothing else moves", wrong, [])
+check(f"{PB_NEW}: Compile's six cascades are the ones, and only they",
+      sorted(shipping), sorted(at(r, s, PB_NEW).calModelName for r in rows() for s in (0, 1)
+                               if (r.get("Game") or "").strip() == "Compile"))
+check("... and the column is asked through ships_plain_box, which is off at the old end",
+      [B.ships_plain_box(r, at(r, 0, v)) for r in rows() for v in (PB_OLD, PB_NEW)
+       if (r.get("Game") or "").strip() == "Compile"], [False, True] * 3)
+
+d105 = at(next(r for r in rows() if at(r, 0, PB_NEW).calModelName == "S4.7.7.20.Un"), 0, PB_NEW)
+twin = B.plain_box_twin(d105)
+check("the twin is the same cascade without its label holders",
+      [twin.isLabelHoldersOnBox, d105.isLabelHoldersOnBox, twin.calModelName, twin.Version,
+       twin.rev == d105.rev],
+      [0, 1, d105.calModelName, d105.Version, True])
+check("and everything else on it is the cascade's own",
+      sorted(k for (k, a), (_k, b) in zip(twin.items(), d105.items()) if a != b),
+      ["LabelHolders", "isLabelHoldersOnBox"])
+check("its FILE is the box's, named apart", B.box_file(twin), "Box S4.7.7.20-Un no label holders.3mf")
+check("and the catalogue builds both boxes for the row",
+      sorted(fn for _g, fn, _p in B.box_catalogue(game="Compile", model="S4.7.7.20-Un")),
+      ["Box S4.7.7.20-Un no label holders.3mf", "Box S4.7.7.20-Un.3mf"])
+try:
+    B.plain_box_twin(twin)
+    refused = False
+except Refused:
+    refused = True
+check("a box already without holders has no twin: refused, not shipped twice", refused, True)
+check("the plain box goes LAST, on a plate of its own, named for what it lacks",
+      plates_for(["Box", "Pusher", "Lid 105U", "Lid 105U Unmarked", "Holder", "PlainBox"]),
+      ["Box + pushers", "Lid 105U", "Lid 105U Unmarked", "Holders", "Box without label holders"])
+check("and its role is its own, not the Box's", LY.role("PlainBox"), "PlainBox")
+
+
 # --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",
