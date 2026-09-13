@@ -91,6 +91,12 @@ def render_label(text, width_mm, scale, caps, art=None):
     if art is not None:      # artwork labels are drawn from their geometry
         draw_artwork(d, art, width_mm, scale, caps, ox, oy, h)
         return img
+    if dl.LINE_BREAK in text:   # stacked names too: labelmaker fits the stack
+        for rings in dl.label_polygons(text, width_mm, label_font(), caps):
+            for i, ring in enumerate(rings):
+                d.polygon([(ox + x * scale, oy + h - y * scale) for x, y in ring],
+                          fill=INK if i == 0 else PLATE)
+        return img
     m, ls = 3.6 * scale, 4.5 * scale
     fcc = ImageFont.truetype(ORB, int(2.5 * scale / 0.5))
     ccw = d.textlength("cc", font=fcc)
@@ -184,7 +190,7 @@ def parts_rows(rec, game_cfg, profile):
     widths, labels = grouping
     front = game_cfg["front"]
     name = rec["name"]
-    rows = [(f"FRONT LABEL · CASCADE {i}", [(f"{name} {lab}", front)])
+    rows = [(f"FRONT LABEL · CASCADE {i}", [(dl.part_text(name, lab, True), front)])
             for i, lab in enumerate(labels, 1)]
     sides = sorted((w for w in widths if w != front), reverse=True)
     if sides:
@@ -192,7 +198,7 @@ def parts_rows(rec, game_cfg, profile):
         # the stack, which keeps the fronts big enough to read
         listed = " & ".join(f"{w:g}" for w in sides)
         rows.append((f"SIDE LABELS · {listed} MM · CASCADE 1",
-                     [(labels[0], w) for w in sides]))
+                     [(dl.part_text(name, labels[0], False), w) for w in sides]))
     return rows
 
 

@@ -108,6 +108,19 @@ CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
 # the standard size keeps the standard layout above the logo.
 BIG_CAPS = {156.4: 9.0}
 
+# A name may be set on several lines: " / " in the name breaks a line
+# ("Innovation / Unseen, Echoes"). Lines are stacked at this gap, as a
+# fraction of the capital height, and a stack of two or more lines may take
+# the lowered layout at ANY width — on a 45 mm side label three expansion
+# names only reach a legible size dropped beside the logo. On a side-width
+# plate a parts= label's ", " list is stacked one name a line as well
+# (set_plate_specs): Allan's choice from a sheet of five layouts
+# (2026-09-13) — the front carries the first name over the other two, the
+# sides all three stacked, which reads 3.6 mm on the 62 against 3.4 for
+# two lines and 2.6 for one.
+LINE_BREAK = " / "
+LINE_GAP = 0.45
+
 # Game artwork (logo=) printed instead of the name: <repo>/logos/<game>/<file>
 ART_DIR = "logos"
 ART_MARGIN = 2.5             # artwork inset from the label outline
@@ -702,6 +715,74 @@ def number_below(number: str, name: str, font: LabelFont, width: float,
             floor + size + TEXT_GAP_ABOVE_LOGO)
 
 
+def text_lines(name: str):
+    """The lines a name declares with LINE_BREAK; a plain name is one."""
+    return [s.strip() for s in name.split(LINE_BREAK) if s.strip()] or [name]
+
+
+def stack_metrics(lines, font: LabelFont):
+    """The rendered lines of a stack and its extents in render units,
+    relative to the TOP line's baseline: line i's baseline sits i pitches
+    lower. Returns (texts, widest, top, bottom of the ink, bottom of the
+    deepest possible descender)."""
+    pitch = font.cap * (1 + LINE_GAP)
+    texts = [font.render(line) for line in lines]
+    boxes = [t.bounding_box() for t in texts]
+    top = max(b.max.Y - font.baseline - i * pitch for i, b in enumerate(boxes))
+    bottom = min(b.min.Y - font.baseline - i * pitch for i, b in enumerate(boxes))
+    deepest = -(len(lines) - 1) * pitch - font.descent
+    return texts, max(b.size.X for b in boxes), top, bottom, deepest
+
+
+def fit_text(name: str, font: LabelFont, width: float, height: float,
+             cc_left: float, cap: float, box_bottom: float, number: str):
+    """Place a name's text, on one line or several, in the layout that
+    renders it largest. Returns the placed shapes and the capital height.
+
+    The name's lines (`text_lines`) are tried in both layouts:
+      standard  the stack stands on `box_bottom`, in the box from the logo's
+                left to the cc's right edge, up to 3 mm below the top edge,
+                no taller than the width's standard `cap`
+      lowered   the stack drops beside the logo and the cc, in the gap
+                between them, its deepest possible descender just clearing
+                the bottom margin. One line takes it only at a BIG_CAPS
+                width, and grows to that; a stack of two or more may take
+                it at any width, up to the standard cap. Never with a box
+                number, which wants that line.
+    The larger capital height wins."""
+    box_left, box_right = MARGIN, width - MARGIN
+    box_top = height - TEXT_TOP_MARGIN
+    centre = (box_left + box_right) / 2
+    gap = 2 * min(centre - (MARGIN + LOGO_SIZE + TEXT_SIDE_GAP),
+                  cc_left - TEXT_SIDE_GAP - centre)
+    lines = text_lines(name)
+    texts, widest, top, bottom, deepest = stack_metrics(lines, font)
+    factor = min((box_right - box_left) / widest,
+                 (box_top - box_bottom) / (top - bottom))
+    if cap is not None:
+        factor = min(factor, cap / font.cap)
+    floor = box_bottom
+    big_cap = (BIG_CAPS.get(width) if len(lines) == 1 else cap) if not number else None
+    if big_cap is not None:
+        big = min(gap / widest, big_cap / font.cap,
+                  (box_top - MARGIN) / (top - deepest))
+        if big > factor:
+            # a full-descender last line just touches the bottom margin;
+            # shallower ones sit higher, on the same baseline
+            factor, floor = big, MARGIN + (bottom - deepest) * big
+    pitch = font.cap * (1 + LINE_GAP) * factor
+    shapes = []
+    for i, txt in enumerate(texts):
+        txt = scale(txt, by=factor)
+        bb = txt.bounding_box()
+        # the top line's baseline lands `bottom` above the floor; each
+        # line below it one pitch lower
+        shapes.append(txt.translate(Vector(
+            centre - bb.size.X / 2 - bb.min.X,
+            floor - bottom * factor - font.baseline * factor - i * pitch, 0)))
+    return shapes, factor * font.cap
+
+
 def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
                art: Compound = None, number: str = ""):
     """Build one label; returns (base Solid (white), raised Compound (black)).
@@ -738,45 +819,24 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
     #             and grows to BIG_CAPS, sitting on a baseline low enough
     #             for its descenders to clear the bottom margin
     # The lowered layout is used whenever it renders the name larger. A
-    # box number set apart from the name goes below it (number_below).
+    # box number set apart from the name goes below it (number_below). A
+    # name of several lines (LINE_BREAK) is stacked and fitted as one
+    # block: fit_text.
     if art is not None:
         for shape in art_placement(art, number, font, width, height, cc_left):
             raised += extrude(shape.translate(z_top), amount=RAISE_TEXT)
     elif name:
-        box_left, box_right = MARGIN, width - MARGIN
         box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
-        box_top = height - TEXT_TOP_MARGIN
         cap = (caps or {}).get(width)
         if number:
             digit, box_bottom = number_below(number, name, font, width, height,
                                              cc_left, cap or LOGO_SIZE)
             if digit is not None:
                 raised += extrude(digit.translate(z_top), amount=RAISE_TEXT)
-        txt = font.render(name)
-        bb = txt.bounding_box()
-        factor = min((box_right - box_left) / bb.size.X,
-                     (box_top - box_bottom) / bb.size.Y)
-        if cap is not None:
-            factor = min(factor, cap / font.cap)
-        big_cap = BIG_CAPS.get(width) if not number else None
-        if big_cap is not None:
-            centre = (box_left + box_right) / 2
-            gap = 2 * min(centre - (MARGIN + LOGO_SIZE + TEXT_SIDE_GAP),
-                          cc_left - TEXT_SIDE_GAP - centre)
-            drop = font.baseline - bb.min.Y     # this name's own descent
-            big = min(gap / bb.size.X, big_cap / font.cap,
-                      (box_top - MARGIN) / (bb.size.Y + font.descent - drop))
-            if big > factor:
-                # a full-descender name just touches the bottom margin;
-                # shallower names sit higher, on the same baseline
-                factor = big
-                box_bottom = MARGIN + (font.descent - drop) * big
-        txt = scale(txt, by=factor)
-        bb = txt.bounding_box()
-        txt = txt.translate(Vector(
-            box_left + (box_right - box_left - bb.size.X) / 2 - bb.min.X,
-            box_bottom - bb.min.Y, 0))
-        raised += extrude(txt.translate(z_top), amount=RAISE_TEXT)
+        shapes, _ = fit_text(name, font, width, height, cc_left, cap,
+                             box_bottom, number)
+        for txt in shapes:
+            raised += extrude(txt.translate(z_top), amount=RAISE_TEXT)
 
     # Normalise for export: a bare Solid for the base, and one Compound
     # holding every raised solid (letters, logo, cc) for the black body.
@@ -1053,6 +1113,18 @@ def parts_profile(labels, tag=None) -> str:
     return f"{tag} Cascades" if tag else f"{len(labels)} Cascades"
 
 
+def part_text(name: str, label: str, is_front: bool) -> str:
+    """The text a parts= label prints: on the front the set name and the
+    label — unless the label is stacked (LINE_BREAK) or starts with the
+    set name, when it prints as written; on a side the label with its
+    ", " list stacked."""
+    if not is_front:
+        return label.replace(", ", LINE_BREAK)
+    if LINE_BREAK in label or re.match(rf"{re.escape(name)}(?:$|,)", label):
+        return label
+    return f"{name} {label}"
+
+
 def set_plate_specs(record: dict, cfg: dict) -> list:
     """Plates for one set's own 3MF, from its cc.cfg record: single cascade
     (unsleeved), single cascade (sleeved), split cascade (unsleeved), split
@@ -1164,12 +1236,15 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
     parts_groups = []
     for widths, labels, group_tag in record.get("nsplits", []):
         # one plate per width, each holding every part at that width. The
-        # front width prefixes the set name ("Innovation Ages 1-4"); the
-        # narrower side widths carry just the label ("Ages 1-4").
+        # front width prefixes the set name ("Innovation Ages 1-4") unless
+        # the label is stacked or starts with it ("Figures / Artifacts,
+        # Cities" prints as written, not as "Innovation Figures / ...");
+        # the narrower side widths carry just the label ("Ages 1-4"), with
+        # a ", " list stacked one name a line (see LINE_BREAK).
         plates = []
         for w in widths:
             wtag = "front" if w == front else f"{w:g}mm"
-            rows = [((f"{name} {lab}" if w == front else lab), w, None)
+            rows = [(part_text(name, lab, w == front), w, None)
                     for lab in labels]
             plates.append((f"{display} {wtag} {len(labels)}-part", rows))
         parts_groups.append((parts_profile(labels, group_tag), plates))
