@@ -13,6 +13,17 @@ labels. Everything here generates printable 3MF projects.
 | Read first | `README.md` | `cad/README.md`, `spec/` | `automation/PIPELINE.md` |
 | Output | `cascades/<Game>/labels/` | `build/` (gitignored); a release is copied into `cascades/<Game>/` | `spec/reference/shipped-7.0/` (frozen) |
 
+**Posters** (the MakerWorld description PNG beside every project):
+`make_posters.py`, spec `posters.json`, photos `photos/<Game>/` (see its
+README), Dominion set glyphs `logos/Dominion/sets/` (`fetch_set_icons.py`).
+Every number is the CAD's; the layout is data in the spec, not code. Output
+`build/cascades/<Game>/<tracked name>.png`; `--render` gives an unphotographed
+cascade a Blender render (~30 s each, cached in `build/posters/`) of the scene
+`cad.scene` dresses: lid colour per row, a label in the holder, and the game's
+cards in the slots when `render.stacks` is on (`posters.json`, `render`; off
+since 2026-09-13). Figma
+(`figma-plugin/`, `figma_export.py`) is LEGACY, replaced 2026-09-13.
+
 **`cad/` is the authority for all work** (Allan, 2026-09-06). Every part is
 written there — Pusher, Box, Lid, TokenHolder, Topper, Holder — and
 `cad.cascade` takes a parts.csv row to a Bambu Studio project with no donor and

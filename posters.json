@@ -1,0 +1,1396 @@
+{
+    "_doc": [
+        "make_posters.py's spec: everything on a description poster that the CAD",
+        "does not know. Templates are str.format_map over make_posters.values():",
+        "every derived variable (calTotalCards, HorizontalSlots, ...) plus ext_w,",
+        "ext_d, ext_h, card_w, card_h, card_size, slot_cards, slots, grid,",
+        "model_ref, printer, sleeving, plus the row's own keys. A game entry",
+        "overrides the defaults; a row entry ('<Game>/<Short name>' or, for FCM,",
+        "'<Game>/<Project label>') overrides its game. 'layout' is the poster in",
+        "4000x3000 canvas units, one element per entry, overridden by name in a",
+        "game's or row's 'layout'; 'hide' lists element names to skip."
+    ],
+    "colours": {
+        "accent_Sl": "BANNER_SL",
+        "accent_Un": "BANNER_UN"
+    },
+    "printer": {
+        "large": "LARGE 3D PRINTER",
+        "mini": "MINI 3D PRINTER",
+        "standard": "STANDARD 3D PRINTER"
+    },
+    "layout": [
+        {
+            "name": "wordmark",
+            "type": "wordmark",
+            "xy": [
+                120,
+                70
+            ],
+            "scale": 2.3
+        },
+        {
+            "name": "tagline",
+            "type": "text",
+            "xy": [
+                122,
+                490
+            ],
+            "text": "A store-and-play system for",
+            "font": "INTER_R",
+            "size": 64,
+            "colour": "GREY",
+            "anchor": "ls"
+        },
+        {
+            "name": "logo",
+            "type": "logo",
+            "box": [
+                120,
+                540,
+                960,
+                440
+            ],
+            "anchor": "lt"
+        },
+        {
+            "name": "banner",
+            "type": "banner",
+            "x0": 2590,
+            "slant": 90,
+            "h": 330,
+            "size": 140,
+            "pad_r": 330,
+            "icon": 190
+        },
+        {
+            "name": "rules",
+            "type": "rules",
+            "width": 4,
+            "lines": []
+        },
+        {
+            "name": "stats",
+            "type": "stats",
+            "box": [
+                80,
+                1000,
+                1000,
+                900
+            ],
+            "value_size": 380,
+            "caption_size": 90,
+            "gap": 40,
+            "spacing": 110,
+            "tracking": 14,
+            "colour": "accent",
+            "fit": true
+        },
+        {
+            "name": "model",
+            "type": "model",
+            "xy": [
+                130,
+                1460
+            ],
+            "label": "MODEL REF",
+            "label_size": 62,
+            "code_size": 172,
+            "printer_size": 62,
+            "gap": 40,
+            "colour": "accent",
+            "max_w": 1300
+        },
+        {
+            "name": "picture",
+            "type": "picture",
+            "box": [
+                1480,
+                380,
+                2440,
+                1400
+            ],
+            "anchor": "cb"
+        },
+        {
+            "name": "band",
+            "type": "band",
+            "y": 1845,
+            "h": 245,
+            "right": [
+                2072,
+                1980
+            ],
+            "colour": "accent",
+            "title_x": 95,
+            "title_size": 140,
+            "glyph_h": 245,
+            "glyph_top": 2130,
+            "x0": 380,
+            "pitch": 455,
+            "caption_size": 66,
+            "caption_y": 2440,
+            "badge": 0.55
+        },
+        {
+            "name": "cells",
+            "type": "cells",
+            "box": [
+                60,
+                2500,
+                3880,
+                340
+            ],
+            "icon": 230,
+            "caption_size": 52,
+            "value_size": 56,
+            "unit_size": 44,
+            "inset": 50,
+            "text_dx": 400
+        },
+        {
+            "name": "footer",
+            "type": "footer",
+            "scale": 1.3,
+            "margin": 60
+        }
+    ],
+    "cells_default": [
+        [
+            "size",
+            "EXTERNAL SIZE",
+            "{ext_w} x {ext_d} x {ext_h}",
+            "LxWxH mm"
+        ],
+        [
+            "cards",
+            "FITS CARD SIZES",
+            "{card_size}",
+            "WxH mm"
+        ]
+    ],
+    "games": {
+        "Compile": {
+            "card_size": {
+                "Sl": "67 x 94",
+                "Un": "65 x 92"
+            },
+            "cells": [
+                [
+                    "size",
+                    "EXTERNAL SIZE",
+                    "{ext_w} x {ext_d} x {ext_h}",
+                    "LxWxH mm"
+                ],
+                [
+                    "cards",
+                    "FITS CARD SIZES",
+                    "{card_size}",
+                    "WxH mm"
+                ],
+                [
+                    "stack",
+                    "CARDS PER PROTOCOL",
+                    "{CardsPerSlidingSlot}",
+                    ""
+                ],
+                [
+                    "pocket",
+                    "BACK POCKET WIDTH",
+                    "{pocket_w}",
+                    "mm"
+                ]
+            ],
+            "stats": [
+                [
+                    "{slots}",
+                    "PROTOCOLS"
+                ],
+                [
+                    "{calTotalCards}",
+                    "CARDS"
+                ]
+            ],
+            "layout": {
+                "rules": {
+                    "lines": [
+                        [
+                            0,
+                            1010,
+                            1130
+                        ],
+                        [
+                            0,
+                            1450,
+                            1130
+                        ],
+                        [
+                            0,
+                            1990,
+                            1420
+                        ]
+                    ]
+                },
+                "model": {
+                    "xy": [
+                        130,
+                        2060
+                    ],
+                    "label": "CC MODEL REF",
+                    "gap": 34,
+                    "code_size": 150,
+                    "printer_gap": 70,
+                    "plate": [
+                        0,
+                        1400,
+                        110
+                    ]
+                },
+                "picture": {
+                    "box": [
+                        1480,
+                        380,
+                        2520,
+                        2020
+                    ],
+                    "crop": true
+                },
+                "stats": {
+                    "box": [
+                        80,
+                        1010,
+                        1000,
+                        980
+                    ],
+                    "value_size": 300,
+                    "caption_size": 84,
+                    "bands": [
+                        [
+                            1010,
+                            1450
+                        ],
+                        [
+                            1450,
+                            1990
+                        ]
+                    ]
+                }
+            },
+            "hide": [
+                "band"
+            ]
+        },
+        "Dominion": {
+            "card_size": {
+                "Sl": "62 x 94",
+                "Un": "59 x 92"
+            },
+            "cells": [
+                [
+                    "size",
+                    "EXTERNAL SIZE",
+                    "{ext_w} x {ext_d} x {ext_h}",
+                    "LxWxH mm"
+                ],
+                [
+                    "cards",
+                    "FITS CARD SIZES",
+                    "{card_size}",
+                    "WxH mm"
+                ],
+                [
+                    "stack",
+                    "SLIDING SET SIZE",
+                    "{slot_cards}",
+                    "kingdom cards"
+                ],
+                [
+                    "fan",
+                    "BIGGEST SET SIZE",
+                    "{FrontPocketCardCapacity}",
+                    "fit in front pockets"
+                ]
+            ],
+            "stats": [
+                [
+                    "{calTotalCards}",
+                    "CARDS"
+                ]
+            ],
+            "layout": {
+                "rules": {
+                    "lines": [
+                        [
+                            0,
+                            1365,
+                            1420
+                        ]
+                    ]
+                },
+                "picture": {
+                    "box": [
+                        1480,
+                        380,
+                        2440,
+                        1620
+                    ],
+                    "crop": true,
+                    "avoid": [
+                        [
+                            0,
+                            1830,
+                            2090,
+                            2100
+                        ]
+                    ]
+                },
+                "stats": {
+                    "box": [
+                        80,
+                        940,
+                        1000,
+                        420
+                    ],
+                    "bands": [
+                        [
+                            930,
+                            1365
+                        ]
+                    ]
+                },
+                "model": {
+                    "xy": [
+                        130,
+                        1440
+                    ]
+                }
+            }
+        },
+        "FCM": {
+            "card_size": {
+                "Sl": "63 x 92",
+                "Un": "58 x 88"
+            },
+            "cells": [
+                [
+                    "size",
+                    "EXTERNAL SIZE",
+                    "{ext_w} x {ext_d} x {ext_h}",
+                    "LxWxH mm"
+                ],
+                [
+                    "cards",
+                    "FITS CARD SIZES",
+                    "{card_size}",
+                    "WxH mm"
+                ],
+                [
+                    "stack",
+                    "FRONT ROW CARDS",
+                    "{FrontPocketCardCapacity}",
+                    ""
+                ],
+                [
+                    "stack",
+                    "RISING SLOT CARDS",
+                    "{CardsPerSlidingSlot}",
+                    ""
+                ]
+            ],
+            "kind": "OCCUPATIONS",
+            "stats": [
+                [
+                    "{grid}",
+                    "{kind}"
+                ],
+                [
+                    "{calTotalCards}",
+                    "CARDS"
+                ]
+            ],
+            "layout": {
+                "rules": {
+                    "lines": [
+                        [
+                            0,
+                            1010,
+                            1130
+                        ],
+                        [
+                            0,
+                            1450,
+                            1130
+                        ],
+                        [
+                            0,
+                            1990,
+                            1420
+                        ]
+                    ]
+                },
+                "model": {
+                    "xy": [
+                        130,
+                        2060
+                    ],
+                    "label": "CC MODEL REF",
+                    "gap": 34,
+                    "code_size": 150
+                },
+                "picture": {
+                    "box": [
+                        1480,
+                        380,
+                        2520,
+                        2020
+                    ],
+                    "crop": true,
+                    "anchor": "cm"
+                },
+                "stats": {
+                    "box": [
+                        80,
+                        1010,
+                        1000,
+                        980
+                    ],
+                    "value_size": 300,
+                    "caption_size": 84,
+                    "bands": [
+                        [
+                            1010,
+                            1450
+                        ],
+                        [
+                            1450,
+                            1990
+                        ]
+                    ]
+                }
+            },
+            "hide": [
+                "band"
+            ]
+        },
+        "Innovation": {
+            "card_size": {
+                "Sl": "63 x 92",
+                "Un": "58 x 88"
+            },
+            "cells": [
+                [
+                    "size",
+                    "EXTERNAL SIZE",
+                    "{ext_w} x {ext_d} x {ext_h}",
+                    "LxWxH mm"
+                ],
+                [
+                    "cards",
+                    "FITS CARD SIZES",
+                    "{card_size}",
+                    "WxH mm"
+                ],
+                [
+                    "stack",
+                    "CARDS PER AGE",
+                    "{age_cards}",
+                    "{age_cards_unit}"
+                ],
+                [
+                    "pocket",
+                    "BACK POCKET WIDTH",
+                    "{pocket_w}",
+                    "mm"
+                ]
+            ],
+            "expansions": "Base+5",
+            "stats": [
+                [
+                    "{ages}",
+                    "AGES"
+                ],
+                [
+                    "{expansions}",
+                    "EXPANSIONS"
+                ]
+            ],
+            "layout": {
+                "rules": {
+                    "lines": [
+                        [
+                            0,
+                            1010,
+                            1130
+                        ],
+                        [
+                            0,
+                            1450,
+                            1130
+                        ],
+                        [
+                            0,
+                            1990,
+                            1420
+                        ]
+                    ]
+                },
+                "model": {
+                    "xy": [
+                        130,
+                        2060
+                    ],
+                    "label": "CC MODEL REF",
+                    "gap": 34,
+                    "code_size": 150
+                },
+                "picture": {
+                    "box": [
+                        1480,
+                        380,
+                        2520,
+                        2020
+                    ],
+                    "crop": true
+                },
+                "stats": {
+                    "box": [
+                        80,
+                        1010,
+                        1000,
+                        980
+                    ],
+                    "value_size": 300,
+                    "caption_size": 84,
+                    "bands": [
+                        [
+                            1010,
+                            1450
+                        ],
+                        [
+                            1450,
+                            1990
+                        ]
+                    ]
+                }
+            },
+            "hide": [
+                "band"
+            ]
+        }
+    },
+    "rows": {
+        "Dominion/168 Card": {
+            "band": {
+                "title": "EXPANSIONS SUPPORTED",
+                "sets": [
+                    [
+                        "Alchemy"
+                    ],
+                    [
+                        "Cornucopia"
+                    ],
+                    [
+                        "Guilds"
+                    ],
+                    [
+                        "Dark Ages",
+                        "half"
+                    ]
+                ]
+            }
+        },
+        "Dominion/202 Card (Mat)": {
+            "band": {
+                "title": "SPLIT EXPANSIONS W/MAT",
+                "sets": [
+                    [
+                        "Adventures"
+                    ],
+                    [
+                        "Renaissance"
+                    ],
+                    [
+                        "Menagerie"
+                    ],
+                    [
+                        "Allies"
+                    ]
+                ]
+            }
+        },
+        "Dominion/244 Card": {
+            "band": {
+                "title": "FOR SPLIT EXPANSIONS",
+                "sets": [
+                    [
+                        "Adventures",
+                        "x2"
+                    ],
+                    [
+                        "Nocturne",
+                        "x2"
+                    ],
+                    [
+                        "Plunder",
+                        "half"
+                    ]
+                ]
+            }
+        },
+        "Dominion/246 Card": {
+            "band": {
+                "title": "BULKY BASE CARDS",
+                "sets": [
+                    [
+                        "Base Set",
+                        null,
+                        "Base Game"
+                    ]
+                ]
+            }
+        },
+        "Dominion/290 Card (Mat)": {
+            "band": {
+                "title": "YOUR CHOICE",
+                "sets": []
+            }
+        },
+        "Dominion/300 Card": {
+            "band": {
+                "title": "BASE SET IN TWO CASCADES",
+                "sets": [
+                    [
+                        "Base Set",
+                        null,
+                        "Base Game"
+                    ]
+                ]
+            }
+        },
+        "Dominion/324 Card": {
+            "band": {
+                "title": "EXPANSIONS SUPPORTED",
+                "pitch": 440,
+                "sets": [
+                    [
+                        "Intrigue"
+                    ],
+                    [
+                        "Seaside"
+                    ],
+                    [
+                        "Prosperity"
+                    ],
+                    [
+                        "Hinterlands"
+                    ],
+                    [
+                        "Empires"
+                    ],
+                    [
+                        "Rising Sun"
+                    ],
+                    [
+                        "Dark Ages",
+                        "half"
+                    ],
+                    [
+                        "Plunder",
+                        "half"
+                    ]
+                ]
+            }
+        },
+        "Dominion/333 Card": {
+            "band": {
+                "title": "MISCELLANEOUS",
+                "sets": []
+            }
+        },
+        "Dominion/400 Card (Mat)": {
+            "band": {
+                "title": "EXPANSIONS SUPPORTED",
+                "sets": [
+                    [
+                        "Adventures"
+                    ],
+                    [
+                        "Renaissance"
+                    ],
+                    [
+                        "Menagerie"
+                    ],
+                    [
+                        "Allies"
+                    ]
+                ]
+            }
+        },
+        "Dominion/472 Card": {
+            "band": {
+                "title": "BASIC CARDS FOR 6 PLAYERS",
+                "sets": [
+                    [
+                        "Base Set",
+                        null,
+                        "Base Game"
+                    ]
+                ]
+            }
+        },
+        "Dominion/560 Card": {
+            "band": {
+                "title": "BASE SET ONLY",
+                "sets": [
+                    [
+                        "Base Set",
+                        null,
+                        "Base Game"
+                    ]
+                ]
+            }
+        },
+        "Dominion/650 Card": {
+            "band": {
+                "title": "EXPANSIONS SUPPORTED",
+                "sets": [
+                    [
+                        "Dark Ages"
+                    ],
+                    [
+                        "Nocturne"
+                    ],
+                    [
+                        "Plunder"
+                    ]
+                ]
+            }
+        },
+        "FCM/Milestones 1": {
+            "kind": "MILESTONES"
+        },
+        "Innovation/3 Ages 5 Expansions": {
+            "ages": "3"
+        },
+        "Innovation/3 Later Ages 5 Expansions": {
+            "ages": "3/2+"
+        },
+        "Innovation/4 Ages 5 Expansions": {
+            "ages": "4"
+        },
+        "Innovation/4 Later Ages 5 Expansions": {
+            "ages": "4/2+"
+        },
+        "Innovation/Single Mini": {
+            "ages": "1",
+            "expansions": "Single",
+            "stats": [
+                [
+                    "Single",
+                    ""
+                ]
+            ]
+        },
+        "Innovation/Single Set": {
+            "ages": "1",
+            "expansions": "Single",
+            "stats": [
+                [
+                    "Single",
+                    ""
+                ]
+            ]
+        },
+        "Innovation/Three Expansions": {
+            "ages": "4",
+            "expansions": "3",
+            "stats": [
+                [
+                    "{ages}",
+                    "AGES"
+                ],
+                [
+                    "{expansions}",
+                    "EXPANSIONS"
+                ]
+            ]
+        }
+    },
+    "size_decimals": [
+        0,
+        1,
+        0
+    ],
+    "render": {
+        "_doc": [
+            "What cad.scene dresses a poster render with. games: palette (lid colour per row, in",
+            "row order; twins share), cards ([name, colour] per slot, cycling), label_default rule",
+            "in cad.scene.label_text, label_logo (a DXF in logos/<Game>/ for a logo label).",
+            "rows: columns (Innovation: the age per column, left to right), expansions (front to",
+            "back, Base first), cards (override), label, lid (override).",
+            "stacks: false leaves the slots empty (top level; a game or row may set true)."
+        ],
+        "palette": [
+            "#1F7A8C"
+        ],
+        "games": {
+            "Compile": {
+                "palette": [
+                    "#F4F4F2"
+                ],
+                "label_logo": "compile_logo_clean.dxf",
+                "cards": [
+                    [
+                        "Corruption",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Love",
+                        "#B0407A"
+                    ],
+                    [
+                        "Hate",
+                        "#2B2B33"
+                    ],
+                    [
+                        "Time",
+                        "#B8362E"
+                    ],
+                    [
+                        "Diversity",
+                        "#5B3F8C"
+                    ],
+                    [
+                        "Unity",
+                        "#2E7F8C"
+                    ],
+                    [
+                        "Apathy",
+                        "#D9772B"
+                    ],
+                    [
+                        "Smoke",
+                        "#C96A4A"
+                    ],
+                    [
+                        "Mirror",
+                        "#24405C"
+                    ],
+                    [
+                        "Ice",
+                        "#8A6D3B"
+                    ],
+                    [
+                        "War",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Peace",
+                        "#B0407A"
+                    ],
+                    [
+                        "Luck",
+                        "#2B2B33"
+                    ],
+                    [
+                        "Clarity",
+                        "#B8362E"
+                    ],
+                    [
+                        "Chaos",
+                        "#5B3F8C"
+                    ],
+                    [
+                        "Assimilation",
+                        "#2E7F8C"
+                    ],
+                    [
+                        "Fear",
+                        "#D9772B"
+                    ],
+                    [
+                        "Courage",
+                        "#C96A4A"
+                    ],
+                    [
+                        "Fire",
+                        "#24405C"
+                    ],
+                    [
+                        "Water",
+                        "#8A6D3B"
+                    ],
+                    [
+                        "Life",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Death",
+                        "#B0407A"
+                    ],
+                    [
+                        "Light",
+                        "#2B2B33"
+                    ],
+                    [
+                        "Darkness",
+                        "#B8362E"
+                    ],
+                    [
+                        "Metal",
+                        "#5B3F8C"
+                    ],
+                    [
+                        "Spirit",
+                        "#2E7F8C"
+                    ],
+                    [
+                        "Plague",
+                        "#D9772B"
+                    ],
+                    [
+                        "Gravity",
+                        "#C96A4A"
+                    ],
+                    [
+                        "Speed",
+                        "#24405C"
+                    ],
+                    [
+                        "Psychic",
+                        "#8A6D3B"
+                    ]
+                ]
+            },
+            "Dominion": {
+                "palette": [
+                    "#1F7A8C",
+                    "#F2B705",
+                    "#A23B22",
+                    "#0E6BA8",
+                    "#2E7D32",
+                    "#E07A1F",
+                    "#6A3D9A",
+                    "#7FB7D9",
+                    "#6B7D2A",
+                    "#7A3E5E",
+                    "#3A3A3A",
+                    "#C0392B"
+                ],
+                "cards": [
+                    [
+                        "Cellar",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Chapel",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Moat",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Harbinger",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Merchant",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Vassal",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Village",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Workshop",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Bureaucrat",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Gardens",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Militia",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Moneylender",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Poacher",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Remodel",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Smithy",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Throne Room",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Bandit",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Council Room",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Festival",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Laboratory",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Library",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Market",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Mine",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Sentry",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Witch",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Artisan",
+                        "#E8DCC0"
+                    ]
+                ]
+            },
+            "FCM": {
+                "palette": [
+                    "#C0392B",
+                    "#0E6BA8",
+                    "#2E7D32",
+                    "#F2B705"
+                ],
+                "cards": [
+                    [
+                        "CFO",
+                        "#9B6FB5"
+                    ],
+                    [
+                        "Executive Vice President",
+                        "#1E1E22"
+                    ],
+                    [
+                        "B-Movie Star",
+                        "#9B6FB5"
+                    ],
+                    [
+                        "HR Director",
+                        "#A9A5A3"
+                    ],
+                    [
+                        "Regional Manager",
+                        "#B5313A"
+                    ],
+                    [
+                        "Senior Vice President",
+                        "#1E1E22"
+                    ],
+                    [
+                        "Local Manager",
+                        "#B5313A"
+                    ],
+                    [
+                        "Vice President",
+                        "#1E1E22"
+                    ],
+                    [
+                        "Discount Manager",
+                        "#E8A0A0"
+                    ],
+                    [
+                        "Recruiting Manager",
+                        "#A9A5A3"
+                    ],
+                    [
+                        "New Business Developer",
+                        "#9B6FB5"
+                    ],
+                    [
+                        "Junior Vice President",
+                        "#1E1E22"
+                    ],
+                    [
+                        "Luxuries Manager",
+                        "#E8A0A0"
+                    ],
+                    [
+                        "Pricing Manager",
+                        "#E8A0A0"
+                    ],
+                    [
+                        "Waitress",
+                        "#9B6FB5"
+                    ],
+                    [
+                        "Management Trainee",
+                        "#1E1E22"
+                    ],
+                    [
+                        "Recruiting Girl",
+                        "#A9A5A3"
+                    ],
+                    [
+                        "Trainer",
+                        "#A9A5A3"
+                    ],
+                    [
+                        "Errand Boy",
+                        "#4C7FB5"
+                    ],
+                    [
+                        "Cart Operator",
+                        "#4C7FB5"
+                    ],
+                    [
+                        "Truck Driver",
+                        "#4C7FB5"
+                    ],
+                    [
+                        "Zeppelin Pilot",
+                        "#4C7FB5"
+                    ],
+                    [
+                        "Marketing Trainee",
+                        "#E5B640"
+                    ],
+                    [
+                        "Campaign Manager",
+                        "#E5B640"
+                    ],
+                    [
+                        "Brand Manager",
+                        "#E5B640"
+                    ],
+                    [
+                        "Brand Director",
+                        "#E5B640"
+                    ],
+                    [
+                        "Guru",
+                        "#9B6FB5"
+                    ],
+                    [
+                        "Kitchen Trainee",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Burger Cook",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Pizza Cook",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Burger Chef",
+                        "#5E9E6B"
+                    ],
+                    [
+                        "Pizza Chef",
+                        "#5E9E6B"
+                    ]
+                ]
+            },
+            "Innovation": {
+                "palette": [
+                    "#1F7A8C",
+                    "#F2B705",
+                    "#6A3D9A",
+                    "#E07A1F",
+                    "#0E6BA8",
+                    "#2E7D32",
+                    "#A23B22"
+                ],
+                "expansions": [
+                    "Innovation",
+                    "Unseen",
+                    "Echoes",
+                    "Figures",
+                    "Artifacts",
+                    "Cities"
+                ]
+            }
+        },
+        "rows": {
+            "Innovation/3 Ages 5 Expansions": {
+                "columns": [
+                    "A",
+                    "1",
+                    "2"
+                ]
+            },
+            "Innovation/4 Ages 5 Expansions": {
+                "columns": [
+                    "A",
+                    "1",
+                    "2",
+                    "3"
+                ]
+            },
+            "Innovation/3 Later Ages 5 Expansions": {
+                "columns": [
+                    "3",
+                    "4",
+                    "5"
+                ]
+            },
+            "Innovation/4 Later Ages 5 Expansions": {
+                "columns": [
+                    "4",
+                    "5",
+                    "6",
+                    "7"
+                ]
+            },
+            "Innovation/Single Set": {
+                "label": "Innovation"
+            },
+            "Innovation/Single Mini": {
+                "label": "Innovation"
+            },
+            "Innovation/Three Expansions": {
+                "label": "Innovation Ages 1-11"
+            },
+            "Dominion/246 Card": {
+                "cards": [
+                    [
+                        "Copper",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Silver",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Gold",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Estate",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Duchy",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Province",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Curse",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Platinum",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Colony",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Trash",
+                        "#E8DCC0"
+                    ]
+                ],
+                "label": "Base Cards"
+            },
+            "Dominion/472 Card": {
+                "cards": [
+                    [
+                        "Copper",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Silver",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Gold",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Estate",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Duchy",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Province",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Curse",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Platinum",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Colony",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Trash",
+                        "#E8DCC0"
+                    ]
+                ],
+                "label": "Base Cards"
+            },
+            "Dominion/300 Card": {
+                "label": "Base Set 1"
+            },
+            "Dominion/560 Card": {
+                "label": "Base Set"
+            },
+            "Dominion/202 Card (Mat)": {
+                "label": "Adventures 2"
+            },
+            "Dominion/244 Card": {
+                "label": "Nocturne 1"
+            },
+            "Dominion/333 Card": {
+                "label": "Dominion"
+            },
+            "Dominion/290 Card (Mat)": {
+                "label": "Speculation"
+            }
+        },
+        "stacks": false
+    }
+}
