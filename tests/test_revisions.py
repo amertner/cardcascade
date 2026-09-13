@@ -179,10 +179,10 @@ print(f"  ({same} lids identical across the two releases)")
 # the geometry its flags gate, and the `CC <v>` engraved on every part — so
 # they are separated here rather than lumped into one tolerance.
 #
-# The FLAG alone: a 7.0 Derived carrying the new release's Rev. Everything
-# else, the
-# engraved `CC 7.0` included, is identical, so the difference can only be the
-# socket. This is the number that says the flag changed exactly one thing.
+# The FLAG alone: a 7.0 Derived carrying THIS flag and no other. Everything
+# else, the engraved `CC 7.0` included, is identical, so the difference can
+# only be the socket. This is the number that says the flag changed exactly
+# one thing.
 row = next(r for r in rows() if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
 d70, d71 = at(row, 0, "7.0"), at(row, 0, NEW)
 
@@ -193,17 +193,22 @@ def body(part):
 
 block = lid.socket(d70, lid.socket_centres(d70)[1]).volume
 v70, v71 = body(lid.build(d70)), body(lid.build(d71))
-v_flag = body(lid.build(D.Derived(dict(d70.items()), R.of(NEW))))
+v_flag = body(lid.build(only_lid_flag(d70)))
 print(f"  (one socket block = {block:.2f} mm3)")
 check("the flag alone removes exactly one socket block",
       round(v70 - v_flag - block, 3), 0.0, 0.02)
+# What the OTHER flags of the newest release do to this lid, on 7.0's ink:
+# nothing until 7.2c, whose `larger_lid_text` scales the text block up.
+v_all = body(lid.build(D.Derived(dict(d70.items()), R.of(NEW))))
+grown = v_all - v_flag
+print(f"  (the other flags of {NEW} add {grown:+.2f} mm3 — the text block's growth)")
 # The STAMP is the rest of it: `CC 7.0` and `CC <the new release>` are not the
 # same ink — and from an iteration letter they are not even the same number of
 # glyphs — and that difference is the only other thing between the two builds.
-digits = (v_flag - v71)
+digits = (v_all - v71)
 print(f"  (the version digits = {digits:+.2f} mm3)")
-check(f"and the whole 7.0 -> {NEW} difference is that block plus the digits",
-      round(v70 - v71 - block - digits, 3), 0.0, 0.02)
+check(f"and the whole 7.0 -> {NEW} difference is that block, the text's growth and the digits",
+      round(v70 - v71 - block + grown - digits, 3), 0.0, 0.02)
 check("the digits are ink, not geometry (under 2 mm3)", abs(digits) < 2.0, True)
 check("the two releases write the same number of solids",
       len(lid.build(d70).solids()), len(lid.build(d71).solids()))
@@ -940,6 +945,129 @@ check("what it gains in the pattern band is the mark's pocket, exactly",
       round(sum(s.volume for s in gained.solids()
                 if s.bounding_box().max.Z <= lid.PATTERN_DEPTH + 1e-4), 3),
       round(sum(q.volume for q in lid.inlays(dxs)), 3), 0.05)
+
+
+# --- 7.2c: the text block grows with the lid, up to 1.5x -------------------
+print(f"\n=== {since('larger_lid_text')}  larger_lid_text ===")
+asserted.add("larger_lid_text")
+# The +X block is the same ~35 x 14 on every lid before the flag; from it,
+# one factor per cascade scales every cap and gap, anchored at the block's
+# cap top and right edge, until the block is LINE_GAP from what is to its
+# left or keeps at the front what it keeps at the back — and never past
+# TEXT_SCALE_MAX (Allan: larger where space permits, not filling the space).
+# Asserted from the built text solids, not the formula: where the ink lands.
+LT_OLD, LT_NEW = before("larger_lid_text"), since("larger_lid_text")
+
+
+def block_box(d, variant=TB.LID_OWN):
+    bbs = [s.bounding_box() for s in lid.text_block(d, variant)]
+    return (min(b.min.X for b in bbs), min(b.min.Y for b in bbs),
+            max(b.max.X for b in bbs), max(b.max.Y for b in bbs))
+
+
+def left_bound(d):
+    if d.HorizontalSlots > 2:
+        return -(lid.lid_width(d) / 2 - lid.WALL) + lid.logo_offset(d) + lid.logo_width(d)
+    return lid.socket_centres(d)[0] + d.calFootTotalWidth / 2
+
+
+old_scales, scales, moved, tight, shared, sizes = set(), {}, [], [], [], {}
+for r in rows():
+    for sleeved in (0, 1):
+        do, dn = at(r, sleeved, LT_OLD), at(r, sleeved, LT_NEW)
+        old_scales.add(lid.text_scale(do))
+        s = lid.text_scale(dn)
+        scales[dn.calModelName] = (dn.calSizeLetter, round(s, 3))
+        bo, bn = block_box(do), block_box(dn)
+        # the anchors: the block is scaled ABOUT its right edge and its cap
+        # top, so every extent of the ink sits `s` times as far from them as
+        # it did — the ink's own top and right included, which overshoot the
+        # pen's by a glyph's bearing and grow with it
+        right, top = lid.text_anchor(dn)
+        if any(abs((a - n) - s * (a - o)) > 1e-6
+               for a, o, n in ((right, bo[0], bn[0]), (right, bo[2], bn[2]),
+                               (top, bo[1], bn[1]), (top, bo[3], bn[3]))):
+            moved.append(dn.calModelName)
+        # the clearances, off the ink — wherever the block GREW. Where it did
+        # not it is where the sketch put it, which on the two S2 rows is 0.3
+        # from the staircase and on the shallowest L lid inside the front
+        # margin; the rule never makes either worse.
+        front = -lid.lid_depth(dn) / 2 + lid.WALL + D.FootDistanceFromWall + 2.0
+        if s > 1.0 and (bn[0] - left_bound(dn) < lid.LINE_GAP - 1e-6 or bn[1] - front < -1e-6):
+            tight.append((dn.calModelName, round(bn[0] - left_bound(dn), 3), round(bn[1] - front, 3)))
+        # and the cascade's own and unmarked lids share the scale (it is per
+        # cascade, not per lid): the lines they have in common land on the
+        # same ink, whichever of their middle lines is the wider
+        own_lines, unm_lines = lid.text_block(dn), lid.text_block(dn, TB.LID_UNMARKED)
+        for i in (0, 2):
+            a, b = own_lines[i].bounding_box(), unm_lines[i].bounding_box()
+            if any(abs(x - y) > 1e-6 for x, y in ((a.min.X, b.min.X), (a.min.Y, b.min.Y),
+                                                  (a.max.X, b.max.X), (a.max.Y, b.max.Y))):
+                shared.append(dn.calModelName)
+        sizes[dn.calSizeLetter] = sizes.get(dn.calSizeLetter, []) + [round(s, 3)]
+
+check(f"{LT_OLD}: every lid's block is at scale 1.0", sorted(old_scales), [1.0])
+check(f"{LT_NEW}: every scale is within 1.0 .. {lid.TEXT_SCALE_MAX}",
+      all(1.0 <= s <= lid.TEXT_SCALE_MAX for _l, s in scales.values()), True)
+check("the block is scaled about its cap top and right edge, every extent by s", moved, [])
+check("wherever it grew, the ink keeps LINE_GAP from the left bound and the back's margin from the front", tight, [])
+check("a cascade's own and unmarked lids share one scale", shared, [])
+# The M and L lids that do not reach the cap are the four SHALLOW ones, held
+# by the front wall and not by anything beside them; the shallowest of all
+# has no depth to grow into and stays where it was.
+SHALLOW = ["L3.18.6.20.Sl", "L3.18.6.20.Un", "L5.7.7.20.Un", "M5.6.6.20.Un"]
+check("every M and L lid reaches the cap but the four shallowest",
+      sorted(m for m, (l, s) in scales.items() if l in ("M", "L") and s < lid.TEXT_SCALE_MAX),
+      SHALLOW)
+check("and those are depth-bound: their width room alone would allow the cap",
+      all(lid.text_room(at(r, s_, LT_NEW))[0] / lid.text_block_size(at(r, s_, LT_NEW))[0] > lid.TEXT_SCALE_MAX
+          for r in rows() for s_ in (0, 1) if at(r, s_, LT_NEW).calModelName in SHALLOW),
+      True)
+check("the shallowest lid, 35 mm deep, stays at 1.0", scales["L3.18.6.20.Un"][1], 1.0)
+check("and no XS or S lid gets past 1.4 — the Card Cascade block bounds them",
+      max(s for l, s in scales.values() if l in ("XS", "S")) < 1.4, True)
+check("but every S lid but the two long-model S2 rows does grow",
+      sorted(m for m, (l, s) in scales.items() if l == "S" and s < 1.1),
+      ["S2.40.12-30.32.Un", "S2.40.12-30.45.Sl"])
+for letter in ("XS", "S", "M", "L"):
+    print(f"  ({letter}: {min(sizes[letter])} .. {max(sizes[letter])})")
+
+# The whole block still clears the sockets and the Card Cascade block on
+# every lid, ink against ink: the credit-line check of 7.2b, on all three
+# lines at the new size.
+overlap = []
+for r in rows():
+    for sleeved in (0, 1):
+        dd = at(r, sleeved, LT_NEW)
+        beside = lid.logo_block(dd) + [lid.socket(dd, x) for x in lid.socket_centres(dd)]
+        for variant in (TB.LID_OWN, TB.LID_UNMARKED):
+            hit = sum((ln & o).volume for ln in lid.text_block(dd, variant)
+                      for o in beside if (ln & o) is not None)
+            if hit > 1e-9:
+                overlap.append((dd.calModelName, variant, round(hit, 3)))
+check("the scaled block meets nothing beside it on any lid, either variant", overlap, [])
+
+# Built with THIS flag alone against 7.0 on an M lid, which reaches the cap:
+# same envelope, and every piece of the difference is in the text band and on
+# the +X side — the Card Cascade block at -X does not scale.
+d_m70 = at(box_row, 0, "7.0")                      # M5.15.15.45.Un
+lt = only(d_m70, "larger_lid_text")
+check("the M lid takes the full 1.5 with the flag alone", lid.text_scale(lt), 1.5)
+m70, mlt = lid.build(d_m70), lid.build(lt)
+b70, blt = m70.bounding_box(), mlt.bounding_box()
+check("the lid does not grow: same bounding box",
+      [round(v, 4) for v in (blt.min.X, blt.min.Y, blt.min.Z, blt.max.X, blt.max.Y, blt.max.Z)],
+      [round(v, 4) for v in (b70.min.X, b70.min.Y, b70.min.Z, b70.max.X, b70.max.Y, b70.max.Z)])
+for way, diff in (("gains", mlt - m70), ("loses", m70 - mlt)):
+    check(f"the flag {way} material", diff is not None and diff.volume > 1e-6, True)
+    if diff is None:
+        continue
+    check(f"and what it {way} is in the text band, on the +X side",
+          [round(s_.bounding_box().min.Z, 3) for s_ in diff.solids()
+           if not (s_.bounding_box().min.Z >= lid.WALL - 1e-4
+                   and s_.bounding_box().max.Z <= lid.WALL + lid.TEXT_PROUD + 1e-4
+                   and s_.bounding_box().min.X > 0)], [])
+print(f"  (the block gains {(mlt - m70).volume:.2f} mm3 of ink on {d_m70.calModelName})")
 
 
 # --- every change has a case here ------------------------------------------

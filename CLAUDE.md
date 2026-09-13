@@ -34,15 +34,16 @@ check cad output.
 ## Releases — `cad/revisions.py`, `spec/REVISIONS.md`
 
 - `RELEASES` is an ordered line: `7.0` (the Onshape generation), `7.1a`..`7.1d`,
-  `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a`, `7.2b`
-  (open 2026-09-13, `CURRENT`, what `build/` is). A version is an opaque STRING —
+  `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a`, `7.2b`,
+  `7.2c` (open 2026-09-13, `CURRENT`, what `build/` is). A version is an opaque STRING —
   nothing parses one; order is position in `RELEASES`.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2b is open** with one flag, `unmarked_lid`; `7.2a` carries
-  `rear_holder` (the `low_profile` change it was opened for was withdrawn,
-  2026-09-13). **The next design change opens `7.2c`.** Steps:
+- **7.2c is open** with one flag, `larger_lid_text`; `7.2b` carries
+  `unmarked_lid` and `7.2a` `rear_holder` (the `low_profile` change it was
+  opened for was withdrawn, 2026-09-13). **The next design change opens
+  `7.2d`.** Steps:
   `spec/REVISIONS.md`, "Adding the next release". `7.2` stays off the line
   until its lock, and letters are never removed — a version that was printed
   must stay buildable.
@@ -50,6 +51,10 @@ check cad output.
   mark in the underside and `(C) Mertner` (`lid.CREDIT`) where the game's
   name is. A lid is one of three `tables.LID_VARIANTS`; `build.lid_variants_built`
   says which a release ships, and it is the only place the flags are asked.
+- The Lid's three-line text block is **scaled up where the lid has room**
+  from 7.2c (`lid.text_scale`, at most `TEXT_SCALE_MAX` 1.5): anchored at
+  its cap top and right edge, a line gap from the Card Cascade block, which
+  does NOT scale. Read `lid.text_anchor`/`text_room`, never the constants.
 - Every cascade's rearmost holder is a **`RearHolder`** from 7.2a: the same
   holder without rear lips (`holder.build(..., rear=True)`), replacing one
   plain Holder, or the FirstHolder itself where `Deep slot` = back. Which

@@ -92,10 +92,11 @@ from .refuse import refuse
 # the line moved on (`spec/REVISIONS.md`); its one flag is `rear_holder`, and
 # it is where the `Three Expansions` row and its ROW options (`Deep slot`,
 # `Sleeved card width`, `Toppers`) arrived — a row option is not a release
-# change. **7.2b is OPEN** (Allan, 2026-09-13) with `unmarked_lid`.
-# `cascades/` stays the 7.1 release until 7.2 locks; `build/` is 7.2b.
-RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b")
-CURRENT = "7.2b"
+# change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, and **7.2c is
+# OPEN** (the same day) with `larger_lid_text`. `cascades/` stays the 7.1
+# release until 7.2 locks; `build/` is 7.2c.
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c")
+CURRENT = "7.2c"
 
 
 @dataclass(frozen=True)
@@ -210,6 +211,22 @@ class Rev:
                 "grooves — is the cascade's own lid's. A change to what a "
                 "project CONTAINS, as `both_lid_editions` was: no existing "
                 "lid moves, and Innovation's single-set cascades ship three",
+    })
+
+    larger_lid_text: bool = field(metadata={
+        "since": "7.2c",
+        "spec": "spec/LID.md, 'The text block grows with the lid'",
+        "what": "the Lid's three-line text block (capacity, game name or "
+                "credit, model) is scaled up where the lid has room — every "
+                "cap and gap by one factor per cascade, anchored at its cap "
+                "top and right edge, growing left and down until it is a "
+                "line gap from the Card Cascade block (the left socket on an "
+                "XS lid) or keeps at the front wall what it keeps at the "
+                "back, and never past 1.5 (Allan, 2026-09-13: larger where "
+                "space permits, not filling the space). M and L lids reach "
+                "1.5 but the four shallowest, S lids 1.0-1.37, XS 1.07-1.18; "
+                "the Card Cascade block is untouched. Before the flag every lid's block is 3.5/3.5/"
+                "3.0 cap",
     })
 
 

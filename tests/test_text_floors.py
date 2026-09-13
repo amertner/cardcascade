@@ -103,16 +103,18 @@ for _game, fn, p, variant in B.lid_catalogue():
         # primary's three lines under a second filename.
         continue
     d = D.derive(p)
+    s = lid.text_scale(d)          # 1.0 before 7.2c, up to 1.5 from it
     if variant == TB.LID_UNMARKED:
         # The unmarked lid (7.2b) restates the cascade's lines too, but for
         # one: `lid.CREDIT` where the game's name is, at the same cap.
-        record("Lid", fn, "credit", lid.CAP_LINE / T.CAP, lid.CAP_LINE / T.CAP,
-               T.LOGO_FONT, True)
+        record("Lid", fn, "credit", lid.CAP_LINE * s / T.CAP,
+               T.floored(lid.CAP_LINE * s / T.CAP, proud=True), T.LOGO_FONT, True)
         continue
     record("Lid", fn, "product", T.fit_size(d.ProductName, lid.logo_width(d)),
            lid.logo_size(d), T.LOGO_FONT, True)
     for line, cap in (("model", lid.CAP_MODEL), ("line", lid.CAP_LINE)):
-        record("Lid", fn, line, cap / T.CAP, cap / T.CAP, T.LOGO_FONT, True)
+        record("Lid", fn, line, cap * s / T.CAP,
+               T.floored(cap * s / T.CAP, proud=True), T.LOGO_FONT, True)
 
 print("=== holders ===")
 for _folder, fn, p, (first, _rear) in B.holder_catalogue():

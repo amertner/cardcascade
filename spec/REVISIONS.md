@@ -88,7 +88,8 @@ the letter each change shipped in, which is what the letters are for and what
 
 **The first letter after the lock is `7.2a`** (2026-09-11), not `7.1e`: `7.1`
 is on the line, so a change after it is a change after the release. `7.2a` is
-below, with `rear_holder`, and `7.2b` after it — open, with `unmarked_lid`.
+below, with `rear_holder`, `7.2b` after it with `unmarked_lid`, and `7.2c`
+after that — open, with `larger_lid_text`.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -252,9 +253,9 @@ flag for it and nothing for `tests/test_revisions.py` to assert at two ends —
 except the one thing the new row DID change about an existing case, the
 `lid_socket_per_pusher` set, which now names six Innovation M lids.
 
-### 7.2b — OPEN 2026-09-13
+### 7.2b — opened and frozen 2026-09-13
 
-`CURRENT`; `build/` is 7.2b. One flag:
+One flag:
 
 * **`unmarked_lid`** (`7.2b`, 2026-09-13) — every cascade ships a SECOND lid
   on a plate of its own, with **no mark in its underside** and **`(C)
@@ -287,6 +288,36 @@ except the one thing the new row DID change about an existing case, the
   measures on the text solids. `(C)` is spelled out because Orbitron Bold
   has no `©`. `lid.CREDIT`, `spec/LID.md` "An unmarked lid, on a plate of
   its own".
+
+### 7.2c — OPEN 2026-09-13
+
+`CURRENT`; `build/` is 7.2c. One flag:
+
+* **`larger_lid_text`** (`7.2c`, 2026-09-13) — the Lid's three-line text
+  block (capacity, game name or credit, model) is **scaled up where the lid
+  has room** (Allan: "a bit larger when space permits ... easier to read and
+  nicer on larger cascades. Do not simply expand to use all space as that
+  would be too large sometimes"). Before the flag the block is the same
+  3.5/3.5/3.0 cap, ~35 x 14 mm, on every lid, while the room beside it runs
+  from ~10 mm on an S lid to ~140 on an L. From it, ONE factor per cascade
+  scales every cap and gap — `lid.text_scale`, anchored at the block's cap
+  top and right edge (`text_anchor`, which do not move), growing left and
+  down until the ink is `LINE_GAP` from what is to its left (the Card Cascade
+  block's right edge; on an XS lid, where the block sits beside the sockets,
+  the left socket) or keeps at the front wall what it keeps at the back
+  (`FootDistanceFromWall + 2`), and **never past `TEXT_SCALE_MAX` = 1.5**
+  (Allan's, from 1.3 / 1.5 / 1.75: lines 5.25 cap, the model line 4.5).
+  Measured: 26 of the 30 M and L lids reach 1.5, and the four that do not
+  are the shallow ones, bound by depth — `L3.18.6.20-Un` (35.0 deep) stays
+  at 1.0, `M5.6.6.20-Un` (39.8) comes to 1.27, `L5.7.7.20-Un` and
+  `L3.18.6.20-Sl` (42.9) to 1.49 — the S lids come to 1.0-1.37 against the
+  Card Cascade block (the
+  two `S2.40.12-30` rows ~1.0, their model line being 44 mm), and XS to
+  1.07-1.18. The width is the widest of all FOUR lines a cascade's lids can
+  carry, so its own and unmarked lids share the scale. The Card Cascade
+  block, its version and the staircase do not scale: they are already sized
+  to the slot width (Allan, 2026-09-13). `spec/LID.md`, "The text block
+  grows with the lid".
 
 ## What a release moves besides its flags
 
@@ -336,7 +367,7 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is the newest release on the line (**`7.2b`** as of
+`revisions.CURRENT` is the newest release on the line (**`7.2c`** as of
 2026-09-13): a plain `cad.build` or `cad.cascade` builds the current release
 (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they

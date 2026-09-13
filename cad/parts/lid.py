@@ -276,6 +276,20 @@ LINE_GAP = 2.000             # a line's cap top to the baseline above it
 VERSION_DROP = 2.000         # ProductName's baseline to the version's cap top
 LOGO_DROP = 1.000            # + FootDistanceFromWall, to ProductName's cap top
 
+# How far the +X text block may be SCALED UP, from 7.2c (`rev.larger_lid_text`,
+# `text_scale`). The block is the same ~35 x 14 on every lid at the caps
+# above, while the room beside it runs from ~10 mm (S) to ~140 mm (L). Allan
+# asked for larger where space permits — not filling the space, which would
+# be too large sometimes — so the block grows until it is LINE_GAP from what
+# is to its left or keeps at the front wall what it keeps at the back, and
+# never past this. M and L lids reach it but the four shallowest, which the
+# front wall holds (the 35 mm deep L3.18.6.20-Un stays at 1.0); S lids come
+# to 1.0-1.37 against the Card Cascade block; XS 1.07-1.18 against the left
+# socket. 1.5 is Allan's
+# (2026-09-13): lines 5.25 cap, the model line 4.5. The Card Cascade block
+# does not scale — it is already sized to the slot width.
+TEXT_SCALE_MAX = 1.500
+
 
 def text_offset(d):
     """How far the +X text block's right edge sits in from the right inner wall.
@@ -351,32 +365,93 @@ def middle_line(d, variant=TB.LID_OWN):
     return CREDIT if variant == TB.LID_UNMARKED else d.GameName
 
 
+TEXT_LINES = (CAP_LINE, CAP_LINE, CAP_MODEL)   # the block's three lines, top down
+
+
+def text_anchor(d):
+    """(right edge, cap top of the first line) — where the +X block hangs.
+
+    Right-aligned on `text_offset` in from the right inner wall, and hanging
+    off the pusher socket line: the capacity line's cap top is
+    `#HorizontalSlots > 2 ? 2mm : 15mm` below the socket's back edge. The 15
+    is the whole of why an XS lid's text sits lower — see `spec/LID.md`.
+    Neither moves with the scale (`text_scale`): the block grows away from
+    them, left and down.
+    """
+    right = lid_width(d) / 2 - WALL - text_offset(d)
+    gap = 2.0 if d.HorizontalSlots > 2 else 15.0
+    return right, lid_depth(d) / 2 - WALL - D.FootDistanceFromWall - gap
+
+
+def text_block_size(d):
+    """(width, depth) of the block at scale 1: the widest of the FOUR lines a
+    cascade's lids carry — capacity, game name, CREDIT, model — by ADVANCE,
+    which is what `right_aligned` places by; and the three caps with the two
+    gaps between them, the first line's cap top to the last's baseline.
+
+    All four lines and not the three of one lid, so the cascade's own and
+    unmarked lids share one scale and read as a pair.
+    """
+    lines = ((d.calCapacityLabel, CAP_LINE), (d.GameName, CAP_LINE),
+             (CREDIT, CAP_LINE), (d.calModelName, CAP_MODEL))
+    w = max(T.metrics(txt)[0] * cap / T.CAP for txt, cap in lines)
+    return w, sum(TEXT_LINES) + LINE_GAP * (len(TEXT_LINES) - 1)
+
+
+def text_room(d):
+    """(width, depth) the block may grow into, from its anchors.
+
+    Width: to `LINE_GAP` from what is to its LEFT in its band — the Card
+    Cascade block's right edge (`logo_offset + logo_width` from the left
+    inner wall) on every lid but an XS one, where the text block sits 15
+    below the socket line, beside the sockets and below the logo block, so
+    it is the LEFT socket's +X face. Depth: to the front inner wall plus what
+    the block keeps at the back, `FootDistanceFromWall + 2.000`.
+    """
+    right, top = text_anchor(d)
+    if d.HorizontalSlots > 2:
+        left = -(lid_width(d) / 2 - WALL) + logo_offset(d) + logo_width(d)
+    else:
+        left = socket_centres(d)[0] + d.calFootTotalWidth / 2
+    front = -lid_depth(d) / 2 + WALL + D.FootDistanceFromWall + 2.0
+    return right - left - LINE_GAP, top - front
+
+
+def text_scale(d):
+    """The factor the +X block is drawn at: 1.0 before 7.2c, and from it the
+    largest of 1.0 .. TEXT_SCALE_MAX at which the block fits `text_room`
+    (`rev.larger_lid_text`). One number per cascade; every cap and gap of
+    the block takes it.
+    """
+    if not d.rev.larger_lid_text:
+        return 1.0
+    (rw, rd), (bw, bd) = text_room(d), text_block_size(d)
+    return max(1.0, min(TEXT_SCALE_MAX, rw / bw, rd / bd))
+
+
 def text_block(d, variant=TB.LID_OWN):
     """`calCapacityLabel`, `GameName`, `calModelName` — the +X block.
 
-    Right-aligned on `text_offset` in from the right inner wall, reading UP in
-    Y at `CAP_LINE / CAP_LINE / CAP_MODEL`, each line's cap top `LINE_GAP`
-    below the baseline above it.
-
-    The block hangs off the pusher socket line: the capacity line's cap top is
-    `#HorizontalSlots > 2 ? 2mm : 15mm` below the socket's back edge. The 15 is
-    the whole of why an XS lid's text sits lower — see `spec/LID.md`.
+    Right-aligned on `text_anchor`'s right edge, reading UP in Y at
+    `CAP_LINE / CAP_LINE / CAP_MODEL` times `text_scale`, each line's cap top
+    `LINE_GAP` (times the same) below the baseline above it.
 
     The unmarked lid (`variant == TB.LID_UNMARKED`) puts `CREDIT` on the middle line
     at the same cap and the same right edge; nothing else in the block moves.
     """
-    right = lid_width(d) / 2 - WALL - text_offset(d)
-    gap = 2.0 if d.HorizontalSlots > 2 else 15.0
-    base = (lid_depth(d) / 2 - WALL - D.FootDistanceFromWall - gap) - CAP_LINE
+    right, top = text_anchor(d)
+    s = text_scale(d)
+    base = top - CAP_LINE * s
     out = []
     lines = ((d.calCapacityLabel, CAP_LINE), (middle_line(d, variant), CAP_LINE),
              (d.calModelName, CAP_MODEL))
     for i, (txt, cap) in enumerate(lines):
-        out.append(right_aligned(txt, cap / T.CAP, right, base, TEXT_PROUD))
+        out.append(right_aligned(txt, T.floored(cap * s / T.CAP, proud=True),
+                                 right, base, TEXT_PROUD))
         if i + 1 < len(lines):
             # The NEXT line's cap, not this one's: the gap is measured to that
             # line's cap TOP, so a 3.000 line follows 2.000 + 3.000 below.
-            base = base - LINE_GAP - lines[i + 1][1]
+            base = base - (LINE_GAP + lines[i + 1][1]) * s
     return out
 
 

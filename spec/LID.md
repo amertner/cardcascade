@@ -706,6 +706,68 @@ it in exactly two bands: the pattern's `0.000..0.810`, where the pocket is
 filled back in — by the inlays' own volume, `387.6 mm3` — and the text's
 `1.600..2.000`, where `Innovation` is replaced by the credit.
 
+### The text block grows with the lid
+
+From **7.2c** (`rev.larger_lid_text`) the +X text block is no longer one
+size. Allan, 2026-09-13: "I'd like the text inside the lid to be a bit larger
+when space permits. It's fine for the smallest cascades, but a larger version
+would be easier to read and nicer on larger cascades. Do not simply expand to
+use all space as that would be too large sometimes."
+
+Measured before the rule was written, the block is `~35 x 14` at the sketch's
+`3.5 / 3.5 / 3.0` caps on every one of the 52 lids, and what is beside it is
+not: to its left, the Card Cascade block's right edge is `8..15` away on an S
+lid, `60..80` on an M and `135..155` on an L; below it, the front inner wall
+is `8` away on the shallowest lid and `85` on the deepest. So the rule is a
+fit with a CEILING, the shape the mark's own rule has ("Sizing the mark"):
+
+```
+s = max(1, min(TEXT_SCALE_MAX, room_w / block_w, room_d / block_d))
+```
+
+* the block keeps its two anchors — its cap top `FootDistanceFromWall + gap`
+  below the back inner wall and its right edge `text_offset` in from the
+  right wall (`lid.text_anchor`) — and grows LEFT and DOWN;
+* `room_w` runs to `LINE_GAP` from what is to its left in its band: the Card
+  Cascade block's right edge, `logo_offset + logo_width` from the left inner
+  wall; on an XS lid, whose text block sits `15` below the socket line beside
+  the sockets and below the logo block, the LEFT socket's `+X` face;
+* `room_d` runs to the front inner wall plus what the block keeps at the back,
+  `FootDistanceFromWall + 2.000` — the front margin mirrors the back one;
+* `block_w` is the widest of the FOUR lines a cascade's lids can carry —
+  capacity, game name, `CREDIT`, model — by advance, which is what
+  `right_aligned` places by, so a cascade's own and unmarked lids take ONE
+  scale and read as a pair; `block_d` is the three caps and two gaps;
+* `TEXT_SCALE_MAX` is **1.5** — lines `5.25` cap, the model line `4.5` —
+  Allan's choice from 1.3 / 1.5 / 1.75, and it is the whole of "not simply
+  expand to use all space": an L lid could take the block to `4.8x`.
+
+Every cap and gap takes `s`; `T.floored` still stands under each size, moot
+at `s >= 1`. What it comes to on the catalogue:
+
+```
+XS   1.07 .. 1.18   against the left socket
+S    1.00 .. 1.37   against the Card Cascade block; the two S2.40.12-30 rows
+                    stay at ~1.0, their 44 mm model line filling the gap
+M    1.50           all but M5.6.6.20-Un (39.8 deep), held to 1.27 by the front wall
+L    1.50           all but the three shallow ones: L3.18.6.20-Un (35.0 deep) has no
+                    depth to grow into and stays at 1.0; L5.7.7.20-Un and
+                    L3.18.6.20-Sl (42.9) come to 1.49
+```
+
+**The Card Cascade block does not scale** (Allan, 2026-09-13): its word is
+already fitted to the slot width (`logo_width`, `3.8..4.4` cap across the
+catalogue), the version rides on it and the staircase fills the depth. Only
+the three-line block was the same size everywhere, and only it moves.
+
+`tests/test_revisions.py` asserts it from the ink: at 7.2b every block is at
+`1.0`; at 7.2c the top and right edges are where they were on every lid, the
+ink keeps `LINE_GAP` from the left bound and the back's margin from the front,
+the own and unmarked lids' blocks coincide in top, right and bottom, the
+scaled block meets no socket and no part of the Card Cascade block, and built
+with the flag alone against 7.0 on `M5.15.15.45-Un` every piece of the
+difference lies in the text band on the `+X` side.
+
 ### The `#LogoScaleFactor` this replaces
 
 Innovation's logo sketch carries (Allan):
