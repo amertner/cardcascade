@@ -27,75 +27,12 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(REPO, "fonts")
 W, H = 2010, 1500
 
-# ---------- palette sampled from the cascade posters ----------
-CREAM   = (242, 240, 235)
-INK     = (26, 26, 26)
-GREEN   = (74, 124, 90)
-GREEN_D = (56, 100, 70)
-GREEN_L1 = (140, 199, 144)
-GREEN_L2 = (86, 158, 100)
-BAR      = (129, 197, 144)      # #81C590 — wordmark bars
-BLUE    = (63, 107, 178)
-GREY    = (120, 120, 118)
-WHITE   = (255, 255, 255)
-PLATE   = (250, 250, 247)
-PLATE_E = (216, 214, 208)
-
-ORB = os.path.join(FONTS, "Orbitron-Bold.ttf")
-MONO_CANDIDATES_B = [
-    os.path.join(FONTS, "DMMono-Medium.ttf"),
-    os.path.expanduser("~/Library/Fonts/DMMono-Medium.ttf"),
-    "/usr/share/fonts/truetype/dm-mono/DMMono-Medium.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
-    "/System/Library/Fonts/Supplemental/Courier New Bold.ttf",
-    "/Library/Fonts/Courier New Bold.ttf",
-]
-MONO_CANDIDATES_R = [
-    os.path.join(FONTS, "DMMono-Regular.ttf"),
-    os.path.expanduser("~/Library/Fonts/DMMono-Regular.ttf"),
-    "/usr/share/fonts/truetype/dm-mono/DMMono-Regular.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-    "/System/Library/Fonts/Supplemental/Courier New.ttf",
-    "/Library/Fonts/Courier New.ttf",
-]
-MONO_B = next((p for p in MONO_CANDIDATES_B if os.path.exists(p)), None)
-MONO_R = next((p for p in MONO_CANDIDATES_R if os.path.exists(p)), None)
-if not (MONO_B and MONO_R):
-    sys.exit("no monospace font found - edit MONO_CANDIDATES_* for this machine")
-
-INTER_CANDIDATES = [
-    os.path.join(FONTS, "Inter-Regular.ttf"),
-    os.path.expanduser("~/Library/Fonts/Inter-VariableFont_opsz,wght.ttf"),
-    "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
-    "/Library/Fonts/Inter-Regular.ttf",
-]
-INTER_R = next((p for p in INTER_CANDIDATES if os.path.exists(p)), MONO_R)
-
-GAME_LOGOS = {
-    "Dominion": os.path.join(REPO, "logos", "dominion_logo_v1_0",
-                             "dl2_full_1024px.png"),
-}
-GAME_DISPLAY = {"FCM": "Food Chain Magnate"}
-
-
-def F(path, px):
-    return ImageFont.truetype(path, int(px))
-
-
-def cap_scale(px):
-    """Orbitron sized so capital height ~= px (caps are ~0.72 em)."""
-    return ImageFont.truetype(ORB, int(px / 0.72))
-
-
-def load_logo(path):
-    im = Image.open(path).convert("RGBA")
-    alpha = im.getchannel("A")
-    if alpha.getextrema()[0] < 250:                 # native transparency
-        return im.crop(alpha.getbbox())
-    grey = im.convert("L")
-    alpha = grey.point(lambda v: max(0, min(255, (250 - v) * 4)))
-    im.putalpha(alpha)
-    return im.crop(alpha.getbbox())
+# palette, faces, logos and the shared chrome come from postercommon
+from postercommon import (CREAM, INK, GREEN, GREEN_D, BAR, BLUE, GREY,   # noqa: E402,F401
+                          WHITE, PLATE, PLATE_E, ORB, MONO_B, MONO_R, INTER_R,
+                          GAME_LOGOS, GAME_DISPLAY, F, cap_scale, load_logo,
+                          wordmark, card_icon)
+import postercommon as PC                                             # noqa: E402
 
 
 # ---------- the printed label, top view ----------
@@ -193,67 +130,13 @@ def render_label(text, width_mm, scale, caps, art=None):
     return img
 
 
-# ---------- shared chrome ----------
-def wordmark(d, x, y, s=1.0):
-    bs = int(90 * s)
-    step = bs / 3
-    for i in range(3):
-        bh = bs * (0.45 + 0.275 * i)
-        bx = x + i * step
-        d.rounded_rectangle([bx, y + bs - bh, bx + step * 0.72, y + bs],
-                            radius=int(6 * s), fill=BAR)
-    # two stacked lines of Orbitron, block ~ as tall as the tallest bar
-    tx = x + bs + int(24 * s)
-    caph = bs * 0.44
-    f = cap_scale(caph)
-    d.text((tx, y + caph), "Card", font=f, fill=INK, anchor="ls")
-    d.text((tx, y + bs), "Cascade", font=f, fill=INK, anchor="ls")
-
-
-def card_icon(d, x, y, s, colour=WHITE):
-    w = s * 0.62
-    lw = max(3, int(s * 0.08))
-    d.rounded_rectangle([x, y + s * 0.12, x + w, y + s * 1.02],
-                        radius=int(s * 0.12), outline=colour, width=lw)
-    d.rounded_rectangle([x + w * 0.42, y, x + w * 1.42, y + s * 0.9],
-                        radius=int(s * 0.12), outline=colour, width=lw)
-
-
+# ---------- shared chrome (postercommon, at this cover's size) ----------
 def corner_banners(d):
-    bh = 108
-    f = F(MONO_B, 62)
-    for i, (txt, col) in enumerate(
-            zip(("UNSLEEVED", "SLEEVED"), (GREEN, BLUE))):
-        y0 = i * bh
-        x0 = W - 760
-        d.polygon([(x0 + 90, y0), (W, y0), (W, y0 + bh), (x0, y0 + bh)],
-                  fill=col)
-        tw = d.textlength(txt, font=f)
-        d.text((W - 170 - tw, y0 + bh / 2 - 38), txt, font=f, fill=WHITE)
-        card_icon(d, W - 135, y0 + 22, 60)
+    PC.corner_banners(d, W)
 
 
 def footer(d, version):
-    # thin grey divider above the bottom line, edge to edge
-    d.rectangle([0, H - 108, W, H - 104], fill=(190, 190, 188))
-    f = F(MONO_R, 30)
-    ty = H - 78
-    d.text((60, ty), "Free on MakerWorld", font=f, fill=GREEN_D)
-    t = "© 2026 Allan & Mamta Mertner"
-    d.text(((W - d.textlength(t, font=f)) / 2, ty), t, font=f, fill=GREY)
-    # mini Card Cascade logo + version, right-aligned
-    s = 0.52
-    bs = int(90 * s)
-    caph = bs * 0.44
-    wf = cap_scale(caph)
-    logo_w = bs + int(24 * s) + d.textlength("Cascade", font=wf)
-    ver = f"v{version}"
-    vw = d.textlength(ver, font=f)
-    gap = 22
-    x0 = W - 60 - logo_w - gap - vw
-    y0 = H - 96
-    wordmark(d, x0, y0, s)
-    d.text((x0 + logo_w + gap, y0 + bs / 2 - 15), ver, font=f, fill=GREY)
+    PC.footer(d, W, H, version)
 
 
 # ---------- per-set label stack ----------
