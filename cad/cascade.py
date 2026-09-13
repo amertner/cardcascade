@@ -67,7 +67,10 @@ def parts(row, d):
       cascade's mark is not its game's default edition: Innovation's two
       single-set cascades carry the plain `Innovation` mark and ship an
       `Innovation Ultimate` lid beside it, for the owner to choose between
-      (`rev.both_lid_editions`, `build.lid_editions_built`);
+      (`rev.both_lid_editions`); and from 7.2b an UNMARKED lid on a plate of
+      its own in every cascade, with no mark and `(C) Mertner` where the
+      game's name is (`rev.unmarked_lid`). `build.lid_variants_built` lists
+      them in this order;
     * a TokenHolder where the row's `TokenHolder` column asks for one
       (Dominion's alone), and a HalfTokenHolder as well on a merged (Mat) row
       — the two are alternatives for one pocket, and the cascade ships both;
@@ -80,8 +83,8 @@ def parts(row, d):
     for (first, rear), js in A.holder_kinds(d):
         role = "RearHolder" if rear else ("FirstHolder" if first else "Holder")
         out += [(role, B.holder_file(d, first, rear))] * len(js)
-    for alt in B.lid_editions_built(d):
-        out.append((PJ.object_name("Lid", d, alt), B.lid_file(d, alt)))
+    for variant in B.lid_variants_built(d):
+        out.append((PJ.object_name("Lid", d, variant), B.lid_file(d, variant)))
     if B.ships_token_holder(row):
         out.append(("TokenHolder", B.token_holder_file(d, half=False)))
         if d.MatPocket:

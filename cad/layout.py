@@ -84,8 +84,10 @@ class Group(NamedTuple):
 # `alt` is the Lid's alone: from 7.1d a cascade whose mark is not its game's
 # default edition ships BOTH lids and its owner prints one of them
 # (`cad/cascade.parts`), so they go one per plate, each plate named after its
-# object — `Lid 90U` and `Lid 90U Ultimate`. It is not a rule that could be
-# read off the objects: every OTHER group of several is either copies of one
+# object — `Lid 90U` and `Lid 90U Ultimate`; and from 7.2b every cascade ships
+# an unmarked lid the same way, so every project has a `Lid 90U Unmarked`
+# plate beside its `Lid 90U` and none has a plate called just `Lid`. It is not
+# a rule that could be read off the objects: every OTHER group of several is either copies of one
 # part (pushers, holders) or a named set that shares a plate and is printed
 # whole (the six toppers). Alternatives that were already separate stay
 # separate the way they always were, by role: a TokenHolder and a

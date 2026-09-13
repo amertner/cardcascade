@@ -282,22 +282,27 @@ def plate_title(scheme, title):
     return PLATE_SAFE.sub("-", f"{scheme} — {title}")
 
 
-def object_name(role, d, alternate=False):
+def object_name(role, d, variant=TB.LID_OWN):
     """What Studio's object list shows. Every role is its own name except the
     Lid, which carries the card capacity and the sleeving — `Lid 168U` — as
     every shipped project has it (Allan, 2026-09-05): with several projects
     open it is the lid that says which cascade a plate belongs to.
 
-    `alternate` names the SECOND lid such a cascade ships from 7.1d, and it is
-    named by the EDITION its mark is — `Lid 90U Ultimate` — because the two
-    lids are the same cascade's and the mark is the whole of the difference.
-    It still starts `Lid`, which is what `layout.role` reads, and the two go
-    on a plate each (`layout.plate_groups`)."""
+    `variant` (`tables.LID_VARIANTS`) names the OTHER lids a cascade ships: the
+    alternate edition from 7.1d, named by the EDITION its mark is — `Lid 90U
+    Ultimate` — because the two lids are the same cascade's and the mark is
+    the whole of the difference; and the unmarked lid from 7.2b, `Lid 90U
+    Unmarked`. Each still starts `Lid`, which is what `layout.role` reads,
+    and they go on a plate each (`layout.plate_groups`)."""
     if role == "Lid":
         name = f"Lid {d.calTotalCards}{'S' if d.isSleeved else 'U'}"
-        if alternate:
+        if variant == TB.LID_ALTERNATE:
             edition = TB.lid_editions(d.GameName, d.calModelName)[1]
             name += " " + TB.lid_edition_name(d.GameName, edition)
+        elif variant == TB.LID_UNMARKED:
+            name += " " + TB.LID_UNMARKED_NAME
+        elif variant != TB.LID_OWN:
+            refuse(f"unknown lid variant {variant!r}; one of {TB.LID_VARIANTS}")
         return name
     return role
 

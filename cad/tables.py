@@ -98,6 +98,19 @@ LID_LOGO_EDITION = {
     "Innovation": {"S3.15.10": "plain", "XS5.15.10": "plain"},
 }
 
+# The VARIANTS of a lid a cascade can ship — what its underside carries and
+# what its floor's middle line says (`cad/parts/lid.py`). Here and not in the
+# part because `build.py` and `project.py` name a variant without loading
+# build123d (`cad/lazy.py`); `build.lid_variants_built` says which a release
+# ships, `lid_file` and `project.object_name` what each is called.
+LID_OWN = "own"              # the cascade's mark and its game's name — every
+#                              lid before 7.1d, and the first lid of every project
+LID_ALTERNATE = "alternate"  # the game's other edition of the mark, from 7.1d
+#                              (`rev.both_lid_editions`, `spec/LID.md`)
+LID_UNMARKED = "unmarked"    # no mark, and `lid.CREDIT` where the game's name
+#                              is, from 7.2b (`rev.unmarked_lid`)
+LID_VARIANTS = (LID_OWN, LID_ALTERNATE, LID_UNMARKED)
+
 # What an edition is CALLED, where a name has to tell two lids apart: the
 # suffix on the alternate lid's file and on its object in the project, from
 # 7.1d. A game's DEFAULT edition is the `None` key here as it is above, and
@@ -105,6 +118,12 @@ LID_LOGO_EDITION = {
 LID_EDITION_NAME = {
     "Innovation": {None: "Ultimate", "plain": "Innovation"},
 }
+
+# And the word for the lid that carries NO mark, which every cascade ships
+# from 7.2b (`rev.unmarked_lid`, `LID_UNMARKED`): the same suffix rule, on
+# the file and on the object — `Lid S4.16.10.32-Un Unmarked.3mf`, `Lid 168U
+# Unmarked`. One word for every game, because the lid says nothing about one.
+LID_UNMARKED_NAME = "Unmarked"
 
 
 def lid_editions(game, model):

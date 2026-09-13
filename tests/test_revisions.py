@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 from build123d import Box as _Box, Location as _Loc              # noqa: E402
 from cad import build as B, cascade as CC, derive as D, lock as L  # noqa: E402
 from cad import layout as LY, params, project as PJ, revisions as R  # noqa: E402
+from cad import tables as TB                                     # noqa: E402
 from cad.refuse import Refused                                   # noqa: E402
 from cad import assembly as A                                    # noqa: E402
 from cad.parts import box as box_part, holder as holder_part, lid  # noqa: E402
@@ -690,22 +691,22 @@ print(f"  ({kept} cascades ship one lid at both releases)")
 row_ss = next(r for r in rows() if at(r, 0, LID_NEW).calModelName == "S3.15.10.20.Un")
 dss = at(row_ss, 0, LID_NEW)
 check("the cascade's own lid carries the plain mark",
-      lid.logo_choice(dss, False)[0], "@innovation-plain")
+      lid.logo_choice(dss, TB.LID_OWN)[0], "@innovation-plain")
 check("the alternate carries the game's default (Ultimate) mark",
-      lid.logo_choice(dss, True)[0].startswith("@innovation-ultimate"), True)
+      lid.logo_choice(dss, TB.LID_ALTERNATE)[0].startswith("@innovation-ultimate"), True)
 check("the alternate's FILE says which edition it is",
-      B.lid_file(dss, True), "Lid S3.15.10.20-Un Ultimate.3mf")
+      B.lid_file(dss, TB.LID_ALTERNATE), "Lid S3.15.10.20-Un Ultimate.3mf")
 check("and the cascade's own keeps the name it always had",
-      B.lid_file(dss, False), "Lid S3.15.10.20-Un.3mf")
+      B.lid_file(dss, TB.LID_OWN), "Lid S3.15.10.20-Un.3mf")
 check("the OBJECT in the project says it too",
-      [PJ.object_name("Lid", dss, False), PJ.object_name("Lid", dss, True)],
+      [PJ.object_name("Lid", dss, TB.LID_OWN), PJ.object_name("Lid", dss, TB.LID_ALTERNATE)],
       ["Lid 135U", "Lid 135U Ultimate"])
 # A cascade that already carries its game's default has no alternate to ask
 # for, and asking is a caller's bug rather than a lid to build.
 dult = at(next(r for r in rows()
                if at(r, 0, LID_NEW).calModelName == "S5.15.15.45.Un"), 0, LID_NEW)
 try:
-    lid.logo_choice(dult, True)
+    lid.logo_choice(dult, TB.LID_ALTERNATE)
     refused = False
 except Refused:
     refused = True
@@ -739,7 +740,7 @@ check("and one lid still takes the scheme's own plate name",
 # cheapest to build twice.
 dxs = at(next(r for r in rows()
               if at(r, 0, LID_NEW).calModelName == "XS5.15.10.32.Un"), 0, LID_NEW)
-own, other = lid.build(dxs, False), lid.build(dxs, True)
+own, other = lid.build(dxs, TB.LID_OWN), lid.build(dxs, TB.LID_ALTERNATE)
 bo, bt = own.bounding_box(), other.bounding_box()
 check("the two editions are the same lid: same bounding box",
       [round(v, 4) for v in (bt.min.X, bt.min.Y, bt.min.Z, bt.max.X, bt.max.Y, bt.max.Z)],
@@ -827,6 +828,118 @@ check("and what it loses is the lips: all behind the rear face",
       [gone is not None and gone.volume > 1.0, gone is not None and round(gone.bounding_box().min.Y, 3) >= 0.0],
       [True, True])
 print(f"  (the lips are {0.0 if gone is None else gone.volume:.2f} mm3 on {d_rh.calModelName})")
+
+
+# --- 7.2b: every cascade ships an unmarked lid, on a plate of its own -------
+print(f"\n=== {since('unmarked_lid')}  unmarked_lid ===")
+asserted.add("unmarked_lid")
+# Like `both_lid_editions`, a change to what a project CONTAINS: every
+# cascade gains one more lid, with no mark in its underside and `(C) Mertner`
+# where the game's name is. Asserted four ways: the lids a project holds at
+# both ends; the names; that the credit line clears everything beside it on
+# every lid (the measurement that chose the short form — see `lid.CREDIT`);
+# and, built, that the unmarked lid differs from the cascade's own in the
+# pattern band and the middle line's ink and nowhere else.
+UL_OLD, UL_NEW = before("unmarked_lid"), since("unmarked_lid")
+SUFFIX = " " + TB.LID_UNMARKED_NAME
+from fontTools.ttLib import TTFont                               # noqa: E402
+from cad import text as T                                        # noqa: E402
+_cmap = TTFont(T.LOGO_FONT).getBestCmap()
+
+wrong = []
+for r in rows():
+    for sleeved in (0, 1):
+        old_lids, new_lids = lids_of(r, sleeved, UL_OLD), lids_of(r, sleeved, UL_NEW)
+        model = at(r, sleeved, UL_NEW).calModelName
+        if any(n.endswith(SUFFIX) for n, _fn in old_lids):
+            wrong.append(f"{model}: an unmarked lid at {UL_OLD}")
+        if new_lids[:-1] != old_lids or not new_lids[-1][0].endswith(SUFFIX) \
+                or not new_lids[-1][1].endswith(SUFFIX + ".3mf"):
+            wrong.append(f"{model}: {UL_NEW} lids {new_lids} vs {UL_OLD} {old_lids}")
+check(f"{UL_OLD}: no cascade ships an unmarked lid; {UL_NEW}: every cascade "
+      f"ships the lids it did plus one, last, named by the suffix", wrong, [])
+check(f"{UL_NEW}: the single-set Innovation cascades ship three lids",
+      sorted(at(r, s, UL_NEW).calModelName for r in rows() for s in (0, 1)
+             if len(lids_of(r, s, UL_NEW)) == 3), sorted(BOTH))
+check(f"{UL_NEW}: and every other cascade ships two",
+      sorted({len(lids_of(r, s, UL_NEW)) for r in rows() for s in (0, 1)
+              if at(r, s, UL_NEW).calModelName not in BOTH}), [2])
+
+d168 = at(next(r for r in rows() if at(r, 0, UL_NEW).calModelName == "S4.16.10.32.Un"), 0, UL_NEW)
+check("the unmarked lid's FILE says so", B.lid_file(d168, TB.LID_UNMARKED),
+      "Lid S4.16.10.32-Un Unmarked.3mf")
+check("and its OBJECT in the project", PJ.object_name("Lid", d168, TB.LID_UNMARKED),
+      "Lid 168U Unmarked")
+check("and the two lids go on a plate each, named by the object",
+      plates_for(["Box", "Lid 168U", "Lid 168U Unmarked"]),
+      ["Box + pushers", "Lid 168U", "Lid 168U Unmarked"])
+check("the credit is what Allan asked for, and the font has its glyphs",
+      [lid.CREDIT, lid.middle_line(d168, TB.LID_UNMARKED), lid.middle_line(d168),
+       all(ord(c) in _cmap for c in lid.CREDIT)],
+      ["(C) Mertner", "(C) Mertner", "Dominion", True])
+try:
+    lid.logo_choice(d168, "blank")
+    refused = False
+except Refused:
+    refused = True
+check("an unknown variant is refused, not built as one of the three", refused, True)
+
+# The credit line clears the logo block and every pusher socket on every lid,
+# at full CAP_LINE and the game line's own right edge: on an XS lid the text
+# block sits beside the sockets, and on a 3-slot S lid the staircase's top
+# step reaches into the middle line's band — which is where the long form
+# collided. Text solids only, no lid build. The clearance is reported.
+clear, overlap = None, []
+for r in rows():
+    for sleeved in (0, 1):
+        dd = at(r, sleeved, UL_NEW)
+        line = lid.text_block(dd, TB.LID_UNMARKED)[1]     # the middle line
+        beside = lid.logo_block(dd) + [lid.socket(dd, x) for x in lid.socket_centres(dd)]
+        hit = sum((line & o).volume for o in beside if (line & o) is not None)
+        if hit > 1e-9:
+            overlap.append((dd.calModelName, round(hit, 3)))
+        bb = line.bounding_box()
+        for o in beside:
+            ob = o.bounding_box()
+            if ob.max.Y > bb.min.Y and ob.min.Y < bb.max.Y and ob.max.X <= bb.min.X:
+                gap = bb.min.X - ob.max.X
+                if clear is None or gap < clear[0]:
+                    clear = (gap, dd.calModelName)
+check("the credit line meets nothing beside it on any lid", overlap, [])
+check("and keeps more than a line gap clear of the nearest thing",
+      clear[0] > lid.LINE_GAP, True)
+print(f"  (tightest: {clear[0]:.2f} mm on {clear[1]})")
+
+# Built, on the XS lid: one body and no inlays; the same envelope as the
+# cascade's own lid; and the whole difference lies in two bands — the mark's
+# pocket, filled back in (0.000..PATTERN_DEPTH), and the middle line's ink
+# (WALL..WALL + TEXT_PROUD), both ways.
+body_u, inlays_u = lid.build_all(dxs, TB.LID_UNMARKED)
+check("the unmarked lid has no inlays and one solid",
+      [len(inlays_u), len(body_u.solids())], [0, 1])
+bu = body_u.bounding_box()
+check("and the same envelope as the cascade's own lid",
+      [round(v, 4) for v in (bu.min.X, bu.min.Y, bu.min.Z, bu.max.X, bu.max.Y, bu.max.Z)],
+      [round(v, 4) for v in (bo.min.X, bo.min.Y, bo.min.Z, bo.max.X, bo.max.Y, bo.max.Z)])
+bands = ((0.0, lid.PATTERN_DEPTH), (lid.WALL, lid.WALL + lid.TEXT_PROUD))
+
+
+def in_a_band(solid):
+    b = solid.bounding_box()
+    return any(b.min.Z >= lo - 1e-4 and b.max.Z <= hi + 1e-4 for lo, hi in bands)
+
+
+for way, diff in (("gains", body_u - own), ("loses", own - body_u)):
+    check(f"the unmarked lid {way} material", diff is not None and diff.volume > 1e-6, True)
+    if diff is None:
+        continue
+    check(f"and every piece it {way} is in the pattern band or the text band",
+          [s.bounding_box().max.Z for s in diff.solids() if not in_a_band(s)], [])
+gained = body_u - own
+check("what it gains in the pattern band is the mark's pocket, exactly",
+      round(sum(s.volume for s in gained.solids()
+                if s.bounding_box().max.Z <= lid.PATTERN_DEPTH + 1e-4), 3),
+      round(sum(q.volume for q in lid.inlays(dxs)), 3), 0.05)
 
 
 # --- every change has a case here ------------------------------------------

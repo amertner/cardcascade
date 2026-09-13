@@ -88,7 +88,7 @@ the letter each change shipped in, which is what the letters are for and what
 
 **The first letter after the lock is `7.2a`** (2026-09-11), not `7.1e`: `7.1`
 is on the line, so a change after it is a change after the release. `7.2a` is
-below — open, with `rear_holder`.
+below, with `rear_holder`, and `7.2b` after it — open, with `unmarked_lid`.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -192,10 +192,9 @@ pitch narrower, so the row it lays down there is not the row it lays down at
 reason a `Rev` is a record of independent booleans rather than a version number
 to compare against.
 
-### 7.2a — OPEN 2026-09-11
+### 7.2a — opened 2026-09-11, frozen 2026-09-13
 
-`CURRENT`. `cascades/` stays the 7.1 release until 7.2 locks; `build/` is 7.2a.
-One flag so far:
+`cascades/` stays the 7.1 release until 7.2 locks. One flag:
 
 * **`rear_holder`** (`7.2a`, 2026-09-13) — every cascade's rearmost holder is
   a **`RearHolder`**: the same holder without its rear lips. The lips hook
@@ -253,6 +252,42 @@ flag for it and nothing for `tests/test_revisions.py` to assert at two ends —
 except the one thing the new row DID change about an existing case, the
 `lid_socket_per_pusher` set, which now names six Innovation M lids.
 
+### 7.2b — OPEN 2026-09-13
+
+`CURRENT`; `build/` is 7.2b. One flag:
+
+* **`unmarked_lid`** (`7.2b`, 2026-09-13) — every cascade ships a SECOND lid
+  on a plate of its own, with **no mark in its underside** and **`(C)
+  Mertner`** embossed where the game's name is on the lid the cascade carries
+  (Allan: "a separate plate with a lid that has no logo on it, and where the
+  game name embossed inside that lid is replaced"). Everything else on it is
+  the cascade's own lid's — the capacity and model lines, the `Card Cascade`
+  block with its version and staircase, the sockets, the grooves, the rounds
+  — so it is one body in the second filament's absence, where the own lid is
+  a body and its inlays. Like `both_lid_editions` a change to what a project
+  CONTAINS: no existing lid moves, Innovation's two single-set cascades ship
+  three lids, every other cascade two, and from here no project has a plate
+  called just `Lid` (`layout.PLATE_SCHEME`'s `alt` names every lid plate
+  after its object: `Lid 168U`, `Lid 168U Unmarked`).
+
+  A lid is now one of three **variants** — `tables.LID_VARIANTS`: `LID_OWN`,
+  `LID_ALTERNATE` (7.1d) and `LID_UNMARKED` — where it was a bool, and every
+  name follows the alternate's suffix rule: `Lid S4.16.10.32-Un Unmarked.3mf`,
+  object `Lid 168U Unmarked` (`tables.LID_UNMARKED_NAME`). `build.lid_variants_built`
+  is the only place the two flags are asked; the part builds any variant at
+  any release.
+
+  **Why "(C) Mertner" and not "(C) Allan Mertner".** The full line was
+  measured first: 45.6 wide at the game line's 3.5 cap, and right-aligned on
+  the game line's edge it crosses a pusher socket on both XS lids (where the
+  text block sits beside the sockets) and the staircase's top step on five
+  3-slot S lids. Allan chose the short form everywhere rather than a per-lid
+  fit (2026-09-13): 30.1 wide, and at least 12.4 clear of the logo block and
+  every socket on all 52 lids at full size, which `tests/test_revisions.py`
+  measures on the text solids. `(C)` is spelled out because Orbitron Bold
+  has no `©`. `lid.CREDIT`, `spec/LID.md` "An unmarked lid, on a plate of
+  its own".
+
 ## What a release moves besides its flags
 
 **The stamp.** Every part engraves `CC <version>`, so a 7.1 part differs from
@@ -301,8 +336,9 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is **`7.1`**: a plain `cad.build` or `cad.cascade` builds
-the current release (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
+`revisions.CURRENT` is the newest release on the line (**`7.2b`** as of
+2026-09-13): a plain `cad.build` or `cad.cascade` builds the current release
+(Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
 regress against is the shipped tree, which the Onshape pipeline built at 7.0 —
 and from 7.1 a twin is MEANT to print differently, two pushers against three. That makes the default a moving target by

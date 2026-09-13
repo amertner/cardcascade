@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from cad import build as B, derive as D, text as T          # noqa: E402
+from cad import build as B, derive as D, tables as TB, text as T  # noqa: E402
 from cad.parts import box, lid, holder, token_holder, topper  # noqa: E402
 
 fails = []
@@ -95,14 +95,20 @@ for _folder, fn, p in B.box_catalogue():
         box._fits(txt, final, span)          # raises DoesNotFit if not
 
 print("=== lids ===")
-for _game, fn, p, alt in B.lid_catalogue():
-    if alt:
+for _game, fn, p, variant in B.lid_catalogue():
+    if variant == TB.LID_ALTERNATE:
         # The alternate edition is the same lid with the other mark in its
         # underside (7.1d, `rev.both_lid_editions`). Its floor text is the
         # cascade's, character for character, so it would only restate the
         # primary's three lines under a second filename.
         continue
     d = D.derive(p)
+    if variant == TB.LID_UNMARKED:
+        # The unmarked lid (7.2b) restates the cascade's lines too, but for
+        # one: `lid.CREDIT` where the game's name is, at the same cap.
+        record("Lid", fn, "credit", lid.CAP_LINE / T.CAP, lid.CAP_LINE / T.CAP,
+               T.LOGO_FONT, True)
+        continue
     record("Lid", fn, "product", T.fit_size(d.ProductName, lid.logo_width(d)),
            lid.logo_size(d), T.LOGO_FONT, True)
     for line, cap in (("model", lid.CAP_MODEL), ("line", lid.CAP_LINE)):

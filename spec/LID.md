@@ -656,6 +656,56 @@ owner nothing about which mark is on it. That is a marker on the scheme entry
 and not a rule read off the objects: every other group of several is either
 copies of one part or a named set that shares a plate and is printed whole.
 
+### An unmarked lid, on a plate of its own
+
+From **7.2b** every cascade ships a THIRD kind of lid beside the one above —
+or a second, for the 48 cascades that never had an alternate. Allan,
+2026-09-13: "make sure that every Cascade has a separate plate with a lid that
+has no logo on it, and where the game name embossed inside that lid is
+replaced with (C) Allan Mertner." So a project holds its own lid, the
+alternate edition where it has one, and an **unmarked** lid: the same lid
+with **nothing in its underside** and **`(C) Mertner`** on the middle line of
+the +X text block, where the others say the game's name. The capacity line,
+the model line, the `Card Cascade` block with its version and staircase, the
+sockets, the grooves and the rounds are the cascade's own lid's, unchanged.
+
+It reaches a build as `rev.unmarked_lid`, read in `build.lid_variants_built`
+alone: a change to what a project CONTAINS, as `both_lid_editions` was, and
+the part builds any variant at any release. What a lid IS became a
+three-valued **variant** with it — `tables.LID_VARIANTS`: `LID_OWN`,
+`LID_ALTERNATE`, `LID_UNMARKED` — and the unmarked one takes the alternate's
+path through `logo_choice`, which returns "no artwork" for it: no pocket, no
+inlays, one body in the file, the first filament only.
+
+**"(C) Mertner", not "(C) Allan Mertner".** The full line was measured before
+anything was built. At the game line's `3.500` cap and right-aligned on its
+edge it is `45.6` wide, which crosses a pusher socket on both XS lids — the XS
+text block sits `15` below the socket line, beside the sockets, not under them
+— and the staircase's top step on five unsleeved 3-slot S lids (`0.297 mm3` of
+overlap each). Allan chose the short form everywhere over a per-lid fit:
+`30.1` wide, and `12.41` clear of the nearest thing on the tightest lid
+(`XS5.15.10.32-Un`), the sockets and the logo block on every one of the 52.
+`tests/test_revisions.py` measures that on the text solids alone and holds it
+above `LINE_GAP`. `(C)` is spelled out because Orbitron Bold carries no `©`.
+`lid.CREDIT`.
+
+The names follow the alternate's rule exactly — the suffix on the extra lid,
+never on the cascade's own:
+
+```
+build/Dominion/Lid S4.16.10.32-Un.3mf            the cascade's own
+build/Dominion/Lid S4.16.10.32-Un Unmarked.3mf   the unmarked one
+Lid 168U  /  Lid 168U Unmarked                   the objects in the project
+plate `Lid 168U`  /  plate `Lid 168U Unmarked`   the plates
+```
+
+so from 7.2b every project's lid plates are named after their objects and
+none is called just `Lid`; a single-set Innovation project has three. Built
+on the XS lid, the unmarked lid has the own lid's envelope and differs from
+it in exactly two bands: the pattern's `0.000..0.810`, where the pocket is
+filled back in — by the inlays' own volume, `387.6 mm3` — and the text's
+`1.600..2.000`, where `Innovation` is replaced by the credit.
+
 ### The `#LogoScaleFactor` this replaces
 
 Innovation's logo sketch carries (Allan):

@@ -87,15 +87,15 @@ from .refuse import refuse
 # describable and buildable, and each of them is still only the flags at or
 # before its own letter.
 #
-# **7.2a is OPEN** (Allan, 2026-09-11): the first letter after the 7.1 lock.
-# The `low_profile` change it was opened for was withdrawn on 2026-09-13
-# before the line moved on (`spec/REVISIONS.md`); its one flag is
-# `rear_holder`, and it is where the `Three Expansions` row and its ROW
-# options (`Deep slot`, `Sleeved card width`, `Toppers`) arrived — a row
-# option is not a release change. `cascades/` stays the 7.1 release until
-# 7.2 locks; `build/` is 7.2a.
-RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a")
-CURRENT = "7.2a"
+# **7.2a** (Allan, 2026-09-11) was the first letter after the 7.1 lock. The
+# `low_profile` change it was opened for was withdrawn on 2026-09-13 before
+# the line moved on (`spec/REVISIONS.md`); its one flag is `rear_holder`, and
+# it is where the `Three Expansions` row and its ROW options (`Deep slot`,
+# `Sleeved card width`, `Toppers`) arrived — a row option is not a release
+# change. **7.2b is OPEN** (Allan, 2026-09-13) with `unmarked_lid`.
+# `cascades/` stays the 7.1 release until 7.2 locks; `build/` is 7.2b.
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b")
+CURRENT = "7.2b"
 
 
 @dataclass(frozen=True)
@@ -197,6 +197,19 @@ class Rev:
                 "slot is the deep one (`Deep slot` = back) it replaces the "
                 "FirstHolder, taking that holder's depth and slant under the "
                 "RearHolder name. Before the flag every holder has lips",
+    })
+
+    unmarked_lid: bool = field(metadata={
+        "since": "7.2b",
+        "spec": "spec/LID.md, 'An unmarked lid, on a plate of its own'",
+        "what": "every cascade ships a SECOND lid on a plate of its own, "
+                "with no mark in its underside and `(C) Mertner` embossed "
+                "where the game's name is on the lid the cascade carries "
+                "(Allan, 2026-09-13). Everything else on it — the capacity "
+                "and model lines, the Card Cascade block, the sockets, the "
+                "grooves — is the cascade's own lid's. A change to what a "
+                "project CONTAINS, as `both_lid_editions` was: no existing "
+                "lid moves, and Innovation's single-set cascades ship three",
     })
 
 

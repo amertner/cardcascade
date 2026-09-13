@@ -14,7 +14,8 @@ Local frame (the part studio's, and the assembly's — a Lid is not offset):
 
 Complete: shell, sockets, closing grooves, the outer rounds, the floor's
 engraving, and the logo pattern in the underside — every game has artwork now
-(`cad/tables.LID_LOGO`). The pattern is where `cad/` first parts company with
+(`cad/tables.LID_LOGO`). A cascade ships up to three VARIANTS of it
+(`tables.LID_VARIANTS`, "the three VARIANTS of a lid" below). The pattern is where `cad/` first parts company with
 Onshape on purpose: the mark is FITTED to the lid rather than drawn at one or
 two fixed sizes. See `spec/LID.md`, "Sizing the mark".
 """
@@ -40,6 +41,26 @@ WALL = D.WallThickness       # 1.600, confirmed on the STEP at +-105.350
 WIDTH_OVER_BOX = 4.600
 
 OUTER_ROUND = 1.000          # every outer edge: 4 vertical, 4 top, 4 bottom
+
+# --- the three VARIANTS of a lid ----------------------------------------------
+#
+# One cascade can ship more than one lid, and every function below that reads
+# the mark or the floor text takes which one as `variant`, one of
+# `tables.LID_VARIANTS`: `LID_OWN` (the cascade's mark and its game's name),
+# `LID_ALTERNATE` (the game's other edition, from 7.1d) or `LID_UNMARKED` (no
+# mark, and CREDIT where the game's name is, from 7.2b). They live in
+# `tables.py` because `build.py` and `project.py` name them without loading
+# build123d (`cad/lazy.py`). A lid's geometry is the same across all three:
+# what differs is what its underside carries and one line of its floor text.
+
+# What the unmarked lid says where the others say the game's name. "(C)"
+# spelled out: Orbitron Bold has no `©`. The full "(C) Allan Mertner" was
+# measured first and is 45.6 wide at CAP_LINE, which crosses a pusher socket
+# on both XS lids and the staircase's top step on five 3-slot S lids; Allan
+# chose this everywhere instead (2026-09-13). 30.1 wide, and at least 12.4
+# clear of the logo block and the sockets on all 52 lids, which
+# `tests/test_revisions.py` measures.
+CREDIT = "(C) Mertner"
 
 
 def lid_width(d):
@@ -324,7 +345,13 @@ def right_aligned(txt, size, right, baseline, proud):
     return emboss(txt, size, right - adv * size, baseline, proud)
 
 
-def text_block(d):
+def middle_line(d, variant=TB.LID_OWN):
+    """The text block's middle line: the game's name, or `CREDIT` on the
+    unmarked lid — the one line of floor text a variant changes."""
+    return CREDIT if variant == TB.LID_UNMARKED else d.GameName
+
+
+def text_block(d, variant=TB.LID_OWN):
     """`calCapacityLabel`, `GameName`, `calModelName` — the +X block.
 
     Right-aligned on `text_offset` in from the right inner wall, reading UP in
@@ -334,12 +361,15 @@ def text_block(d):
     The block hangs off the pusher socket line: the capacity line's cap top is
     `#HorizontalSlots > 2 ? 2mm : 15mm` below the socket's back edge. The 15 is
     the whole of why an XS lid's text sits lower — see `spec/LID.md`.
+
+    The unmarked lid (`variant == TB.LID_UNMARKED`) puts `CREDIT` on the middle line
+    at the same cap and the same right edge; nothing else in the block moves.
     """
     right = lid_width(d) / 2 - WALL - text_offset(d)
     gap = 2.0 if d.HorizontalSlots > 2 else 15.0
     base = (lid_depth(d) / 2 - WALL - D.FootDistanceFromWall - gap) - CAP_LINE
     out = []
-    lines = ((d.calCapacityLabel, CAP_LINE), (d.GameName, CAP_LINE),
+    lines = ((d.calCapacityLabel, CAP_LINE), (middle_line(d, variant), CAP_LINE),
              (d.calModelName, CAP_MODEL))
     for i, (txt, cap) in enumerate(lines):
         out.append(right_aligned(txt, cap / T.CAP, right, base, TEXT_PROUD))
@@ -402,9 +432,9 @@ def staircase(d, left, top):
     return part.part
 
 
-def floor_text(d, part):
+def floor_text(d, part, variant=TB.LID_OWN):
     """Both blocks, fused to the floor in one boolean."""
-    return part.fuse(*(text_block(d) + logo_block(d)))
+    return part.fuse(*(text_block(d, variant) + logo_block(d)))
 
 
 # --- the logo pattern ------------------------------------------------------
@@ -497,7 +527,7 @@ def logo_target(d):
             lid_depth(d) * LOGO_DEPTH_FRACTION)
 
 
-def logo_edition(d, alternate=False):
+def logo_edition(d, variant=TB.LID_OWN):
     """Which of the game's marks this lid carries, or None for its default.
 
     Keyed on the base model — `calModelName` up to its third dot — because it
@@ -505,14 +535,15 @@ def logo_edition(d, alternate=False):
     cascades say just "Innovation" where the other four say "Innovation
     Ultimate" (`TB.lid_editions`).
 
-    `alternate` asks for the SECOND edition such a cascade ships from 7.1d
+    `LID_ALTERNATE` asks for the SECOND edition such a cascade ships from 7.1d
     (`rev.both_lid_editions`): the game's default mark, on a lid of its own.
     A cascade that already carries the default has no alternate and asking for
-    one is a bug in the caller, not a lid to build — `build.lid_editions_built`
-    is the gate, and it asks the release first.
+    one is a bug in the caller, not a lid to build — `build.lid_variants_built`
+    is the gate, and it asks the release first. An unmarked lid has no
+    edition to ask about; `logo_choice` never asks.
     """
     editions = TB.lid_editions(d.GameName, d.calModelName)
-    if not alternate:
+    if variant != TB.LID_ALTERNATE:
         return editions[0]
     if len(editions) < 2:
         refuse(f"{d.calModelName} carries its game's only lid mark; there is "
@@ -542,9 +573,11 @@ def logo_scale(d, name):
     return min(max(want, 1.0), hard)
 
 
-def logo_choice(d, alternate=False):
+def logo_choice(d, variant=TB.LID_OWN):
     """(mark, nominal factor) — which of the game's marks this lid gets and how
-    far it is sized, or (None, 0.0) for a game with no artwork on file.
+    far it is sized, or (None, 0.0) for a game with no artwork on file — and
+    for the unmarked lid, which carries none by design (7.2b) and takes the
+    same path as a game without artwork: no pocket, no inlays, one body.
 
     The marks are listed largest first, so the first that fits `logo_limit`
     as drawn is the biggest that fits. If none does — the lid is smaller than
@@ -553,7 +586,11 @@ def logo_choice(d, alternate=False):
     size it was PUBLISHED at (`marks.GENERATED`): the plain mark once, the
     Ultimate mark at both of the sizes Allan's sketch shipped.
     """
-    names = (TB.LID_LOGO.get(d.GameName) or {}).get(logo_edition(d, alternate))
+    if variant not in TB.LID_VARIANTS:
+        refuse(f"unknown lid variant {variant!r}; one of {TB.LID_VARIANTS} (cad/parts/lid.py)")
+    if variant == TB.LID_UNMARKED:
+        return None, 0.0
+    names = (TB.LID_LOGO.get(d.GameName) or {}).get(logo_edition(d, variant))
     if not names:
         return None, 0.0
     chosen = None
@@ -568,7 +605,7 @@ def logo_choice(d, alternate=False):
     return chosen, logo_scale(d, chosen)
 
 
-def logo_art(d, alternate=False):
+def logo_art(d, variant=TB.LID_OWN):
     """The game's mark as filled faces in the lid's frame; [] for a lid
     that carries none.
 
@@ -581,7 +618,7 @@ def logo_art(d, alternate=False):
     `logo_limit` is the same on opposite sides, and a half turn only swaps
     `marks.reach`'s right with its left and its top with its bottom.
     """
-    name, n = logo_choice(d, alternate)
+    name, n = logo_choice(d, variant)
     if not name:
         return []
     faces = MK.faces(d.GameName, name, n)
@@ -590,7 +627,7 @@ def logo_art(d, alternate=False):
     return faces
 
 
-def _prisms(d, alternate=False):
+def _prisms(d, variant=TB.LID_OWN):
     """The mark's regions extruded `PATTERN_DEPTH` up from the underside: the
     one extrusion that is both the pocket and, moved down, the inlays."""
     # `dir` explicitly, NOT the face's own normal: a DXF's loops wind
@@ -599,16 +636,16 @@ def _prisms(d, alternate=False):
     # went DOWN — cutting nothing and leaving their inlays floating below
     # the lid, which cost exactly their 134.484 mm2 x 0.810.
     return [extrude(f, PATTERN_DEPTH, dir=(0, 0, 1))
-            for f in logo_art(d, alternate)]
+            for f in logo_art(d, variant)]
 
 
-def logo_pattern(d, part, alternate=False):
+def logo_pattern(d, part, variant=TB.LID_OWN):
     """(the body with its pocket cut, the inlay solids).
 
     Both come from one set of regions, so the inlay cannot drift out of the
     pocket: they are the same extrusion at two Z ranges.
     """
-    prisms = _prisms(d, alternate)
+    prisms = _prisms(d, variant)
     if not prisms:
         return part, []
     # ONE cut with every region, into the BARE SHELL (`build` calls this
@@ -653,8 +690,9 @@ def outer_edges(d, part):
     return out
 
 
-def build_all(d, alternate=False):
+def build_all(d, variant=TB.LID_OWN):
     """(the Lid BODY, its logo inlays) — both from ONE extrusion of the mark.
+    `variant` is one of `TB.LID_VARIANTS`; the unmarked lid has no inlays.
 
     The inlays are separate solids because they print in the second filament
     and Onshape exports them as their own bodies. The pocket for them is cut
@@ -666,10 +704,10 @@ def build_all(d, alternate=False):
     reaches it, so the order is free and the cheap one is taken.
     """
     part = shell(d)
-    part, inlays = logo_pattern(d, part, alternate)
+    part, inlays = logo_pattern(d, part, variant)
     part = sockets(d, part)
     part = closing_grooves(d, part)
-    part = floor_text(d, part)
+    part = floor_text(d, part, variant)
     # The outer rounds stay LAST, as the tree has them. Rounding the bare
     # shell first was tried: it saved nothing on Compile's lid and changed
     # its smallest one by 0.389 mm3, the mark there sitting at the hard limit
@@ -677,6 +715,6 @@ def build_all(d, alternate=False):
     return fillet(outer_edges(d, part), OUTER_ROUND), inlays
 
 
-def build(d, alternate=False):
+def build(d, variant=TB.LID_OWN):
     """The Lid BODY as a build123d Part, from a `derive.Derived`."""
-    return build_all(d, alternate)[0]
+    return build_all(d, variant)[0]

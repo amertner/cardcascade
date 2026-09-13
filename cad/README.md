@@ -44,7 +44,7 @@ replaces, which stay in `logos/Innovation/` as its regression reference.
 .venv/bin/python -m cad.build                    # 34 pushers -> build/<Game>/
 .venv/bin/python -m cad.build --list             # the catalogue, no writing
 
-.venv/bin/python -m cad.build --part lid         # all 54, 4 of them Ultimate — 2.5 min pooled
+.venv/bin/python -m cad.build --part lid         # all 108: 52 own, 4 Ultimate, 52 Unmarked — 3 min pooled
 .venv/bin/python -m cad.build --part box --model S2.40.12-30.45-Sl
 .venv/bin/python -m cad.build --part box         # all 50 — 2 min pooled
 .venv/bin/python -m cad.build --part tokenholder # 22, Dominion only, seconds
@@ -279,7 +279,7 @@ the corpus a 7.0 build is held to.
 
 **4. One lock: 7.0's.**
 `lock.py` is the 7.0 catalogue and every release on the line keeps it
-(`lock.SAME_LOCK`, 7.0 through 7.2a); `pusher.build` **refuses** a `Primary` at
+(`lock.SAME_LOCK`, 7.0 through 7.2b); `pusher.build` **refuses** a `Primary` at
 any version outside it rather than stamp `CC 6.6` on 7.0 tabs. The Lid is the same
 story on its own half of the lock: a 7.0 lid is told from a pre-7.0 one by a
 `1.700` recess step against the pre-7.0 `1.800`, and `tests/test_lid_corpus.py`
@@ -329,11 +329,13 @@ flag on the Derived (`d.rev.lid_socket_per_pusher`), never as a version
 comparison. A build at the older release must keep reproducing `individual/`
 exactly, which is why every test that compares against a reference pins its
 release through `tests/reference.py` rather than taking the default: the
-default is 7.2a and will move again. `spec/REVISIONS.md` is the record and
+default is 7.2b and will move again. `spec/REVISIONS.md` is the record and
 `tests/test_revisions.py` asserts every flag at both releases.
-A flag does not have to reach a PART: `both_lid_editions` (7.1d) is read by
-`build.lid_editions_built` and `cascade.parts`, because what it changes is how
-many lids a cascade has and not what any one of them is. The rule is the same
+A flag does not have to reach a PART: `both_lid_editions` (7.1d) and
+`unmarked_lid` (7.2b) are read by `build.lid_variants_built` and
+`cascade.parts`, because what they change is how many lids a cascade has and
+not what any one of them is — the unmarked lid is a `tables.LID_VARIANTS`
+member the part builds at any release. The rule is the same
 wherever it is read — a named question, never a version comparison.
 
 ## One record below `derive`

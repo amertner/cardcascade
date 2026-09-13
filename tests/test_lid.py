@@ -174,7 +174,7 @@ _EXPORTED_WITH = {
 }
 _PIN_FN = None
 _choice = lid.logo_choice
-lid.logo_choice = lambda d, alternate=False: (
+lid.logo_choice = lambda d, variant=TB.LID_OWN: (
     _EXPORTED_WITH.get(_PIN_FN) or (TB.LID_LOGO[d.GameName][None][-1], 1.0))
 
 
@@ -573,9 +573,11 @@ def slack(game, name, d, n):
 
 
 worst_clear, worst_shrink = None, []
-for _folder, fn, pp, alt in build.lid_catalogue():
+for _folder, fn, pp, variant in build.lid_catalogue():
+    if variant == TB.LID_UNMARKED:
+        continue        # no mark by design (7.2b); nothing to fit or clear
     dd = D.derive(pp)
-    name, scale = lid.logo_choice(dd, alt)
+    name, scale = lid.logo_choice(dd, variant)
     if not name:
         check(f"{fn}: has artwork", False, True)
         continue

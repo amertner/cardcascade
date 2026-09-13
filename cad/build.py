@@ -107,7 +107,7 @@ def box_file(d):
     return "Box " + model_stem(d.calModelName) + suffix + ".3mf"
 
 
-def lid_file(d, alternate=False):
+def lid_file(d, variant=TB.LID_OWN):
     """`Lid <model>.3mf`, the name `individual/` uses.
 
     Keyed on `calModelName` exactly as the Box is, which means a Mat cascade
@@ -118,41 +118,54 @@ def lid_file(d, alternate=False):
     From 7.1d a cascade whose mark is not its game's default ships a SECOND
     lid carrying the default mark (`rev.both_lid_editions`), and that one
     takes the edition's name as a suffix — `Lid S3.15.10.20-Un Ultimate.3mf`
-    beside `Lid S3.15.10.20-Un.3mf`. The suffix goes on the ALTERNATE and
-    never on the lid the cascade carries, the way `box_file`'s `no label
-    holders` does: the plain name stays the name it has always had, so every
-    earlier release writes the tree it wrote before.
+    beside `Lid S3.15.10.20-Un.3mf`. From 7.2b every cascade ships an
+    UNMARKED lid as well, and it takes `TB.LID_UNMARKED_NAME` the same way —
+    `Lid S3.15.10.20-Un Unmarked.3mf`. The suffix goes on the ALTERNATE or
+    UNMARKED lid and never on the lid the cascade carries, the way
+    `box_file`'s `no label holders` does: the plain name stays the name it has
+    always had, so every earlier release writes the tree it wrote before.
     """
     stem = "Lid " + model_stem(d.calModelName)
-    if alternate:
+    if variant == TB.LID_ALTERNATE:
         stem += " " + TB.lid_edition_name(
             d.GameName, TB.lid_editions(d.GameName, d.calModelName)[1])
+    elif variant == TB.LID_UNMARKED:
+        stem += " " + TB.LID_UNMARKED_NAME
+    elif variant != TB.LID_OWN:
+        refuse(f"unknown lid variant {variant!r}; one of {TB.LID_VARIANTS}")
     return stem + ".3mf"
 
 
-def lid_editions_built(d):
-    """[alternate?] — the lids this cascade's release ships, `False` for the
-    one it carries and `True` for the alternate edition beside it.
+def lid_variants_built(d):
+    """The lids this cascade's release ships, as `tables.LID_VARIANTS` members in
+    project order: the one it carries (`LID_OWN`), then the alternate edition
+    beside it, then the unmarked one.
 
-    The alternate is 7.1d's (`rev.both_lid_editions`); before it, and for the
-    46 cascades that carry their game's default mark, a cascade has one lid.
+    The alternate is 7.1d's (`rev.both_lid_editions`) and only a cascade
+    whose mark is not its game's default has one; the unmarked lid is 7.2b's
+    (`rev.unmarked_lid`) and every cascade has one. Before either, a cascade
+    has one lid. This is the ONLY place the two flags are asked: the part
+    builds any variant at any release.
     """
+    out = [TB.LID_OWN]
     if d.rev.both_lid_editions and TB.has_lid_alternate(d.GameName, d.calModelName):
-        return [False, True]
-    return [False]
+        out.append(TB.LID_ALTERNATE)
+    if d.rev.unmarked_lid:
+        out.append(TB.LID_UNMARKED)
+    return out
 
 
 def lid_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary, alternate)] — every distinct lid,
-    deduplicated. `alternate` is the builder's `extra`."""
+    """[(folder, filename, Primary, variant)] — every distinct lid,
+    deduplicated. `variant` (`tables.LID_VARIANTS`) is the builder's `extra`."""
     out = {}
     for _row, p in params.cascades(csv, game, version):
         d = D.derive(p)
-        for alt in lid_editions_built(d):
-            fn = lid_file(d, alt)
+        for variant in lid_variants_built(d):
+            fn = lid_file(d, variant)
             if model and model.lower() not in fn.lower():
                 continue
-            out.setdefault((p.GameName, fn), (p.GameName, fn, p, alt))
+            out.setdefault((p.GameName, fn), (p.GameName, fn, p, variant))
     return [out[k] for k in sorted(out)]
 
 
@@ -200,9 +213,10 @@ def write_component(path, bodies, d, **extra):
 
 def build_lid(d, extra, path):
     """Build one lid and write the 3MF. Like the Box, a Lid sits at the part
-    studio's origin, which is the assembly's. `extra` is truthy for the
-    ALTERNATE edition of the game's mark, the second lid a single-set
-    Innovation cascade ships from 7.1d (`lid_file`).
+    studio's origin, which is the assembly's. `extra` is the lid's VARIANT
+    (`tables.LID_VARIANTS`): the cascade's own, the alternate edition of the game's
+    mark a single-set Innovation cascade ships from 7.1d, or the unmarked
+    lid every cascade ships from 7.2b (`lid_file`).
 
     A lid is MORE THAN ONE BODY: the logo pattern's inlays print in the second
     filament, so Onshape exports them as their own objects and so does this.
@@ -212,7 +226,7 @@ def build_lid(d, extra, path):
     first) to keep a rebuild byte-identical.
     """
     from .parts import lid as lid_part
-    part, inlays = lid_part.build_all(d, alternate=bool(extra))
+    part, inlays = lid_part.build_all(d, variant=extra)
     bodies = [("Lid", part)]
     bodies += [(f"Part {i}", s) for i, s in enumerate(
         sorted(inlays, key=lambda s: (-round(s.volume, 6),

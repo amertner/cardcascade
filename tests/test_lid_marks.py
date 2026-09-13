@@ -77,9 +77,9 @@ def thinnest(ink):
 
 print("=== the scales the catalogue fits ===")
 scales = {}
-for game, fn, p, alt in B.lid_catalogue():
+for game, fn, p, variant in B.lid_catalogue():
     d = D.derive(p)
-    name, n = lid.logo_choice(d, alt)
+    name, n = lid.logo_choice(d, variant)   # (None, 0.0) for an unmarked lid
     if name:
         scales.setdefault((game, name), {})[round(n, 6)] = fn
 for (game, name), by_n in sorted(scales.items()):
