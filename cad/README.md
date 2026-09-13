@@ -279,7 +279,7 @@ the corpus a 7.0 build is held to.
 
 **4. One lock: 7.0's.**
 `lock.py` is the 7.0 catalogue and every release on the line keeps it
-(`lock.SAME_LOCK`, 7.0 through 7.1); `pusher.build` **refuses** a `Primary` at
+(`lock.SAME_LOCK`, 7.0 through 7.2a); `pusher.build` **refuses** a `Primary` at
 any version outside it rather than stamp `CC 6.6` on 7.0 tabs. The Lid is the same
 story on its own half of the lock: a 7.0 lid is told from a pre-7.0 one by a
 `1.700` recess step against the pre-7.0 `1.800`, and `tests/test_lid_corpus.py`
@@ -329,7 +329,7 @@ flag on the Derived (`d.rev.lid_socket_per_pusher`), never as a version
 comparison. A build at the older release must keep reproducing `individual/`
 exactly, which is why every test that compares against a reference pins its
 release through `tests/reference.py` rather than taking the default: the
-default is 7.1 and will move again. `spec/REVISIONS.md` is the record and
+default is 7.2a and will move again. `spec/REVISIONS.md` is the record and
 `tests/test_revisions.py` asserts every flag at both releases.
 A flag does not have to reach a PART: `both_lid_editions` (7.1d) is read by
 `build.lid_editions_built` and `cascade.parts`, because what it changes is how

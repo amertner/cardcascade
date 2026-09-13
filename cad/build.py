@@ -312,9 +312,20 @@ SINGLE_SET = "one expansion"
 
 
 def ships_toppers(row, d):
-    """Does this row's cascade carry toppers? Innovation only, and not a
-    single-set cascade (`SINGLE_SET`). The catalogue, `cad.cascade` and
-    `cad.assemble` all ask it here."""
+    """Does this row's cascade carry toppers? Innovation only, not a
+    single-set cascade (`SINGLE_SET`), and not a row whose `Toppers` column
+    says `none`. The catalogue, `cad.cascade` and `cad.assemble` all ask it
+    here.
+
+    The column exists because a topper's cached name is Onshape's three-key
+    (`topper_file`: size letter, cards per slot, sleeving) and NOT the model,
+    while its slant is the holder's and so depends on the rise. A row that
+    shares the key with another but not the rise — `M8.16.10-16` against
+    `M5.10.10`, both `M10-Un` — would build toppers of one slant over the
+    other's file, so it opts out until toppers are keyed on what they fit.
+    """
+    if (row.get("Toppers") or "").strip().lower() in ("none", "no", "false", "0"):
+        return False
     return (d.GameName == "Innovation"
             and SINGLE_SET not in (row.get("Set/Extension") or "").lower())
 

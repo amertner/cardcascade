@@ -85,9 +85,17 @@ from .refuse import refuse
 # `7.1` is `7.1d`'s geometry under a `CC 7.1` stamp. The letters STAY, and are
 # not renamed or removed: a version that has been built has to remain
 # describable and buildable, and each of them is still only the flags at or
-# before its own letter. The next design change opens `7.2a`.
-RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1")
-CURRENT = "7.1"
+# before its own letter.
+#
+# **7.2a is OPEN** (Allan, 2026-09-11): the first letter after the 7.1 lock.
+# It carries NO flag yet — the `low_profile` change it was opened for was
+# withdrawn on 2026-09-13 before the line moved on (`spec/REVISIONS.md`) —
+# and it is where the `Three Expansions` row and its ROW options (`Deep
+# slot`, `Sleeved card width`, `Toppers`) arrived; a row option is not a
+# release change. `cascades/` stays the 7.1 release until 7.2 locks;
+# `build/` is 7.2a.
+RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a")
+CURRENT = "7.2a"
 
 
 @dataclass(frozen=True)

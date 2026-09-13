@@ -546,6 +546,7 @@ def pusher_lock(data):
 # `_dotted` has to accept the trailing mark, or the version is not found on the
 # line at all.
 STAMP_SIGNATURES = {
+    "7.2a": ("none", "none"),
     "7.1d": ("none", "none"),
     "7.1c": ("none", "none"),
     "7.1b": ("none", "none"),
@@ -988,21 +989,23 @@ def pusher_rise(data, risers):
     segs = _section(verts, tris, 2, zlo + 0.5 * (zhi - zlo))   # clear of tabs
     x0, x1 = min(c[0]), max(c[0])
     y0, y1 = min(c[1]), max(c[1])
-    unit = (y1 - y0) / risers
+    # A step is a DISCONTINUITY in the plate's width along the rise: a riser
+    # face drops it by a whole slider distance (4.800 at the least) between
+    # two adjacent samples 0.1 apart, where a step's corner chamfer moves it
+    # a tenth of that. It used to be read by quantising the width to equal
+    # drops, which loses edges once a first-riser override's odd drop has
+    # drifted the sum past the tolerance — three steps in on an 8-riser
+    # pusher with the deep drop LAST (`Deep slot = back`, 2026-09-12).
+    STEP = 2.0
     edges, last = [], None
     for j in range(900):
         x = x0 + (j + .5) * (x1 - x0) / 900
         ins = [y for y in (y0 + (k + .5) * (y1 - y0) / 300 for k in range(300))
                if _inside(segs, x, y)]
         w = (max(ins) - min(ins)) if ins else 0.0
-        n = round(w / unit)
-        if last is None:
-            last = n
-            continue
-        if abs(w - n * unit) < 0.6:
-            if n < last:
-                edges.append(x - x0)
-            last = n
+        if last is not None and last - w > STEP:
+            edges.append(x - x0)
+        last = w
     treads = [b - a for a, b in zip(edges, edges[1:])]
     return (sum(treads) / len(treads) if treads else None), treads
 

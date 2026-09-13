@@ -582,6 +582,13 @@ def slider_ribs(d):
     """
     back = box_depth(d) / 2 - WALL
     sd, fsd = d.calSliderDistance, d.calFirstSliderDistance
+    if d.isDeepSlotAtBack:
+        # The odd one out is the BACK slot (`Deep slot = back`, cad/ only):
+        # the first rib sits on its centre and the plain ones follow at the
+        # `calSliderDistance` pitch from there.
+        ys = [back - fsd / 2]
+        ys += [back - (fsd + j * sd + sd / 2) for j in range(d.RisingSliders - 1)]
+        return [(y - SLIDER_W, y) for y in ys]
     ys = [back - (j * sd + sd / 2) for j in range(d.RisingSliders - 1)]
     ys.append(back - ((d.RisingSliders - 1) * sd + fsd / 2))
     return [(y - SLIDER_W, y) for y in ys]
@@ -712,9 +719,12 @@ def lip_slope(d):
     `20.400` against `9.600` — and it reads 1.280, not 0.560.
 
     One formula with the Holder's `slant_slope`: `derive.cascade_slope`,
-    inverted, at the first slider distance.
+    inverted, at the first slider distance — or at the plain one when the
+    deep slot is at the BACK (`isDeepSlotAtBack`), since the lip then meets
+    a standard holder.
     """
-    return 1.0 / D.cascade_slope(d, d.calFirstSliderDistance)
+    sd = d.calSliderDistance if d.isDeepSlotAtBack else d.calFirstSliderDistance
+    return 1.0 / D.cascade_slope(d, sd)
 
 
 def lip_tool(d):

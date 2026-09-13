@@ -47,6 +47,40 @@ own Python with no build123d in it**, so `render/cascade.py` cannot import
 Preview, Xcode, three.js and every DCC tool, so a cascade can be looked at
 without any of this.
 
+## Cards in the slots
+
+`cad.assemble --cards` fills every slot with a card stack — a box the size of
+the cards the slot holds, standing where they stand — and puts the set's
+number on its front face, so a render shows a cascade IN USE: which slot holds
+which set of which expansion, and how much of each card the rise leaves
+showing. The stacks are written to a SEPARATE assembly, `<model> <state>
+cards.3mf`, so the plain assemblies `cad.fit` and the tests read are untouched;
+`cad.gltf` colours a stack by its expansion (`gltf.CARD_COLOURS`, one colour a
+set of Innovation's six) and the numerals in the light one. Nothing here is a
+part: the cards are never printed.
+
+    .venv/bin/python -m cad.assemble --model M8.16.10-16.45-Un --state play --cards --no-toppers
+    .venv/bin/python -m cad.gltf "build/assemblies/Innovation/M8.16.10-16.45-Un play cards.3mf" \
+        --filaments '#F4F4F2,#1B1B1B' --part 'Lid=#0E6BA8' --part 'Lid Part=#F4F4F2' -o tmp/cards.glb
+
+The fill rule is `assembly.card_fill` (2026-09-11, Allan): an Innovation
+expansion is twelve sets numbered 0 to 11, sets 0 and 1 of 16 cards and the
+rest of 10, and the fill has to be READABLE, because a slot that has run out
+has to say what it held. So **an expansion owns a column**: its sets run down
+it front to back — 0 in the front pocket and 1 in the first riser, the two
+deep slots a column has — and the overflow continues down the unowned columns
+in order. On the four-column, nine-row `M8.16.10-16` each expansion's 0..8 is
+its own column and the fourth column reads 9, 10, 11 of each in turn; on a
+single-set cascade it is plain column-major. Set 0 is the expansion's
+achievements and player aids, not an age, so it is lettered `A`; on a row
+whose deep slot is at the back (`Deep slot = back`) it goes there, the riser
+used least, and 1 to 8 run from the front pocket back. `--sets
+Echoes,Figures,Unseen` names the expansions for the second of two cascades. A card is
+`calCardwidth` wide and `assembly.card_height` tall — 92 sleeved, 89 unsleeved
+for Innovation — and a stack `calCardThickness` a card thick, against the
+holder's BACK wall where a raised holder leaves it. The numeral's cap is
+`0.6 x calHeightIncrement`, clamped to 4..10, so it fits what the rise shows.
+
 ## Why Cycles
 
 It is the only free, scriptable, genuinely path-traced renderer with a

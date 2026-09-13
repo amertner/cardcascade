@@ -120,9 +120,13 @@ check("an unknown release is refused, not silently built", refused, True)
 # --- the Lid cuts one socket per pusher -------------------------------------
 print(f"\n=== {since('lid_socket_per_pusher')}  lid_socket_per_pusher ===")
 asserted.add("lid_socket_per_pusher")
-# The four Innovation M lids, named. Any other row in the catalogue must be
-# IDENTICAL across the two releases: the flag changes these and nothing else.
-CHANGED = {"M5.15.15.45.Un", "M5.15.15.62.Sl", "M5.10.10.32.Un", "M5.10.10.45.Sl"}
+# The Innovation M lids, named: the four in the 7.0 catalogue and, from
+# 2026-09-11, the two of the `Three Expansions` row, which is an Innovation M
+# too and so gets Onshape's three sockets at 7.0. Any other row in the
+# catalogue must be IDENTICAL across the two releases: the flag changes these
+# and nothing else.
+CHANGED = {"M5.15.15.45.Un", "M5.15.15.62.Sl", "M5.10.10.32.Un", "M5.10.10.45.Sl",
+           "M8.16.10-16.45.Un", "M8.16.10-16.62.Sl"}
 
 
 def only_lid_flag(d):
@@ -167,7 +171,7 @@ for row in rows():
         check(f"{d70.calModelName}: and 7.0's middle one is their midpoint",
               round(c70[1], 6), round((c70[0] + c70[-1]) / 2, 6))
 
-check("exactly the four Innovation M lids change", sorted(moved), sorted(CHANGED))
+check("exactly the Innovation M lids change", sorted(moved), sorted(CHANGED))
 print(f"  ({same} lids identical across the two releases)")
 
 # The size of the change, from the solid. A release moves TWO things at once —

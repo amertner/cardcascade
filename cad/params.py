@@ -45,6 +45,19 @@ class Primary:
     # cad/ only — see the module docstring. 1 is what every shipped box has;
     # 0 leaves the front and side label holders off (`box.label_holders`).
     LabelHolders: int = 1
+    # cad/ only. parts.csv's `Sleeved card width` column: the width a SLEEVED
+    # card of this row is given, in mm, where the studio adds 2.000 to the
+    # game's unsleeved width. 0 is the studio's rule. One row uses it (Allan,
+    # 2026-09-12): `Three Expansions` at 64, so its sleeved twin is as wide as
+    # its unsleeved one and still lies flat in the Innovation box.
+    SleevedCardWidth: float = 0.0
+    # cad/ only. parts.csv's `Deep slot` column: `back` puts the deeper
+    # first-riser slot (`Cards/First Riser`) at the BACK of the cascade
+    # instead of the studio's front. Allan, 2026-09-12: on Innovation it holds
+    # the expansion's achievements and player aids, wanted once at setup, so
+    # the least stable riser is the one used least. Meaningless without an
+    # override, and blank (or `front`) is the studio's own.
+    DeepSlotAtBack: int = 0
 
 
 def _int(row, col, default=0):
@@ -90,7 +103,25 @@ def _primary(row, sleeved, version, first, slot, game):
         Version=version,
         LabelHolders=0 if (row.get("Label holders") or "").strip().upper()
         in ("FALSE", "0", "NO", "OFF") else 1,
+        SleevedCardWidth=_float(row, "Sleeved card width"),
+        DeepSlotAtBack=_deep_slot(row),
     )
+
+
+def _deep_slot(row):
+    v = (row.get("Deep slot") or "").strip().lower()
+    if v in ("", "front"):
+        return 0
+    if v == "back":
+        return 1
+    short = (row.get("Short name") or "?").strip()
+    raise ValueError(f"parts.csv row {short!r}: Deep slot {v!r} is not front, "
+                     f"back or blank")
+
+
+def _float(row, col, default=0.0):
+    v = (row.get(col) or "").strip()
+    return float(v) if v else default
 
 
 def load_rows(path):

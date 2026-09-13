@@ -96,16 +96,18 @@ def catalogue():
     """
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
-        # Single-set cascades hold one expansion, so they carry no toppers at
-        # all (Allan). cad.build.topper_catalogue skips them for the same
-        # reason and by the same column.
-        if B.SINGLE_SET in (row.get("Set/Extension") or "").lower():
-            continue
         for sleeved in (0, 1):
             p = REF.from_row(row, sleeved)
             if p.GameName != "Innovation":
                 continue
             d = D.derive(p)
+            # Single-set cascades hold one expansion, so they carry no
+            # toppers at all (Allan), and a row whose `Toppers` column says
+            # `none` opts out — `M8.16.10-16` shares this key with `M5.10.10`
+            # at a different rise, so it would build the wrong slant under
+            # the cached name. `build.ships_toppers` is the one rule for both.
+            if not B.ships_toppers(row, d):
+                continue
             key = (f"{d.calSizeLetter}{p.CardsPerSlidingSlot}"
                    f"{'-Sl' if sleeved else '-Un'}")
             out[key] = p

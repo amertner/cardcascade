@@ -105,6 +105,12 @@ def derive(p):
     v["calCardThickness"] = (v["game10UnsleevedCardThickness"] if p.isSleeved == 0
                              else v["game10SleevedCardThickness"]) / 10
     v["calCardwidth"] = v["gameUnsleevedCardWidth"] + {0: 0.0, 1: 2.0}[p.isSleeved]
+    # A row may state its sleeved cards' width outright (cad/ only,
+    # `Primary.SleevedCardWidth`): the studio's +2.000 is a game-wide guess
+    # and one row's sleeves measure narrower. It reaches everything the card
+    # width does — slot, box, lid, holders — and nothing else.
+    if p.isSleeved and p.SleevedCardWidth:
+        v["calCardwidth"] = p.SleevedCardWidth
     v["calSlotwidth"] = 3.0 + v["calCardwidth"]
     # `#BoxWidth` is a SKETCH variable, not a studio one, and it is the single
     # exception in this file. It is here because `calTokenHolderSlotWidth`
@@ -172,6 +178,12 @@ def derive(p):
                                    * (v["calTabDistance"] + TabWidth))
     # -----------------------------------------------------------------------
     v["calPusherTotalHeight"] = v["calHeightIncrement"] * p.RisingSliders
+    # cad/ only: where the deeper first-riser slot sits. The studio puts it at
+    # the FRONT (the first rib, the pusher's leading drop, the lip's angle);
+    # `Deep slot = back` moves it to the back rib and the pusher's last drop,
+    # and the lip then meets a standard holder. `box.slider_ribs`,
+    # `pusher.slider_drops`, `box.lip_slope`, `assembly.holder_rib`.
+    v["isDeepSlotAtBack"] = 1 if (p.DeepSlotAtBack and p.isFirstSlidingSlotOverride) else 0
     v["calFrontPocketDepth"] = v["calCardThickness"] * p.FrontPocketCardCapacity
     v["calAngleDelta"] = 0.0    # sin(LeanAngle) * BoxHeight; LeanAngle is 0
 

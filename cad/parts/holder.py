@@ -153,6 +153,18 @@ def x_span(d):
     return -half, (d.HorizontalSlots - 1) * d.calSlotwidth + half
 
 
+def deep_at_back(d, first):
+    """Is this the deeper first-riser holder of a row that puts it at the
+    BACK (`Deep slot = back`, `derive.isDeepSlotAtBack`)? Two things differ
+    there (Allan, 2026-09-13, off the first print): it carries NO rear lips —
+    nothing stands behind it to hook, only the box's back wall, 0.950 away,
+    which the lips of a shallow slant reach past — and its top runs at the
+    PLAIN holders' slant, anchored at the front edge, where the holder in
+    front rests its lips, so its rear rises instead. `slant_slope`,
+    `slant_rear`, `rear_lips`."""
+    return bool(first) and bool(d.isDeepSlotAtBack)
+
+
 def slant_slope(d, first):
     """`dZ/dY` of `Top slant angle` — the cascade diagonal.
 
@@ -161,13 +173,31 @@ def slant_slope(d, first):
     Measured off the slant faces' normals: 1.7857 / 0.7812 / 1.2037 on the three
     references, against 1.7857 / 0.7812 / 1.2037 predicted. The rival reading
     (the other slider distance) is 2.3x out on the 246 pair.
+
+    The deeper first-riser holder is therefore SHALLOWER, because it drops the
+    same rise - 1 over more depth — unless it is at the BACK (`deep_at_back`),
+    where it takes the plain holders' slant and its rear rises to suit.
     """
+    if deep_at_back(d, first):
+        return D.cascade_slope(d, slider_distance(d, False))
     return D.cascade_slope(d, slider_distance(d, first))
+
+
+def slant_rear(d, first):
+    """Z where the upper slant plane meets the REAR face (Y = 0): `slant_top`,
+    44.250 on every holder — except the deep holder at the back, whose front
+    edge stays where its own slant would put it (that is where the next
+    holder's lips land in play) and whose rear top rises by the difference
+    the steeper slant makes over its depth."""
+    if not deep_at_back(d, first):
+        return slant_top(d)
+    own = D.cascade_slope(d, slider_distance(d, first))
+    return slant_top(d) + (slant_slope(d, first) - own) * holder_depth(d, first)
 
 
 def slant_z(d, first, y, lower=False):
     """Z of the slant plane at depth `y` (y <= 0)."""
-    return slant_top(d) - (SLANT_STEP if lower else 0.0) + slant_slope(d, first) * y
+    return slant_rear(d, first) - (SLANT_STEP if lower else 0.0) + slant_slope(d, first) * y
 
 
 def shell(d, first):
@@ -459,7 +489,7 @@ def side_slots(d, first, part):
     x0, x1 = x_span(d)
     depth = holder_depth(d, first)
     z0 = base_z(d)
-    tall = slant_top(d) - z0 + 2.0
+    tall = slant_rear(d, first) - z0 + 2.0
     # END_BLOCK deep, plus 1.0 of overshoot past the end so the cut leaves no
     # coincident face; likewise 1.0 below the base and above the slant.
     tool = Box(END_BLOCK + 1.0, SLOT_W, tall)
@@ -539,7 +569,12 @@ def slant_band(d, first, x0, x1):
 
 
 def rear_lips(d, first, part):
-    """Add the lips: the plan outline, clipped to the band between the slants."""
+    """Add the lips: the plan outline, clipped to the band between the slants.
+
+    None on the deep holder at the back (`deep_at_back`): the lips hook the
+    holder behind, and behind it is the box's back wall."""
+    if deep_at_back(d, first):
+        return part
     pts = lip_plan(d, first)
     # Tall enough to reach the slant band, which sits around Z = 44; extruding
     # +-40 about the origin misses it entirely.
@@ -634,7 +669,7 @@ def lip_rests(d, first, part):
     for xc in compartment_x(d):
         for sign in (+1, -1):
             at = Vector(xc + sign * x_mid, 0.0,
-                        slant_top(d) - SLANT_STEP / 2) + dirv * t0
+                        slant_rear(d, first) - SLANT_STEP / 2) + dirv * t0
             face = sk.sketch.moved(Location(at))
             tools.append(extrude(face, amount=LIP_REST_THROUGH, dir=dirv))
     return part.cut(*tools)

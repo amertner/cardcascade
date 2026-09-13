@@ -801,6 +801,18 @@ groups ADD near the rim is untouched by a round that has already happened.
 
 ## `Sliders` — one rib per riser, and where they sit
 
+**From 2026-09-12 a row may put the deep slot at the BACK** (parts.csv `Deep
+slot` = `back`, `derive.isDeepSlotAtBack`, cad/ only): the first rib then sits
+on the back slot's centre and the plain ones follow at `calSliderDistance`,
+the pusher's `calFirstSliderDistance` drop is its LAST, and the lip's angle is
+the plain holder's, since that is what it meets. `assembly.holder_rib` puts
+the FirstHolder on rib 0, and there it differs from the front-mounted one
+(`holder.deep_at_back`, Allan 2026-09-13 off the first print): no rear lips,
+and the plain holders' slant anchored at its front edge, so its rear rises
+by about 5 (`spec/HOLDER.md`, "The deep holder at the back"). `Three
+Expansions` is the row: its deep slot holds an expansion's achievements and
+aids, wanted once at setup, so the least stable riser is the one used least.
+
 Vertical ribs on both end walls, which the holders ride on. The section is
 constant on every reference: **`1.500` wide in Y, standing `4.000` proud of the
 inner end wall**, running the full height from the floor to the rim.

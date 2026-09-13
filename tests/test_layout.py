@@ -184,7 +184,7 @@ with tempfile.TemporaryDirectory() as tmp:
             out = tmp / f"{model}.3mf"
             PJ.write(out, bed, objs, plates, places, title=CC.title(row, d))
         except Refused as e:
-            check(f"{p.GameName} {model}: refused, and known to be at the bed's limit",
+            check(f"{d.GameName} {model}: refused, and known to be at the bed's limit",
                   model in AT_THE_LIMIT, str(e))
             continue
         check(f"{model}: laid out, yet listed as at the limit", model not in AT_THE_LIMIT)

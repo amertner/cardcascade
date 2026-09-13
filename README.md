@@ -27,8 +27,8 @@ That's it — `Orbitron-Bold.ttf` is bundled (Google Fonts, OFL licence).
 # multi-plate Bambu project 3MFs (whole sets + split-box labels)
 .venv/bin/python labelmaker.py --plates
 
-# one 3MF per set (default / split boxes / spares plates) in labels_out/sets/
-.venv/bin/python labelmaker.py --sets
+# one 3MF per set (default / split boxes / spares plates) — the DEFAULT mode
+.venv/bin/python labelmaker.py
 
 # another game (its own cc.cfg entries and width lists)
 .venv/bin/python labelmaker.py --game FCM --plates
@@ -79,7 +79,7 @@ matching `--game` are used:
 | `split1=V`, `split2=V` | like `split=` but for half-boxes of different sizes (must appear together) |
 | `side=<text>` | short text printed on side labels instead of the set name (fronts keep the full name), e.g. `side=FCM/O` |
 | `plate=<title>:<w1>+<w2>+...` | an extra plate in the set's 3MF with exactly these label widths — free-form, not limited to the standard widths (used for the Blank set's legacy CC 5.1 sizes); repeatable |
-| `parts=<w1>+...@<l1>\|<l2>\|...[#<tag>]` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set — every grouping becomes a 3MF of its own (see `--sets`), named `<part count> Cascades`, or `<tag> Cascades` when a `#<tag>` is given. Tag a grouping when two would otherwise share a file name, or when the number worth showing is not the box count. A label may contain a comma; only a comma that begins another `key=` splits a field |
+| `parts=<w1>+...@<l1>\|<l2>\|...[#<tag>]` | the set spans several cascades, one per label: fronts read `<name> <label>`, sides just `<label>`. Repeatable, one grouping per way of splitting the set — every grouping becomes a 3MF of its own (see "Per-set project files"), named `<part count> Cascades`, or `<tag> Cascades` when a `#<tag>` is given. Tag a grouping when two would otherwise share a file name, or when the number worth showing is not the box count. A label may contain a comma; only a comma that begins another `key=` splits a field |
 | `names=<w1>+...@<n1>[:<short>]\|<n2>...` | the **transpose** of `parts=`: one plate per *name*, each holding every width, so a plate is exactly one box's labels. For a box design that ships once per expansion. The **narrowest** width takes the short form when one is given; every other width, front and side alike, takes the full name — a long name only shrinks past legibility at the bottom of the range ("Innovation" sets at 1.61 mm on a 20 mm label but 3.11 mm on a 32 mm one), so shortening every side label the way `side=` does for a whole set would waste the room the wider ones have. `(BLANK)` is the blank label |
 | none | line is skipped |
 
@@ -100,9 +100,9 @@ FCM,Milestones,side=FCM/M,box=20/32@144 Card:M5.6.6
 If there is no `cc.cfg` either, the built-in `NAMES` list at the top
 of `labelmaker.py` is used.
 
-## Per-set project files (`--sets`)
+## Per-set project files (the default)
 
-`--sets` writes one Bambu project per set into `<out>/sets/`, named
+The default run writes one Bambu project per set into `cascades/<game>/labels/`, named
 `<Set> Labels <version>.3mf` (`--version` overrides the default `6_0`),
 using
 the recommendations from `cc.cfg`. Labels are stacked one above

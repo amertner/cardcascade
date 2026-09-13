@@ -906,3 +906,41 @@ feature of more than a few cubic millimetres has nowhere left to hide.
   other value the studio ever had was CraftGutermann's `58.0`, which is
   deprecated and gone. (An earlier revision of this file said `Colours` was the
   exception. `Colours` differs in `BoxHeight` and `LidHeight`, not in the card.)
+
+
+## The deep holder at the back — `holder.deep_at_back`, 2026-09-13
+
+A row may put its deeper first-riser slot at the BACK (parts.csv `Deep slot`
+= `back`; `spec/BOX.md`, "Sliders"). The FirstHolder is then the rearmost
+holder, and Allan's first print of `M8.16.10-16.62-Sl` found two things wrong
+with it there, both diagnosed off the built parts before anything moved:
+
+**It was snug against the back wall, and the cause was its rear lips.** Every
+holder's rear lips reach `LIP_REACH` 2.100 along its slant, so their Y reach
+is `2.1 / sqrt(1 + slope^2)` — the flatter the slant, the further back. The
+rearmost holder's rear face is 0.950 from the inner back wall on every
+cascade, and its lips hook nothing there. Measured by intersecting the placed
+holder with the box: the single-set holder (slope 2.727) reaches 0.72 and
+clears; Dominion's 8- and 9-riser plain holders (1.37 / 1.20) reach 1.24 /
+1.34 and already interfere by 0.3–0.4 (48–59 mm3), a latent squeeze the
+printed catalogue tolerates; the deep holder at its own slant (0.851) reached
+1.60 and interfered by 0.65 (105 mm3). `cad.fit` had never seen it — the
+holder is checked by its rib margins and not intersected. **So the deep
+holder at the back carries no rear lips** (`rear_lips` returns the part):
+they do no work there.
+
+**Its slant was shallower than the others', and that is the design on every
+first-riser holder** — `slant_slope` drops `rise - 1` over the holder's OWN
+depth so the front edge lands where the next holder's lips rest in play, and
+a deeper holder is therefore flatter (40 against 52 degrees here; Onshape's
+Dominion 246 FirstHolder measures the same way). At the front the pocket hid
+it; at the back it reads as a kink in the diagonal. Allan: the rearmost holder
+should slant like the others. So at the back it takes the PLAIN slant, and
+because its front edge must stay where its own slant put it (the lip rests
+for the holder in front are cut from that height), its REAR rises instead:
+`slant_rear` is `slant_top` plus the two slopes' difference over the depth,
+49.3 / 49.6 rather than 44.25 on the two M8 rows, 96.5 / 96.9 in the closed
+box against the sockets' underside at 100. `cad.fit` now reports "socket
+underside over the tallest holder" off the built meshes so a future row
+cannot exceed that quietly. The finger scallop stays centred on `slant_top`,
+at the card tops, so it simply cuts deeper into the taller rear wall.

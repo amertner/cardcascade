@@ -80,7 +80,10 @@ rotation, so:
   105.000` to `100.000`; the rear storage caps at `REAR_TOP` 85.000, the front
   pocket at 87.500, and a holder tops out at ~93.05 on every cascade
   (`CardHeight` is 92.000 for every game), so nothing of the box or its
-  contents reaches them at either end;
+  contents reaches them at either end. (A 92 card standing in the holder
+  reaches 95.800, which is what the sockets actually clear — by 4.200 — and
+  is what bounds a box's height. `cad.fit` reports it as "socket underside
+  over the card top", and the tallest holder beside it.)
 * the sockets are EMPTY when a cascade is closed — the pushers are in the rear
   storage — so nothing functional depends on where they land.
 
@@ -396,6 +399,17 @@ that holds on one cascade and not on 50 is the finding worth having.
 6. Generalise to the four representatives — a Dominion Mat row (TokenHolder and
    Half), Innovation, Compile (spanning holders), FCM — with `--game`/`--model`
    for any other and `--all` in the background.
+
+## Cards, for looking at
+
+`assembly.card_fill` / `card_stack` place a stack of cards in every slot,
+front pockets included, for `cad.assemble --cards` — render-only, written to
+their own `<model> <state> cards.3mf`, never a part. `spec/RENDER.md`, "Cards
+in the slots", has the fill rule and the colours. Their one geometric claim is
+where a stack stands: on the holder's pocket floor (`pocket_z` less
+`FLOOR_DROP`, 1.800 above the base) against the pocket's back wall, and on the
+box floor against the front wall in the front pocket — card top 95.800 on a
+sleeved cascade, the number the lid's sockets clear by 4.200.
 
 ## Open, and what settles each
 

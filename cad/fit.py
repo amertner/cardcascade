@@ -178,13 +178,33 @@ def tread_margins(d):
     return out
 
 
-def lid_margins(d):
-    """The lid over the box, and the box in the lid."""
+def lid_margins(d, holders=None):
+    """The lid over the box, and the box in the lid. `holders` is
+    `built_holders`' reading, for the tallest holder under the sockets."""
     out = []
     z0, _z1 = lid_part.groove_span(d)
     pl = A.lid_closed(d)
     out.append(Margin("closed: groove floor on the box's bump top",
                       pl((0, 0, z0))[2], lid_part.BUMP_TOP))
+    # What bounds a box's height: the sockets hang from the closed lid's floor
+    # over the card compartments, and the tallest thing under them is a card
+    # standing on the holder's pocket floor (2.000 above the base, less the
+    # 0.200 FLOOR_DROP) — 4.200 on a sleeved cascade — or a holder that
+    # stands taller than its cards.
+    card_floor = (box_part.floor_top(d) + holder_part.half_height(d)
+                  + holder_part.pocket_z(d)[0] - holder_part.FLOOR_DROP)
+    out.append(Margin("closed: socket underside over the card top",
+                      (d.BoxHeight - lid_part.SOCKET_H)
+                      - (card_floor + d.CardHeight), None,
+                      note=f"CardHeight {d.CardHeight:.0f}; must be > 0"))
+    # ... and over the tallest HOLDER, read off the built meshes: a deep
+    # holder at the back (`holder.deep_at_back`) rises above the card tops.
+    tops = [info["top"] for info in (holders or {}).values() if "top" in info]
+    if tops:
+        out.append(Margin("closed: socket underside over the tallest holder",
+                          (d.BoxHeight - lid_part.SOCKET_H)
+                          - (box_part.floor_top(d) + holder_part.half_height(d)
+                             + max(tops)), None, note="must be > 0"))
     inner = lid_part.lid_width(d) / 2 - D.WallThickness
     out.append(Margin("lid over box: width, each side",
                       inner - box_part.box_width(d) / 2,
@@ -234,7 +254,8 @@ def built_holder(d, folder, first=False, out_dir=None):
                     if abs((b - a) - holder_part.SLOT_W) < 0.05))
     if not walls or walls[0][0] > 0.05:
         return None
-    return {"slot": walls[0][1], "width": float(x_hi - x_lo)}
+    return {"slot": walls[0][1], "width": float(x_hi - x_lo),
+            "top": float(v[:, 2].max())}
 
 
 def _once(built, key, make):
@@ -288,7 +309,7 @@ def report(d, folder, state, solids=True, tokens=False, built=None):
     print(f"\n{folder}/{d.calModelName}  [{state}]")
     built = {} if built is None else built
     holders = _once(built, "holders", lambda: built_holders(d, folder))
-    margins = list(lid_margins(d))
+    margins = list(lid_margins(d, holders))
     if state == A.PLAY:
         margins += socketed_pusher_margins(d) + tread_margins(d)
     else:

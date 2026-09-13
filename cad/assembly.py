@@ -147,7 +147,8 @@ def holder_rib(d, j):
     rib the deeper `FirstHolder` takes, and only when the row has an override.
     """
     ribs = box_part.slider_ribs(d)
-    first = bool(d.isFirstSlidingSlotOverride) and j == len(ribs) - 1
+    deep = 0 if d.isDeepSlotAtBack else len(ribs) - 1   # `Deep slot = back`
+    first = bool(d.isFirstSlidingSlotOverride) and j == deep
     y0, y1 = ribs[j]
     return (y0 + y1) / 2, holder_part.holder_depth(d, first), first
 
@@ -431,3 +432,136 @@ def topper_play(d, j, first=False):
     lift = holder_play(d, j).origin[2] - holder_closed(d, j).origin[2]
     return Place(x_dir=pl.x_dir, z_dir=pl.z_dir,
                  origin=(pl.origin[0], pl.origin[1], pl.origin[2] + lift))
+
+
+# --- the CARDS: for looking at, not for printing ----------------------------
+#
+# A card stack is a box the size of the cards a slot holds, placed where they
+# stand, so a render can show a cascade IN USE: which slot holds which set of
+# which expansion, and how much of each card shows in play. `cad.assemble
+# --cards` places them and numbers them; `cad.gltf` colours a stack by its
+# expansion. Nothing here reaches a part.
+#
+# An Innovation expansion is twelve sets of cards, numbered 0 to 11: sets 0
+# and 1 of 16 cards, the rest of 10 (Allan, 2026-09-11). A cascade holds as
+# many expansions as it has slots for, twelve a set, counting the front
+# pockets and every riser slot.
+#
+# The fill has to be READABLE, because a slot that has run out of cards has
+# to say what it held (Allan): **an expansion owns a column.** Its sets run
+# down that column front to back — 0 in the front pocket, 1 in the first
+# riser, which are the two deep slots a column has, then 2, 3, ... to the
+# back — and whatever does not fit continues down the columns no expansion
+# owns, column by column, the expansions in order. So on the four-column,
+# nine-row `M8.16.10-16` each expansion's 0..8 is its own column and the
+# fourth column reads 9, 10, 11 of each in turn; on a single-set cascade it
+# is plain column-major. An empty slot is "this column, this row". A set
+# larger than its slot is cut to the slot: a 16 in a 15-card pocket shows 15.
+#
+# Set 0 is not an age: it is the expansion's achievements and player aids,
+# wanted once at setup (Allan, 2026-09-12), so it is lettered `A` rather than
+# numbered, and on a row whose deep slot is at the BACK (`isDeepSlotAtBack`)
+# it goes there — the least stable riser, used least — with 1 to 8 then
+# running from the front pocket back.
+CARD_SETS = (16, 16) + (10,) * 10
+CARD_SET_LABELS = {0: "A"}
+
+
+def card_set_label(n):
+    """What a stack's numeral says: the set number, or `A` for set 0."""
+    return CARD_SET_LABELS.get(n, str(n))
+INNOVATION_SETS = ("Innovation", "Artifacts", "Cities", "Echoes",
+                   "Figures", "Unseen")
+# `CardHeight` (92) is the studio's envelope and what a SLEEVED card measures;
+# an unsleeved Innovation card is 89 (Allan). Other games' unsleeved cards are
+# taken as the sleeve's worth shorter, which is a render-only guess.
+UNSLEEVED_CARD_HEIGHT = {"Innovation": 89.0}
+SLEEVE_HEIGHT = 3.0
+
+
+def card_height(d):
+    """How tall a card is, as it stands in a slot."""
+    if d.isSleeved:
+        return float(d.CardHeight)
+    return UNSLEEVED_CARD_HEIGHT.get(d.GameName, d.CardHeight - SLEEVE_HEIGHT)
+
+
+def card_column(d, k):
+    """Column `k`'s slots FRONT to BACK: `[(riser or None, capacity)]` — the
+    front pocket, then the first (frontmost) riser, then back to riser 0.
+    `riser` is `holders`' index (0 is the back one); None is the pocket. A
+    merged row's mat slot has no pocket, so its column starts at the riser."""
+    out = ([(None, d.FrontPocketCardCapacity)]
+           if k < d.calFrontSlotsForCards else [])
+    for j, first in reversed(holders(d)):
+        out.append((j, d.FirstSlidingSlotCards if first else d.CardsPerSlidingSlot))
+    return out
+
+
+def card_slots(d):
+    """Every slot, column by column and front to back within a column:
+    `[(riser or None, column, capacity)]`."""
+    return [(j, k, cap) for k in range(d.HorizontalSlots)
+            for j, cap in card_column(d, k)]
+
+
+def card_fill(d, sets=None):
+    """`[((riser, column), expansion, set number, cards)]` — which set stands
+    in which slot, by the rule above: an expansion owns a column, and the
+    overflow runs down the unowned columns in order. `sets` names the
+    expansions; the default is `INNOVATION_SETS` from the first, and a second
+    cascade of the same box passes the rest (`cad.assemble --sets
+    Echoes,Figures,Unseen`)."""
+    n_exp = len(card_slots(d)) // len(CARD_SETS)
+    names = list(sets or INNOVATION_SETS)
+    if len(names) < n_exp:
+        raise ValueError(f"{d.calModelName} holds {n_exp} expansions and only "
+                         f"{len(names)} are named: {', '.join(names)}")
+    if n_exp > d.HorizontalSlots:
+        raise ValueError(f"{d.calModelName} has {d.HorizontalSlots} columns "
+                         f"for {n_exp} expansions; the rule needs one each")
+    names = names[:n_exp]
+    out, spare = [], []
+    for e, name in enumerate(names):
+        column = card_column(d, e)
+        if d.isDeepSlotAtBack:
+            # Set 0 to the deep BACK slot; the rest fill from the front.
+            column = column[-1:] + column[:-1]
+        for n, size in enumerate(CARD_SETS):
+            if n < len(column):
+                j, cap = column[n]
+                out.append(((j, e), name, n, min(size, cap)))
+            else:
+                spare.append((name, n, size))
+    free = [(j, k, cap) for k in range(n_exp, d.HorizontalSlots)
+            for j, cap in card_column(d, k)]
+    for (j, k, cap), (name, n, size) in zip(free, spare):
+        out.append(((j, k), name, n, min(size, cap)))
+    return out
+
+
+def card_stack(d, slot, count, state):
+    """`(x0, x1, y0, y1, z0, z1)` of a stack of `count` cards in `slot`, in
+    the cascade frame. In a holder the stack stands on the pocket's floor
+    against its BACK wall, where a raised holder leaves it; in the front
+    pocket it stands on the box floor against the front wall."""
+    j, k = slot
+    t = d.calCardThickness * count
+    w, h = d.calCardwidth, card_height(d)
+    if j is None:
+        x = box_part.thumb_centres(d)[k]
+        y0 = box_part.pocket_span(d)[0]
+        z0 = box_part.floor_top(d)
+        return (x - w / 2, x + w / 2, y0, y0 + t, z0, z0 + h)
+    place = holder_closed if state in (CLOSED, CLOSED_LID) else holder_play
+    ox, oy, oz = place(d, j).origin
+    x = ox + k * d.calSlotwidth
+    y1 = oy - holder_part.WALL
+    z0 = oz + holder_part.pocket_z(d)[0] - holder_part.FLOOR_DROP
+    return (x - w / 2, x + w / 2, y1 - t, y1, z0, z0 + h)
+
+
+def card_label_cap(d):
+    """Cap height of the set number on a stack's front face: sized to what a
+    riser shows of the card behind it — the rise — and never illegible."""
+    return min(10.0, max(4.0, 0.6 * d.calHeightIncrement))

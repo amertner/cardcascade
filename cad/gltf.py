@@ -138,16 +138,33 @@ def _linear(u):
     return u / 12.92 if u <= 0.04045 else ((u + 0.055) / 1.055) ** 2.4
 
 
+# The cards `cad.assemble --cards` places are not printed and have no
+# filament: a stack is coloured by its EXPANSION, one colour each of the six
+# Innovation sets, and its set number is lettered in the light one. Any other
+# game's stacks get the neutral. `--part 'Cards Cities=#hex'` still overrides.
+CARD_COLOURS = {
+    "Innovation": "#7D3C98", "Artifacts": "#C0392B", "Cities": "#2E86C1",
+    "Echoes": "#27AE60", "Figures": "#E67E22", "Unseen": "#17A589",
+}
+CARD_NEUTRAL = "#B5A98C"
+CARD_LABEL = "#F4F4F2"
+
+
 def colour_of(name, filaments, parts):
     """The colour a component is rendered in.
 
     A `--part` override wins, matched on the longest component-name prefix, so
     `Box` catches the box and `Holder` catches both the standard and the first
-    one. Otherwise the filament in the slot the body/inlay rule gives.
+    one. A card stack is coloured by its expansion (`CARD_COLOURS`). Otherwise
+    the filament in the slot the body/inlay rule gives.
     """
     for key in sorted(parts or {}, key=len, reverse=True):
         if (name or "").startswith(key):
             return parts[key]
+    if (name or "").startswith("Cards Label"):
+        return CARD_LABEL
+    if (name or "").startswith("Cards "):
+        return CARD_COLOURS.get(name.split()[1], CARD_NEUTRAL)
     slot = slot_for(name)
     return filaments[slot - 1] if slot - 1 < len(filaments) else filaments[0]
 

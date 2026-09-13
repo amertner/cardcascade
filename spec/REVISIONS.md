@@ -86,8 +86,9 @@ and buildable. Not one flag's `since` moved at the lock either: they still name
 the letter each change shipped in, which is what the letters are for and what
 `tests/test_revisions.py` isolates them by.
 
-**The next design change opens `7.2a`**, not `7.1e`. `7.1` is on the line now,
-so a change after it is a change after the release.
+**The first letter after the lock is `7.2a`** (2026-09-11), not `7.1e`: `7.1`
+is on the line, so a change after it is a change after the release. `7.2a` is
+below — open, and so far without a flag.
 
 The same 7.0 **lock** (`lock.SAME_LOCK`, and `pusher.build` refuses a release
 that has not declared one) under a `CC 7.1` stamp, so a cad-built cascade can
@@ -190,6 +191,52 @@ pitch narrower, so the row it lays down there is not the row it lays down at
 7.1b, and only the flag alone can price a cutout. That technique is the
 reason a `Rev` is a record of independent booleans rather than a version number
 to compare against.
+
+### 7.2a — OPEN 2026-09-11, no flag yet
+
+`CURRENT`. `cascades/` stays the 7.1 release until 7.2 locks; `build/` is 7.2a.
+
+**Opened for a flag that was withdrawn.** `low_profile` (2026-09-11) made
+`S3.15.10.32-Sl` a 100 box with a 35 lid and a 3 mm, 3.2-wide, 12.2-wide
+flared lid socket, so the closed single-set cascade lost 5 mm. Allan printed it
+and withdrew it on 2026-09-13: the Innovation game box is 76 mm inside and
+holds its cards flat, so a standing cascade lifts its lid whatever its height,
+and 5 mm of lift was not worth a lid and box that only fit each other. The
+flag and everything it gated are gone from the tree; the analysis that went
+with it is kept here in one paragraph, because it is easy to get wrong again:
+the label holder is NOT what stops a box being shorter (the closed lid's rim
+sits at 66.6 to cover the front cutout, which the front-pocket cards set, so a
+lid shrinks with its box), and slider engagement is not either (the design's
+floor is 18 mm of rib, `(BoxHeight - 18) / RisingSliders`); what is, is the
+lid's pusher sockets hanging 5 mm from its floor dead over the first and last
+card compartments, 4.2 mm above a standing sleeved card. A shorter box is a
+shorter socket, and a 3 mm socket wants a 3.2 channel and a wider, flared
+block. `cad.fit` keeps the two margins that came out of it: "socket underside
+over the card top" and "over the tallest holder".
+
+**What 7.2a carries instead** — none of it a flag, all of it a ROW:
+
+* the `Three Expansions` row, `M8.16.10-16`: four columns, eight 10-card
+  risers, a 16-card first riser and front pocket, so 36 slots for three
+  Innovation expansions of twelve sets each; two of them lie on their backs in
+  the game box (286.9 along the 288, two closed heights along the 263, 74.1
+  deep as the height unsleeved; 99.6 sleeved, which lifts the lid 23.6). Its
+  card sets are placed by `assembly.card_fill` and drawn by `cad.assemble
+  --cards` (`spec/RENDER.md`);
+* three row options in parts.csv, each a `Primary` field and a `derive`
+  variable, read by parts on that row alone: **`Deep slot` = back** (the deep
+  first-riser slot at the back: `box.slider_ribs`, `pusher.slider_drops`,
+  `box.lip_slope`, `assembly.holder_rib`, and the holder itself —
+  `holder.deep_at_back`: no rear lips, the plain slant with a taller rear,
+  `spec/HOLDER.md`); **`Sleeved card width`** (64 on this row, so the sleeved
+  twin is as wide as the unsleeved); **`Toppers` = none** (the row's toppers
+  would share Onshape's cache name with `M5.10.10`'s at a different slant,
+  `build.ships_toppers`).
+
+A row option is not a release change: no existing part moves, so there is no
+flag and nothing for `tests/test_revisions.py` to assert at two ends — except
+the one thing the new row DID change about an existing case, the
+`lid_socket_per_pusher` set, which now names six Innovation M lids.
 
 ## What a release moves besides its flags
 

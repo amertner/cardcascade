@@ -48,7 +48,10 @@ def slider_drops(d):
     """
     drops = [d.calSliderDistance] * d.RisingSliders
     if d.isFirstSlidingSlotOverride:
-        drops[0] = d.calFirstSliderDistance
+        # ... unless the row puts the deep slot at the BACK (`Deep slot`,
+        # cad/ only): then it is the LAST drop, the top tread, and the
+        # leading step is a plain one.
+        drops[-1 if d.isDeepSlotAtBack else 0] = d.calFirstSliderDistance
     return drops
 
 

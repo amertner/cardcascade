@@ -153,10 +153,48 @@ def topper_risers(d, toppers=False):
     return A.holders(d) if toppers else []
 
 
+# The set number on a card stack's front face, for `--cards`: a numeral this
+# far proud of the front card, its cap top this far below the card's top edge,
+# where the rise leaves it showing in play.
+CARD_LABEL_PROUD = 0.300
+CARD_LABEL_DROP = 1.000
+
+
+def card_meshes(d, state, sets=None):
+    """`[(name, shape)]` — one box per card stack and one numeral per stack,
+    placed in the cascade frame (`assembly.card_fill`, `card_stack`). Named
+    `Cards <expansion> <set>` and `Cards Label <expansion> <set>`, which is
+    what `cad.gltf` colours by."""
+    # Lazily, like every other build123d user here: `cad.assemble --list`
+    # must import none of it (`tests/test_smoke.py`), and `cad.text` does.
+    from build123d import Axis, Box, Location
+    from . import text as T
+    from .geom import text_solid
+
+    out = []
+    cap = A.card_label_cap(d)
+    size = cap / T.CAP
+    for slot, name, n, count in A.card_fill(d, sets):
+        x0, x1, y0, y1, z0, z1 = A.card_stack(d, slot, count, state)
+        stack = Box(x1 - x0, y1 - y0, z1 - z0).moved(
+            Location(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)))
+        out.append((f"Cards {name} {n}", stack))
+        txt = A.card_set_label(n)
+        adv, _lsb, _lo, _hi = T.metrics(txt, T.LOGO_FONT)
+        # Drawn flat in XY and stood up: a quarter turn about X takes the
+        # glyph's height to +Z and its extrusion to -Y, proud of the face.
+        glyph = text_solid(txt, T.LOGO_FONT, size, CARD_LABEL_PROUD)
+        glyph = glyph.rotate(Axis.X, 90).moved(Location((
+            (x0 + x1) / 2 - adv * size / 2, y0, z1 - CARD_LABEL_DROP - cap)))
+        out.append((f"Cards Label {name} {n}", glyph))
+    return out
+
+
 def assemble(d, state, folder, out_dir, take_tokens=False,
-             half=False, toppers=False):
+             half=False, toppers=False, cards=None):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
-    `instances` [(part index, Place)]."""
+    `instances` [(part index, Place)]. `cards` is None for none, or the
+    expansion names to fill the slots with (`card_meshes`)."""
     parts, instances = [], []
 
     def add(mesh, places):
@@ -205,6 +243,13 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
     elif state == A.PLAY:
         for mesh in lid_meshes(d, out_dir, folder):
             add(mesh, [A.lid_under(d)])
+
+    # The cards, already in the cascade frame: a shape each, meshed by the
+    # writer, with the identity placement.
+    if cards is not None:
+        for name, shape in card_meshes(d, state, cards):
+            parts.append((name, shape))
+            instances.append((len(parts) - 1, A.Place()))
     return parts, instances
 
 
@@ -245,7 +290,18 @@ def main(argv=None):
     ap.add_argument("--half", action="store_true",
                     help="on a merged row, place the HALF token holder instead "
                          "of the FULL — they are alternatives for one slot")
+    ap.add_argument("--no-toppers", action="store_true",
+                    help="assemble without toppers even where the row ships "
+                         "them (a row with none cached would otherwise skip)")
+    ap.add_argument("--cards", action="store_true",
+                    help="fill every slot with a numbered card stack, written "
+                         "to `<model> <state> cards.3mf` (assembly.card_fill)")
+    ap.add_argument("--sets", help="the expansions the cards belong to, in "
+                                   "order, e.g. Echoes,Figures,Unseen "
+                                   f"(default: {', '.join(A.INNOVATION_SETS)})")
     args = ap.parse_args(argv)
+    sets = ([s.strip() for s in args.sets.split(",") if s.strip()]
+            if args.sets else list(A.INNOVATION_SETS)) if args.cards else None
 
     rows = catalogue(args.csv, args.game, args.model, args.version)
     states = A.STATES if args.state == "all" else (args.state,)
@@ -263,14 +319,15 @@ def main(argv=None):
                 parts, instances = assemble(d, state, folder, args.out,
                                             take_tokens=tokens,
                                             half=args.half,
-                                            toppers=toppers)
+                                            toppers=toppers and not args.no_toppers,
+                                            cards=sets)
             except MissingCached as e:
                 skipped.append(f"{folder}/{d.calModelName}: {e}")
                 break
             stem = B.model_stem(d.calModelName)
-            path = args.out / "assemblies" / folder / f"{stem} {state}.3mf"
-            meshed = mesh3mf.write_assembly(path, parts, instances,
-                                            name=f"{stem} {state}")
+            label = f"{stem} {state}" + (" cards" if args.cards else "")
+            path = args.out / "assemblies" / folder / f"{label}.3mf"
+            meshed = mesh3mf.write_assembly(path, parts, instances, name=label)
             tris = sum(len(t) for _n, _v, t in meshed)
             print(f"  {folder + '/' + path.name:52s} {len(parts):6d} "
                   f"{len(instances):5d} {tris:8d} {path.stat().st_size / 1024:6.0f}")

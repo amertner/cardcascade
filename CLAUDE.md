@@ -34,14 +34,20 @@ check cad output.
 ## Releases — `cad/revisions.py`, `spec/REVISIONS.md`
 
 - `RELEASES` is an ordered line: `7.0` (the Onshape generation), `7.1a`..`7.1d`,
-  `7.1` (locked 2026-09-10, `CURRENT`). A version is an opaque STRING — nothing
-  parses one; order is position in `RELEASES`.
+  `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a` (open
+  2026-09-11, `CURRENT`, what `build/` is; no flag yet). A version is an opaque STRING —
+  nothing parses one; order is position in `RELEASES`.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **The next design change opens `7.2a`**, not `7.1e`. Steps: `spec/REVISIONS.md`,
-  "Adding the next release". `7.2` stays off the line until its lock, and
-  letters are never removed — a version that was printed must stay buildable.
+- **7.2a is open and carries no flag yet** — the `low_profile` change it was
+  opened for was withdrawn (2026-09-13) — so the next design change is
+  7.2a's first flag, not a new letter. Steps: `spec/REVISIONS.md`, "Adding
+  the next release". `7.2` stays off the line until its lock, and letters are
+  never removed — a version that was printed must stay buildable.
+- **A row can carry its own options** without a flag: parts.csv's `Deep
+  slot`, `Sleeved card width` and `Toppers` columns (below). What 7.2a holds
+  so far is the `Three Expansions` row and those.
 - A release change is not a **divergence** (cad against Onshape at the same
   version). The deliberate divergences: the Lid logo is fitted to the lid
   (`LOGO_*` in `cad/parts/lid.py`, `spec/LID.md`), and the Holder's slot mouth
@@ -113,6 +119,25 @@ check cad output.
   `Parked`, which skips the row.
 - **The CAD is the authority on a box's model code** (`derive.calModelName`),
   not `parts.csv`.
+- A topper's cached name is Onshape's three-key (size, cards per slot,
+  sleeving), NOT the model, while its slant follows the rise: a row that
+  shares the key with another but not the rise sets parts.csv's `Toppers`
+  column to `none` (`build.ships_toppers`) or it builds over the other's
+  toppers. `M8.16.10-16` against `M5.10.10` is the case.
+- parts.csv's `Sleeved card width` states one row's sleeved card width
+  outright where the studio adds 2 to the game's (`derive`, `calCardwidth`);
+  `Three Expansions` uses 64 so its sleeved twin is 286.9 wide like its
+  unsleeved one. A row property, not a release flag.
+- parts.csv's `Deep slot` = `back` puts a row's deeper first-riser slot at
+  the BACK instead of the studio's front: the back rib, the pusher's last
+  drop, a standard holder at the lip (`derive.isDeepSlotAtBack`; read
+  `assembly.holder_rib` for which rib the deep holder rides), and the deep
+  holder itself loses its rear lips and takes the plain slant with a taller
+  rear (`holder.deep_at_back`, `slant_rear`). `Three Expansions` uses it. A
+  row property, not a release flag.
+- `cad.assemble --cards` draws numbered, per-expansion card stacks in every
+  slot for a render (`spec/RENDER.md`, "Cards in the slots"); they go to a
+  separate `... cards.3mf` and are never parts.
 - Every project has exactly **two filament slots, white 1 and black 2**, and
   three forced process settings (`cad/project.py`, held equal to
   `make_cascade.PRINT_SETTINGS` by `tests/test_project.py`): `arachne`,
