@@ -685,6 +685,10 @@ def rest_depth(d):
     (a deeper notch under a rear lip costs nothing) so the front holder, which
     is the plain one, takes the box lip as the others take a holder's.
     """
+    if d.rev.ribs_forward:
+        # The box lip's band is the top of the rest band at the wall's face
+        # from 7.2f (`box.lip_z`), so every rest is the plain depth.
+        return SLANT_STEP + REST_CLEARANCE
     from .. import assembly as A
     return max(SLANT_STEP, A.box_lip_seat(d)) + REST_CLEARANCE
 

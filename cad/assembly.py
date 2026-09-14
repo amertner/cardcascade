@@ -433,25 +433,49 @@ def front_holder_gap(d):
     return (pl.origin[1] - depth) - box_part.pocket_span(d)[2]
 
 
-def box_lip_seat(d):
-    """How far below the front holder's slant surface the Box lip's UNDERSIDE
-    sits, in play, measured at the divider panel's back face where the lip
-    leaves it: the depth a rest has to be for that lip to seat.
-
-    The lip is fixed on the box (`box.LIP_Z`, 85.500 to 87.500); the holder
-    rides its tread, so its slant plane at the panel is
-    `tread + half_height + slant_z(-(depth + gap))`. With the slant the
-    diagonal (`derive.cascade_slope`) that is `4 - 0.85 * slope` below the
-    surface — 2.000 at a slope of 2.35, more on a flatter cascade — which is
-    why the rest is deepened per row rather than the lip moved: raised, the
-    lip's root would stand above the panel's 87.500 top on every flat row.
-    """
+def box_lip_diagonal(d):
+    """Z where the front holder's slant surface crosses the divider panel's
+    back face, in play: the holder rides its tread, so `tread + half_height
+    + slant_z(-(depth + gap))`. The band the box lip should occupy ends here
+    — and from 7.2f it does (`box.lip_z`)."""
     j = len(box_part.slider_ribs(d)) - 1
     first = holder_rib(d, j)[2]
     pl = holder_play(d, j)
     y = -(holder_part.holder_depth(d, first) + front_holder_gap(d))
-    surface = pl.origin[2] + holder_part.slant_z(d, first, y)
-    return surface - box_part.LIP_Z
+    return pl.origin[2] + holder_part.slant_z(d, first, y)
+
+
+def box_lip_top(d):
+    """Z of the front holder's slant surface `box.LIP_BITE` inside its front
+    face, in play — where the box lip's flat top sits from 7.2f
+    (`box.lip_z`). At the bite's depth and not the wall's face because the
+    rest floor follows the slant and is `LIP_BITE * slope` higher there
+    (0.52 on Compile): measured at the face, a flat lip's tip met the floor
+    by 1.0 mm3. Here the tip clears it by `REST_CLEARANCE` exactly and the
+    face by more."""
+    j = len(box_part.slider_ribs(d)) - 1
+    first = holder_rib(d, j)[2]
+    pl = holder_play(d, j)
+    y = -holder_part.holder_depth(d, first) + box_part.LIP_BITE
+    return pl.origin[2] + holder_part.slant_z(d, first, y)
+
+
+def box_lip_seat(d):
+    """How far below the front holder's slant surface the Box lip's UNDERSIDE
+    sits, in play, at the panel's back face where the lip leaves it: the
+    depth a rest has to be for that lip to seat.
+
+    Through 7.2e the lip is fixed at `box.LIP_Z` 85.500 while the diagonal
+    crosses the panel `4 - 0.85 * slope` above its top — 2.000 at a slope of
+    2.35, more on a flatter cascade — so the rest is deepened per row rather
+    than the lip moved, whose root would otherwise stand above the panel's
+    87.500 top. From 7.2f (`rev.ribs_forward`) the lip is flat and its top
+    is the surface at the WALL's face (`box_lip_top`), so it is measured
+    there and is the plain `LIP_HEIGHT`, 2.000, on every row.
+    """
+    if d.rev.ribs_forward:
+        return box_lip_top(d) - box_part.lip_z(d)
+    return box_lip_diagonal(d) - box_part.lip_z(d)
 
 
 # --- the Topper ------------------------------------------------------------

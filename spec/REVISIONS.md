@@ -344,9 +344,9 @@ One flag:
   box already has no holders is refused a twin. `spec/BOX.md`, "A plain box
   on a plate of its own".
 
-### 7.2e — OPEN 2026-09-13
+### 7.2e — 2026-09-13
 
-`CURRENT`; `build/` is 7.2e. One flag:
+One flag:
 
 * **`seated_lips`** (`7.2e`, 2026-09-13) — every lip seats in the rest of
   the part behind it when the cascade is open, and reaches no further
@@ -371,6 +371,33 @@ One flag:
   diagonal exactly. Slopes move a few degrees on steep rows and hardly at all
   on flat ones. `cad.fit` builds and intersects every holder from here, and
   `lip_margins` reports each lip's seat. `spec/HOLDER.md`, "Lips that seat".
+
+### 7.2f — OPEN 2026-09-14, a PROTOTYPE
+
+`CURRENT`; `build/` is 7.2f. One flag, opened to PRINT a test of it before
+the catalogue moves (`cad.testkit`), so it may be revised or withdrawn as
+7.2a's `low_profile` was:
+
+* **`ribs_forward`** (`7.2f`, 2026-09-14) — Allan, on the 7.2e box lip: it
+  should not have further to go than a holder's. The studio's `#BoxDepth`
+  leaves 1.800 of unused space between the last card slot and the divider
+  panel, so the box lip crossed 1.250 where a holder's lips cross 0.400.
+  Every slider rib — and so every holder — moves FORWARD by `box.rib_shift`
+  (derived, 0.850 on every row) so the front holder is `CardHolderGap` from
+  the panel. The box lip becomes a FLAT block that BITES that wall by
+  0.150 (`box.lip_reach`, 0.550 proud) — inside the holder's 0.200 rib
+  slack, so the holder still slides straight down its ribs past it, which
+  7.2e's lip (0.800 into the wall) did not allow: a holder cannot pass a
+  fixed lip on its way in, and `cad.fit` now sweeps the front holder onto
+  its seat in the closed state to prove it — with its top on the holder's
+  slant at the wall's face in play (`box.lip_z`, on a 0.800 post above the
+  panel's bevel), so every rest is the plain 2.200 and every lip floats the
+  same 0.200. The lid and pusher do not
+  move: a holder now hangs 0.500 past the front edge of its tread instead of
+  sitting 0.350 inside it (`cad.fit`'s tread margins), and the rearmost
+  holder is 1.800 from the back wall instead of 0.950, space a later change
+  can take out of the box and lid together. `spec/BOX.md`, "The ribs move
+  forward", including what the test print is to show.
 
 ## What a release moves besides its flags
 

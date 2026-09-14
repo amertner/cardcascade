@@ -230,12 +230,67 @@ def lip_margins(d):
                       note=f"must be >= {holder_part.REST_CLEARANCE:.3f}"
                            if d.rev.seated_lips else "must be > 0"))
     m = box_part.lip_slope(d)
-    reach = (A.front_holder_gap(d) + holder_part.WALL if d.rev.seated_lips
-             else box_part.LIP_DEPTH * m / (1.0 + m * m) ** 0.5)
-    wall_in = (pf.origin[1] - holder_part.holder_depth(d, ff) + holder_part.WALL)
-    out.append(Margin(f"play: {who}, lip tip past the wall's inner face",
-                      box_part.pocket_span(d)[2] + reach - wall_in,
-                      0.0 if d.rev.seated_lips else None))
+    if d.rev.ribs_forward:
+        reach = box_part.lip_reach(d)
+    elif d.rev.seated_lips:
+        reach = A.front_holder_gap(d) + holder_part.WALL
+    else:
+        reach = box_part.LIP_DEPTH * m / (1.0 + m * m) ** 0.5
+    wall_face = pf.origin[1] - holder_part.holder_depth(d, ff)
+    if d.rev.ribs_forward:
+        # From 7.2f the lip BITES the wall by LIP_BITE, inside the rib slack,
+        # rather than filling it (`box.lip_reach`).
+        out.append(Margin(f"play: {who}, lip's bite into the wall",
+                          box_part.pocket_span(d)[2] + reach - wall_face,
+                          box_part.LIP_BITE))
+    else:
+        out.append(Margin(f"play: {who}, lip tip past the wall's inner face",
+                          box_part.pocket_span(d)[2] + reach - (wall_face + holder_part.WALL),
+                          0.0 if d.rev.seated_lips else None))
+    # Closed, a holder's rear lips are above the front wall of the holder
+    # behind — `calHeightIncrement - 2.000` above it, whatever the slope —
+    # which is what lets the holders go in back to front down their ribs.
+    if len(hs) > 1:
+        (jb, fb), (jf, ff2) = hs[0], hs[1]
+        pb, pf2 = A.holder_closed(d, jb), A.holder_closed(d, jf)
+        y_tip = pf2.origin[1] + holder_part.lip_reach_y(d, ff2)
+        under = pf2.origin[2] + holder_part.lip_band_z(d, ff2, holder_part.lip_reach_y(d, ff2), lower=True)
+        wall_top = pb.origin[2] + holder_part.slant_z(d, fb, y_tip - pb.origin[1])
+        out.append(Margin("closed: rear lips above the wall of the holder behind",
+                          under - wall_top, None, note="must be > 0: holders go in back to front"))
+    return out
+
+
+def insertion(d, built=None, step=0.5, above=30.0):
+    """The front holder lowered down its ribs onto its seat, against the box,
+    as B-reps: [(shift, worst mm3)] for the holder centred on its rib and at
+    the BACK of its rib slack. The 7.2e box lip, 0.800 into the wall, stopped
+    the holder dead here; from 7.2f it bites LIP_BITE, which the slack
+    absorbs, so the shifted sweep must be clean and the centred one shows
+    the bite (`spec/BOX.md`, "The ribs move forward").
+    """
+    from .parts import box as bp
+    built = {} if built is None else built
+    box = _once(built, "Box", lambda: bp.build(d))
+    hs = A.holders(d)
+    j, first = hs[-1]
+    rear = A.rear_of(d, j)
+    key = f"Holder{'-deep' if first else ''}{'-rear' if rear else ''}"
+    holder = _once(built, key,
+                   lambda f=first, r=rear: holder_part.build(d, f, text=False, rear=r))
+    closed = A.holder_closed(d, j)
+    slack = (holder_part.SLOT_W - bp.SLIDER_W) / 2
+    out = []
+    for shift in (0.0, slack):
+        worst = 0.0
+        dz = 0.0
+        while dz <= above:
+            pl = A.Place(origin=(closed.origin[0], closed.origin[1] + shift,
+                                 closed.origin[2] + dz))
+            c = box & (pl.location() * holder)
+            worst = max(worst, c.volume if c is not None else 0.0)
+            dz += step
+        out.append((shift, worst))
     return out
 
 
@@ -395,6 +450,17 @@ def report(d, folder, state, solids=True, tokens=False, built=None):
             if v > 1e-6:
                 ok = False
             print(f"  {flag} {a + ' / ' + b:44s} {v:10.4f} mm3")
+        if state == A.CLOSED:
+            print("  -- the front holder lowered onto its seat --")
+            for shift, v in insertion(d, built):
+                at_back = shift > 0
+                bad = v > 1e-6 and at_back
+                if bad:
+                    ok = False
+                flag = "HIT" if bad else "ok "
+                where = "at the back of its rib slack" if at_back else "centred on its rib"
+                print(f"  {flag} {'front holder past the box lip, ' + where:44s} {v:10.4f} mm3"
+                      + ("" if at_back else "  (the lip's bite; must clear when shifted back)"))
     return ok
 
 

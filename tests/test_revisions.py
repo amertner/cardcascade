@@ -1246,6 +1246,73 @@ check(f"{SL_NEW}: ... with its top on that holder's slant surface there",
       round(bb.max.Z - surface_at_tip, 3), 0.0)
 
 
+# --- 7.2f: the ribs move forward, the box lip onto the diagonal -------------
+print(f"\n=== {since('ribs_forward')}  ribs_forward ===")
+asserted.add("ribs_forward")
+# A PROTOTYPE for a print test (cad.testkit; spec/BOX.md, "The ribs move
+# forward"). Asserted at both ends on every row: the front holder's gap to
+# the panel (1.250 -> 0.400, the holders' own), the box lip's reach (2.050
+# -> 0.550: the gap plus a 0.150 bite) and seat (flat, its top on the
+# holder's slant at the wall's face, so `box_lip_seat` is the plain band and
+# every rest 2.200), the ribs' shift (0.850 derived, 0 before), the rearmost
+# holder's gap to the back wall (0.950 -> 1.800) and the tread overhang the
+# unmoved pusher leaves (0.350 inside -> 0.500 over). Then BUILT, on 333 Sl
+# and Compile S4 Un: the flat lip on its post, no common volume in play, and
+# the INSERTION sweep — the front holder lowered down its ribs passes the
+# lip at the back of its slack, where 7.2e's lip stopped it dead.
+RF_OLD, RF_NEW = before("ribs_forward"), since("ribs_forward")
+bad = []
+for r in rows():
+    for s in (0, 1):
+        d_a, d_b = at(r, s, RF_OLD), at(r, s, RF_NEW)
+        got = (round(A.front_holder_gap(d_a), 3), round(A.front_holder_gap(d_b), 3),
+               round(box_part.rib_shift(d_a), 3), round(box_part.rib_shift(d_b), 3),
+               round(A.box_lip_seat(d_b), 3), round(holder_part.rest_depth(d_b), 3),
+               round(box_part.lip_z(d_a), 3), round(A.box_lip_top(d_b) - box_part.lip_z(d_b), 3),
+               round(box_part.lip_reach(d_b), 3))
+        if got != (1.25, 0.4, 0.0, 0.85, 2.0, 2.2, 85.5, 2.0, 0.55):
+            bad.append(f"{d_b.calModelName}: {got}")
+        # the rearmost holder's rear face to the inner back wall, closed
+        for d_x, want in ((d_a, 0.95), (d_b, 1.8)):
+            back_in = box_part.box_depth(d_x) / 2 - box_part.WALL
+            if abs(back_in - A.holder_closed(d_x, 0).origin[1] - want) > 1e-6:
+                bad.append(f"{d_x.calModelName} @ {d_x.Version}: rear gap {back_in - A.holder_closed(d_x, 0).origin[1]:.3f}")
+check(f"{RF_OLD} -> {RF_NEW}: on every row the front gap 1.250 -> 0.400, the ribs 0 -> 0.850 "
+      "forward, the box lip on the diagonal (seat 2.000, rest 2.200), the rear gap 0.950 -> 1.800",
+      bad, [])
+d_a, d_b = at(row_of("S9.21.10.62.Sl", 1), 1, RF_OLD), at(row_of("S9.21.10.62.Sl", 1), 1, RF_NEW)
+from cad import fit as FIT2                                       # noqa: E402
+front = lambda d_x: [round(m.got, 3) for m in FIT2.tread_margins(d_x)   # noqa: E731
+                     if m.name.endswith("front")]
+check(f"{RF_OLD}: 333 Sl's holders sit 0.350 inside the front of their treads", set(front(d_a)), {0.35})
+check(f"{RF_NEW}: ... and hang 0.500 over it, the pusher not having moved", set(front(d_b)), {-0.5})
+check(f"{RF_NEW}: 333 Sl's box lip top is on the front holder's slant at the bite's depth, 90.133",
+      round(box_part.lip_z(d_b) + box_part.LIP_HEIGHT, 3), 90.133)
+FIT2 = FIT
+sweep_old = FIT2.insertion(d_a, {}, step=1.0)
+sweep_new = FIT2.insertion(d_b, {}, step=1.0)
+check(f"{RF_OLD}: lowering 333 Sl's front holder down its ribs, the box lip stops it even at the back of its slack",
+      [v > 10 for _s, v in sweep_old], [True, True])
+check(f"{RF_NEW}: ... and now it passes at the back of its slack, biting only when centred",
+      [sweep_new[1][1] < 1e-6, sweep_new[0][1] > 1], [True, True])
+for model, sleeved in (("S9.21.10.62.Sl", 1), ("S4.7.7.20.Un", 0)):
+    d_m = at(row_of(model, sleeved), sleeved, RF_NEW)
+    hits = lip_hits(d_m)
+    check(f"{RF_NEW}: {model} — no holder touches the one behind, nor the box its front holder",
+          hits, [0.0] * len(hits))
+    bx = box_part.build(d_m)
+    x = box_part.thumb_centres(d_m)[0] + box_part.LIP_OFFSET
+    _fw, _fb, back = box_part.pocket_span(d_m)
+    lip = bx & _Box(20, 10, 30).moved(_Loc((x, back + 5, 92)))
+    bb = lip.bounding_box()
+    lz = box_part.lip_z(d_m)
+    check(f"{RF_NEW}: {model} — the lip stands 0.550 proud, flat, from lip_z to lip_z + 2",
+          (round(bb.max.Y - back, 3), round(bb.min.Z - lz, 3), round(bb.max.Z - lz, 3)), (0.55, 0.0, 2.0))
+    post = bx & _Box(20, 0.8, 1.0).moved(_Loc((x, back - 0.4, lz + 1.0)))
+    check(f"{RF_NEW}: {model} — ... and the post fills the panel's back face above its bevel",
+          round(post.volume, 1), round(12.4 * 0.8 * 1.0, 1))
+
+
 # --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",

@@ -581,7 +581,7 @@ def slider_ribs(d):
     odd one out. `Box Dominion 246S` is the only reference that can tell the
     two distances apart (20.400 against 9.600) and it lands on the nose.
     """
-    back = box_depth(d) / 2 - WALL
+    back = box_depth(d) / 2 - WALL - rib_shift(d)
     sd, fsd = d.calSliderDistance, d.calFirstSliderDistance
     if d.isDeepSlotAtBack:
         # The odd one out is the BACK slot (`Deep slot = back`, cad/ only):
@@ -593,6 +593,27 @@ def slider_ribs(d):
     ys = [back - (j * sd + sd / 2) for j in range(d.RisingSliders - 1)]
     ys.append(back - ((d.RisingSliders - 1) * sd + fsd / 2))
     return [(y - SLIDER_W, y) for y in ys]
+
+
+def rib_shift(d):
+    """How far FORWARD of the studio's position every rib sits — 0.000 through
+    7.2e, and from 7.2f (`rev.ribs_forward`) whatever puts the front holder
+    `CardHolderGap` from the divider panel, as every holder is from the one
+    behind it.
+
+    The studio's `#BoxDepth` leaves a constant 1.800 between the last card
+    slot's front edge and the panel's back face (its `6.0` less two walls and
+    the panel). A holder centred on its rib, whose back face is on the slot's
+    centre, overhangs the slot's front edge by `SLIDER_W/2 - DEPTH_GAP/2` =
+    0.550, so the box lip had 1.250 to cross where a holder's lips have
+    0.400. Derived, not 0.850: the slots, the pocket and the panel say it.
+    """
+    if not d.rev.ribs_forward:
+        return 0.0
+    slots = (d.RisingSliders - 1) * d.calSliderDistance + d.calFirstSliderDistance
+    slot_front = box_depth(d) / 2 - WALL - slots
+    overhang = SLIDER_W / 2 - holder_part.DEPTH_GAP / 2
+    return (slot_front - pocket_span(d)[2]) - overhang - D.CardHolderGap
 
 
 def sliders(d, part):
@@ -701,7 +722,46 @@ LIP_LENGTH = D.LipLength          # 10.000, the top face
 LIP_DEPTH = D.LipDepth            # 2.100, along the ramp — 7.0 to 7.2d
 LIP_HEIGHT = D.LipHeight          # 2.000, in Z
 LIP_CHAMFER = D.LipChamfer        # 1.200, 45 degrees in the XY plane
-LIP_Z = 85.500                    # where it leaves the panel's back face
+LIP_Z = 85.500                    # where it leaves the panel's back face — through 7.2e
+# From 7.2f (`rev.ribs_forward`) the lip is a FLAT block that BITES the front
+# holder's wall by LIP_BITE — Allan, 2026-09-14: overlap by no more than
+# 0.1-0.2 so the holder slides in with a little flex. A holder goes into the
+# box straight down its ribs, so anything of the lip inside its front wall's
+# footprint meets the wall's bottom edge on the way down (the 7.2e lip, 0.800
+# into the wall, stopped it dead: `cad.fit`'s insertion sweep); 0.150 is
+# inside the 0.200 the holder has on its rib, so it steps back and slides
+# past. LIP_LEAD is the 45-degree chamfer on the lip's top rear edge that
+# the wall's bottom edge rides over.
+LIP_BITE = 0.150
+LIP_LEAD = 0.300
+POST_ROOT = 4.500                 # from 7.2f: how far the lip's post reaches down into the panel
+
+
+def lip_reach(d):
+    """How far the lip stands proud of the panel's back face, in Y, from
+    7.2f: the gap to the front holder (`assembly.front_holder_gap`, 0.400
+    with the ribs forward) plus LIP_BITE. (7.2e: gap + wall; before, 2.100
+    along the ramp — `lip_tool`.)"""
+    from .. import assembly as A
+    return A.front_holder_gap(d) + LIP_BITE
+
+
+def lip_z(d):
+    """Z where the lip leaves the panel's back face.
+
+    `LIP_Z` 85.500 through 7.2e. From 7.2f (`rev.ribs_forward`) the lip is
+    flat-topped and its top sits ON the front holder's slant surface where
+    its tip bites, LIP_BITE inside that holder's front face, in play
+    (`assembly.box_lip_top`, 89.500 + 0.55 * slope with the ribs forward),
+    so its LIP_HEIGHT band is the top of the rest band there and its tip
+    floats REST_CLEARANCE above the rest's floor, exactly as a holder's lips
+    do. That is above the panel's 87.500 top,
+    which is what the post is for (`lip_tool`).
+    """
+    if d.rev.ribs_forward:
+        from .. import assembly as A
+        return A.box_lip_top(d) - LIP_HEIGHT
+    return LIP_Z
 
 
 def lip_slope(d):
@@ -744,6 +804,9 @@ def lip_tool(d):
     _fw, _fb, back = pocket_span(d)
     m = lip_slope(d)
     unit = (1.0 + m * m) ** 0.5
+    lz = lip_z(d)
+    if d.rev.ribs_forward:
+        return flat_lip_tool(d)
     if d.rev.seated_lips:
         # The gap to the front holder plus its front wall, in Y — the same
         # rule as the holder's own lips (`holder.lip_reach_y`): across the
@@ -763,10 +826,16 @@ def lip_tool(d):
             # is not across a coincident face. That tab is trimmed with the
             # panel by the angled cutout, which is why the lip goes into the
             # composite before the cut rather than after it.
-            Polygon((back - 0.8, LIP_Z), (back, LIP_Z),
-                    (back + out, LIP_Z + rise),
-                    (back + out, LIP_Z + rise + LIP_HEIGHT),
-                    (back, LIP_Z + LIP_HEIGHT), (back - 0.8, LIP_Z + LIP_HEIGHT),
+            # From 7.2f the lip stands above the panel's bevelled top, so the
+            # tab becomes a POST: the panel's back face carried up to the
+            # lip's top over the lip's width, rooted POST_ROOT down into the
+            # panel below its bevel, and fused AFTER the angled cutout so the
+            # cut does not take it (`front_pocket`).
+            root = lz - (POST_ROOT if d.rev.ribs_forward else 0.0)
+            Polygon((back - 0.8, root), (back, root), (back, lz),
+                    (back + out, lz + rise),
+                    (back + out, lz + rise + LIP_HEIGHT),
+                    (back, lz + LIP_HEIGHT), (back - 0.8, lz + LIP_HEIGHT),
                     align=None)
         extrude(amount=half + 1, both=True)
     with BuildPart() as foot:
@@ -777,7 +846,40 @@ def lip_tool(d):
                     (-half + LIP_CHAMFER, back + out + 1),
                     (-half + LIP_CHAMFER, back + LIP_CHAMFER),
                     (-half, back), align=None)
-        extrude(amount=LIP_Z + LIP_HEIGHT + rise + 5)
+        extrude(amount=lz + LIP_HEIGHT + rise + 5)
+    return prism.part & foot.part
+
+
+def flat_lip_tool(d):
+    """The lip from 7.2f (`rev.ribs_forward`): a FLAT block, `lip_reach` proud
+    of the panel's back face, LIP_HEIGHT tall from `lip_z`, on a POST — the
+    panel's back face carried up to the lip's top over the lip's width and
+    rooted POST_ROOT down into the panel below its bevel — with LIP_LEAD
+    chamfered off its top rear edge for the wall's bottom edge to ride
+    over. Fused AFTER the angled cutout (`front_pocket`). The same chamfered
+    footprint as `lip_tool`'s, which the short reach truncates: the tip is
+    `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the 12.800 rest.
+    """
+    _fw, _fb, back = pocket_span(d)
+    lz, out = lip_z(d), lip_reach(d)
+    top, root = lz + LIP_HEIGHT, lz - POST_ROOT
+    half = LIP_LENGTH / 2 + LIP_CHAMFER
+    with BuildPart() as prism:
+        with BuildSketch(Plane.YZ):
+            Polygon((back - 0.8, root), (back, root), (back, lz),
+                    (back + out, lz), (back + out, top - LIP_LEAD),
+                    (back + out - LIP_LEAD, top), (back - 0.8, top),
+                    align=None)
+        extrude(amount=half + 1, both=True)
+    with BuildPart() as foot:
+        with BuildSketch(Plane.XY):
+            Polygon((-half, back - 1.0), (half, back - 1.0), (half, back),
+                    (half - LIP_CHAMFER, back + LIP_CHAMFER),
+                    (half - LIP_CHAMFER, back + out + 1),
+                    (-half + LIP_CHAMFER, back + out + 1),
+                    (-half + LIP_CHAMFER, back + LIP_CHAMFER),
+                    (-half, back), align=None)
+        extrude(amount=top + 5)
     return prism.part & foot.part
 
 
@@ -886,8 +988,13 @@ def front_pocket(d, part):
     centres = thumb_centres(d)
     thumb, lip = thumb_tool(d), lip_tool(d)
     pocket = pocket.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
-    pocket = pocket.fuse(*[lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
-                     for x in centres for sign in (-1, +1)])
+    lips = [lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
+            for x in centres for sign in (-1, +1)]
+    if d.rev.ribs_forward:
+        # The lip stands above the panel's top on its post from 7.2f, so it
+        # goes on after the cut that bevels the panel (`lip_tool`).
+        return part + ((pocket - angled_cutout(d)).fuse(*lips))
+    pocket = pocket.fuse(*lips)
     return part + (pocket - angled_cutout(d))
 
 

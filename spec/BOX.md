@@ -941,6 +941,91 @@ edge is an arc, not a circle. Use `ThreePointArc`, not `RadiusArc`: two points
 and a radius admit four arcs and the one chosen left the hole a plain `12.400`
 cylinder, which the STEP's own profile caught immediately.
 
+### The ribs move forward — a 7.2f RELEASE CHANGE, a PROTOTYPE
+
+Allan (2026-09-14), on the 7.2e box lip: it should not have further to go
+than a holder's. It had `1.250` to cross where a holder's lips have `0.400`,
+because the studio's `#BoxDepth` (`6.0 + slots + pocket`) leaves a constant
+`1.800` between the last card slot's front edge and the divider panel's back
+face, and a holder centred on its rib — whose back face is on the slot's
+centre — overhangs the slot's front edge by `SLIDER_W/2 - DEPTH_GAP/2` =
+`0.550`. Nothing uses that space.
+
+From 7.2f (`rev.ribs_forward`), rather than thicken the panel or shorten the
+box, **every rib moves forward by `box.rib_shift`** — derived from the slots,
+the pocket and the panel, `0.850` on every row — so the front holder is
+`CardHolderGap` from the panel like every holder from the one behind it.
+Nothing but the box moves, and on the box only the ribs and the lip:
+
+* the **box lip becomes a FLAT block that BITES the front holder's wall**
+  — `box.lip_reach` = the `0.400` gap plus `LIP_BITE` `0.150`, so `0.550`
+  proud, `LIP_HEIGHT` `2.000` tall, `12.400` at its base and `11.300` at its
+  tip inside the `12.800` rest, with `LIP_LEAD` `0.300` chamfered off its
+  top rear edge. **A holder goes into the box straight down its ribs, which
+  run the full height, so anything of a fixed lip inside the front wall's
+  footprint meets the wall's bottom edge on the way down** — 7.2e's lip,
+  `0.800` into the wall, stopped the front holder dead (`cad.fit`'s
+  insertion sweep: 96 mm³ over 22 mm of travel on 333 Sl; and 7.0's lip
+  already caught the six flat rows by `0.04`–`0.55`). `0.150` is inside the
+  `0.200` the holder has on its rib, so it steps back and slides past with
+  the wall's bottom edge riding the lead-in (Allan: overlap by no more than
+  0.1–0.2, sliding in with a little flex). Its top sits ON the holder's
+  slant at the bite's depth in play (`box.lip_z` = `assembly.box_lip_top -
+  LIP_HEIGHT`, `90.13 - 2` on 333 Sl) — at the bite's depth and not the
+  wall's face because the rest floor follows the slant and is `0.15 *
+  slope` higher there, which on Compile cost a flat lip's tip 1.0 mm³ — so
+  its band is the top of the rest band there, its tip floats
+  `REST_CLEARANCE` above the floor like every rear lip, and every rest is
+  the plain `2.200`. That is above the panel's
+  `87.500` top, so it stands on a **post** — the panel's back face carried
+  up over the lip's width, `0.800` thick, rooted `POST_ROOT` `4.500` down
+  into the panel below its bevel — and lip and post are fused AFTER the
+  angled cutout, which would otherwise take them. `12.5` mm³ against 7.2e's
+  `44`;
+* the **lid and pusher do not move** (the treads are placed off the lid
+  socket), so a holder centred on its rib now hangs `0.500` past the FRONT
+  edge of its tread where it sat `0.350` inside it (`spec/ASSEMBLY.md`, "the
+  treads sit 0.150 forward of the ribs"; `cad.fit`'s tread margins say
+  `-0.500`). The step's corner is rounded r `0.8`–`1.0`, so it bears from
+  about `1.3` behind its front face. The one thing only a print settles;
+* the **rearmost holder** is `1.800` from the inner back wall instead of
+  `0.950`. Up to `1.400` of that is recoverable later by shortening the box
+  and the lid together — a separate change.
+
+**It is a prototype until printed.** `cad.testkit` builds one-slot cascades
+for it (`build/testkits/`): kit A, two risers of 12 sleeved Dominion cards
+(slope `1.67` — the flattest one-slot box that builds, its final edge round
+failing once the pusher passes about 20 mm; the lip's reach and seat are
+the same at any slope), and kit B, three risers of Compile's 7 unsleeved
+(slope about `3.5`, the tallest box lip and the shortest tread).
+Each is the Box without label holders, the Holder and RearHolder, the
+Pusher, one spacer per riser to hold a holder at its play height with no
+pusher, and a stub of the lid — its floor and sockets, rim cut `8.000` up —
+to stand the pusher in. What to look for:
+
+1. closed, the front holder slides freely on its ribs, `0.400` from the
+   panel, and never catches the lip;
+2. the front holder goes in LAST, straight down its ribs: it should step
+   back its `0.2` and slide past the box lip with a little flex, not need
+   force; the holders behind go in first (a holder's rear lips sit
+   `calHeightIncrement - 2` above the wall of the one behind when closed,
+   so back to front is free);
+3. on the spacers, the box lip sits in the front holder's notch with the
+   holder resting on the spacer and not on the lip; the rear holder's notch
+   takes the front holder's lips the same way; a little side play, no bind
+   (a `12.400` lip in a `12.800` notch);
+4. on the stub with the pusher up, the front holder sits stably on its
+   tread despite the `0.500` overhang, and the holders lift and drop
+   together as the pusher moves;
+5. the flat lip and its post print cleanly.
+
+`tests/test_revisions.py` asserts both ends on every row — the gaps, the
+shift, the lip's reach, height and seat, the tread overhang — and the built
+lip on its post with zero common volume in play, and the insertion sweep:
+the front holder lowered down its ribs is stopped by 7.2e's lip and passes
+7.2f's at the back of its slack. `cad.fit --state closed` runs that sweep on
+every cascade from here.
+
 ### `Lip` — and where its angle comes from
 
 Two per thumb, symmetric about it, standing proud of the panel's BACK face for
@@ -962,7 +1047,9 @@ calHeightIncrement`, and the lip reaches `assembly.front_holder_gap + WALL`
 to the front holder, fills the rest notched through that holder's `0.800`
 wall, and stops. The section, `LIP_Z`, `LIP_HEIGHT` and the plan chamfer are
 unchanged, and the front holder's rest is cut deep enough for it,
-`assembly.box_lip_seat`.)
+`assembly.box_lip_seat`. From 7.2f the gap is `0.400`, the reach `1.200`,
+and the lip is a flat block biting the wall by `0.150`, leaving the panel at
+`box.lip_z` on a post — "The ribs move forward", above.)
 
 **The angle is the HOLDER's diagonal cutout angle** (Allan) — the group opens
 with `Import Holder patterns`, and that is what comes across. It is the one

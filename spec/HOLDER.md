@@ -1050,7 +1050,9 @@ the wall, with a clearance so the tread carries the holder and not the lip:
   depth — the front holder is the plain one — so on a flat cascade a REAR
   lip floats `rest_depth - SLANT_STEP` above its floor (`1.2` on 333 Sl)
   where a steep one floats the bare `0.200`; either way the tread carries
-  the holder and the lip's top is flush with the surface behind it.
+  the holder and the lip's top is flush with the surface behind it. (From
+  7.2f the box lip is on the diagonal and `box_lip_seat` is `2.000` on every
+  row, so every rest is `2.200` — `spec/BOX.md`, "The ribs move forward".)
 * **A lip's band is the PLAIN slope's** (`lip_band_z`), whatever holder
   carries it: the lip is a key for the rest behind it, which is cut along a
   plain holder's slant. The deep FirstHolder at the front is flatter than

@@ -94,12 +94,13 @@ from .refuse import refuse
 # `Sleeved card width`, `Toppers`) arrived — a row option is not a release
 # change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, **7.2c** (the
 # same day) `larger_lid_text`, **7.2d** (the same day again)
-# `plain_box_plate`, and **7.2e is OPEN** (the same day still) with
-# `seated_lips`. `cascades/` stays the 7.1 release until 7.2 locks; `build/`
-# is 7.2e.
+# `plain_box_plate`, **7.2e** (the same day still) `seated_lips`, and **7.2f
+# is OPEN** (2026-09-14) with `ribs_forward`, a PROTOTYPE for a print test
+# (`cad.testkit`). `cascades/` stays the 7.1 release until 7.2 locks;
+# `build/` is 7.2f.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
-            "7.2d", "7.2e")
-CURRENT = "7.2e"
+            "7.2d", "7.2e", "7.2f")
+CURRENT = "7.2f"
 
 
 @dataclass(frozen=True)
@@ -268,6 +269,29 @@ class Rev:
                 "333 Sl and M8.16 Sl land on the wall behind (134 / 46 / 35 "
                 "mm3 in play) and the box lip touches only six front holders, "
                 "all under their notch",
+    })
+
+    ribs_forward: bool = field(metadata={
+        "since": "7.2f",
+        "spec": "spec/BOX.md, 'The ribs move forward'",
+        "what": "the slider ribs — and so every holder — move forward by "
+                "`box.rib_shift` (0.850) so the front holder is CardHolderGap "
+                "0.400 from the divider panel, as every holder is from the "
+                "one behind it, instead of 1.250 (Allan, 2026-09-14: the box "
+                "lip should not have further to go than a holder's). The box "
+                "lip becomes a FLAT block that BITES that wall by LIP_BITE "
+                "0.150 — inside the holder's 0.200 rib slack, so the holder "
+                "still slides straight down its ribs past it (a lip that "
+                "fills the wall, 7.2e's, stops it dead: a holder cannot pass "
+                "a fixed lip on the way in) — with its top on the holder's "
+                "slant at the wall's face in play (`box.lip_z`, on a 0.800 "
+                "post above the panel's bevel) so every rest is the plain "
+                "2.200 and every lip floats 0.200. The lid and pusher do not "
+                "move, so a holder now hangs 0.500 past the front edge of "
+                "its tread instead of sitting 0.350 inside it; the rearmost "
+                "holder is 1.800 from the back wall instead of 0.950. A "
+                "prototype: `cad.testkit` builds one-slot cascades to print "
+                "it before the catalogue moves",
     })
 
 

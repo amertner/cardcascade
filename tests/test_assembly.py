@@ -21,9 +21,13 @@ Two things are asserted beyond the margins themselves:
 * **the tread offset is a CONSTANT.** `spec/ASSEMBLY.md` derives 0.150 between
   a pusher's tread centre and its rib's, with every parameter cancelling. If it
   is ever a function of anything, the derivation is wrong and this catches it.
-* **a holder is fully supported on its tread** — both margins non-negative on
-  every riser of every cascade. That is what the 0.150 threatens and the reason
-  it is worth a test rather than a note.
+  From 7.2f the ribs sit `box.rib_shift` (0.850) forward and the treads do
+  not move (`spec/BOX.md`, "The ribs move forward"), so the constant is
+  `0.150 - rib_shift` = -0.700 — still one number on every cascade.
+* **a holder sits on its tread as the release says** — through 7.2e fully
+  supported, 0.350 inside the front and 0.050 inside the back on every riser;
+  from 7.2f 0.500 OVER the front edge and 0.900 inside the back, the overhang
+  the prototype is printed to judge. Either way an exact number, not a sign.
 """
 import sys
 from pathlib import Path
@@ -32,9 +36,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from cad import assemble, assembly as A, derive as D, fit  # noqa: E402
+from cad.parts import box as box_part                       # noqa: E402
 
 fails = []
-TREAD_OFFSET = 0.150            # spec/ASSEMBLY.md, "The finding"
+TREAD_OFFSET = 0.150            # spec/ASSEMBLY.md, "The finding" — less box.rib_shift from 7.2f
+TREAD_SLACK = 0.400             # calSliderDistance tread against a sd - 0.400 holder
 
 
 def fail(label, msg):
@@ -70,7 +76,16 @@ for folder, d, _tokens, _toppers in rows:
             # A margin is a CLEARANCE: a negative one is parts overlapping,
             # whatever its nominal says, and the ones with no nominal (the
             # tread, the lid over the rear storage) are only checked here.
-            if "on its tread" in m.name or "clearance" in m.name:
+            # The tread's two are held to the release's own numbers: the
+            # slack split by the offset, `0.350 / 0.050` through 7.2e and
+            # `-0.500 / 0.900` from 7.2f (module docstring).
+            if "on its tread" in m.name:
+                offset = TREAD_OFFSET - box_part.rib_shift(d)
+                want = (TREAD_SLACK / 2 + offset if m.name.endswith("front")
+                        else TREAD_SLACK / 2 - offset)
+                if abs(m.got - want) > 1e-6:
+                    fail(f"{model} [{state}] {m.name}", f"{m.got:.3f} vs {want:.3f}")
+            elif "clearance" in m.name:
                 if m.got < 0:
                     fail(f"{model} [{state}] {m.name}", f"negative: {m.got:.3f}")
 
@@ -79,12 +94,12 @@ for folder, d, _tokens, _toppers in rows:
     treads = [m for m in fit.tread_margins(d) if "on its tread" in m.name]
     for i in range(0, len(treads), 2):
         back, front = treads[i].got, treads[i + 1].got
-        offsets.add(round((front - back) / 2, 6))
+        offsets.add(round((front - back) / 2 + box_part.rib_shift(d), 6))
 
 if len(offsets) != 1 or abs(offsets.pop() - TREAD_OFFSET) > 1e-9:
-    fail("tread offset", f"not the constant {TREAD_OFFSET}: {sorted(offsets)}")
+    fail("tread offset", f"not the constant {TREAD_OFFSET} (before the rib shift): {sorted(offsets)}")
 else:
-    print(f"  ok   tread offset is {TREAD_OFFSET} on every cascade, every riser")
+    print(f"  ok   tread offset is {TREAD_OFFSET} less the release's rib shift on every cascade, every riser")
 
 print(f"\n  {seen['cascades']} cascades x {len(A.STATES)} states, "
       f"{seen['margins']} margins checked")
