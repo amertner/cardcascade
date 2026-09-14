@@ -34,7 +34,7 @@ carries, so the number and the section are always the same box.
 written there — Pusher, Box, Lid, TokenHolder, Topper, Holder — and
 `cad.cascade` takes a parts.csv row to a Bambu Studio project with no donor and
 no API. A geometry question is answered by building it. `cascades/` holds the
-cad-built **7.2** release (tag `v7.2`, 2026-09-14).
+cad-built **8.0** release (tag `v8.0`, 2026-09-14).
 
 **The Onshape pipeline is LEGACY: kept runnable, not used.** Do no new work in
 `automation/refresh_cascades.py` / `make_cascade.py` and do not change it to
@@ -57,17 +57,21 @@ check cad output.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2 is LOCKED** (2026-09-14) and carries every flag its seven letters
-  introduced: `7.2g` `unsleeved_card_width` and `back_pocket_variants`, both
-  ROW options that only `Single Mini` takes (below); `7.2f` `ribs_forward`
-  and `shorter_box`; `7.2e` `seated_lips`, `7.2d` `plain_box_plate`, `7.2c`
-  `larger_lid_text`, `7.2b` `unmarked_lid` and `7.2a` `rear_holder` (the
-  `low_profile` change it was opened for was withdrawn, 2026-09-13). A 7.2
-  lid does not fit a 7.1 box. **The
-  next design change opens `7.3a`.** Steps:
-  `spec/REVISIONS.md`, "Adding the next release". `7.2` stays off the line
-  until its lock, and letters are never removed — a version that was printed
-  must stay buildable.
+- **8.0 is LOCKED** (2026-09-14) and carries every flag the seven `7.2x`
+  letters introduced: `7.2g` `unsleeved_card_width` and
+  `back_pocket_variants`, both ROW options that only `Single Mini` takes
+  (below); `7.2f` `ribs_forward` and `shorter_box`; `7.2e` `seated_lips`,
+  `7.2d` `plain_box_plate`, `7.2c` `larger_lid_text`, `7.2b` `unmarked_lid`
+  and `7.2a` `rear_holder` (the `low_profile` change it was opened for was
+  withdrawn, 2026-09-13). **It is the MAJOR number because an 8.0 lid does
+  not fit a 7.1 box** — `shorter_box` — and a minor one claimed they were
+  interchangeable: the lock was made as `7.2` and renamed the same day,
+  before anything was printed at it (Allan, 2026-09-14). Plain `7.2` is
+  therefore NOT on the line; the letters `7.2a`..`7.2g` are, because parts
+  were printed at them. **The next design change opens `8.1a`.** Steps:
+  `spec/REVISIONS.md`, "Adding the next release". A plain version stays off
+  the line until its lock, and letters are never removed — a version that
+  was printed must stay buildable.
 - A row whose parts.csv `Plain box` is TRUE (Compile's three) ships a
   **second box without label holders** on the LAST plate from 7.2d
   (`build.ships_plain_box`, the only place the flag is asked;

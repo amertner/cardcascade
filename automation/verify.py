@@ -545,8 +545,21 @@ def pusher_lock(data):
 # one more row here. What the letter DOES change is the shape of the word:
 # `_dotted` has to accept the trailing mark, or the version is not found on the
 # line at all.
+#
+# **8.0 is the first release the glyph can name on its own.** `8` is the only
+# digit with TWO counters and `0`'s is tall, so it reads ("two", "tall"), a
+# pair no other version in this table wears — where the whole 7.x family
+# shares ("none", "none"). Measured on the 8.0 build, not assumed:
+#
+#     build/Compile/Lid S4.7.7.32-Sl.3mf          8.0 -> ("two", "tall")
+#     build/Innovation/Box M8.16.10-16.45-Un.3mf  8.0 -> ("two", "tall")
+#
+# That is worth having precisely because 8.0 is the release that stopped
+# fitting its predecessors (`cad/revisions.py`): a person holding a lid can
+# tell an 8.0 one from a 7.x one by its stamp, which is the question the
+# glyph exists to answer, and no 7.x pair can be mistaken for it.
 STAMP_SIGNATURES = {
-    "7.2": ("none", "none"),
+    "8.0": ("two", "tall"),
     "7.2g": ("none", "none"),
     "7.2f": ("none", "none"),
     "7.2e": ("none", "none"),

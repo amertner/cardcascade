@@ -100,16 +100,25 @@ from .refuse import refuse
 # `back_pocket_variants`, both of them row options that only `Single Mini`
 # takes.
 #
-# **7.2 was LOCKED on 2026-09-14** and sits at the END of the line, after the
-# seven letters that made it, which is what a lock means: the line is ordered,
-# a flag is on from its `since` onward, so `7.2` is `7.2g`'s geometry under a
-# `CC 7.2` stamp. The letters STAY and are not renamed — a version that has
-# been printed has to remain describable and buildable — and not one flag's
-# `since` moved. `cascades/` is the 7.2 release; `build/` is 7.2. The next
-# design change opens `7.3a`, not `7.2h`: `7.2` is on the line now.
+# **8.0 was LOCKED on 2026-09-14** and sits at the END of the line, after the
+# seven `7.2x` letters that made it, which is what a lock means: the line is
+# ordered, a flag is on from its `since` onward, so `8.0` is `7.2g`'s geometry
+# under a `CC 8.0` stamp. The letters STAY and are not renamed — a version
+# that has been printed has to remain describable and buildable — and not one
+# flag's `since` moved. `cascades/` is the 8.0 release; `build/` is 8.0. The
+# next design change opens `8.1a`, not `8.0a`: `8.0` is on the line now.
+#
+# **It is the MAJOR number because the parts stopped fitting** (Allan,
+# 2026-09-14). The lock was made as `7.2` earlier the same day and renamed
+# before anything was printed at it: `7.2f`'s `shorter_box` takes 1.400 of
+# depth out of every box and lid in the catalogue, so a lid from this release
+# does not close a 7.1 box and a 7.1 lid does not close one of these. A minor
+# number said those were interchangeable. Plain `7.2` is therefore NOT on the
+# line — it names nothing that was ever built — while `7.2a`..`7.2g` are,
+# because parts were printed at them while the release was being worked out.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
-            "7.2d", "7.2e", "7.2f", "7.2g", "7.2")
-CURRENT = "7.2"
+            "7.2d", "7.2e", "7.2f", "7.2g", "8.0")
+CURRENT = "8.0"
 
 
 @dataclass(frozen=True)

@@ -29,9 +29,12 @@ GENERATION = "7.0"
 # to each other. An ITERATION LETTER is a release like any other
 # (`cad/revisions.py`, "An unreleased release is iterated by LETTER"), so each
 # new one is admitted here too — and plain `7.1` is, from its lock on
-# 2026-09-10. The letters stay admitted beside it: each is still buildable.
+# 2026-09-10, as `8.0` is from its own. The letters stay admitted beside it:
+# each is still buildable. `8.0` is the 7.2x letters' lock renamed to the
+# major number (`cad/revisions.py`); the lock generation did not change with
+# it, which is the whole point of this list being separate from the line.
 SAME_LOCK = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
-             "7.2d", "7.2e", "7.2f", "7.2g", "7.2")
+             "7.2d", "7.2e", "7.2f", "7.2g", "8.0")
 
 
 def lock_generation(version):

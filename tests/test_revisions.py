@@ -495,15 +495,23 @@ import verify as V                                               # noqa: E402
 check("every release has a stamp signature recorded",
       sorted(v for v in R.RELEASES if v in V.STAMP_SIGNATURES),
       sorted(R.RELEASES))
-# 7.1's is ("none", "none") and cannot be told from 7.2's — nor from 7.1a's,
-# since an iteration letter is not a counter and does not change the pair.
-# That is WHY the metadata exists, and it is asserted rather than left as a
-# comment: the glyph narrows a part down to a release family, the metadata
-# names the build.
-check(f"{NEW}'s signature is the counterless pair",
-      V.STAMP_SIGNATURES[NEW], ("none", "none"))
-check("and it is the same pair 7.1 itself will read",
+# 7.1's is ("none", "none") and cannot be told from any other 7.x — nor from
+# 7.1a's, since an iteration letter is not a counter and does not change the
+# pair. That is WHY the metadata exists, and it is asserted rather than left
+# as a comment: for those releases the glyph narrows a part down to a release
+# family and the metadata names the build.
+check("the whole 7.x family shares the counterless pair",
+      sorted({V.STAMP_SIGNATURES[v] for v in R.RELEASES if v.startswith("7.")}),
+      [("none", "none"), ("none", "tall")])
+check("and 7.1 itself reads the counterless one",
       V.STAMP_SIGNATURES.get("7.1"), ("none", "none"))
+# 8.0 is the exception and the reason it is worth asserting: `8` is the only
+# digit with two counters, so the release that stopped fitting its
+# predecessors is the one release a person can name off the plastic.
+check(f"{NEW} wears a pair of its own",
+      V.STAMP_SIGNATURES[NEW], ("two", "tall"))
+check(f"and no other release wears {NEW}'s pair",
+      [v for v in R.RELEASES if V.STAMP_SIGNATURES[v] == ("two", "tall")], [NEW])
 
 with tempfile.TemporaryDirectory() as tmp:
     written = {}

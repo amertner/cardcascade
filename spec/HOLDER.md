@@ -965,7 +965,7 @@ Recorded as part of the row property, not a release flag, like the two
 findings above.
 
 
-## The RearHolder — a 7.2 RELEASE CHANGE, every cascade
+## The RearHolder — a 7.2a RELEASE CHANGE, every cascade
 
 The finding above generalises (Allan, 2026-09-13): the rearmost holder of
 EVERY cascade has nothing behind it but the back wall, so its rear lips do no

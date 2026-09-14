@@ -196,7 +196,8 @@ to compare against.
 
 ### 7.2a — opened 2026-09-11, frozen 2026-09-13
 
-`cascades/` stays the 7.1 release until 7.2 locks. One flag:
+`cascades/` stays the 7.1 release until the 8.0 lock (made as `7.2`, and
+renamed: see "8.0 — LOCKED 2026-09-14"). One flag:
 
 * **`rear_holder`** (`7.2a`, 2026-09-13) — every cascade's rearmost holder is
   a **`RearHolder`**: the same holder without its rear lips. The lips hook
@@ -465,14 +466,27 @@ keep rebuilding to the byte.
   `PusherBox`, which the prefix match would seat with the pushers.
   `spec/BOX.md`, "Two back pockets, and no ordinary box".
 
-### 7.2 — LOCKED 2026-09-14
+### 8.0 — LOCKED 2026-09-14
 
-`CURRENT`; `build/` and `cascades/` are 7.2, tagged `v7.2`. It carries no
-flag of its own: it is `7.2g`'s geometry under a `CC 7.2` stamp, sitting at
-the END of the line after the seven letters that made it, so it has every
-change they introduced. Not one `since` moved, and the letters stay on the
-line — `7.2a` still builds what `7.2a` built, which is what lets a part
+`CURRENT`; `build/` and `cascades/` are 8.0, tagged `v8.0`. It carries no
+flag of its own: it is `7.2g`'s geometry under a `CC 8.0` stamp, sitting at
+the END of the line after the seven `7.2x` letters that made it, so it has
+every change they introduced. Not one `since` moved, and the letters stay on
+the line — `7.2a` still builds what `7.2a` built, which is what lets a part
 stamped with one remain describable.
+
+**Why the major number, and why `7.2` is not on the line.** The lock was
+made as `7.2` earlier the same day and renamed to `8.0` before anything was
+printed at it (Allan, 2026-09-14, at the printer): `7.2f`'s `shorter_box`
+takes 1.400 of depth out of every box and lid in the catalogue, so a lid
+from this release does not close a 7.1 box and a 7.1 lid does not close one
+of these. A minor number claims those are interchangeable, and they are not.
+Plain `7.2` names nothing that was ever built, so it is simply gone from
+`RELEASES`, `lock.SAME_LOCK` and `verify.STAMP_SIGNATURES`; the letters
+`7.2a`..`7.2g` stay, because parts WERE printed at them while the release
+was being worked out, and the rule that binds is that a version you can hold
+must remain describable and buildable. Renaming a version nothing wears
+breaks nothing; renaming one a part wears would.
 
 What changed since the 7.1 release, in the order the letters shipped it:
 the rearmost holder became a `RearHolder` without rear lips (`7.2a`); every
@@ -484,10 +498,11 @@ box and lid lost the room behind the last holder, the box lip becoming a
 wedge on a bevelled post (`7.2f`); and a row may state its unsleeved card
 width and ship variant backs in place of the ordinary box (`7.2g`).
 
-**A 7.2 lid does not fit a 7.1 box** — `shorter_box` took 1.400 of depth out
-of both — and parts.csv's W/D columns are the 7.2 sizes.
+**An 8.0 lid does not fit a 7.1 box** — `shorter_box` took 1.400 of depth
+out of both — and parts.csv's W/D columns are the 8.0 sizes. That
+incompatibility is what the major number is for.
 
-The next design change opens **`7.3a`**, not `7.2h`: `7.2` is on the line
+The next design change opens **`8.1a`**, not `8.0a`: `8.0` is on the line
 now, so a change after it is a change after the release.
 
 ## What a release moves besides its flags
@@ -538,7 +553,7 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is the newest release on the line (**`7.2`** as of
+`revisions.CURRENT` is the newest release on the line (**`8.0`** as of
 2026-09-14, locked): a plain `cad.build` or `cad.cascade` builds the current release
 (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
