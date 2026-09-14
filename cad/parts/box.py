@@ -415,7 +415,7 @@ def hole_rows(d):
              HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP) + h) for i in range(rows)]
 
 
-def rear_storage(d, part):
+def rear_storage(d, part, lattice=True):
     """The whole `Pusher holder & Rear Storage` group, thumb cutout included.
 
     Every cut is a PLAIN rectangular box, and they are disjoint. Composing the
@@ -466,7 +466,7 @@ def rear_storage(d, part):
     # openings are wanted; sawing through the pusher hangers is not. See
     # spec/BOX.md.
     divs = storage_dividers(d)
-    for x_lo, x_hi in hole_openings(d):
+    for x_lo, x_hi in (hole_openings(d) if lattice else []):
         for z_lo, z_hi in hole_rows(d):
             cuts.append(slab(x_lo, x_hi, BD / 2 - WALL, y0, z_lo, z_hi))
             for a, e in _interval_minus(x_lo, x_hi, divs):
@@ -938,7 +938,7 @@ def angled_cutout(d):
     return tool.part
 
 
-def front_pocket(d, part):
+def front_pocket(d, part, lattice=True):
     """The whole `Front pocket` group, in the tree's order.
 
     The floor stays solid under it — `bottom_slot` already starts at the
@@ -977,9 +977,10 @@ def front_pocket(d, part):
     # at the same X and the same rows, `stout_lattice` and all: they are one
     # sketch in the tree and stay one here. The padding starts 5.800 in and
     # the first hole 8.300 in, so no slit ever meets a pad or a divider.
-    pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
-                    for x_lo, x_hi in hanging_holes(d)
-                    for z_lo, z_hi in hole_rows(d)])
+    if lattice:
+        pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
+                        for x_lo, x_hi in hanging_holes(d)
+                        for z_lo, z_hi in hole_rows(d)])
     # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
     # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
     # lip, so both only ever meet the panel.
@@ -1438,13 +1439,15 @@ def smooth_edges(d, part):
     return fillet(edges, SMOOTH_R) if edges else part
 
 
-def build(d):
+def build(d, lattice=True):
     """The Box as a build123d Part, from a `derive.Derived`.
 
     Feature groups in the studio's own order, which is what `spec/BOX.md`
     transcribes, through to the final `Smooth box edges`. A caller that wants
     a flag the catalogue cannot set, `isLabelHoldersOnBox = 0`, passes a
-    Derived with it flipped.
+    Derived with it flipped. `lattice=False` leaves the back wall's hanging
+    holes and the front pocket's slits uncut — a test print (`cad.testkit`),
+    never a catalogue box.
     """
     part = shell(d)
     w, depth, y = bottom_slot(d)
@@ -1456,11 +1459,11 @@ def build(d):
     # membrane across the card area.
     fl = floor_top(d)
     part = part - Box(w, depth, fl + 1).moved(Location((0, y, (fl - 1) / 2)))
-    part = rear_storage(d, part)
+    part = rear_storage(d, part, lattice)
     part = lower_front(d, part)
     part = round_top_corners(d, part)
     part = sliders(d, part)
-    part = front_pocket(d, part)
+    part = front_pocket(d, part, lattice)
     part = closing_bumps(d, part)
     part = label_holders(d, part)
     # The floor text stays LAST before the rounds, though it is the most

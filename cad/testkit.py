@@ -7,14 +7,21 @@ catalogue moves — the 7.2f `ribs_forward` test (Allan, 2026-09-14).
 
 A kit is a real cascade at HorizontalSlots 1 with two or three risers, built
 from the same part modules as the catalogue at `CURRENT`, so what it proves
-is what the catalogue would print. It ships:
+is what the catalogue would print — cut down to what the lips need (Allan,
+2026-09-14: no lattice windows, they cost print time; and not the full
+height). It ships:
 
-* the **Box** without label holders — its flat lip biting the front
-  holder's wall by `box.LIP_BITE` is the thing to feel on the way in — the
-  **Holder** and **RearHolder**, and the **Pusher**;
-* one **spacer** per riser — a plain block `k * calHeightIncrement` tall that
-  stands on the floor under a holder and holds it at its play height with
-  no pusher and no hands, for looking at the lips in their rests;
+* the **Box** without label holders or lattice, SLICED: everything from
+  `FLOOR_Z` up, standing on its own real floor — the box's floor with its
+  pusher slot, lifted to `FLOOR_Z` — so the ribs, the divider panel, the
+  lip and the rim are the catalogue's and the box is `BoxHeight - FLOOR_Z`
+  tall. Its flat lip biting the front holder's wall by `box.LIP_BITE` is the
+  thing to feel on the way in;
+* the **Holder** and **RearHolder**, no lattice, no text, sliced at the
+  height that puts their cut face on that floor exactly where their base
+  would have been, so they ride the ribs and sit on the treads as the
+  catalogue's do, with their lips, rests and finger scallops whole;
+* the **Pusher**, whole — it stands in the stub below the box's floor;
 * a **stub** of the lid: the lid's floor and rim cut off `STUB_H` above the
   floor, with the pusher sockets on it. The box stands in it as it stands in
   the lid, and the pusher stands in the socket and rises through the box's
@@ -48,7 +55,12 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "build" / "testkits"
 
 STUB_H = 8.0        # the lid stub's rim, above the lid's outer floor
-SPACER_W = 50.0     # a spacer's width; it bridges the floor slot
+# Where the sliced box's floor goes (its underside), in the box's own Z.
+# Above the lattice's top row (69.5 would be, but the lattice is off) and
+# far enough below the front holder's wall top that the wall has 10+ mm
+# below its rest on the flattest kit: kit A's front wall tops out at 28.9
+# in the holder's frame, and the holder is cut at FLOOR_Z + 2 - 47.25.
+FLOOR_Z = 60.0
 
 # (label, why, Primary). LabelHolders 0: the label holders test nothing here.
 KITS = {
@@ -80,13 +92,39 @@ def primary(key, version=R.CURRENT):
     return P.Primary(**KITS[key][2], Version=version)
 
 
-def spacer(d, k):
-    """A block `k * calHeightIncrement` tall, a holder's depth less 1.000 deep,
-    SPACER_W wide: riser `k` (from the front, 1 first) stands on it at the
-    height its tread would give it."""
-    depth = holder_part.holder_depth(d, False) - 1.0
-    h = k * d.calHeightIncrement
-    return Box(SPACER_W, depth, h).moved(Location((0, 0, h / 2)))
+def _above(z):
+    """A slab of everything above `z`."""
+    return Box(2000.0, 2000.0, 1000.0).moved(Location((0, 0, z + 500.0)))
+
+
+def _below(z):
+    return Box(2000.0, 2000.0, 1000.0).moved(Location((0, 0, z - 500.0)))
+
+
+def sliced_box(d):
+    """The box from FLOOR_Z up, on its own floor: the real floor (the bottom
+    `floor_top` of the box — floor, pusher slot, side floors, and the walls'
+    lowest millimetres) lifted to FLOOR_Z under the rest. Stood on the bed
+    at z 0."""
+    box = box_part.build(d, lattice=False)
+    ft = box_part.floor_top(d)
+    floor = (box & _below(ft)).moved(Location((0, 0, FLOOR_Z)))
+    upper = box & _above(FLOOR_Z + ft)
+    return upper.fuse(floor).moved(Location((0, 0, -FLOOR_Z)))
+
+
+def holder_cut_z(d):
+    """Where a holder is cut, in its own frame: the sliced floor's top is
+    where its base was, so `FLOOR_Z + floor_top` in the box is that Z."""
+    from . import assembly as A
+    return FLOOR_Z + box_part.floor_top(d) - A.holder_closed(d, 0).origin[2]
+
+
+def sliced_holder(d, first, rear):
+    """The holder from `holder_cut_z` up, stood on its cut face."""
+    h = holder_part.build(d, first, text=False, rear=rear, lattice=False)
+    z = holder_cut_z(d)
+    return (h & _above(z)).moved(Location((0, 0, -z)))
 
 
 def stub(d):
@@ -102,14 +140,11 @@ def solids(d):
     """[(object name, shape)] — the kit's parts, each named with the role
     `layout.role` reads so the plates come out as a cascade's."""
     from . import derive as D
-    out = [("Box", box_part.build(d)),
-           ("Holder", holder_part.build(d, False)),
-           ("RearHolder", holder_part.build(d, False, rear=True)),
-           ("Pusher", pusher_part.build(d)),
-           ("Lid stub", stub(d))]
-    for k in range(1, d.RisingSliders + 1):
-        out.append((f"Holder spacer {k * d.calHeightIncrement:g} mm", spacer(d, k)))
-    return out
+    return [("Box", sliced_box(d)),
+            ("Holder", sliced_holder(d, False, False)),
+            ("RearHolder", sliced_holder(d, False, True)),
+            ("Pusher", pusher_part.build(d)),
+            ("Lid stub", stub(d))]
 
 
 def objects(d):
@@ -155,7 +190,7 @@ def make(key, out_dir=OUT, version=R.CURRENT):
                        "cardcascade:version": d.Version,
                        "cardcascade:testkit": f"{key}: {why}"})
     return path, [f"{bed} x{len(plates)}", f"{len(objs)} objects",
-                  f"box {box_part.box_width(d):.1f} x {box_part.box_depth(d):.1f} x {d.BoxHeight:g}",
+                  f"box {box_part.box_width(d):.1f} x {box_part.box_depth(d):.1f} x {d.BoxHeight - FLOOR_Z:g} (sliced from {FLOOR_Z:g})",
                   f"slope {holder_part.slant_slope(d, False):.3f}"]
 
 

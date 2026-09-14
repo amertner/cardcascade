@@ -998,10 +998,15 @@ for it (`build/testkits/`): kit A, two risers of 12 sleeved Dominion cards
 failing once the pusher passes about 20 mm; the lip's reach and seat are
 the same at any slope), and kit B, three risers of Compile's 7 unsleeved
 (slope about `3.5`, the tallest box lip and the shortest tread).
-Each is the Box without label holders, the Holder and RearHolder, the
-Pusher, one spacer per riser to hold a holder at its play height with no
-pusher, and a stub of the lid — its floor and sockets, rim cut `8.000` up —
-to stand the pusher in. What to look for:
+Each is cut down to what the lips need (Allan: no lattice windows, they
+cost print time, and not the full height): the Box without label holders
+or lattice, SLICED from `testkit.FLOOR_Z` `60.000` up and standing on its
+own real floor lifted there (ribs, panel, lip and rim the catalogue's, 45
+tall); the Holder and RearHolder without lattice or text, sliced so their
+cut face sits on that floor where their base would have been (lips, rests
+and scallops whole); the whole Pusher; and a stub of the lid — its floor
+and sockets, rim cut `8.000` up — to stand the pusher in under the box.
+What to look for:
 
 1. closed, the front holder slides freely on its ribs, `0.400` from the
    panel, and never catches the lip;
@@ -1010,13 +1015,13 @@ to stand the pusher in. What to look for:
    force; the holders behind go in first (a holder's rear lips sit
    `calHeightIncrement - 2` above the wall of the one behind when closed,
    so back to front is free);
-3. on the spacers, the box lip sits in the front holder's notch with the
-   holder resting on the spacer and not on the lip; the rear holder's notch
-   takes the front holder's lips the same way; a little side play, no bind
-   (a `12.400` lip in a `12.800` notch);
-4. on the stub with the pusher up, the front holder sits stably on its
-   tread despite the `0.500` overhang, and the holders lift and drop
-   together as the pusher moves;
+3. on the stub with the pusher up, the box lip sits in the front holder's
+   notch with the holder resting on its tread and not on the lip, stably
+   despite the `0.500` overhang; the rear holder's notch takes the front
+   holder's lips the same way; a little side play, no bind (a `12.400` lip
+   in a `12.800` notch);
+4. the holders lift and drop together as the pusher moves, and the front
+   holder drops free of the lip on the way down;
 5. the flat lip and its post print cleanly.
 
 `tests/test_revisions.py` asserts both ends on every row — the gaps, the

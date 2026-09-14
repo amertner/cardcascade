@@ -360,8 +360,8 @@ def window_grid(d):
     return out
 
 
-def lattice(d, first, part):
-    """Cut the windows through both walls, in every compartment."""
+def windows(d, first, part):
+    """Cut the lattice windows through both walls, in every compartment."""
     depth = holder_depth(d, first)
     tools = []
     for x0, x1, z0, z1 in window_grid(d):
@@ -894,7 +894,7 @@ def bottom_text(d, first, part):
     return part.cut(*engraving(d, first))
 
 
-def build(d, first=False, text=True, rear=False):
+def build(d, first=False, text=True, rear=False, lattice=True):
     """The Holder as a build123d Part, from a `derive.Derived`.
 
     `first` is the DEEPER first-riser holder; `rear` is the REARMOST one, which
@@ -903,10 +903,13 @@ def build(d, first=False, text=True, rear=False):
 
     `text=False` leaves the underside blank — the Pusher has the same flag —
     for a caller that wants to price the engraving separately (`engraving`).
+    `lattice=False` leaves the walls' windows uncut — a test print
+    (`cad.testkit`), never a catalogue holder.
     """
     part = shell(d, first)
     part = card_pockets(d, first, part)
-    part = lattice(d, first, part)
+    if lattice:
+        part = windows(d, first, part)
     part = finger_cutouts(d, first, part)
     part = side_slots(d, first, part)
     part = rear_lips(d, first, part, rear)
