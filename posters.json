@@ -146,7 +146,11 @@
             "value_size": 56,
             "unit_size": 44,
             "inset": 50,
-            "text_dx": 400
+            "text_dx": 400,
+            "diagram_dx": 600,
+            "diagram_gap": 40,
+            "diagram_top": 125,
+            "diagram_bottom": 30
         },
         {
             "name": "footer",
@@ -195,10 +199,10 @@
                     ""
                 ],
                 [
-                    "pocket",
-                    "BACK POCKET WIDTH",
+                    "backbox",
+                    "BACK OF BOX",
                     "{pocket_w}",
-                    "mm"
+                    "mm pocket{pocket_note}"
                 ]
             ],
             "stats": [
@@ -497,10 +501,10 @@
                     "{age_cards_unit}"
                 ],
                 [
-                    "pocket",
-                    "BACK POCKET WIDTH",
+                    "backbox",
+                    "BACK OF BOX",
                     "{pocket_w}",
-                    "mm"
+                    "mm pocket{pocket_note}"
                 ]
             ],
             "expansions": "Base+5",

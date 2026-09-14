@@ -23,6 +23,12 @@ cascade a Blender render (~30 s each, cached in `build/posters/`) of the scene
 cards in the slots when `render.stacks` is on (`posters.json`, `render`; off
 since 2026-09-13). Figma
 (`figma-plugin/`, `figma_export.py`) is LEGACY, replaced 2026-09-13.
+A `backbox` cell draws the rear storage in SECTION instead of an icon
+(`make_posters.back_section`, from 2026-09-14): every edge is the CAD's, it
+is MIRRORED because it is the view from behind, and the arrow inside the
+tinted pocket is exact because the drawing is orthographic.
+`make_posters.plate_one_box` is the one definition of the box plate 1
+carries, so the number and the section are always the same box.
 
 **`cad/` is the authority for all work** (Allan, 2026-09-06). Every part is
 written there — Pusher, Box, Lid, TokenHolder, Topper, Holder — and

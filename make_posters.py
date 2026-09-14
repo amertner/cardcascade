@@ -50,6 +50,7 @@ REPO = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
 import postercommon as PC                                            # noqa: E402
 from cad import assembly as A, build as B, cascade as CC, derive as D  # noqa: E402
+from cad import lock as L                                            # noqa: E402
 from cad.parts import box as BOX, lid as LID                         # noqa: E402
 from cad.revisions import CURRENT, RELEASES                          # noqa: E402
 
@@ -126,6 +127,18 @@ PRIMARY = ("HorizontalSlots", "RisingSliders", "FrontPocketCardCapacity", "Cards
            "GameName", "Version")
 
 
+def plate_one_box(row, d):
+    """The Derived of the box the project's PLATE 1 carries.
+
+    The cascade's own, except where the row ships variant backs (7.2g,
+    `Single Mini`): then it is the FIRST of them, the open one, because that
+    row ships no ordinary box at all. One definition, so the number the poster
+    quotes and the section it draws are the same box.
+    """
+    backs = B.back_pocket_variants_built(row, d)
+    return B.back_pocket_twin(d, backs[0]) if backs else d
+
+
 def values(row, d, spec):
     """Everything a template may name. The derived variables as they are,
     plus the poster's own:
@@ -142,7 +155,13 @@ def values(row, d, spec):
                          front pocket and the risers differ (`age_cards_unit`
                          then reads 'base / expansion', else '')
       pocket_w           the back pocket's width in mm — the empty run of the
-                         rear storage right of the pusher slots (`box.rear_pocket`)
+                         rear storage right of the pusher slots (`box.rear_pocket`),
+                         measured on the box plate 1 carries, which from 7.2g
+                         may be a variant back (`build.back_pocket_variants_built`)
+      pocket_note        ' (*)' where the project holds MORE than one back, so the
+                         number above is one of two; '' otherwise. What the
+                         star means is the `backbox` diagram beside it and the
+                         project's description
       slots              every slot, front pockets included (Compile's protocols)
       grid               'columns x rows', the front pocket a row (FCM)
       model_ref          the model code with middle dots
@@ -168,8 +187,14 @@ def values(row, d, spec):
     fp, rs = d.FrontPocketCardCapacity, d.CardsPerSlidingSlot
     v["age_cards"] = str(fp) if fp == rs else f"{fp}/{rs}"
     v["age_cards_unit"] = "" if fp == rs else "base / expansion"
-    x0, x1 = BOX.rear_pocket(d)
+    # The pocket of the box the project's plate 1 carries (`plate_one_box`).
+    x0, x1 = BOX.rear_pocket(plate_one_box(row, d))
     v["pocket_w"] = fmt_num(x1 - x0, 1)
+    # A row that ships more than one back gets a STAR on the number and a word
+    # under it saying why: the figure is the box on plate 1, and the project
+    # holds another whose back is different (Allan, 2026-09-14). Both are ""
+    # for every ordinary row, so the cell reads exactly as it did.
+    v["pocket_note"] = " (*)" if len(B.back_pocket_variants_built(row, d)) > 1 else ""
     # every slot, the front pockets included: Compile's "30 protocols" on L5
     v["slots"] = str(d.HorizontalSlots * (d.RisingSliders + 1))
     # FCM's "4x5": columns by ROWS, the front pocket being a row too
@@ -332,6 +357,66 @@ def tracked(dr, xy, text, f, fill, tracking, anchor="ls"):
     return total
 
 
+def back_section(d, w, h, pad=6):
+    """The back of the box in SECTION, straight on, as an RGBA image `w` x `h`.
+
+    Every edge is the CAD's — `box.rear_pocket`, `storage_dividers`,
+    `pusher_rest`, `pusher_slots`, `lock.lock_class` — so this is a drawing of
+    the part and not an illustration of it, and a row that changes its back
+    changes its picture with no other edit. What it shows: the slot band of
+    the rear storage from the floor to `Top of back`, with a pusher cavity per
+    stored pusher (its rim cutouts notched in the top edge, its rest stepped
+    across the bottom), the dividers between them, and the POCKET — the empty
+    run — tinted. The arrow inside the tint spans the pocket exactly.
+
+    **Mirrored, because this is the view from BEHIND** (Allan, 2026-09-14).
+    The storage packs from the box's left inner wall in its own +X, and a
+    viewer standing at the back sees +X on their LEFT, so the pushers hang on
+    the RIGHT of this drawing. Drawing it unmirrored is a front view of a back.
+    """
+    x0, x1 = -BOX.box_width(d) / 2 + BOX.WALL, BOX.box_width(d) / 2 - BOX.WALL
+    z0, z1 = BOX.floor_top(d), BOX.REAR_TOP
+    s = min((w - 2 * pad) / (x1 - x0), (h - 2 * pad) / (z1 - z0))
+    im = Image.new("RGBA", (int((x1 - x0) * s) + 2 * pad, int((z1 - z0) * s) + 2 * pad),
+                   (0, 0, 0, 0))
+    dr = ImageDraw.Draw(im)
+    X = lambda x: pad + (x1 - x) * s          # MIRRORED: +X to the left
+    Z = lambda z: pad + (z1 - z) * s
+    box = lambda a, b, c, e, **kw: dr.rectangle(
+        [min(X(a), X(b)), Z(e), max(X(a), X(b)), Z(c)], **kw)
+
+    box(x0, x1, z0, z1, fill=(255, 255, 255, 255))
+    px0, px1 = BOX.rear_pocket(d)
+    box(px0, px1, z0, z1, fill=PC.GREEN_L1 + (110,))
+    rest, divs = BOX.pusher_rest(d), BOX.storage_dividers(d)
+    # Below its rest a cavity is solid — the shelf a stored pusher lands on.
+    for a, b in zip([x0] + [e for _a, e in divs], [a for a, _e in divs]):
+        box(a, b, z0, rest, fill=(228, 228, 224, 255))
+        dr.line([X(a), Z(rest), X(b), Z(rest)], fill=PC.GREY, width=2)
+    for a, e in divs:
+        box(a, e, z0, z1, fill=PC.INK)
+    _cls, sv = L.lock_class(d.calPusherTotalDepth)
+    for centre in BOX.pusher_slots(d):
+        for sign in (-1, 1):
+            c = centre + sign * sv
+            box(c - L.BOX_CUTOUT_W / 2, c + L.BOX_CUTOUT_W / 2, z1, z1, fill=PC.INK)
+            dr.rectangle([min(X(c - L.BOX_CUTOUT_W / 2), X(c + L.BOX_CUTOUT_W / 2)),
+                          Z(z1) - 2,
+                          max(X(c - L.BOX_CUTOUT_W / 2), X(c + L.BOX_CUTOUT_W / 2)),
+                          Z(z1) + max(8, int(14 * s / 2.5))], fill=PC.INK)
+    # The dimension goes INSIDE the pocket, which keeps the cell's rows clear.
+    ax0, ax1 = sorted((X(px0), X(px1)))
+    ay = (Z(z1) + Z(z0)) / 2
+    head = max(9, int((ax1 - ax0) * 0.05))
+    if ax1 - ax0 > 3 * head:
+        dr.line([ax0 + 2, ay, ax1 - 2, ay], fill=PC.INK, width=max(3, int(s * 0.6)))
+        for ex, sgn in ((ax0 + 2, 1), (ax1 - 2, -1)):
+            dr.polygon([(ex, ay), (ex + sgn * head, ay - head * 0.5),
+                        (ex + sgn * head, ay + head * 0.5)], fill=PC.INK)
+    box(x0, x1, z0, z1, outline=PC.INK, width=max(3, int(s * 0.9)))
+    return im
+
+
 def draw_icon(dr, kind, x, y, s, colour=PC.INK, img=None):
     """The cell icons, each inside an `s` x `s` box at (x, y): the file in
     `logos/icons/<kind>.svg|png` where one exists, else drawn in lines."""
@@ -440,7 +525,7 @@ def draw_band(dr, img, e, spec, v, d):
         dr.text((cx, e["caption_y"]), cap, font=fc, fill=PC.INK, anchor="ms")
 
 
-def draw_cells(dr, e, spec, v, img=None):
+def draw_cells(dr, e, spec, v, d, row, img=None):
     x, y, w, h = e["box"]
     cells = spec["cells"]
     n = len(cells)
@@ -454,9 +539,24 @@ def draw_cells(dr, e, spec, v, img=None):
         cx = x + i * cw
         if i:
             dr.rectangle([cx, y + 40, cx + 3, y + h - 20], fill=PC.RULE)
-        draw_icon(dr, icon, cx + e["inset"], y + 55, e["icon"], img=img)
-        tx = cx + e["text_dx"]
-        dr.text((tx, y + 50), T(caption, v), font=fcap, fill=PC.GREEN_D, anchor="la")
+        if icon == "backbox":
+            # A DIAGRAM cell: the caption sits above a section of the box's
+            # back, which takes the icon's place and most of the cell's width,
+            # and the number moves right of it (Allan, 2026-09-14). The
+            # drawing stays inside the band so the footer's rule runs unbroken
+            # under it.
+            tx = cx + e.get("diagram_dx", 640)
+            dr.text((cx + e["inset"], y + 50), T(caption, v),
+                    font=fcap, fill=PC.GREEN_D, anchor="la")
+            dw = tx - e["inset"] - e.get("diagram_gap", 40) - cx
+            dh = h - e.get("diagram_top", 100) - e.get("diagram_bottom", 30)
+            sec = back_section(plate_one_box(row, d), dw, dh)
+            img.paste(sec, (int(cx + e["inset"]),
+                            int(y + e.get("diagram_top", 100))), sec)
+        else:
+            draw_icon(dr, icon, cx + e["inset"], y + 55, e["icon"], img=img)
+            tx = cx + e["text_dx"]
+            dr.text((tx, y + 50), T(caption, v), font=fcap, fill=PC.GREEN_D, anchor="la")
         dr.text((tx, y + 150), T(value, v), font=fval, fill=PC.INK, anchor="la")
         if unit and T(unit, v):
             dr.text((tx, y + 250), T(unit, v), font=funit, fill=PC.GREY, anchor="la")
@@ -581,7 +681,7 @@ def draw_poster(row, d, spec, picture, debug=False):
         elif t == "band":
             draw_band(dr, img, e, spec, v, d)
         elif t == "cells":
-            draw_cells(dr, e, spec, v, img)
+            draw_cells(dr, e, spec, v, d, row, img)
         elif t == "footer":
             PC.footer(dr, W, H, d.Version, e["scale"], e["margin"])
         else:
