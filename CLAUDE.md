@@ -34,7 +34,7 @@ carries, so the number and the section are always the same box.
 written there — Pusher, Box, Lid, TokenHolder, Topper, Holder — and
 `cad.cascade` takes a parts.csv row to a Bambu Studio project with no donor and
 no API. A geometry question is answered by building it. `cascades/` holds the
-cad-built **7.1** release (tag `v7.1`, 2026-09-11).
+cad-built **7.2** release (tag `v7.2`, 2026-09-14).
 
 **The Onshape pipeline is LEGACY: kept runnable, not used.** Do no new work in
 `automation/refresh_cascades.py` / `make_cascade.py` and do not change it to
@@ -51,22 +51,20 @@ check cad output.
 ## Releases — `cad/revisions.py`, `spec/REVISIONS.md`
 
 - `RELEASES` is an ordered line: `7.0` (the Onshape generation), `7.1a`..`7.1d`,
-  `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a`, `7.2b`,
-  `7.2c`, `7.2d`, `7.2e`, `7.2f`, `7.2g` (open 2026-09-14, `CURRENT`, what
-  `build/` is). A version is an opaque STRING —
-  nothing parses one; order is position in `RELEASES`.
+  `7.1` (locked 2026-09-10), `7.2a`..`7.2g`, `7.2` (locked 2026-09-14,
+  `CURRENT`, what `build/` and `cascades/` are). A version is an opaque
+  STRING — nothing parses one; order is position in `RELEASES`.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2g is open** with two flags, `unsleeved_card_width` and
-  `back_pocket_variants`, both ROW options that only `Single Mini` takes
-  (below); `7.2f` carries `ribs_forward` and `shorter_box`,
-  PROTOTYPES iterated on Allan's prints of `cad.testkit`'s kits (may be
-  revised or withdrawn);
-  `7.2e` carries `seated_lips`, `7.2d` `plain_box_plate`, `7.2c`
+- **7.2 is LOCKED** (2026-09-14) and carries every flag its seven letters
+  introduced: `7.2g` `unsleeved_card_width` and `back_pocket_variants`, both
+  ROW options that only `Single Mini` takes (below); `7.2f` `ribs_forward`
+  and `shorter_box`; `7.2e` `seated_lips`, `7.2d` `plain_box_plate`, `7.2c`
   `larger_lid_text`, `7.2b` `unmarked_lid` and `7.2a` `rear_holder` (the
-  `low_profile` change it was opened for was withdrawn, 2026-09-13). **The
-  next design change opens `7.2h`.** Steps:
+  `low_profile` change it was opened for was withdrawn, 2026-09-13). A 7.2
+  lid does not fit a 7.1 box. **The
+  next design change opens `7.3a`.** Steps:
   `spec/REVISIONS.md`, "Adding the next release". `7.2` stays off the line
   until its lock, and letters are never removed — a version that was printed
   must stay buildable.

@@ -412,9 +412,9 @@ withdrawn as 7.2a's `low_profile` was:
   with them; a 7.2f lid does not fit an earlier box. `spec/BOX.md`, "The
   box loses the room behind the last holder".
 
-### 7.2g — OPEN 2026-09-14
+### 7.2g — 2026-09-14
 
-`CURRENT`; `build/` is 7.2g. Two flags, and neither changes a part the
+Two flags, and neither changes a part the
 catalogue already ships: both are ROW options, and one row takes them —
 `Single Mini`, the only XS row, which Allan uses in PAIRS. They are gated
 where `Deep slot` and `Sleeved card width` were not, and the reason is worth
@@ -465,6 +465,31 @@ keep rebuilding to the byte.
   `PusherBox`, which the prefix match would seat with the pushers.
   `spec/BOX.md`, "Two back pockets, and no ordinary box".
 
+### 7.2 — LOCKED 2026-09-14
+
+`CURRENT`; `build/` and `cascades/` are 7.2, tagged `v7.2`. It carries no
+flag of its own: it is `7.2g`'s geometry under a `CC 7.2` stamp, sitting at
+the END of the line after the seven letters that made it, so it has every
+change they introduced. Not one `since` moved, and the letters stay on the
+line — `7.2a` still builds what `7.2a` built, which is what lets a part
+stamped with one remain describable.
+
+What changed since the 7.1 release, in the order the letters shipped it:
+the rearmost holder became a `RearHolder` without rear lips (`7.2a`); every
+cascade gained an unmarked lid on a plate of its own (`7.2b`); the lid's
+three-line text block grew where the lid had room (`7.2c`); a row may ship a
+plain box without label holders on a plate of its own (`7.2d`); every lip
+seats in the rest behind it (`7.2e`); the slider ribs moved forward and the
+box and lid lost the room behind the last holder, the box lip becoming a
+wedge on a bevelled post (`7.2f`); and a row may state its unsleeved card
+width and ship variant backs in place of the ordinary box (`7.2g`).
+
+**A 7.2 lid does not fit a 7.1 box** — `shorter_box` took 1.400 of depth out
+of both — and parts.csv's W/D columns are the 7.2 sizes.
+
+The next design change opens **`7.3a`**, not `7.2h`: `7.2` is on the line
+now, so a change after it is a change after the release.
+
 ## What a release moves besides its flags
 
 **The stamp.** Every part engraves `CC <version>`, so a 7.1 part differs from
@@ -513,8 +538,8 @@ whose other parts are Onshape 7.0 exports.
 
 ## Defaults, and why the tests pin
 
-`revisions.CURRENT` is the newest release on the line (**`7.2d`** as of
-2026-09-13): a plain `cad.build` or `cad.cascade` builds the current release
+`revisions.CURRENT` is the newest release on the line (**`7.2`** as of
+2026-09-14, locked): a plain `cad.build` or `cad.cascade` builds the current release
 (Allan, 2026-09-06). `cad.compare` and `tests/test_parallel.py`
 are the exception that proves the rule: they pin **7.0**, because what they
 regress against is the shipped tree, which the Onshape pipeline built at 7.0 —

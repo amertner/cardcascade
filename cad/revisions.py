@@ -79,7 +79,7 @@ from .refuse import refuse
 # `7.1a` .. `7.1d` were 7.1 being ITERATED, and the LETTER was the point (Allan,
 # 2026-09-08): see "An unreleased release is iterated by LETTER" below.
 #
-# **7.1 is LOCKED** (Allan, 2026-09-10) and sits at the END of the line, which
+# **7.1 is LOCKED** (Allan, 2026-09-10) and sits at the END of its letters, which
 # is what the lock means: the line is ordered, a flag is on from its `since`
 # onward, so the last release carries every change the letters introduced and
 # `7.1` is `7.1d`'s geometry under a `CC 7.1` stamp. The letters STAY, and are
@@ -96,13 +96,20 @@ from .refuse import refuse
 # same day) `larger_lid_text`, **7.2d** (the same day again)
 # `plain_box_plate`, **7.2e** (the same day still) `seated_lips`, **7.2f**
 # (2026-09-14) `ribs_forward` and `shorter_box`, PROTOTYPES for a print test
-# (`cad.testkit`), and **7.2g is OPEN** (2026-09-14) with
-# `unsleeved_card_width` and `back_pocket_variants`, both of them row options
-# that only `Single Mini` takes. `cascades/` stays the 7.1 release until 7.2
-# locks; `build/` is 7.2g.
+# (`cad.testkit`), and **7.2g** (2026-09-14) `unsleeved_card_width` and
+# `back_pocket_variants`, both of them row options that only `Single Mini`
+# takes.
+#
+# **7.2 was LOCKED on 2026-09-14** and sits at the END of the line, after the
+# seven letters that made it, which is what a lock means: the line is ordered,
+# a flag is on from its `since` onward, so `7.2` is `7.2g`'s geometry under a
+# `CC 7.2` stamp. The letters STAY and are not renamed — a version that has
+# been printed has to remain describable and buildable — and not one flag's
+# `since` moved. `cascades/` is the 7.2 release; `build/` is 7.2. The next
+# design change opens `7.3a`, not `7.2h`: `7.2` is on the line now.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
-            "7.2d", "7.2e", "7.2f", "7.2g")
-CURRENT = "7.2g"
+            "7.2d", "7.2e", "7.2f", "7.2g", "7.2")
+CURRENT = "7.2"
 
 
 @dataclass(frozen=True)
