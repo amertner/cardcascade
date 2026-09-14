@@ -80,9 +80,22 @@ def parts(row, d):
     * from 7.2d a PlainBox, LAST, where the row's `Plain box` column asks
       for one (`build.ships_plain_box`: Compile's rows): the same Box
       without its label holders, on a plate of its own at the end of the
-      project, an alternative to the box on plate 1 (`rev.plain_box_plate`).
+      project, an alternative to the box on plate 1 (`rev.plain_box_plate`);
+    * from 7.2g, where the row's `Back pocket` column asks for them
+      (`build.back_pocket_variants_built`: `Single Mini`), VARIANT backs IN
+      PLACE OF the ordinary box — the first on plate 1 with the pushers, the
+      rest as a `NotchedBox` on a plate each. The pair's two halves
+      (`rev.back_pocket_variants`).
     """
-    out = [("Box", B.box_file(d))]
+    backs = B.back_pocket_variants_built(row, d)
+    if backs:
+        # The row ships VARIANT backs INSTEAD of the ordinary box (7.2g). The
+        # first is plate 1's, with the pushers; the rest get a plate each.
+        out = [("Box", B.box_file(B.back_pocket_twin(d, backs[0])))]
+        out += [("NotchedBox", B.box_file(B.back_pocket_twin(d, v)))
+                for v in backs[1:]]
+    else:
+        out = [("Box", B.box_file(d))]
     out += [("Pusher", B.pusher_file(d))] * d.calPusherSlots
     for (first, rear), js in A.holder_kinds(d):
         role = "RearHolder" if rear else ("FirstHolder" if first else "Holder")

@@ -98,6 +98,13 @@ class Group(NamedTuple):
 # owner who wants the ordinary box never reaches it. Its role does not start
 # with `Box`, because `role` is a prefix match and would seat it with the
 # pushers.
+#
+# From 7.2g a row may ship VARIANT backs instead of the ordinary box
+# (`rev.back_pocket_variants`, `Single Mini`). The first of them is the `Box`
+# on plate 1, with the pushers as always; the second is a `NotchedBox` on a
+# plate of its own — the pair's other half, which hangs their pushers. Its
+# role does not start with `Box` for the reason `PlainBox`'s does not, and it
+# must not start with `Pusher` either, which is why it is not a `PusherBox`.
 PLATE_SCHEME = [
     Group("Box + pushers", ("Box", "Pusher")),
     Group("Lid", ("Lid",), alt=True),
@@ -107,9 +114,10 @@ PLATE_SCHEME = [
     Group("Half token holders", ("HalfTokenHolder",)),
     Group("Labels", ("Label",)),
     Group("Box without label holders", ("PlainBox",)),
+    Group("Box with pusher notches", ("NotchedBox",)),
 ]
 ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "PlainBox",
-         "Box", "Lid", "Holder", "Topper", "Pusher", "Label")
+         "NotchedBox", "Box", "Lid", "Holder", "Topper", "Pusher", "Label")
 
 
 def role(name):

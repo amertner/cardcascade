@@ -1160,6 +1160,128 @@ the flag is asked; the object is a `PlainBox` (a role of its own — `Box ...`
 would prefix-match onto the pusher plate) on `layout.PLATE_SCHEME`'s last
 entry, `Box without label holders`. `spec/REVISIONS.md`, 7.2d.
 
+### The unsleeved XS box is as wide as its twin — a 7.2g RELEASE CHANGE
+
+From 7.2g (`rev.unsleeved_card_width`, Allan 2026-09-14) a row may state its
+UNSLEEVED cards' width outright — parts.csv's **`Unsleeved card width`**,
+`Primary.UnsleevedCardWidth` — as it has been able to state its sleeved ones
+since 7.2a. One row does: `Single Mini` at **66**, which is the SLEEVED width,
+so its unsleeved twin is built as if its cards were sleeved **for width only**.
+
+```
+calSlotwidth   67.000 -> 69.000
+#BoxWidth     148.300 -> 152.300      measured envelope 150.900 -> 154.900
+lid width     152.900 -> 156.900      parts.csv's `Unsleeved W/mm` follows
+holder width  143.800 -> 147.800
+```
+
+**Width only, and that is the whole design.** The override lands on
+`calCardwidth` and reaches the rest through `calSlotwidth` alone;
+`calCardThickness` above it is untouched and still the unsleeved `0.4`. So the
+capacity, `calSliderDistance`, the rise, `calLidDepth` and `#BoxDepth` do not
+move, and the model code is still `XS5.15.10.32-Un` — `calModelName`'s `.32`
+is `calPusherTotalDepth`, not a width, so the file keeps its path across the
+release (`components.tracked_name`).
+
+Two things fall out of it, and they are the reasons for it:
+
+* **Four unsleeved pushers fit the back.** The storage pitch is the stored
+  pusher's own depth plus `4.000`, so four cavities and their closing divider
+  need `145.600`. The inner width was `145.100` — half a millimetre short.
+  It is now `149.100`. See the next section.
+* **The pair's two lids become interchangeable.** Both twins measure `156.900`
+  wide by `40.000`, and only their depth differs.
+
+The front holder does NOT follow: at `154.900` the box front still cannot take
+the `156.400` label, so the XS box keeps the `62` ("The front holder is NOT
+one size", below) — the number that section quotes as `150.900` is this row's
+envelope before 7.2g.
+
+GATED, where `Sleeved card width` and `Deep slot` are not, because
+`Single Mini` has a 7.0 corpus behind it — `individual/XS5.15.10.32-Un/` and
+`spec/reference/Box Innovation 130U.step`. A 7.0 build reads no such column
+and still rebuilds both to the byte. `spec/REVISIONS.md`, 7.2g.
+
+### Two back pockets, and no ordinary box — a 7.2g RELEASE CHANGE
+
+From 7.2g (`rev.back_pocket_variants`, Allan 2026-09-14) a row may ship
+back-pocket VARIANT boxes **in place of** the ordinary one, off parts.csv's
+**`Back pocket`** column (`open+notches` on `Single Mini`). That is what
+separates it from `plain_box_plate` and `unmarked_lid`, which ADD a plate:
+here the ordinary box is not built for that row at all.
+
+**Why a pair, and why neither half wants the ordinary back.** `Single Mini` is
+used two at a time, and the two halves want different things of the same
+150-odd millimetres of back:
+
+| | dividers | cavities | rim cutouts | thumb cutouts | pocket |
+|---|---|---|---|---|---|
+| `BACK_STANDARD` | 2 | 2 | 2 pairs | 1 | `75.500` Un, `50.500` Sl |
+| `BACK_OPEN` | none | none | none | 3 | **`149.100`** |
+| `BACK_NOTCHES` | 4 Un / 3 Sl | same | same | **none** | `3.500` / `2.000` |
+
+`open` carries Innovation's **128 mm** player aids, which the ordinary
+pocket cannot take at either sleeving. `notches` hangs the PAIR's pushers.
+Neither job is done by a 2-notch box, so it is not worth a plate.
+
+**The count is derived, never stated** (`box.storage_slot_count`): as many
+cavities as the inner width takes, `floor((inner - DIVIDER_W) / pitch)`. That
+is 4 unsleeved and 3 sleeved, because their stored pushers are `32.000` and
+`44.500` deep and the pitch is that plus `4.000`. **Four SLEEVED pushers fit
+no XS box**: they need `178.000` of bare width before any clearance at all
+against `149.100`, so no trimming rescues them and the pair's fourth travels
+elsewhere (Allan's call).
+
+**A variant is a BOX-only concern, and the two counts are why.**
+`box.pusher_slot_count` is `#calPusherSlots` — how many pushers the CASCADE
+ships, still 2 — and `lid.socket_count` reads THAT, so both boxes of the pair
+take the same lid and the project still ships two pushers.
+`box.storage_slot_count` is the new one, and it is what the dividers, the
+cavities, the rim cutouts and `rear_pocket` read.
+
+Three places needed the `n = 0` case, and each would otherwise be a bug:
+
+* **`rear_pocket`** stops adding `DIVIDER_W`: with no cavities there is no
+  divider closing the run, so the pocket is the whole inner width — `149.100`
+  and not `147.500`. This is the number the poster quotes
+  (`make_posters.pocket_w`, which measures the box plate 1 carries).
+* **`rear_storage`**'s "right of the pusher slots" cut starts at the left
+  inner wall instead, so the whole slot band empties from `floor_top` up.
+* **`rear_thumbs_x`** returns none for `BACK_NOTCHES`: with `3.500` of pocket
+  there is nothing to reach into, and a cutout would open the last cavity's
+  outer wall. `BACK_OPEN` keeps them and its wide pocket earns three, the
+  pitch being a ceiling.
+
+`build.back_pocket_variants_built` reads the column and is the ONLY place the
+flag is asked; `build.back_pocket_twin` is `plain_box_twin`'s recipe on
+`BackPocket`, so `build_box` needs no variant and the files are `box_file`'s
+`Box <model> open back pocket.3mf` and `... pusher notches.3mf`. The FIRST
+variant is the `Box` on plate 1, with the pushers as always; the rest are a
+`NotchedBox` on `layout.PLATE_SCHEME`'s `Box with pusher notches`. The role is
+not `PusherBox` — `layout.role` is a prefix match and that would seat it with
+the pushers, the same trap `PlainBox` avoids.
+
+**An ASSEMBLY still shows the ordinary back.** `cad.assemble`, `cad.fit` and
+`cad.scene` build from the row's own Derived, whose `BackPocket` is the
+default — they check the MECHANISM (the ribs, the lips, the treads), which no
+variant touches, so this costs nothing today and the alternative is threading
+a variant through three CLIs that have no use for one. `assembly.pushers` does
+read `storage_slot_count`, because it answers the STORAGE question and
+`pusher_stored` indexes `box.pusher_slots` by it: reading the cascade's count
+there would place a pusher in a slot an `open` box does not have. If a poster
+render is ever wanted of the box the row actually ships, that is where to
+start.
+
+**`verify.py --boxes` is unaffected and deliberately so.** It counts rim
+cutouts on `individual/` — the Onshape corpus — against
+`components.pushers_for`, and a variant box never enters that tree. Its
+`2N + 1` loop guard would refuse an `open` box's single loop, which is the
+CORRECT reading for `N = 0`; relaxing it would let a section that genuinely
+missed the cutout band read as zero on a corpus box, so it stays as it is and
+the variants are asserted in `tests/test_revisions.py` instead.
+
+`spec/REVISIONS.md`, 7.2g.
+
 ### The front holder is NOT one size — the XS box takes a 62
 
 `Box Innovation 130U` measures its front holder's outer face at `62.400`, where

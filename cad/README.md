@@ -340,13 +340,20 @@ wherever it is read — a named question, never a version comparison.
 
 ## One record below `derive`
 
-A `Primary` is the parts.csv row's ten inputs and nothing else; `derive`
-turns it into a `Derived`, and the Derived carries those ten by name
+A `Primary` is the parts.csv row's inputs and nothing else — the studio's
+nine, the `Version`, and the `cad/`-only ROW OPTIONS the studio has no
+counterpart for (`LabelHolders`, `SleevedCardWidth`, `UnsleevedCardWidth`,
+`DeepSlotAtBack`, and `BackPocket`, which is set per built variant rather
+than read off a row); `derive`
+turns it into a `Derived`, and the Derived carries them all by name
 beside everything computed from them — `d.HorizontalSlots` next to
 `d.calSlotwidth`, as every Onshape part studio reads them. So every
 function below `derive` — a part's features and its `build`, a placement
 in `assembly`, a margin in `fit`, a file name in `build` — takes `d` and
-nothing else. A Primary is handled only where rows come in: `params`, the
+nothing else. That is also what lets a VARIANT of a part be built without a
+variant build path: `build.plain_box_twin` and `build.back_pocket_twin`
+rebuild the Primary off the Derived, replace one field and re-derive, and
+`build_box` never learns there was a choice. A Primary is handled only where rows come in: `params`, the
 catalogues, the stamps. Until 2026-09-06 every feature took `(p, d)`, a
 carry-over from Onshape's split between the variable studio's inputs and
 its outputs that has no counterpart in one Python record.

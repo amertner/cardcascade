@@ -372,9 +372,9 @@ One flag:
   on flat ones. `cad.fit` builds and intersects every holder from here, and
   `lip_margins` reports each lip's seat. `spec/HOLDER.md`, "Lips that seat".
 
-### 7.2f — OPEN 2026-09-14, a PROTOTYPE
+### 7.2f — 2026-09-14, a PROTOTYPE
 
-`CURRENT`; `build/` is 7.2f. Two flags, opened to PRINT a test of them
+Two flags, opened to PRINT a test of them
 before the catalogue moves (`cad.testkit`), so they may be revised or
 withdrawn as 7.2a's `low_profile` was:
 
@@ -411,6 +411,59 @@ withdrawn as 7.2a's `low_profile` was:
   each way. Every box and lid is 1.400 shallower, parts.csv's `D` columns
   with them; a 7.2f lid does not fit an earlier box. `spec/BOX.md`, "The
   box loses the room behind the last holder".
+
+### 7.2g — OPEN 2026-09-14
+
+`CURRENT`; `build/` is 7.2g. Two flags, and neither changes a part the
+catalogue already ships: both are ROW options, and one row takes them —
+`Single Mini`, the only XS row, which Allan uses in PAIRS. They are gated
+where `Deep slot` and `Sleeved card width` were not, and the reason is worth
+stating: those arrived with `Three Expansions`, a NEW row with no corpus
+behind it, whereas `Single Mini` has `individual/XS5.15.10.32-Un/` and
+`spec/reference/Box Innovation 130U.step` as 7.0 ground truth. An ungated
+column would restate what a 7.0 build produces, and a shipped release must
+keep rebuilding to the byte.
+
+* **`unsleeved_card_width`** (`7.2g`, 2026-09-14) — a row may state its
+  UNSLEEVED cards' width outright (`Primary.UnsleevedCardWidth`, parts.csv's
+  **`Unsleeved card width`**), exactly as it has been able to state its
+  sleeved ones since 7.2a. `Single Mini` sets 66 — the SLEEVED width — so
+  its unsleeved box grows 148.300 to 152.300 and its lid 152.900 to 156.900,
+  the same as the sleeved cascade's. It reaches everything the card width
+  does, through `calSlotwidth`: the slot, the box, the lid, the holders and
+  the toppers. It reaches nothing else, and that is the point of doing it
+  this way — `calCardThickness` stays the unsleeved 0.4, so the capacity,
+  the depth and the rise do not move and the model code is still
+  `XS5.15.10.32-Un`. Two things fall out: four unsleeved pushers now fit the
+  back (145.600 of 149.100 inner, against 145.100 before, which is half a
+  millimetre short), and the pair's two lids become interchangeable.
+  `spec/BOX.md`, "The unsleeved XS box is as wide as its twin".
+* **`back_pocket_variants`** (`7.2g`, 2026-09-14) — a row may ship back-pocket
+  VARIANT boxes **IN PLACE OF** the ordinary one, off parts.csv's **`Back
+  pocket`** column. That is where it differs from `plain_box_plate` and
+  `unmarked_lid`, which ADD a plate: here the ordinary box is not shipped at
+  all, because on this row it does neither of the two jobs wanted. A pair of
+  `Single Mini` cascades divides the work between its halves — `open` has no
+  dividers, no cavities and no rim cutouts, so the whole slot band is empty
+  from the floor up and the pocket is the full inner width, 149.100, which
+  takes Innovation's 128 mm player aids where the ordinary box's 71.500
+  (Un) and 50.500 (Sl) do not; `notches` hangs the pair's pushers and has no
+  thumb cutout, there being no pocket left to reach into. The count is
+  DERIVED and never stated (`box.storage_slot_count`): as many as the width
+  takes, which is 4 unsleeved and 3 sleeved, their pushers being 32.000 and
+  44.500 deep. Four sleeved pushers need 178.000 of bare width before any
+  clearance and fit no XS box at all; Allan's call is that the pair's fourth
+  travels elsewhere. The Lid does NOT follow the variant: `calPusherSlots` is
+  how many pushers the CASCADE ships and stays 2, so both boxes of the pair
+  take the same lid — which is what `pusher_slot_count` and
+  `storage_slot_count` are two functions for.
+  `build.back_pocket_variants_built` is the ONLY place the column and the
+  flag are asked and `build.back_pocket_twin` is `plain_box_twin`'s recipe on
+  `BackPocket`; the first variant is the `Box` on plate 1 with the pushers,
+  the second a `NotchedBox` on `layout.PLATE_SCHEME`'s `Box with pusher
+  notches` — a role of its own for the reason `PlainBox` is one, and not a
+  `PusherBox`, which the prefix match would seat with the pushers.
+  `spec/BOX.md`, "Two back pockets, and no ordinary box".
 
 ## What a release moves besides its flags
 

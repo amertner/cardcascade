@@ -536,6 +536,14 @@ asserted.add("stout_lattice")
 # height, which is what lets the nozzle and the bridge above break it during
 # the print. `spec/BOX.md` and `spec/HOLDER.md`, "A stouter lattice".
 OLD = before("stout_lattice")
+# The NEW end is the flag's OWN release and NOT `RELEASES[-1]`, for the reason
+# `before` gives for the old end: this section DIFFS the two ends, so anything
+# a later release changes about a lattice would land here as a failure of
+# `stout_lattice`. 7.2g moves the XS row's `calSlotwidth` (a row option,
+# `rev.unsleeved_card_width`), and with it that row's hole pitch — correctly,
+# and nothing to do with this flag. A flag is isolated by comparing the
+# release it shipped in with the one before it.
+LAT = since("stout_lattice")
 
 
 def mullions(d):
@@ -553,7 +561,7 @@ def only(d, flag):
 
 # --- the width. The pitch does not move, so every 1.000 the window gives up
 # is 1.000 the pillar gains, and only a window's +X edge moves.
-for v, want in ((OLD, 10.0), (NEW, 9.0)):
+for v, want in ((OLD, 10.0), (LAT, 9.0)):
     check(f"{v}: every box hanging hole is {want:.3f} wide",
           sorted({round(b - a, 3) for r in rows() for s in (0, 1)
                   for a, b in box_part.hanging_holes(at(r, s, v))}), [want])
@@ -565,7 +573,7 @@ for v, want in ((OLD, 10.0), (NEW, 9.0)):
 moved, gained = set(), set()
 for row_ in rows():
     for sleeved in (0, 1):
-        do, dn = at(row_, sleeved, OLD), at(row_, sleeved, NEW)
+        do, dn = at(row_, sleeved, OLD), at(row_, sleeved, LAT)
         if [round(a, 6) for a, _b in box_part.hanging_holes(do)] != \
            [round(a, 6) for a, _b in box_part.hanging_holes(dn)]:
             moved.add(f"{do.calModelName} box")
@@ -583,7 +591,7 @@ check("so the pillar gains exactly what the window gave up, both parts",
 
 # --- the rows. The BAND does not move either: four rows divide
 # HOLE_ROW_BOTTOM..HOLE_ROW_TOP where three did.
-for v, n, tall in ((OLD, 3, 20.833), (NEW, 4, 15.125)):
+for v, n, tall in ((OLD, 3, 20.833), (LAT, 4, 15.125)):
     check(f"{v}: the box lattice has {n} rows",
           sorted({len(box_part.hole_rows(at(r, s, v)))
                   for r in rows() for s in (0, 1)}), [n])
@@ -602,7 +610,7 @@ for v, n, tall in ((OLD, 3, 20.833), (NEW, 4, 15.125)):
 unfilled = set()
 for row_ in rows():
     for sleeved in (0, 1):
-        for v in (OLD, NEW):
+        for v in (OLD, LAT):
             dd = at(row_, sleeved, v)
             _w, hh, z0 = holder_part.outline(dd)
             top = max(z1 for _a, _b, _c, z1 in holder_part.window_grid(dd))
@@ -615,11 +623,11 @@ check("the windows and their rails still fill the outline exactly",
 # mullion is the thinnest thing either part has.
 worst = next((r, s) for r in rows() for s in (0, 1)
              if at(r, s, OLD).calSlotwidth == 63.0)
-dwo, dwn = at(*worst, OLD), at(*worst, NEW)
-check(f"the narrowest holder mullion: {OLD} 1.800 -> {NEW} 2.800",
+dwo, dwn = at(*worst, OLD), at(*worst, LAT)
+check(f"the narrowest holder mullion: {OLD} 1.800 -> {LAT} 2.800",
       [mullions(dwo)[0], mullions(dwn)[0]], [1.8, 2.8])
 gwo, gwn = holder_part.window_grid(dwo)[0], holder_part.window_grid(dwn)[0]
-check(f"and its free run: {OLD} 18.167 -> {NEW} 13.125",
+check(f"and its free run: {OLD} 18.167 -> {LAT} 13.125",
       [round(gwo[3] - gwo[2], 3), round(gwn[3] - gwn[2], 3)], [18.167, 13.125])
 # The decoupling. 7.0's window width IS `#LipLength`, reused; the rear lip is
 # the same variable doing its real job and it does NOT follow the window.
@@ -1382,6 +1390,158 @@ check(f"{SB_NEW}: parts.csv's depth columns are the shallower lid's",
       all(abs(float((r[c] or '0').strip() or 0) - at(r, s, SB_NEW).calLidDepth) <= 0.1
           for r in rows() for s, c in ((0, "Unsleeved D/mm"), (1, "Sleeved D/mm")) if (r[c] or "").strip()),
       True)
+
+
+# --- 7.2g: a row may state its UNSLEEVED card width -------------------------
+print(f"\n=== {since('unsleeved_card_width')}  unsleeved_card_width ===")
+asserted.add("unsleeved_card_width")
+# A ROW option, gated because the row it serves has a 7.0 corpus behind it.
+# Asserted at both ends: nothing moves before the flag, exactly the rows with
+# the column move after it, and what moves is WIDTH and only width.
+UW_OLD, UW_NEW = before("unsleeved_card_width"), since("unsleeved_card_width")
+UW_COL = "Unsleeved card width"
+
+check(f"{UW_NEW}: exactly one row states an unsleeved card width, and it is the XS one",
+      sorted((r.get("Short name") or "").strip() for r in rows()
+             if (r.get(UW_COL) or "").strip()), ["Single Mini"])
+
+xs = row_of("XS5.15.10.32.Un", 0)
+moved = []
+for r in rows():
+    for sleeved in (0, 1):
+        do, dn = at(r, sleeved, UW_OLD), at(r, sleeved, UW_NEW)
+        if do.calCardwidth != dn.calCardwidth:
+            moved.append(f"{do.calModelName} {do.calCardwidth} -> {dn.calCardwidth}")
+check(f"{UW_OLD} -> {UW_NEW}: only the XS UNSLEEVED cascade's card width moves",
+      moved, ["XS5.15.10.32.Un 64.0 -> 66.0"])
+
+xo, xn = at(xs, 0, UW_OLD), at(xs, 0, UW_NEW)
+check(f"{UW_OLD}: the column is not read — the studio's own width",
+      [xo.calCardwidth, xo.calSlotwidth, box_part.box_width(xo)], [64.0, 67.0, 148.3])
+check(f"{UW_NEW}: it is the SLEEVED width, and the slot and box follow",
+      [xn.calCardwidth, xn.calSlotwidth, box_part.box_width(xn)], [66.0, 69.0, 152.3])
+check("the twins are now ONE width, so the pair's lids are interchangeable",
+      [lid.lid_width(xn), lid.lid_width(at(xs, 1, UW_NEW))], [156.9, 156.9])
+check("and the holders with them",
+      [holder_part.holder_width(xn), holder_part.holder_width(at(xs, 1, UW_NEW))],
+      [147.8, 147.8])
+# WIDTH ONLY is the design: the override lands on calCardwidth and reaches the
+# rest through calSlotwidth, so nothing that depends on card THICKNESS moves.
+check("the card THICKNESS is untouched, so the depth, the rise and the capacity are too",
+      [xn.calCardThickness == xo.calCardThickness, xn.calLidDepth == xo.calLidDepth,
+       box_part.box_depth(xn) == box_part.box_depth(xo),
+       xn.calHeightIncrement == xo.calHeightIncrement,
+       xn.calTotalCards == xo.calTotalCards],
+      [True] * 5)
+check("and the model code does not move — .32 is the pusher's depth, not a width",
+      [xn.calModelName, xo.calModelName], ["XS5.15.10.32.Un", "XS5.15.10.32.Un"])
+check("parts.csv's `Unsleeved W/mm` is the widened lid",
+      round(float((xs.get("Unsleeved W/mm") or "0").strip()), 1), round(lid.lid_width(xn), 1))
+check("the SLEEVED twin is untouched by the flag — the column is unsleeved-only",
+      at(xs, 1, UW_OLD).calCardwidth == at(xs, 1, UW_NEW).calCardwidth, True)
+
+
+# --- 7.2g: variant backs, IN PLACE OF the ordinary box ----------------------
+print(f"\n=== {since('back_pocket_variants')}  back_pocket_variants ===")
+asserted.add("back_pocket_variants")
+# Unlike `plain_box_plate` and `unmarked_lid`, which ADD a plate, this one
+# REPLACES the ordinary box. Asserted at both ends over every row, then the
+# geometry of each back, then the plate it lands on.
+BP_OLD, BP_NEW = before("back_pocket_variants"), since("back_pocket_variants")
+
+check(f"{BP_NEW}: exactly one row asks for variant backs",
+      sorted((r.get("Short name") or "").strip() for r in rows()
+             if (r.get("Back pocket") or "").strip()), ["Single Mini"])
+check("and the column is asked through back_pocket_variants_built, off at the old end",
+      [B.back_pocket_variants_built(xs, at(xs, 0, v)) for v in (BP_OLD, BP_NEW)],
+      [(), ("open", "notches")])
+
+wrong = []
+for r in rows():
+    asks = (r.get("Back pocket") or "").strip() != ""
+    for sleeved in (0, 1):
+        old = CC.parts(r, at(r, sleeved, BP_OLD))
+        new = CC.parts(r, at(r, sleeved, BP_NEW))
+        model = at(r, sleeved, BP_NEW).calModelName
+        if [n for n, _f in old if n == "NotchedBox"]:
+            wrong.append(f"{model}: a NotchedBox at {BP_OLD}")
+        if not asks:
+            if [n for n, _f in new if n == "NotchedBox"]:
+                wrong.append(f"{model}: a NotchedBox without the column")
+            continue
+        # REPLACED, not joined: one Box and one NotchedBox, both suffixed, and
+        # the ordinary box's name is not among them.
+        names = [n for n, _f in new]
+        files = [f for _n, f in new]
+        plain = B.box_file(at(r, sleeved, BP_NEW))
+        if (names.count("Box") != 1 or names.count("NotchedBox") != 1
+                or plain in files
+                or [n for n, _f in old if n != "Box"] != [n for n, _f in new
+                                                          if n not in ("Box", "NotchedBox")]):
+            wrong.append(f"{model}: {new[:2]}")
+check(f"{BP_OLD}: no cascade ships a variant back; {BP_NEW}: the XS row ships two "
+      f"and NO ordinary box, and nothing else in the project moves", wrong, [])
+
+for sleeved, notches, pocket in ((0, 4, 3.5), (1, 3, 2.0)):
+    d = at(xs, sleeved, BP_NEW)
+    dop, dno = B.back_pocket_twin(d, TB.BACK_OPEN), B.back_pocket_twin(d, TB.BACK_NOTCHES)
+    slv = "Sl" if sleeved else "Un"
+    check(f"{slv}: the open back hangs nothing, and its pocket is the full inner width",
+          [box_part.storage_slot_count(dop), len(box_part.storage_dividers(dop)),
+           len(box_part.pusher_slots(dop)),
+           round(box_part.rear_pocket(dop)[1] - box_part.rear_pocket(dop)[0], 3)],
+          [0, 0, 0, round(box_part.box_width(dop) - 2 * box_part.WALL, 3)])
+    check(f"{slv}: ... which is 149.100, and takes Innovation's 128 mm player aids",
+          round(box_part.rear_pocket(dop)[1] - box_part.rear_pocket(dop)[0], 3), 149.1)
+    check(f"{slv}: and it keeps its thumb cutouts — a wide pocket earns three",
+          len(box_part.rear_thumbs_x(dop)), 3)
+    check(f"{slv}: the notched back hangs {notches} — as many as the width takes",
+          [box_part.storage_slot_count(dno), len(box_part.storage_dividers(dno)),
+           len(box_part.pusher_slots(dno))], [notches] * 3)
+    check(f"{slv}: ... and one more would not fit",
+          (notches + 1) * D.back_slot_pitch(dno) + box_part.DIVIDER_W
+          > box_part.box_width(dno) - 2 * box_part.WALL, True)
+    check(f"{slv}: it has NO thumb cutout — {pocket} of pocket is nothing to reach into",
+          [len(box_part.rear_thumbs_x(dno)),
+           round(box_part.rear_pocket(dno)[1] - box_part.rear_pocket(dno)[0], 3)],
+          [0, pocket])
+    # The Lid does not follow the variant: both boxes of the pair take one lid.
+    check(f"{slv}: the CASCADE still ships two pushers, and the lid two sockets",
+          [box_part.pusher_slot_count(dop), box_part.pusher_slot_count(dno),
+           lid.socket_count(dop), lid.socket_count(dno)], [2, 2, 2, 2])
+    check(f"{slv}: and nothing but the back differs between a twin and its cascade",
+          sorted(k for (k, a), (_k, b) in zip(dno.items(), d.items()) if a != b),
+          ["BackPocket"])
+    check(f"{slv}: their FILES are the box's, named apart",
+          [B.box_file(dop), B.box_file(dno)],
+          [f"Box XS5.15.10.{'45-Sl' if sleeved else '32-Un'} open back pocket.3mf",
+           f"Box XS5.15.10.{'45-Sl' if sleeved else '32-Un'} pusher notches.3mf"])
+
+check("four SLEEVED pushers fit no XS box at any clearance — the reason it takes 3",
+      4 * at(xs, 1, BP_NEW).calPusherTotalDepth
+      > box_part.box_width(at(xs, 1, BP_NEW)) - 2 * box_part.WALL, True)
+check("the catalogue builds the two variants for the row, and no ordinary box",
+      sorted(fn for _g, fn, _p in B.box_catalogue(game="Innovation", model="XS5.15.10.32-Un")),
+      ["Box XS5.15.10.32-Un open back pocket.3mf",
+       "Box XS5.15.10.32-Un pusher notches.3mf"])
+try:
+    B.back_pocket_twin(at(xs, 0, BP_NEW), "sideways")
+    refused = False
+except Refused:
+    refused = True
+check("an unknown back is refused, not built", refused, True)
+# The XS project's own object list, so the plates are the ones `cad.cascade`
+# actually writes: three lids (own, Ultimate, Unmarked), each named apart
+# because the Lid group splits by object name.
+check("the notched box goes on a plate of its own, after everything the cascade needs",
+      plates_for(["Box", "Pusher", "Lid 130U", "Lid 130U Ultimate",
+                  "Lid 130U Unmarked", "Holder", "NotchedBox"]),
+      ["Box + pushers", "Lid 130U", "Lid 130U Ultimate", "Lid 130U Unmarked",
+       "Holders", "Box with pusher notches"])
+check("and its role is its own — not the Box's, and not the Pusher's",
+      [LY.role("NotchedBox"), LY.role("NotchedBox XS5.15.10.32-Un")],
+      ["NotchedBox", "NotchedBox"])
+
 
 
 # --- every change has a case here ------------------------------------------

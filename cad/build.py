@@ -105,6 +105,14 @@ def box_file(d):
     # variant — `plan_exports` names a box by its model alone — so a cascade
     # built with it is a `cad/` build and not a refresh (spec/BOX.md).
     suffix = "" if d.isLabelHoldersOnBox else " no label holders"
+    # And from 7.2g the back a variant box was built with
+    # (`rev.back_pocket_variants`, `tables.BACK_POCKET_VARIANTS`). A row that
+    # ships variants ships NO ordinary box, so the plain name is simply not
+    # written for it — the two suffixed ones are the whole of that row's
+    # boxes, and every earlier release still writes the tree it wrote before.
+    suffix += {TB.BACK_STANDARD: "",
+               TB.BACK_OPEN: " open back pocket",
+               TB.BACK_NOTCHES: " pusher notches"}[d.BackPocket]
     return "Box " + model_stem(d.calModelName) + suffix + ".3mf"
 
 
@@ -402,7 +410,14 @@ def box_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     out = {}
     for row, p in params.cascades(csv, game, version):
         d = D.derive(p)
-        ds = [(d, p)]
+        variants = back_pocket_variants_built(row, d)
+        if variants:
+            # IN PLACE OF the ordinary box, not beside it: the row ships the
+            # variants and nothing else (`back_pocket_variants_built`).
+            ds = [(back_pocket_twin(d, v), dataclasses.replace(p, BackPocket=v))
+                  for v in variants]
+        else:
+            ds = [(d, p)]
         if ships_plain_box(row, d):
             ds.append((plain_box_twin(d), dataclasses.replace(p, LabelHolders=0)))
         for dd, pp in ds:
@@ -447,6 +462,56 @@ def plain_box_twin(d):
     p = params.Primary(**{f.name: getattr(d, f.name)
                           for f in dataclasses.fields(params.Primary)})
     return D.derive(dataclasses.replace(p, LabelHolders=0))
+
+
+def back_pocket_variants_built(row, d):
+    """The BACKS this row's cascade ships, as `tables.BACK_POCKET_VARIANTS`
+    members in project order, or `()` for a row that ships the ordinary box.
+
+    From 7.2g (`rev.back_pocket_variants`), off parts.csv's `Back pocket`
+    column — a `+`-separated list, `open+notches` on `Single Mini`. This is
+    the ONLY place the column and the flag are asked: the part builds any
+    back at any release.
+
+    The variants REPLACE the ordinary box rather than joining it (Allan,
+    2026-09-14). `Single Mini` is used in PAIRS, and the pair wants one box
+    of each: the `open` one carries the 128 mm player aids in a pocket the
+    full inner width, the `notches` one hangs the pair's pushers. An ordinary
+    2-notch box does neither job, so it is not worth a plate. The FIRST
+    entry is the box plate 1 carries — with the pushers, as always — and it
+    is also the box the poster measures (`make_posters`).
+    """
+    want = [v.strip().lower()
+            for v in (row.get("Back pocket") or "").replace(",", "+").split("+")
+            if v.strip()]
+    if not want:
+        return ()
+    # Checked at EVERY release, before the flag: a typo in the column is a
+    # typo whether or not this release reads it.
+    unknown = [v for v in want if v not in TB.BACK_POCKET_VARIANTS]
+    if unknown:
+        refuse(f"parts.csv row {(row.get('Short name') or '?').strip()!r}: "
+               f"`Back pocket` names {unknown[0]!r}; one of "
+               f"{', '.join(v for v in TB.BACK_POCKET_VARIANTS if v)}")
+    if not d.rev.back_pocket_variants:
+        return ()
+    return tuple(want)
+
+
+def back_pocket_twin(d, variant):
+    """The same cascade's Derived built with one of the variant BACKS —
+    `plain_box_twin`'s recipe, on `BackPocket` instead of `LabelHolders`.
+
+    Nothing but the back moves: the model code, the width, the lid and the
+    two pushers are the cascade's own, which is what lets one lid close
+    either box of the pair.
+    """
+    if variant not in TB.BACK_POCKET_VARIANTS:
+        refuse(f"unknown back pocket variant {variant!r}; one of "
+               f"{', '.join(v for v in TB.BACK_POCKET_VARIANTS if v)}")
+    p = params.Primary(**{f.name: getattr(d, f.name)
+                          for f in dataclasses.fields(params.Primary)})
+    return D.derive(dataclasses.replace(p, BackPocket=variant))
 
 
 def build_box(d, _extra, path):

@@ -26,6 +26,7 @@ from .. import derive as D
 from . import holder as holder_part      # its WALL, which the box lip reaches through
 from ..geom import slab, text_solid, tray
 from .. import lock as L
+from .. import tables as TB
 from .. import text as T
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
@@ -82,14 +83,46 @@ def pusher_slots(d):
     """
     pitch = D.back_slot_pitch(d)
     x0 = -box_width(d) / 2 + WALL
-    return [x0 + (k + 0.5) * pitch for k in range(pusher_slot_count(d))]
+    return [x0 + (k + 0.5) * pitch for k in range(storage_slot_count(d))]
 
 
 def pusher_slot_count(d):
-    """`#calPusherSlots` — `derive.py`'s, which owns the rule: 2 at every size
-    from 7.1 (`rev.two_pushers`); at 7.0, 2 for an S box and for every
-    Innovation box, else 3."""
+    """`#calPusherSlots` — how many pushers the CASCADE ships. `derive.py`'s,
+    which owns the rule: 2 at every size from 7.1 (`rev.two_pushers`); at 7.0,
+    2 for an S box and for every Innovation box, else 3.
+
+    This is NOT how many the BACK hangs — see `storage_slot_count`. The Lid
+    reads this one (`lid.socket_count`): it cuts a socket per pusher the
+    cascade ships, and a box built with a variant back still takes the
+    cascade's own lid.
+    """
     return d.calPusherSlots
+
+
+def storage_slot_count(d):
+    """How many pusher cavities the BACK carries — cavities, dividers and rim
+    cutouts alike. The cascade's own count, unless the row ships a variant
+    back (`rev.back_pocket_variants`, `tables.BACK_POCKET_VARIANTS`):
+
+    * `BACK_OPEN` hangs NONE. Nothing is left standing in the slot band, so
+      the pocket is the full inner width — 149.100 on XS, where the ordinary
+      box leaves 71.500 unsleeved and 50.500 sleeved, and Innovation's player
+      aids are 128 wide.
+    * `BACK_NOTCHES` hangs as many as the width TAKES, which is why the count
+      is derived and never stated: the pitch is the stored pusher's own depth
+      plus 4.000, so it is 4 on the widened unsleeved XS (145.600 of 149.100)
+      and 3 on the sleeved, whose pushers are 44.500 deep — four of those need
+      178.000 of bare width before any clearance and cannot fit any XS box.
+
+    A variant is a BOX-only concern. `pusher_slot_count` above is untouched,
+    so the Lid keeps its two sockets and the pair's two boxes share one lid.
+    """
+    if d.BackPocket == TB.BACK_OPEN:
+        return 0
+    if d.BackPocket == TB.BACK_NOTCHES:
+        inner = box_width(d) - 2 * WALL
+        return int((inner - DIVIDER_W) // D.back_slot_pitch(d))
+    return pusher_slot_count(d)
 
 
 def finger_hole_offset(d):
@@ -275,7 +308,7 @@ def storage_dividers(d):
     left = -box_width(d) / 2 + WALL
     pitch = D.back_slot_pitch(d)
     return [(left + k * pitch, left + k * pitch + DIVIDER_W)
-            for k in range(1, pusher_slot_count(d) + 1)]
+            for k in range(1, storage_slot_count(d) + 1)]
 
 
 def rear_thumb_x(d):
@@ -299,9 +332,14 @@ def rear_pocket(d):
     `rear_storage` cuts it away from the floor up, so it is the one stretch of
     the back a thumb cutout can be put through: everything left of it is a
     pusher cavity with a `Divider` standing at each of its edges.
+
+    With NO cavities (`BACK_OPEN`, from 7.2g) there is no divider to close the
+    run either, so the pocket is the whole inner width and not a `DIVIDER_W`
+    less. That is the number the poster quotes (`make_posters.pocket_w`).
     """
     left = -box_width(d) / 2 + WALL
-    return (left + pusher_slot_count(d) * D.back_slot_pitch(d) + DIVIDER_W,
+    n = storage_slot_count(d)
+    return (left + (n * D.back_slot_pitch(d) + DIVIDER_W if n else 0.0),
             box_width(d) / 2 - WALL)
 
 
@@ -326,7 +364,13 @@ def rear_thumbs_x(d):
     narrower than one cutout plus its clearances — `hi - lo` goes negative
     there and the guard catches it, so it eats its margin rather than going
     without the cutout the box has always had.
+
+    A `BACK_NOTCHES` box (7.2g) has NONE: its cavities take all but a few
+    millimetres of the width, so there is no pocket left to reach into and a
+    cutout would open the last one's outer wall instead.
     """
+    if d.BackPocket == TB.BACK_NOTCHES:
+        return []
     if not d.rev.rear_thumbs_spread:
         return [rear_thumb_x(d)]
     x0, x1 = rear_pocket(d)
@@ -430,7 +474,7 @@ def rear_storage(d, part, lattice=True):
     BW, BD = box_width(d), box_depth(d)
     inner = BW / 2 - WALL
     y0, y1 = slot_band(d)
-    n = pusher_slot_count(d)
+    n = storage_slot_count(d)
     pitch = D.back_slot_pitch(d)
     left, top = -inner, d.BoxHeight + 1
 
@@ -444,7 +488,10 @@ def rear_storage(d, part, lattice=True):
         slab(-inner, inner, y0, BD / 2 + REAR_DEPTH, REAR_TOP, top),
         # Right of the pusher slots — and of the divider that CLOSES the run —
         # the slot band is empty from the floor up.
-        slab(left + n * pitch + DIVIDER_W, inner, y0, y1, floor_top(d), top),
+        # With no cavities at all (`BACK_OPEN`) that is the WHOLE band, and
+        # there is no closing divider to start after.
+        slab(left + (n * pitch + DIVIDER_W if n else 0.0), inner, y0, y1,
+             floor_top(d), top),
     ]
     # One cavity per pusher slot, open from the rest up — what stands below it
     # is `Remove material, don't let pushers drop through`, and the hanging

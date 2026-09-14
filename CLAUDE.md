@@ -46,18 +46,21 @@ check cad output.
 
 - `RELEASES` is an ordered line: `7.0` (the Onshape generation), `7.1a`..`7.1d`,
   `7.1` (locked 2026-09-10, the release in `cascades/`), `7.2a`, `7.2b`,
-  `7.2c`, `7.2d`, `7.2e`, `7.2f` (open 2026-09-14, `CURRENT`, what `build/` is). A version is an opaque STRING —
+  `7.2c`, `7.2d`, `7.2e`, `7.2f`, `7.2g` (open 2026-09-14, `CURRENT`, what
+  `build/` is). A version is an opaque STRING —
   nothing parses one; order is position in `RELEASES`.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2f is open** with two flags, `ribs_forward` and `shorter_box`,
+- **7.2g is open** with two flags, `unsleeved_card_width` and
+  `back_pocket_variants`, both ROW options that only `Single Mini` takes
+  (below); `7.2f` carries `ribs_forward` and `shorter_box`,
   PROTOTYPES iterated on Allan's prints of `cad.testkit`'s kits (may be
   revised or withdrawn);
   `7.2e` carries `seated_lips`, `7.2d` `plain_box_plate`, `7.2c`
   `larger_lid_text`, `7.2b` `unmarked_lid` and `7.2a` `rear_holder` (the
   `low_profile` change it was opened for was withdrawn, 2026-09-13). **The
-  next design change opens `7.2g`.** Steps:
+  next design change opens `7.2h`.** Steps:
   `spec/REVISIONS.md`, "Adding the next release". `7.2` stays off the line
   until its lock, and letters are never removed — a version that was printed
   must stay buildable.
@@ -67,6 +70,29 @@ check cad output.
   `build.plain_box_twin` for its Derived; object `PlainBox`, plate `Box
   without label holders`). An alternative to plate 1's box, not a part of
   the assembly.
+- **Innovation's XS row ships TWO boxes and no ordinary one** from 7.2g
+  (`spec/BOX.md`, "Two back pockets, and no ordinary box"): parts.csv's
+  `Back pocket` column, asked only through
+  `build.back_pocket_variants_built` (`build.back_pocket_twin` for its
+  Derived). `Single Mini` is used in PAIRS and the halves divide the work —
+  `open` has no dividers or notches at all, so the pocket is the full
+  149.100 and takes the 128 mm player aids; `notches` hangs the pair's
+  pushers and has no thumb cutout. The count is DERIVED, as many as the
+  width takes: read `box.storage_slot_count` (4 unsleeved, 3 sleeved), and
+  do NOT confuse it with `box.pusher_slot_count`, which is how many the
+  CASCADE ships — still 2, which is what the Lid reads, so one lid closes
+  either box. The first variant is plate 1's `Box`; the second is a
+  `NotchedBox` on plate `Box with pusher notches` (not `PusherBox` —
+  `layout.role` is a prefix match).
+- **parts.csv's `Unsleeved card width`** states one row's unsleeved card
+  width outright from 7.2g, the mirror of `Sleeved card width`.
+  `Single Mini` uses 66 — the sleeved width — so its unsleeved twin is
+  152.300 of box and 156.900 of lid like the sleeved one, which is what
+  fits the fourth pusher and makes the pair's lids interchangeable. WIDTH
+  only: `calCardThickness` is untouched, so the depth, rise and capacity do
+  not move and the model code stays `XS5.15.10.32-Un`. Both 7.2g flags are
+  GATED where `Deep slot` and `Sleeved card width` are not, because that
+  row has a 7.0 corpus behind it.
 - **Every lip seats** from 7.2e (`spec/HOLDER.md`, "Lips that seat"): the
   slant is the diagonal `calHeightIncrement / sliderDistance`
   (`derive.cascade_slope`), a lip reaches the gap plus one wall in Y

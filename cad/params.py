@@ -51,6 +51,20 @@ class Primary:
     # 2026-09-12): `Three Expansions` at 64, so its sleeved twin is as wide as
     # its unsleeved one and still lies flat in the Innovation box.
     SleevedCardWidth: float = 0.0
+    # cad/ only, and the mirror of the above (`rev.unsleeved_card_width`).
+    # parts.csv's `Unsleeved card width` column: the width an UNSLEEVED card
+    # of this row is given, in mm, where the studio takes the game's own. 0 is
+    # the studio's rule. One row uses it (Allan, 2026-09-14): `Single Mini` at
+    # 66, the sleeved width, so its unsleeved twin is as wide as its sleeved
+    # one — which is what makes four pushers fit the back, and what makes the
+    # pair's two lids interchangeable.
+    UnsleevedCardWidth: float = 0.0
+    # cad/ only. Which back the Box is built with, and NOT read from a row:
+    # `build.back_pocket_variants_built` says which variants a row ships and
+    # `build.back_pocket_twin` sets this, as `LabelHolders` is set for the
+    # plain box twin. "" is the studio's rear storage; see
+    # `tables.BACK_POCKET_VARIANTS` and `box.storage_slot_count`.
+    BackPocket: str = ""
     # cad/ only. parts.csv's `Deep slot` column: `back` puts the deeper
     # first-riser slot (`Cards/First Riser`) at the BACK of the cascade
     # instead of the studio's front. Allan, 2026-09-12: on Innovation it holds
@@ -104,6 +118,7 @@ def _primary(row, sleeved, version, first, slot, game):
         LabelHolders=0 if (row.get("Label holders") or "").strip().upper()
         in ("FALSE", "0", "NO", "OFF") else 1,
         SleevedCardWidth=_float(row, "Sleeved card width"),
+        UnsleevedCardWidth=_float(row, "Unsleeved card width"),
         DeepSlotAtBack=_deep_slot(row),
     )
 

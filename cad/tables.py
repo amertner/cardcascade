@@ -111,6 +111,20 @@ LID_UNMARKED = "unmarked"    # no mark, and `lid.CREDIT` where the game's name
 #                              is, from 7.2b (`rev.unmarked_lid`)
 LID_VARIANTS = (LID_OWN, LID_ALTERNATE, LID_UNMARKED)
 
+# The VARIANTS of a BACK a box can be built with (`box.storage_slot_count`),
+# from 7.2g (`rev.back_pocket_variants`). Here for the reason the lid's are:
+# `build.py` names one without loading build123d.
+BACK_STANDARD = ""         # the studio's rear storage — one cavity per pusher
+#                            the cascade ships, and the pocket is what is left
+BACK_OPEN = "open"         # no dividers, no cavities, no rim cutouts: the whole
+#                            slot band empty from the floor up, so the pocket is
+#                            the full inner width (149.100 on XS, which takes
+#                            Innovation's 128 mm player aids)
+BACK_NOTCHES = "notches"   # as many pusher cavities as the width takes — 4 on
+#                            the widened unsleeved XS, 3 on the sleeved — and no
+#                            thumb cutout, there being no pocket left
+BACK_POCKET_VARIANTS = (BACK_STANDARD, BACK_OPEN, BACK_NOTCHES)
+
 # What an edition is CALLED, where a name has to tell two lids apart: the
 # suffix on the alternate lid's file and on its object in the project, from
 # 7.1d. A game's DEFAULT edition is the `None` key here as it is above, and

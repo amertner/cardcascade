@@ -116,6 +116,15 @@ def derive(p):
     # width does — slot, box, lid, holders — and nothing else.
     if p.isSleeved and p.SleevedCardWidth:
         v["calCardwidth"] = p.SleevedCardWidth
+    # And from 7.2g the mirror of it (`rev.unsleeved_card_width`): a row may
+    # state its UNSLEEVED cards' width outright. `Single Mini` gives its
+    # unsleeved twin the sleeved 66 so the two twins are one width — it is
+    # what makes four pushers fit the back (`box.storage_slot_count`) and what
+    # makes the pair's two lids interchangeable. Gated because that row has a
+    # 7.0 corpus behind it. Width only: `calCardThickness` above is untouched,
+    # so the capacity, the depth and the rise do not move.
+    if not p.isSleeved and p.UnsleevedCardWidth and rev.unsleeved_card_width:
+        v["calCardwidth"] = p.UnsleevedCardWidth
     v["calSlotwidth"] = 3.0 + v["calCardwidth"]
     # `#BoxWidth` is a SKETCH variable, not a studio one, and it is the single
     # exception in this file. It is here because `calTokenHolderSlotWidth`

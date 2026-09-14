@@ -94,13 +94,15 @@ from .refuse import refuse
 # `Sleeved card width`, `Toppers`) arrived — a row option is not a release
 # change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, **7.2c** (the
 # same day) `larger_lid_text`, **7.2d** (the same day again)
-# `plain_box_plate`, **7.2e** (the same day still) `seated_lips`, and **7.2f
-# is OPEN** (2026-09-14) with `ribs_forward`, a PROTOTYPE for a print test
-# (`cad.testkit`). `cascades/` stays the 7.1 release until 7.2 locks;
-# `build/` is 7.2f.
+# `plain_box_plate`, **7.2e** (the same day still) `seated_lips`, **7.2f**
+# (2026-09-14) `ribs_forward` and `shorter_box`, PROTOTYPES for a print test
+# (`cad.testkit`), and **7.2g is OPEN** (2026-09-14) with
+# `unsleeved_card_width` and `back_pocket_variants`, both of them row options
+# that only `Single Mini` takes. `cascades/` stays the 7.1 release until 7.2
+# locks; `build/` is 7.2g.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
-            "7.2d", "7.2e", "7.2f")
-CURRENT = "7.2f"
+            "7.2d", "7.2e", "7.2f", "7.2g")
+CURRENT = "7.2g"
 
 
 @dataclass(frozen=True)
@@ -312,6 +314,50 @@ class Rev:
                 "rib shift alone 0.500 over the front edge. Every box and lid "
                 "in the catalogue is 1.400 shallower; a 7.2f lid does not fit "
                 "an earlier box",
+    })
+
+    unsleeved_card_width: bool = field(metadata={
+        "since": "7.2g",
+        "spec": "spec/BOX.md, 'The unsleeved XS box is as wide as its twin'",
+        "what": "a row may state its UNSLEEVED cards' width outright "
+                "(`Primary.UnsleevedCardWidth`, parts.csv's `Unsleeved card "
+                "width`), as it has been able to state its sleeved ones since "
+                "7.2a. One row takes it: `Single Mini` at 66, the sleeved "
+                "width, so the unsleeved twin's box grows 148.300 -> 152.300 "
+                "and its lid 152.900 -> 156.900, the same as the sleeved "
+                "cascade's (Allan, 2026-09-14). It reaches everything the card "
+                "width does — slot, box, lid, holders, toppers — and nothing "
+                "else: `calCardThickness` stays unsleeved, so the capacity, "
+                "the depth and the rise do not move and the model code stays "
+                "`XS5.15.10.32-Un`. It is what makes four unsleeved pushers "
+                "fit the back (145.600 of 149.100 inner, against 145.100 "
+                "before), and it makes the pair's two lids interchangeable. "
+                "GATED because `Single Mini` has a 7.0 corpus behind it — "
+                "`individual/` and `spec/reference/Box Innovation 130U.step` — "
+                "which an ungated column would restate",
+    })
+
+    back_pocket_variants: bool = field(metadata={
+        "since": "7.2g",
+        "spec": "spec/BOX.md, 'Two back pockets, and no ordinary box'",
+        "what": "a row may ship back-pocket VARIANT boxes IN PLACE OF the "
+                "ordinary one (parts.csv's `Back pocket`, asked only through "
+                "`build.back_pocket_variants_built`). `Single Mini` ships two "
+                "(Allan, 2026-09-14), because it is used in PAIRS and the two "
+                "halves want different backs: `open` has no dividers, no "
+                "cavities and no rim cutouts, so the whole slot band is empty "
+                "from the floor up and the pocket is the full inner width — "
+                "149.100, which takes the 128 mm player aids where the "
+                "ordinary box's 71.500 / 50.500 does not; `notches` hangs as "
+                "many pushers as the width takes — 4 unsleeved, 3 sleeved, "
+                "since their pushers are 32.000 and 44.500 deep — and has no "
+                "thumb cutout, there being no pocket left to reach into. The "
+                "count is DERIVED (`box.storage_slot_count`), never stated. "
+                "The Lid does not follow: `calPusherSlots` is how many pushers "
+                "the CASCADE ships and stays 2, so both boxes take the same "
+                "lid. A change to what a project CONTAINS, as "
+                "`plain_box_plate` was — except that here the ordinary box is "
+                "REPLACED rather than joined",
     })
 
 

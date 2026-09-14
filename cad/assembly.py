@@ -213,8 +213,16 @@ def holder_kinds(d):
 
 
 def pushers(d):
-    """How many pushers a cascade stores, and which slot each takes."""
-    return list(range(box_part.pusher_slot_count(d)))
+    """How many pushers a cascade stores, and which slot each takes.
+
+    STORES, so it is `box.storage_slot_count` and not `pusher_slot_count`:
+    the two are the same number on every catalogue box, and differ on a
+    variant back (7.2g) — an `open` one stores none and a `notched` one more
+    than the cascade ships. `pusher_stored` indexes `box.pusher_slots` by
+    what this returns, so reading the cascade's count here would place a
+    pusher in a slot that is not there.
+    """
+    return list(range(box_part.storage_slot_count(d)))
 
 
 # --- the TokenHolder -------------------------------------------------------
