@@ -1306,8 +1306,11 @@ for model, sleeved in (("S9.21.10.62.Sl", 1), ("S4.7.7.20.Un", 0)):
     lip = bx & _Box(20, 10, 30).moved(_Loc((x, back + 5, 92)))
     bb = lip.bounding_box()
     lz = box_part.lip_z(d_m)
-    check(f"{RF_NEW}: {model} — the lip stands 0.550 proud, flat, from lip_z to lip_z + 2",
-          (round(bb.max.Y - back, 3), round(bb.min.Z - lz, 3), round(bb.max.Z - lz, 3)), (0.55, 0.0, 2.0))
+    under_root = -box_part.lip_reach(d_m) / box_part.lip_slope(d_m)
+    check(f"{RF_NEW}: {model} — the lip stands 0.550 proud, flat-topped at lip_z + 2, its underside "
+          "on the slant from lip_z at the tip",
+          (round(bb.max.Y - back, 3), round(bb.min.Z - lz, 3), round(bb.max.Z - lz, 3)),
+          (0.55, round(under_root, 3), 2.0))
     post = bx & _Box(20, 0.8, 1.0).moved(_Loc((x, back - 0.4, lz + 1.0)))
     check(f"{RF_NEW}: {model} — ... and the post fills the panel's back face above its bevel",
           round(post.volume, 1), round(12.4 * 0.8 * 1.0, 1))

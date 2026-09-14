@@ -851,22 +851,30 @@ def lip_tool(d):
 
 
 def flat_lip_tool(d):
-    """The lip from 7.2f (`rev.ribs_forward`): a FLAT block, `lip_reach` proud
-    of the panel's back face, LIP_HEIGHT tall from `lip_z`, on a POST — the
-    panel's back face carried up to the lip's top over the lip's width and
-    rooted POST_ROOT down into the panel below its bevel — with LIP_LEAD
-    chamfered off its top rear edge for the wall's bottom edge to ride
-    over. Fused AFTER the angled cutout (`front_pocket`). The same chamfered
-    footprint as `lip_tool`'s, which the short reach truncates: the tip is
-    `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the 12.800 rest.
+    """The lip from 7.2f (`rev.ribs_forward`): FLAT-TOPPED, `lip_reach` proud
+    of the panel's back face, its top LIP_HEIGHT above `lip_z` and its
+    UNDERSIDE on the slant — through `lip_z` at the tip and falling toward
+    the panel at `lip_slope` (Allan, 2026-09-14): parallel to the rest
+    floor it floats over, so the REST_CLEARANCE is the same along the whole
+    lip and not only at the tip, and the box printing upright it is an
+    overhang at the slant's angle rather than a flat one. `LIP_HEIGHT +
+    reach * slope` tall at the root (2.6 on 333 Sl, 3.9 on Compile). On a
+    POST — the panel's back face carried up to the lip's top over the lip's
+    width and rooted POST_ROOT down into the panel below its bevel — with
+    LIP_LEAD chamfered off its top rear edge for the wall's bottom edge to
+    ride over. Fused AFTER the angled cutout (`front_pocket`). The same
+    chamfered footprint as `lip_tool`'s, which the short reach truncates:
+    the tip is `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the
+    12.800 rest.
     """
     _fw, _fb, back = pocket_span(d)
     lz, out = lip_z(d), lip_reach(d)
     top, root = lz + LIP_HEIGHT, lz - POST_ROOT
+    under_root = lz - out / lip_slope(d)      # the slant, `1/lip_slope` = dZ/dY
     half = LIP_LENGTH / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
-            Polygon((back - 0.8, root), (back, root), (back, lz),
+            Polygon((back - 0.8, root), (back, root), (back, under_root),
                     (back + out, lz), (back + out, top - LIP_LEAD),
                     (back + out - LIP_LEAD, top), (back - 0.8, top),
                     align=None)

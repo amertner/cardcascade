@@ -957,11 +957,16 @@ the pocket and the panel, `0.850` on every row — so the front holder is
 `CardHolderGap` from the panel like every holder from the one behind it.
 Nothing but the box moves, and on the box only the ribs and the lip:
 
-* the **box lip becomes a FLAT block that BITES the front holder's wall**
-  — `box.lip_reach` = the `0.400` gap plus `LIP_BITE` `0.150`, so `0.550`
-  proud, `LIP_HEIGHT` `2.000` tall, `12.400` at its base and `11.300` at its
-  tip inside the `12.800` rest, with `LIP_LEAD` `0.300` chamfered off its
-  top rear edge. **A holder goes into the box straight down its ribs, which
+* the **box lip becomes a FLAT-TOPPED block that BITES the front holder's
+  wall** — `box.lip_reach` = the `0.400` gap plus `LIP_BITE` `0.150`, so
+  `0.550` proud, `12.400` at its base and `11.300` at its tip inside the
+  `12.800` rest, with `LIP_LEAD` `0.300` chamfered off its top rear edge.
+  Its top is flat, `LIP_HEIGHT` `2.000` above `box.lip_z` at the tip; its
+  UNDERSIDE lies on the slant (Allan), falling toward the panel at the
+  cascade's angle, so it is parallel to the rest floor it floats over —
+  the `0.200` clearance holds along the whole lip — and, the box printing
+  upright, an overhang at the slant's angle rather than a flat one: `2.6`
+  tall at the root on 333 Sl, `3.9` on Compile. **A holder goes into the box straight down its ribs, which
   run the full height, so anything of a fixed lip inside the front wall's
   footprint meets the wall's bottom edge on the way down** — 7.2e's lip,
   `0.800` into the wall, stopped the front holder dead (`cad.fit`'s
