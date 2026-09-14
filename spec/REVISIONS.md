@@ -374,9 +374,9 @@ One flag:
 
 ### 7.2f — OPEN 2026-09-14, a PROTOTYPE
 
-`CURRENT`; `build/` is 7.2f. One flag, opened to PRINT a test of it before
-the catalogue moves (`cad.testkit`), so it may be revised or withdrawn as
-7.2a's `low_profile` was:
+`CURRENT`; `build/` is 7.2f. Two flags, opened to PRINT a test of them
+before the catalogue moves (`cad.testkit`), so they may be revised or
+withdrawn as 7.2a's `low_profile` was:
 
 * **`ribs_forward`** (`7.2f`, 2026-09-14) — Allan, on the 7.2e box lip: it
   should not have further to go than a holder's. The studio's `#BoxDepth`
@@ -395,9 +395,22 @@ the catalogue moves (`cad.testkit`), so it may be revised or withdrawn as
   same 0.200. The lid and pusher do not
   move: a holder now hangs 0.500 past the front edge of its tread instead of
   sitting 0.350 inside it (`cad.fit`'s tread margins), and the rearmost
-  holder is 1.800 from the back wall instead of 0.950, space a later change
-  can take out of the box and lid together. `spec/BOX.md`, "The ribs move
-  forward", including what the test print is to show.
+  holder is 1.800 from the back wall instead of 0.950 — both taken up by
+  `shorter_box`. Off Allan's kit A print the lip became a wedge: underside
+  on the slant to a point `SLANT_STEP` under the holder's slant, front face
+  straight back up to the post, flat top `LIP_SINK` 0.200 under the
+  holder's slant at the wall's face. `spec/BOX.md`, "The ribs move forward",
+  including what the test print is to show.
+* **`shorter_box`** (`7.2f`, 2026-09-14) — Allan, off the kit A print: the
+  box has a big gap at the back now; make it shallower. The box and the lid
+  lose `calRearTrim` (derive.py; 1.400 on every row) so the rearmost holder
+  sits CardHolderGap 0.400 from the back wall like every holder from the
+  next. `box.rib_shift`, derived from the depth, comes out -0.550 so the
+  ribs keep their 0.400 to the panel, and the lid's sockets follow the ribs
+  (`lid.socket_back`, 8.300) so every holder is centred on its tread, 0.200
+  each way. Every box and lid is 1.400 shallower, parts.csv's `D` columns
+  with them; a 7.2f lid does not fit an earlier box. `spec/BOX.md`, "The
+  box loses the room behind the last holder".
 
 ## What a release moves besides its flags
 

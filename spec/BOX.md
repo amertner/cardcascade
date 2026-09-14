@@ -957,16 +957,24 @@ the pocket and the panel, `0.850` on every row — so the front holder is
 `CardHolderGap` from the panel like every holder from the one behind it.
 Nothing but the box moves, and on the box only the ribs and the lip:
 
-* the **box lip becomes a FLAT-TOPPED block that BITES the front holder's
+* the **box lip becomes a tapered block that BITES the front holder's
   wall** — `box.lip_reach` = the `0.400` gap plus `LIP_BITE` `0.150`, so
   `0.550` proud, `12.400` at its base and `11.300` at its tip inside the
-  `12.800` rest, with `LIP_LEAD` `0.300` chamfered off its top rear edge.
-  Its top is flat, `LIP_HEIGHT` `2.000` above `box.lip_z` at the tip; its
-  UNDERSIDE lies on the slant (Allan), falling toward the panel at the
-  cascade's angle, so it is parallel to the rest floor it floats over —
-  the `0.200` clearance holds along the whole lip — and, the box printing
-  upright, an overhang at the slant's angle rather than a flat one: `2.6`
-  tall at the root on 333 Sl, `3.9` on Compile. **A holder goes into the box straight down its ribs, which
+  `12.800` rest. Its section, off Allan's kit A print (2026-09-14), is a
+  WEDGE: the UNDERSIDE lies on the slant, falling toward the panel at the
+  cascade's angle — parallel to the rest floor it floats `REST_CLEARANCE`
+  over along its whole length, and, the box printing upright, an overhang
+  at the slant's angle rather than a flat one — out to a POINT at
+  `box.lip_z`, `SLANT_STEP` below the holder's slant where it bites; the
+  FRONT face rises from that point straight back to the post's top, so the
+  wall's bottom edge meets a slope wherever it lands on the way in and the
+  seam has no square corner to bead on; the top is a RIDGE at
+  `box.lip_top`, `LIP_SINK` `0.200` below the holder's slant at the wall's
+  face (Allan: the lip should end a little below the next slider), from
+  which the post's top runs down toward the pocket at the panel's own bevel
+  angle (`angled_cutout`) over the panel's full thickness — no flat top and
+  no square corner (Allan: cut that part away). `2.3` tall at the post on
+  333 Sl, `3.2` on Compile. **A holder goes into the box straight down its ribs, which
   run the full height, so anything of a fixed lip inside the front wall's
   footprint meets the wall's bottom edge on the way down** — 7.2e's lip,
   `0.800` into the wall, stopped the front holder dead (`cad.fit`'s
@@ -987,15 +995,30 @@ Nothing but the box moves, and on the box only the ribs and the lip:
   into the panel below its bevel — and lip and post are fused AFTER the
   angled cutout, which would otherwise take them. `12.5` mm³ against 7.2e's
   `44`;
-* the **lid and pusher do not move** (the treads are placed off the lid
-  socket), so a holder centred on its rib now hangs `0.500` past the FRONT
-  edge of its tread where it sat `0.350` inside it (`spec/ASSEMBLY.md`, "the
-  treads sit 0.150 forward of the ribs"; `cad.fit`'s tread margins say
-  `-0.500`). The step's corner is rounded r `0.8`–`1.0`, so it bears from
-  about `1.3` behind its front face. The one thing only a print settles;
-* the **rearmost holder** is `1.800` from the inner back wall instead of
-  `0.950`. Up to `1.400` of that is recoverable later by shortening the box
-  and the lid together — a separate change.
+* with `ribs_forward` alone the **lid and pusher do not move** (the treads
+  are placed off the lid socket), so a holder centred on its rib hangs
+  `0.500` past the FRONT edge of its tread where it sat `0.350` inside it
+  (`spec/ASSEMBLY.md`, "the treads sit 0.150 forward of the ribs"), and the
+  **rearmost holder** is `1.800` from the inner back wall instead of
+  `0.950`. Both are taken up by `shorter_box`, below.
+
+### The box loses the room behind the last holder — `shorter_box`, 7.2f
+
+Allan, off the kit A print (2026-09-14): the box now has a big gap at the
+back; use it to make the box shallower. From 7.2f (`rev.shorter_box`) the
+box and the lid lose **`calRearTrim`** (`derive.py`), `1.400` on every row:
+the studio's `0.950` behind the rearmost holder plus the `0.850` the ribs
+moved forward, less the `CardHolderGap` that stays. `box.box_depth` and
+`calLidDepth` both read it, so `box.rib_shift`, derived from the depth,
+comes out `-0.550` — the ribs stay `0.400` behind the panel and are now
+`0.400` in front of the back wall — and the lid's pusher sockets follow
+them (`lid.socket_back`: `SOCKET_BACK` less the studio's `0.150` tread
+offset less the rib shift, `8.300`), so every holder sits **centred on its
+tread**, `0.200` each way, where 7.0 had it `0.150` off and `ribs_forward`
+alone `0.500` over the front edge. Every box and lid in the catalogue is
+`1.400` shallower, parts.csv's `D` columns with them, and a 7.2f lid does
+not fit an earlier box. `tests/test_revisions.py` asserts both ends on
+every row and the rear holder clear of the shallower box's back wall, built.
 
 **It is a prototype until printed.** `cad.testkit` builds one-slot cascades
 for it (`build/testkits/`): kit A, two risers of 12 sleeved Dominion cards
@@ -1058,8 +1081,10 @@ to the front holder, fills the rest notched through that holder's `0.800`
 wall, and stops. The section, `LIP_Z`, `LIP_HEIGHT` and the plan chamfer are
 unchanged, and the front holder's rest is cut deep enough for it,
 `assembly.box_lip_seat`. From 7.2f the gap is `0.400`, the reach `1.200`,
-and the lip is a flat block biting the wall by `0.150`, leaving the panel at
-`box.lip_z` on a post — "The ribs move forward", above.)
+and the lip is a tapered block biting the wall by `0.150`, its tip `0.200`
+under the holder's slant, on a post — "The ribs move forward", above; and
+the box is `calRearTrim` `1.400` shallower — "The box loses the room behind
+the last holder".)
 
 **The angle is the HOLDER's diagonal cutout angle** (Allan) — the group opens
 with `Import Holder patterns`, and that is what comes across. It is the one

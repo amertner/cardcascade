@@ -218,9 +218,10 @@ which is how deep every holder's rest is cut (`holder.rest_depth`);
 `box_lip_top`, the same surface at the holder's own front face, which from
 7.2f is where the flat box lip's top sits (`box.lip_z`). From 7.2f the ribs
 are `box.rib_shift` (0.850) forward of the studio's position and the gap is
-0.400 (`spec/BOX.md`, "The ribs move forward"); the treads, placed off the
-lid socket, do not move, so the 0.150 below becomes 0.700 the other way and
-a holder hangs 0.500 over its tread's front edge.
+0.400 (`spec/BOX.md`, "The ribs move forward"), the box and lid are
+`calRearTrim` 1.400 shallower, and the lid's sockets follow the ribs
+(`lid.socket_back`), so the 0.150 below is 0.000: a holder sits centred on
+its tread, 0.200 each way.
 
 The `FirstHolder` is the deeper one and takes the first (frontmost) rib, which
 is the one `slider_ribs` places at `calFirstSliderDistance`.

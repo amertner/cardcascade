@@ -170,6 +170,12 @@ want = sorted([
     ("Box", "Box L3.18.6.20-Un.3mf", "capacity"),
     ("Box", "Box L3.18.6.20-Un.3mf", "version"),
     ("Box", "Box S3.15.10.20-Un.3mf", "version"),
+    # 7.2f (`shorter_box`): every box is 1.400 shallower, and on the two
+    # shallowest the floor text loses that much run, so three more lines
+    # bind on the floor
+    ("Box", "Box L3.18.6.20-Sl.3mf", "model+game"),
+    ("Box", "Box L3.18.6.20-Sl.3mf", "product"),
+    ("Box", "Box S3.15.10.20-Un.3mf", "model+game"),
     ("Topper", "M10-Un.3mf", "name"),
     ("Topper", "S10-Un.3mf", "name"),
 ])

@@ -51,8 +51,9 @@ check cad output.
 - A release change reaches a part as a **named flag** —
   `if d.rev.thick_floor:` — never as a version comparison. Each flag has a
   `since`; `tests/test_revisions.py` needs a case for every flag.
-- **7.2f is open** with one flag, `ribs_forward`, a PROTOTYPE awaiting
-  Allan's print of `cad.testkit`'s kits (may be revised or withdrawn);
+- **7.2f is open** with two flags, `ribs_forward` and `shorter_box`,
+  PROTOTYPES iterated on Allan's prints of `cad.testkit`'s kits (may be
+  revised or withdrawn);
   `7.2e` carries `seated_lips`, `7.2d` `plain_box_plate`, `7.2c`
   `larger_lid_text`, `7.2b` `unmarked_lid` and `7.2a` `rear_holder` (the
   `low_profile` change it was opened for was withdrawn, 2026-09-13). **The
@@ -73,15 +74,19 @@ check cad output.
   through the whole front wall, `holder.rest_depth` deep — read
   `assembly.front_holder_gap` / `box_lip_seat`, never 1.250 or 85.5. `cad.fit
   --state play` intersects every holder and reports each lip's seat.
-- **The ribs sit `box.rib_shift` forward** of the studio's position from
-  7.2f (0.850: the front holder 0.400 from the panel) and the box lip is a
-  flat block biting that holder's wall by `box.LIP_BITE` (0.150, inside the
-  rib slack), leaving the panel at `box.lip_z` on a post — read the
-  functions, never the constants. **A holder goes in straight down its
-  ribs, so no fixed lip may fill its wall's footprint**: `cad.fit --state
-  closed` sweeps the front holder onto its seat. A holder hangs 0.5 over its
-  tread's front edge; `spec/BOX.md`, "The ribs move forward". Test prints:
-  `python -m cad.testkit` writes one-slot kits to `build/testkits/`.
+- **From 7.2f the front holder is 0.400 from the panel** (`box.rib_shift`,
+  derived from the depth), **the box and lid are `calRearTrim` 1.400
+  shallower** (parts.csv's D columns follow) with the rearmost holder 0.400
+  from the back wall, and **the lid's sockets follow the ribs**
+  (`lid.socket_back`) so a holder is centred on its tread. The box lip is a
+  tapered block biting the front holder's wall by `box.LIP_BITE` (0.150,
+  inside the rib slack), its tip `LIP_SINK` under the holder's slant, on a
+  post at `box.lip_z` — read the functions, never the constants. **A holder
+  goes in straight down its ribs, so no fixed lip may fill its wall's
+  footprint**: `cad.fit --state closed` sweeps the front holder onto its
+  seat. `spec/BOX.md`, "The ribs move forward" and "The box loses the room
+  behind the last holder". Test prints: `python -m cad.testkit` writes
+  one-slot kits to `build/testkits/`.
 - Every cascade ships an **unmarked lid** on a plate of its own from 7.2b: no
   mark in the underside and `(C) Mertner` (`lid.CREDIT`) where the game's
   name is. A lid is one of three `tables.LID_VARIANTS`; `build.lid_variants_built`

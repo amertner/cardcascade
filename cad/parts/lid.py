@@ -159,11 +159,30 @@ def socket_centres(d):
     return [first + k * span / (n - 1) for k in range(n)]
 
 
+# The tread a socket's pusher offers a holder sits 0.150 forward of the
+# holder's rib with the sockets at SOCKET_BACK (`spec/ASSEMBLY.md`, "the
+# treads sit 0.150 forward of the ribs"). From 7.2f (`rev.shorter_box`) the
+# sockets follow the ribs so the offset is nil: `socket_back`.
+TREAD_OFFSET_STUDIO = 0.150
+
+
+def socket_back(d):
+    """How far in from the lid's back face a socket's BACK edge sits.
+    `SOCKET_BACK` through 7.2e. From 7.2f (`rev.shorter_box`) the sockets
+    move with the ribs — by the studio's 0.150 tread offset less
+    `box.rib_shift`, which with the box 1.400 shallower is 0.550 back — so
+    a holder sits centred on its tread."""
+    if d.rev.shorter_box:
+        return SOCKET_BACK - (TREAD_OFFSET_STUDIO - box_part.rib_shift(d))
+    return SOCKET_BACK
+
+
 def socket_span(d):
     """(y0, y1) of a socket. Its length is the standard's `D - 0.400` and its
-    BACK edge sits `SOCKET_BACK` in from the lid's back face — constant on all
-    48 lids, whose depths run 34.98 to 111.30."""
-    y1 = lid_depth(d) / 2 - SOCKET_BACK
+    BACK edge sits `socket_back` in from the lid's back face — `SOCKET_BACK`,
+    constant on all 48 lids, whose depths run 34.98 to 111.30, through
+    7.2e."""
+    y1 = lid_depth(d) / 2 - socket_back(d)
     return y1 - (d.calPusherTotalDepth - L.LID_SOCKET_CLEARANCE), y1
 
 

@@ -523,16 +523,18 @@ print("\n=== the fit rule ===")
 
 for model, want_file, want_scale in [
         # the mark is drawn to this lid, and came down 2.3 % all the same:
-        # LOGO_CLEAR. Its ink was 0.011 from the round before that
-        ("S4.16.10.32-Un", "lid_logo.dxf", 0.977),
+        # LOGO_CLEAR. Its ink was 0.011 from the round before that — 0.977
+        # through 7.2e; 0.945 from 7.2f, the lid being 1.400 shallower
+        # (`rev.shorter_box`, spec/BOX.md)
+        ("S4.16.10.32-Un", "lid_logo.dxf", 0.945),
         # too deep for the mark as drawn: the width fraction sizes it
         ("L8.50.10.62-Sl", "lid_logo.dxf", 1.655),
         # shallower than the mark is drawn: shrunk to clear the outer round,
         # and the lid where that clamp bites hardest — 0.908 filled the flat
         # floor exactly and still cut 0.561 into the round, the drawing being
         # 0.618 low as Onshape drew it (spec/LID.md, "`hard` is measured per
-        # SIDE")
-        ("S4.7.7.20-Un", "lid_logo.dxf", 0.855),
+        # SIDE") — 0.855 through 7.2e, 0.821 from 7.2f (the shallower lid)
+        ("S4.7.7.20-Un", "lid_logo.dxf", 0.821),
         # Innovation's Ultimate mark, generated at its two published sizes:
         # the big one held where it fits as published, the small one sized
         # up by the width fraction where it does not (1.211, not the drawn

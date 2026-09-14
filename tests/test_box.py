@@ -814,5 +814,13 @@ check("the boxes with a clipped hole, and the hole", clipped, {
     "S5.10.10.45.Sl": [(-60.55, -50.55, -60.35, -50.55)],
     "M5.10.10.45.Sl": [(-95.05, -85.05, -94.85, -85.05)]})
 
+
+print("\n=== derive's mirrors of the part constants calRearTrim needs ===")
+from cad import derive as _D                                    # noqa: E402
+from cad.parts import holder as _holder                         # noqa: E402
+check("derive's mirrors of the part constants calRearTrim needs are the parts' own",
+      (_D.BOX_FRONT_DIVIDER, _D.BOX_SLIDER_W, _D.HOLDER_DEPTH_GAP),
+      (box.FRONT_DIVIDER, box.SLIDER_W, _holder.DEPTH_GAP))
+
 print("\nPASS" if not fails else "\nFAIL: " + ", ".join(fails))
 sys.exit(1 if fails else 0)

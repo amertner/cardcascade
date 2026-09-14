@@ -36,11 +36,18 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from cad import assemble, assembly as A, derive as D, fit  # noqa: E402
-from cad.parts import box as box_part                       # noqa: E402
+from cad.parts import box as box_part, lid as lid_part      # noqa: E402
 
 fails = []
 TREAD_OFFSET = 0.150            # spec/ASSEMBLY.md, "The finding" — less box.rib_shift from 7.2f
 TREAD_SLACK = 0.400             # calSliderDistance tread against a sd - 0.400 holder
+
+
+def tread_offset(d):
+    """The release's tread-to-rib offset: the studio's 0.150, less the rib
+    shift (7.2f), less the socket's own move (`lid.socket_back`, 7.2f's
+    `shorter_box`, which brings it to 0.000)."""
+    return TREAD_OFFSET - box_part.rib_shift(d) - (lid_part.SOCKET_BACK - lid_part.socket_back(d))
 
 
 def fail(label, msg):
@@ -80,7 +87,7 @@ for folder, d, _tokens, _toppers in rows:
             # slack split by the offset, `0.350 / 0.050` through 7.2e and
             # `-0.500 / 0.900` from 7.2f (module docstring).
             if "on its tread" in m.name:
-                offset = TREAD_OFFSET - box_part.rib_shift(d)
+                offset = tread_offset(d)
                 want = (TREAD_SLACK / 2 + offset if m.name.endswith("front")
                         else TREAD_SLACK / 2 - offset)
                 if abs(m.got - want) > 1e-6:
@@ -94,12 +101,12 @@ for folder, d, _tokens, _toppers in rows:
     treads = [m for m in fit.tread_margins(d) if "on its tread" in m.name]
     for i in range(0, len(treads), 2):
         back, front = treads[i].got, treads[i + 1].got
-        offsets.add(round((front - back) / 2 + box_part.rib_shift(d), 6))
+        offsets.add(round((front - back) / 2 - tread_offset(d) + TREAD_OFFSET, 6))
 
 if len(offsets) != 1 or abs(offsets.pop() - TREAD_OFFSET) > 1e-9:
-    fail("tread offset", f"not the constant {TREAD_OFFSET} (before the rib shift): {sorted(offsets)}")
+    fail("tread offset", f"not the constant {TREAD_OFFSET} (before the release's rib and socket moves): {sorted(offsets)}")
 else:
-    print(f"  ok   tread offset is {TREAD_OFFSET} less the release's rib shift on every cascade, every riser")
+    print(f"  ok   tread offset is {TREAD_OFFSET} less the release's rib and socket moves on every cascade, every riser")
 
 print(f"\n  {seen['cascades']} cascades x {len(A.STATES)} states, "
       f"{seen['margins']} margins checked")

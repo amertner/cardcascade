@@ -279,8 +279,9 @@ class Rev:
                 "0.400 from the divider panel, as every holder is from the "
                 "one behind it, instead of 1.250 (Allan, 2026-09-14: the box "
                 "lip should not have further to go than a holder's). The box "
-                "lip becomes a flat-topped block, its underside on the slant, "
-                "that BITES that wall by LIP_BITE "
+                "lip becomes a wedge — underside on the slant, front face "
+                "slanting back up to a flat top LIP_SINK under the holder's "
+                "slant — that BITES that wall by LIP_BITE "
                 "0.150 — inside the holder's 0.200 rib slack, so the holder "
                 "still slides straight down its ribs past it (a lip that "
                 "fills the wall, 7.2e's, stops it dead: a holder cannot pass "
@@ -293,6 +294,24 @@ class Rev:
                 "holder is 1.800 from the back wall instead of 0.950. A "
                 "prototype: `cad.testkit` builds one-slot cascades to print "
                 "it before the catalogue moves",
+    })
+
+    shorter_box: bool = field(metadata={
+        "since": "7.2f",
+        "spec": "spec/BOX.md, 'The box loses the room behind the last holder'",
+        "what": "with the ribs forward (`ribs_forward`) the rearmost holder "
+                "sat 1.800 from the inner back wall; the box and the lid lose "
+                "`calRearTrim` (1.400) of depth so it sits CardHolderGap "
+                "0.400 there, like every holder from the next (Allan, "
+                "2026-09-14, off the kit A print). The ribs keep their place "
+                "against the front pocket (`box.rib_shift` is derived from "
+                "the depth and comes out 0.550 BACK of the studio's rule), "
+                "and the lid's pusher sockets move with them "
+                "(`lid.socket_back`) so every holder sits CENTRED on its "
+                "tread, 0.200 each way, where 7.0 had it 0.150 off and the "
+                "rib shift alone 0.500 over the front edge. Every box and lid "
+                "in the catalogue is 1.400 shallower; a 7.2f lid does not fit "
+                "an earlier box",
     })
 
 

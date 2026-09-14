@@ -185,6 +185,14 @@ print(f"  ({same} lids identical across the two releases)")
 # one thing.
 row = next(r for r in rows() if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
 d70, d71 = at(row, 0, "7.0"), at(row, 0, NEW)
+# From 7.2f a release moves a THIRD thing, the lid's DEPTH (`shorter_box`,
+# calRearTrim), which this accounting was not written for: the newest
+# release is taken here at the 7.0 depth, that flag off, so what is left
+# between the two builds is again the sockets, the text and the digits. The
+# depth is asserted in the flag's own case.
+import dataclasses as _dc                                        # noqa: E402
+d71 = D.Derived({**dict(d71.items()), "calLidDepth": d70.calLidDepth, "calRearTrim": 0.0},
+                _dc.replace(R.of(NEW), shorter_box=False))
 
 
 def body(part):
@@ -199,7 +207,8 @@ check("the flag alone removes exactly one socket block",
       round(v70 - v_flag - block, 3), 0.0, 0.02)
 # What the OTHER flags of the newest release do to this lid, on 7.0's ink:
 # nothing until 7.2c, whose `larger_lid_text` scales the text block up.
-v_all = body(lid.build(D.Derived(dict(d70.items()), R.of(NEW))))
+# ... at the 7.0 depth, `shorter_box` off, as `d71` above is.
+v_all = body(lid.build(D.Derived(dict(d70.items()), _dc.replace(R.of(NEW), shorter_box=False))))
 grown = v_all - v_flag
 print(f"  (the other flags of {NEW} add {grown:+.2f} mm3 — the text block's growth)")
 # The STAMP is the rest of it: `CC 7.0` and `CC <the new release>` are not the
@@ -1270,24 +1279,31 @@ for r in rows():
                round(A.box_lip_seat(d_b), 3), round(holder_part.rest_depth(d_b), 3),
                round(box_part.lip_z(d_a), 3), round(A.box_lip_top(d_b) - box_part.lip_z(d_b), 3),
                round(box_part.lip_reach(d_b), 3))
-        if got != (1.25, 0.4, 0.0, 0.85, 2.0, 2.2, 85.5, 2.0, 0.55):
+        # the rib shift is derived from the depth: 0.850 on the studio's,
+        # and 0.850 less calRearTrim once `shorter_box` (the same release)
+        # takes the room behind the last holder out again
+        if got != (1.25, 0.4, 0.0, round(0.85 - d_b.calRearTrim, 3), 2.0, 2.2, 85.5, 2.0, 0.55):
             bad.append(f"{d_b.calModelName}: {got}")
         # the rearmost holder's rear face to the inner back wall, closed
-        for d_x, want in ((d_a, 0.95), (d_b, 1.8)):
+        for d_x, want in ((d_a, 0.95), (d_b, 1.8 - d_b.calRearTrim)):
             back_in = box_part.box_depth(d_x) / 2 - box_part.WALL
             if abs(back_in - A.holder_closed(d_x, 0).origin[1] - want) > 1e-6:
                 bad.append(f"{d_x.calModelName} @ {d_x.Version}: rear gap {back_in - A.holder_closed(d_x, 0).origin[1]:.3f}")
 check(f"{RF_OLD} -> {RF_NEW}: on every row the front gap 1.250 -> 0.400, the ribs 0 -> 0.850 "
-      "forward, the box lip on the diagonal (seat 2.000, rest 2.200), the rear gap 0.950 -> 1.800",
-      bad, [])
+      "forward less the release's trim, the box lip's seat 2.000 and rest 2.200, the rear gap "
+      "0.950 -> 1.800 less the trim", bad, [])
 d_a, d_b = at(row_of("S9.21.10.62.Sl", 1), 1, RF_OLD), at(row_of("S9.21.10.62.Sl", 1), 1, RF_NEW)
 from cad import fit as FIT2                                       # noqa: E402
+from cad.parts import lid as lid_part                             # noqa: E402
 front = lambda d_x: [round(m.got, 3) for m in FIT2.tread_margins(d_x)   # noqa: E731
                      if m.name.endswith("front")]
 check(f"{RF_OLD}: 333 Sl's holders sit 0.350 inside the front of their treads", set(front(d_a)), {0.35})
-check(f"{RF_NEW}: ... and hang 0.500 over it, the pusher not having moved", set(front(d_b)), {-0.5})
-check(f"{RF_NEW}: 333 Sl's box lip top is on the front holder's slant at the bite's depth, 90.133",
-      round(box_part.lip_z(d_b) + box_part.LIP_HEIGHT, 3), 90.133)
+check(f"{RF_NEW}: ... and, the lid's sockets following the ribs (`shorter_box`), sit centred",
+      set(front(d_b)), {round(0.2 + 0.15 - box_part.rib_shift(d_b) - (lid_part.SOCKET_BACK - lid_part.socket_back(d_b)), 3)})
+check(f"{RF_NEW}: 333 Sl's box lip's point is SLANT_STEP under the front holder's slant at the bite's depth, 90.133",
+      round(box_part.lip_z(d_b) + holder_part.SLANT_STEP, 3), 90.133)
+check(f"{RF_NEW}: ... and its top LIP_SINK under that slant at the wall's face",
+      round(box_part.lip_top(d_b) - (A.box_lip_top(d_b) - box_part.LIP_BITE / box_part.lip_slope(d_b)), 3), -0.2)
 FIT2 = FIT
 sweep_old = FIT2.insertion(d_a, {}, step=1.0)
 sweep_new = FIT2.insertion(d_b, {}, step=1.0)
@@ -1307,13 +1323,65 @@ for model, sleeved in (("S9.21.10.62.Sl", 1), ("S4.7.7.20.Un", 0)):
     bb = lip.bounding_box()
     lz = box_part.lip_z(d_m)
     under_root = -box_part.lip_reach(d_m) / box_part.lip_slope(d_m)
-    check(f"{RF_NEW}: {model} — the lip stands 0.550 proud, flat-topped at lip_z + 2, its underside "
-          "on the slant from lip_z at the tip",
+    check(f"{RF_NEW}: {model} — the lip is a wedge 0.550 proud, from lip_z at its point to lip_top "
+          "at the post, its underside on the slant",
           (round(bb.max.Y - back, 3), round(bb.min.Z - lz, 3), round(bb.max.Z - lz, 3)),
-          (0.55, round(under_root, 3), 2.0))
-    post = bx & _Box(20, 0.8, 1.0).moved(_Loc((x, back - 0.4, lz + 1.0)))
+          (0.55, round(under_root, 3), round(box_part.lip_top(d_m) - lz, 3)))
+    tip = bx & _Box(20, 0.05, 30).moved(_Loc((x, back + box_part.lip_reach(d_m) - 0.025, 92)))
+    tb = tip.bounding_box()
+    check(f"{RF_NEW}: {model} — ... and comes to a point: under 0.4 tall in its last 0.05",
+          tb.max.Z - tb.min.Z < 0.4, True)
+    # the post at the panel's back face, just under the ridge and above the
+    # panel's own 87.5 top: 0.2 into the panel, where its bevelled top is
+    # still above the probe on the steepest pocket (Compile's 4.97)
+    post = bx & _Box(20, 0.2, 0.5).moved(_Loc((x, back - 0.1, lz - 0.05)))
     check(f"{RF_NEW}: {model} — ... and the post fills the panel's back face above its bevel",
-          round(post.volume, 1), round(12.4 * 0.8 * 1.0, 1))
+          round(post.volume, 2), round(12.4 * 0.2 * 0.5, 2))
+
+
+# --- 7.2f: the box loses the room behind the last holder --------------------
+print(f"\n=== {since('shorter_box')}  shorter_box ===")
+asserted.add("shorter_box")
+# With the ribs forward the rearmost holder sat 1.800 from the back wall;
+# the box and lid lose calRearTrim 1.400 so it sits CardHolderGap there, the
+# ribs keep their place against the pocket (rib_shift comes out -0.550), and
+# the lid's sockets follow them so every holder is centred on its tread
+# (spec/BOX.md, "The box loses the room behind the last holder"). Both ends
+# on every row; built on 333 Sl: the rear holder clears the back wall.
+SB_OLD, SB_NEW = before("shorter_box"), since("shorter_box")
+from cad.parts import lid as lid_part                          # noqa: E402
+bad = []
+for r in rows():
+    for s in (0, 1):
+        d_a, d_b = at(r, s, SB_OLD), at(r, s, SB_NEW)
+        rear = lambda d_x: round(box_part.box_depth(d_x) / 2 - box_part.WALL       # noqa: E731
+                                 - A.holder_closed(d_x, 0).origin[1], 3)
+        treads = lambda d_x: sorted({round(m.got, 3) for m in FIT.tread_margins(d_x)})  # noqa: E731
+        got = (d_a.calRearTrim, round(d_b.calRearTrim, 3),
+               round(box_part.box_depth(d_a) - box_part.box_depth(d_b), 3),
+               round(d_a.calLidDepth - d_b.calLidDepth, 3),
+               rear(d_a), rear(d_b), round(box_part.rib_shift(d_b), 3),
+               round(A.front_holder_gap(d_b), 3),
+               round(lid_part.socket_back(d_a), 3), round(lid_part.socket_back(d_b), 3),
+               treads(d_b))
+        # the OLD end is 7.2e, before the ribs moved too: the studio's 0.950 behind
+        want = (0.0, 1.4, 1.4, 1.4, 0.95, 0.4, -0.55, 0.4, 9.0, 8.3, [0.2])
+        if got != want:
+            bad.append(f"{d_b.calModelName}: {got}")
+check(f"{SB_OLD} -> {SB_NEW}: on every row the box and lid lose 1.400, the rear gap 0.950 -> 0.400, "
+      "the front gap stays 0.400 (ribs 0.550 back), the sockets 9.000 -> 8.300 and every holder "
+      "centred on its tread", bad, [])
+d_b = at(row_of("S9.21.10.62.Sl", 1), 1, SB_NEW)
+bx = box_part.build(d_b)
+rear_h = holder_part.build(d_b, False, text=False, rear=True)
+for state, pl in (("closed", A.holder_closed(d_b, 0)), ("open", A.holder_play(d_b, 0))):
+    c = bx & (pl.location() * rear_h)
+    check(f"{SB_NEW}: 333 Sl's rear holder, {state}, shares no volume with the shallower box",
+          round(c.volume if c is not None else 0.0, 3), 0.0)
+check(f"{SB_NEW}: parts.csv's depth columns are the shallower lid's",
+      all(abs(float((r[c] or '0').strip() or 0) - at(r, s, SB_NEW).calLidDepth) <= 0.1
+          for r in rows() for s, c in ((0, "Unsleeved D/mm"), (1, "Sleeved D/mm")) if (r[c] or "").strip()),
+      True)
 
 
 # --- every change has a case here ------------------------------------------

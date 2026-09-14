@@ -26,6 +26,11 @@ Gripperwidth = 0.5                  # side closing grip holding box and lid
 CardHolderGap = 0.4                 # gap between holders, for the slider lid
 PusherFootDepth = 5.0
 PusherThickness = 3.0
+# Mirrors of part constants that `calRearTrim` needs (`box.FRONT_DIVIDER`,
+# `box.SLIDER_W`, `holder.DEPTH_GAP`); held equal by tests/test_box.py.
+BOX_FRONT_DIVIDER = 1.0
+BOX_SLIDER_W = 1.5
+HOLDER_DEPTH_GAP = 0.4
 PusherFootThickness = 1.6
 # How far the Lid's pusher socket sits in from its inner wall — and, less
 # 1.000, where the logo's cap top goes. Allan's expression: the box's two walls
@@ -187,11 +192,32 @@ def derive(p):
     v["calFrontPocketDepth"] = v["calCardThickness"] * p.FrontPocketCardCapacity
     v["calAngleDelta"] = 0.0    # sin(LeanAngle) * BoxHeight; LeanAngle is 0
 
+    # cad/ only, from 7.2f (`rev.shorter_box`): how much shallower the box
+    # and the lid are than the studio's rule. The studio's `#BoxDepth` (6.0
+    # + slots + pocket) leaves 1.800 between the last card slot and the
+    # divider panel and 0.950 between the first slot's centre-line rib and
+    # the back wall's holder face; with the ribs forward so the front holder
+    # is CardHolderGap from the panel (`box.rib_shift`), the rearmost holder
+    # is 1.800 from the back wall, and this takes that down to CardHolderGap.
+    # The three part constants are the Box's and Holder's, mirrored here
+    # because a formula lives in derive and nowhere else; `tests/test_box.py`
+    # holds them equal.
+    front_space = 6.0 - 2 * WallThickness - BOX_FRONT_DIVIDER          # 1.800
+    overhang = BOX_SLIDER_W / 2 - HOLDER_DEPTH_GAP / 2                 # 0.550
+    rear_gap = BOX_SLIDER_W / 2 + HOLDER_DEPTH_GAP / 2                 # 0.950
+    rib_shift = front_space - overhang - CardHolderGap                 # 0.850
+    v["calRearTrim"] = (rear_gap + rib_shift - CardHolderGap) if rev.shorter_box else 0.0
     v["calLidDepth"] = ((8.5 + (p.RisingSliders - 1) * v["calSliderDistance"]
                          + v["calFirstSliderDistance"])
                         + v["calFrontPocketDepth"] + WallThickness
-                        + PusherThickness + 1.0)
-    d = v["calLidDepth"]
+                        + PusherThickness + 1.0 - v["calRearTrim"])
+    # The side label's width is read off the STUDIO's lid depth, before
+    # `calRearTrim`: it is a digit of the model code, which is an identity
+    # (CLAUDE.md, "A NAME is an identity"), and 7.2f's 1.400 would otherwise
+    # push M6.21.10.62 and S9.21.10.62-Un over the 77 to 45-mm labels and
+    # rename them. The holder for a 62 label is 65.6 long on a box 67.5 deep
+    # at the threshold, so it still fits.
+    d = v["calLidDepth"] + v["calRearTrim"]
     v["calSideLabelWidth"] = 62 if d > 77 else (45 if d > 59 else (32 if d > 44 else 20))
 
     v["calFirstSlotRisingCardCapacity"] = p.HorizontalSlots * (

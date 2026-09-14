@@ -65,9 +65,10 @@ def box_width(d):
 
 
 def box_depth(d):
-    """`#BoxDepth`. Same expression as `calLidDepth` less a constant 8.100."""
+    """`#BoxDepth`. Same expression as `calLidDepth` less a constant 8.100 —
+    both less `calRearTrim` from 7.2f (`rev.shorter_box`, derive.py)."""
     return (6.0 + (d.RisingSliders - 1) * d.calSliderDistance
-            + d.calFirstSliderDistance) + d.calFrontPocketDepth
+            + d.calFirstSliderDistance) + d.calFrontPocketDepth - d.calRearTrim
 
 
 def pusher_slots(d):
@@ -730,10 +731,18 @@ LIP_Z = 85.500                    # where it leaves the panel's back face — th
 # footprint meets the wall's bottom edge on the way down (the 7.2e lip, 0.800
 # into the wall, stopped it dead: `cad.fit`'s insertion sweep); 0.150 is
 # inside the 0.200 the holder has on its rib, so it steps back and slides
-# past. LIP_LEAD is the 45-degree chamfer on the lip's top rear edge that
-# the wall's bottom edge rides over.
+# past; its front face slants back (a wedge, below) so the wall's bottom edge
+# rides over.
 LIP_BITE = 0.150
-LIP_LEAD = 0.300
+# The lip's section from 7.2f, off Allan's kit A print (2026-09-14): a
+# WEDGE. Its underside lies on the slant and ends at a point `lip_z`,
+# REST_CLEARANCE above the rest floor; its front face rises from that point
+# straight back to the post, so the wall's bottom edge meets a slope
+# wherever it lands on the way in and there is no square corner for the
+# seam to bead on; its flat top is LIP_SINK below the front holder's slant
+# at the wall's face (Allan: the lip should end a little below the next
+# slider).
+LIP_SINK = 0.200
 POST_ROOT = 4.500                 # from 7.2f: how far the lip's post reaches down into the panel
 
 
@@ -747,21 +756,28 @@ def lip_reach(d):
 
 
 def lip_z(d):
-    """Z where the lip leaves the panel's back face.
+    """Z of the lip's UNDERSIDE at its tip, where it leaves the panel's back
+    face through 7.2e (`LIP_Z` 85.500).
 
-    `LIP_Z` 85.500 through 7.2e. From 7.2f (`rev.ribs_forward`) the lip is
-    flat-topped and its top sits ON the front holder's slant surface where
-    its tip bites, LIP_BITE inside that holder's front face, in play
-    (`assembly.box_lip_top`, 89.500 + 0.55 * slope with the ribs forward),
-    so its LIP_HEIGHT band is the top of the rest band there and its tip
-    floats REST_CLEARANCE above the rest's floor, exactly as a holder's lips
-    do. That is above the panel's 87.500 top,
-    which is what the post is for (`lip_tool`).
+    From 7.2f (`rev.ribs_forward`) the wedge's point, `SLANT_STEP` below the
+    front holder's slant surface where it bites, LIP_BITE inside that
+    holder's front face, in play (`assembly.box_lip_top`) — REST_CLEARANCE
+    above the rest's floor, exactly as a holder's lips are. That is above
+    the panel's 87.500 top, which is what the post is for
+    (`flat_lip_tool`).
     """
     if d.rev.ribs_forward:
         from .. import assembly as A
-        return A.box_lip_top(d) - LIP_HEIGHT
+        return A.box_lip_top(d) - holder_part.SLANT_STEP
     return LIP_Z
+
+
+def lip_top(d):
+    """Z of the lip's flat top from 7.2f: LIP_SINK below the front holder's
+    slant at the wall's face in play — `assembly.box_lip_top` is that
+    surface LIP_BITE further in, so back down the slant by that."""
+    from .. import assembly as A
+    return A.box_lip_top(d) - LIP_BITE / lip_slope(d) - LIP_SINK
 
 
 def lip_slope(d):
@@ -851,9 +867,13 @@ def lip_tool(d):
 
 
 def flat_lip_tool(d):
-    """The lip from 7.2f (`rev.ribs_forward`): FLAT-TOPPED, `lip_reach` proud
-    of the panel's back face, its top LIP_HEIGHT above `lip_z` and its
-    UNDERSIDE on the slant — through `lip_z` at the tip and falling toward
+    """The lip from 7.2f (`rev.ribs_forward`): a WEDGE `lip_reach` proud of
+    the panel's back face — its point at `lip_z`, its front face rising
+    straight back to a RIDGE at `lip_top` on the panel's back face, LIP_SINK
+    below the front holder's slant at the wall's face, and from the ridge
+    the panel's own bevel down to the pocket face (Allan, off the kit A
+    print: slant the front, end the lip a little below the next slider,
+    and cut the post's top away) — and its UNDERSIDE on the slant — through `lip_z` at the tip and falling toward
     the panel at `lip_slope` (Allan, 2026-09-14): parallel to the rest
     floor it floats over, so the REST_CLEARANCE is the same along the whole
     lip and not only at the tip, and the box printing upright it is an
@@ -861,22 +881,32 @@ def flat_lip_tool(d):
     reach * slope` tall at the root (2.6 on 333 Sl, 3.9 on Compile). On a
     POST — the panel's back face carried up to the lip's top over the lip's
     width and rooted POST_ROOT down into the panel below its bevel — with
-    LIP_LEAD chamfered off its top rear edge for the wall's bottom edge to
-    ride over. Fused AFTER the angled cutout (`front_pocket`). The same
+    the ramp of its top for the wall's bottom edge to ride over. Fused AFTER the angled cutout (`front_pocket`). The same
     chamfered footprint as `lip_tool`'s, which the short reach truncates:
     the tip is `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the
     12.800 rest.
     """
-    _fw, _fb, back = pocket_span(d)
+    fw, fb, back = pocket_span(d)
     lz, out = lip_z(d), lip_reach(d)
-    top, root = lz + LIP_HEIGHT, lz - POST_ROOT
+    top, root = lip_top(d), lz - POST_ROOT
     under_root = lz - out / lip_slope(d)      # the slant, `1/lip_slope` = dZ/dY
+    # The post's top continues the panel's own bevel (`angled_cutout`), from
+    # the lip's top edge down toward the pocket over the panel's full
+    # thickness (Allan, 2026-09-14): a ridge, no flat and no square corner.
+    bevel = (POCKET_CUT_TOP - FRONT_TOP) / (back - fw)
+    front_top = top - bevel * (back - fb)      # the bevel's end at the pocket face
+    # The root stays a millimetre under that end: on FCM's 6-card box the
+    # pocket is 3.3 deep and the bevel 5.8 steep, and it reached below
+    # POST_ROOT, folding the section (an empty lip).
+    root = min(root, front_top - 1.0)
     half = LIP_LENGTH / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
-            Polygon((back - 0.8, root), (back, root), (back, under_root),
-                    (back + out, lz), (back + out, top - LIP_LEAD),
-                    (back + out - LIP_LEAD, top), (back - 0.8, top),
+            # A wedge: underside on the slant out to the point at the tip,
+            # front face straight back up to the ridge at the panel's back
+            # face, then the bevel down across the panel.
+            Polygon((fb, root), (back, root), (back, under_root),
+                    (back + out, lz), (back, top), (fb, front_top),
                     align=None)
         extrude(amount=half + 1, both=True)
     with BuildPart() as foot:

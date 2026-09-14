@@ -108,7 +108,11 @@ for oid, name, _parts in lay.objects:
     sw, sd, sh = lay.sizes[oid]
     # the rebuilt part's envelope is the cached one's (test_*_corpus), and the
     # 7.0 holder is 1.5 longer than a 6.6 one (spec/HOLDER.md); the token
-    # holder's tray is the same part at the same depth
+    # holder's tray is the same part at the same depth. From 7.2f the Box and
+    # the Lid are `calRearTrim` shallower than the shipped ones by design
+    # (`rev.shorter_box`, spec/BOX.md).
+    if r in ("Box", "Lid"):
+        sd -= d.calRearTrim
     tol = 1.6 if r == "Holder" else 0.05
     check(f"{name}: size {w:.2f} x {dd:.2f} x {h:.2f} within {tol} of the shipped mesh",
           max(abs(w - sw), abs(dd - sd), abs(h - sh)) <= tol, True)

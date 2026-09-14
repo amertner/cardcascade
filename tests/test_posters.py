@@ -71,7 +71,7 @@ by_name = {(r["Game"], r["Short name"], d.isSleeved): (r, d) for r, d in rows}
 r, d = by_name[("Innovation", "4 Ages 5 Expansions", 1)]
 v = MP.values(r, d, MP.spec_for(spec, r, d))
 check("Innovation 4 Ages sleeved width", v["ext_w"], "295")
-check("Innovation 4 Ages sleeved depth", v["ext_d"], "84.6")
+check("Innovation 4 Ages sleeved depth", v["ext_d"], "83.2")
 check("Innovation 4 Ages sleeved model", v["model_ref"], "M5·15·15·62·Sl")
 check("Innovation 4 Ages sleeved needs the large bed", v["printer"], "LARGE 3D PRINTER")
 r, d = by_name[("Innovation", "4 Ages 5 Expansions", 0)]
