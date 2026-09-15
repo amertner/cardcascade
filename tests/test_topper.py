@@ -327,9 +327,9 @@ check("S15-Un blank: symmetric difference under 0.5 mm3",
             + (sum(q.volume for q in _b.solids()) if _b else 0.0), 3) < 0.5, True)
 
 print("\n=== Z_BASE is the holder's slant top plus the rear thickness ===")
-# There is no mate: the topper rests on the holder, diagonal on diagonal
-# (Allan, 2026-09-04). So the constant every reference measures is derived,
-# and held to on every Innovation parameter set the catalogue has.
+# There is no mate: the topper rests on the holder, diagonal on diagonal. So
+# the constant every reference measures is derived, and held to on every
+# Innovation parameter set the catalogue has.
 _seen = set()
 for _f, _fn, _p, _e in B.topper_catalogue():
     _k = _fn.split(" ", 2)[-1]
@@ -409,9 +409,9 @@ for tag, fn, pp, word in NAMED:
           round(T.ENGRAVE, 3), 1e-3)
     check(f"{tag}: ... and stand 0.010 proud of the face",
           round(T.Z_BASE - min(b.min.Z for b in boxes), 3), 0.010, 1e-3)
-    # OUR inlays — what `cad.build` writes beside the body since 2026-09-05 —
-    # against the STEP's, solid for solid: the same count, each within 0.05
-    # of its box (the letters' tessellation, as the lid's marks are held)
+    # OUR inlays — what `cad.build` writes beside the body — against the
+    # STEP's, solid for solid: the same count, each within 0.05 of its box
+    # (the letters' tessellation, as the lid's marks are held)
     mine_in = T.inlays(dd, word)
     check(f"{tag}: one inlay solid per STEP inlay", len(mine_in), len(ins))
     if len(mine_in) == len(ins):

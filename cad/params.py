@@ -39,25 +39,25 @@ class Primary:
     # `derive` -> `d.rev`, `cad/revisions.py`) as well as the `CC <v>` stamp,
     # so a caller that means an older release must SAY so: everything that
     # compares against `individual/` or a reference STEP passes "7.0", and
-    # `tests/test_holder_corpus.py` has priced its engraving at an explicit
-    # `Version="6.6"` since long before this default moved.
+    # `tests/test_holder_corpus.py` prices its engraving at an explicit
+    # `Version="6.6"`.
     Version: str = CURRENT
     # cad/ only — see the module docstring. 1 is what every shipped box has;
     # 0 leaves the front and side label holders off (`box.label_holders`).
     LabelHolders: int = 1
     # cad/ only. parts.csv's `Sleeved card width` column: the width a SLEEVED
     # card of this row is given, in mm, where the studio adds 2.000 to the
-    # game's unsleeved width. 0 is the studio's rule. One row uses it (Allan,
-    # 2026-09-12): `Three Expansions` at 64, so its sleeved twin is as wide as
-    # its unsleeved one and still lies flat in the Innovation box.
+    # game's unsleeved width. 0 is the studio's rule. One row uses it:
+    # `Three Expansions` at 64, so its sleeved twin is as wide as its
+    # unsleeved one and still lies flat in the Innovation box.
     SleevedCardWidth: float = 0.0
     # cad/ only, and the mirror of the above (`rev.unsleeved_card_width`).
     # parts.csv's `Unsleeved card width` column: the width an UNSLEEVED card
     # of this row is given, in mm, where the studio takes the game's own. 0 is
-    # the studio's rule. One row uses it (Allan, 2026-09-14): `Single Mini` at
-    # 66, the sleeved width, so its unsleeved twin is as wide as its sleeved
-    # one — which is what makes four pushers fit the back, and what makes the
-    # pair's two lids interchangeable.
+    # the studio's rule. One row uses it: `Single Mini` at 66, the sleeved
+    # width, so its unsleeved twin is as wide as its sleeved one — which is
+    # what makes four pushers fit the back, and what makes the pair's two lids
+    # interchangeable.
     UnsleevedCardWidth: float = 0.0
     # cad/ only. Which back the Box is built with, and NOT read from a row:
     # `build.back_pocket_variants_built` says which variants a row ships and
@@ -67,10 +67,10 @@ class Primary:
     BackPocket: str = ""
     # cad/ only. parts.csv's `Deep slot` column: `back` puts the deeper
     # first-riser slot (`Cards/First Riser`) at the BACK of the cascade
-    # instead of the studio's front. Allan, 2026-09-12: on Innovation it holds
-    # the expansion's achievements and player aids, wanted once at setup, so
-    # the least stable riser is the one used least. Meaningless without an
-    # override, and blank (or `front`) is the studio's own.
+    # instead of the studio's front. On Innovation it holds the expansion's
+    # achievements and player aids, wanted once at setup, so the least stable
+    # riser is the one used least. Meaningless without an override, and blank
+    # (or `front`) is the studio's own.
     DeepSlotAtBack: int = 0
 
 

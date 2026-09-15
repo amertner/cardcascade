@@ -31,7 +31,7 @@ from .. import text as T
 
 WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
 
-# The FLOOR is the one thickness that is not the wall's, from 7.1 (Allan): the
+# The FLOOR is the one thickness that is not the wall's, from 7.1: the
 # two side floors are what the holders rest on and what carries the engraving,
 # and 2.000 is ten layers at a 0.2 layer height rather than eight. It grows
 # UPWARD (`shell`), so BoxHeight, the rim, the rim cutouts, `Top of back` and
@@ -57,10 +57,10 @@ def floor_top(d):
 def box_width(d):
     """`#BoxWidth`. Allan's sketch variable, verified on all 48 boxes.
 
-    The expression moved into `derive.py` when the TokenHolder arrived, because
-    `calTokenHolderSlotWidth` is a studio variable written in terms of it and
-    two copies of one formula is what that module exists to prevent. This stays
-    as the name every caller already uses.
+    `derive.py` owns the expression, because `calTokenHolderSlotWidth` is a
+    studio variable written in terms of it and two copies of one formula is
+    what that module exists to prevent. This stays as the name every caller
+    already uses.
     """
     return d.BoxWidth
 
@@ -174,8 +174,8 @@ def side_floor(d):
 
     This is the point of the cut, and the better way round to state it: the
     floor is not removed to make room for something, it is removed EXCEPT here,
-    because the **holders rest on these two strips when the box is not in use**
-    (Allan). So the width is set by what has to be left, not by what goes.
+    because the **holders rest on these two strips when the box is not in
+    use**. So the width is set by what has to be left, not by what goes.
     """
     return d.calSlotwidth / 2
 
@@ -230,15 +230,15 @@ HOLE_ROWS_STOUT = 4
 HOLES_PER_SLOT = 5
 HOLE_INSET = 8.300       # first hole, from the left inner wall
 # A hanging hole stops this short of a storage divider's face when its own
-# edge would otherwise land EXACTLY on it. DELIBERATE DIVERGENCE (Allan, 2026-
-# 09-04): on the three sleeved Innovation boxes — `M5.10.10.45-Sl`,
-# `S5.10.10.45-Sl`, `XS5.15.10.45-Sl` — the hole pitch puts a hole's -X edge
-# on a divider's -X face, and because the holes here stop at the slot band
-# where Onshape's cut through the dividers, wall material and divider
-# material then touched along that one line, corner to corner: six edges
-# with four triangles on them in the written mesh. It sliced, but it was
-# the one non-manifold thing left in the catalogue. `hole_openings` applies
-# it; `hanging_holes` stays the transcription of the sketch.
+# edge would otherwise land EXACTLY on it. DELIBERATE DIVERGENCE: on the three
+# sleeved Innovation boxes — `M5.10.10.45-Sl`, `S5.10.10.45-Sl` and
+# `XS5.15.10.45-Sl` — the hole pitch puts a hole's -X edge on a divider's -X
+# face, and because the holes here stop at the slot band where Onshape's cut
+# through the dividers, wall material and divider material then touched along
+# that one line, corner to corner: six edges with four triangles on them in
+# the written mesh. It sliced, but it was the one non-manifold thing left in
+# the catalogue. `hole_openings` applies it; `hanging_holes` stays the
+# transcription of the sketch.
 HOLE_CLEAR = 0.200
 HOLE_ROWS = 3
 HOLE_ROW_BOTTOM = 3.000
@@ -252,12 +252,11 @@ RIM_CUTOUT_Z = 100.000
 REAR_THUMB_FILLET = 0.600   # `Fillet rear thumb hole` — NOT the front thumb's
 #                             0.400; the wall it cuts is 1.600, not 1.000
 # From 7.1b the back pocket gets a cutout every REAR_THUMB_PITCH of its width
-# rather than one however wide it is (Allan, 2026-09-08). The pitch is a
-# CEILING and not a target: the cutouts are spread EVENLY over the pocket, so
-# the gap actually cut is the largest one no wider than this — 34.90 to 69.15
-# across the catalogue. REAR_THUMB_CLEAR is the wall left standing at each
-# end, and it is also what has to stand BETWEEN two cutouts for the second one
-# to be worth cutting.
+# rather than one however wide it is. The pitch is a CEILING and not a target:
+# the cutouts are spread EVENLY over the pocket, so the gap actually cut is
+# the largest one no wider than this — 34.90 to 69.15 across the catalogue.
+# REAR_THUMB_CLEAR is the wall left standing at each end, and it is also what
+# has to stand BETWEEN two cutouts for the second one to be worth cutting.
 REAR_THUMB_PITCH = 70.000
 REAR_THUMB_CLEAR = 10.000
 
@@ -507,12 +506,11 @@ def rear_storage(d, part, lattice=True):
     # `Hanging holes` — through the back wall in full, and on through the slot
     # band EXCEPT where a divider stands.
     #
-    # DELIBERATE DIVERGENCE FROM ONSHAPE (Allan). There the holes are one
-    # prism from the card side to the outer wall, so they cut the dividers
-    # too — on `Box Dominion 244S` all three are severed clean through at
-    # every hole row, and no reference escapes with fewer than one. The
-    # openings are wanted; sawing through the pusher hangers is not. See
-    # spec/BOX.md.
+    # DELIBERATE DIVERGENCE FROM ONSHAPE. There the holes are one prism from
+    # the card side to the outer wall, so they cut the dividers too — on `Box
+    # Dominion 244S` all three are severed clean through at every hole row,
+    # and no reference escapes with fewer than one. The openings are wanted;
+    # sawing through the pusher hangers is not. See spec/BOX.md.
     divs = storage_dividers(d)
     for x_lo, x_hi in (hole_openings(d) if lattice else []):
         for z_lo, z_hi in hole_rows(d):
@@ -772,23 +770,21 @@ LIP_HEIGHT = D.LipHeight          # 2.000, in Z
 LIP_CHAMFER = D.LipChamfer        # 1.200, 45 degrees in the XY plane
 LIP_Z = 85.500                    # where it leaves the panel's back face — through 7.2e
 # From 7.2f (`rev.ribs_forward`) the lip is a FLAT block that BITES the front
-# holder's wall by LIP_BITE — Allan, 2026-09-14: overlap by no more than
-# 0.1-0.2 so the holder slides in with a little flex. A holder goes into the
-# box straight down its ribs, so anything of the lip inside its front wall's
-# footprint meets the wall's bottom edge on the way down (the 7.2e lip, 0.800
-# into the wall, stopped it dead: `cad.fit`'s insertion sweep); 0.150 is
-# inside the 0.200 the holder has on its rib, so it steps back and slides
-# past; its front face slants back (a wedge, below) so the wall's bottom edge
-# rides over.
+# holder's wall by LIP_BITE — an overlap of no more than 0.1-0.2, so the
+# holder slides in with a little flex. A holder goes into the box straight
+# down its ribs, so anything of the lip inside its front wall's footprint
+# meets the wall's bottom edge on the way down (the 7.2e lip, 0.800 into the
+# wall, stopped it dead: `cad.fit`'s insertion sweep); 0.150 is inside the
+# 0.200 the holder has on its rib, so it steps back and slides past; its front
+# face slants back (a wedge, below) so the wall's bottom edge rides over.
 LIP_BITE = 0.150
-# The lip's section from 7.2f, off Allan's kit A print (2026-09-14): a
-# WEDGE. Its underside lies on the slant and ends at a point `lip_z`,
-# REST_CLEARANCE above the rest floor; its front face rises from that point
-# straight back to the post, so the wall's bottom edge meets a slope
-# wherever it lands on the way in and there is no square corner for the
-# seam to bead on; its flat top is LIP_SINK below the front holder's slant
-# at the wall's face (Allan: the lip should end a little below the next
-# slider).
+# The lip's section from 7.2f, off the kit A print: a WEDGE. Its underside
+# lies on the slant and ends at a point `lip_z`, REST_CLEARANCE above the
+# rest floor; its front face rises from that point straight back to the post,
+# so the wall's bottom edge meets a slope wherever it lands on the way in and
+# there is no square corner for the seam to bead on; its flat top is
+# LIP_SINK below the front holder's slant at the wall's face, which ends the
+# lip a little below the next slider.
 LIP_SINK = 0.200
 POST_ROOT = 4.500                 # from 7.2f: how far the lip's post reaches down into the panel
 
@@ -832,7 +828,7 @@ def lip_slope(d):
 
         (calFirstSliderDistance - 1.200) / (calHeightIncrement - 1.000)
 
-    **It is the HOLDER's diagonal cutout angle** (Allan) — the group opens with
+    **It is the HOLDER's diagonal cutout angle** — the group opens with
     `Import Holder patterns` and this is what comes across. Confirmed against
     the diagonal face normal of all 50 cached Holders in `individual/`
     (0 API calls), over four games, both sleevings, rises from 9.667 to 22.000
@@ -915,23 +911,24 @@ def lip_tool(d):
 
 def flat_lip_tool(d):
     """The lip from 7.2f (`rev.ribs_forward`): a WEDGE `lip_reach` proud of
-    the panel's back face — its point at `lip_z`, its front face rising
-    straight back to a RIDGE at `lip_top` on the panel's back face, LIP_SINK
-    below the front holder's slant at the wall's face, and from the ridge
-    the panel's own bevel down to the pocket face (Allan, off the kit A
-    print: slant the front, end the lip a little below the next slider,
-    and cut the post's top away) — and its UNDERSIDE on the slant — through `lip_z` at the tip and falling toward
-    the panel at `lip_slope` (Allan, 2026-09-14): parallel to the rest
-    floor it floats over, so the REST_CLEARANCE is the same along the whole
-    lip and not only at the tip, and the box printing upright it is an
+    the panel's back face.
+
+    Its point is at `lip_z`; its front face rises straight back to a RIDGE at
+    `lip_top` on the panel's back face, LIP_SINK below the front holder's
+    slant at the wall's face, and from the ridge the panel's own bevel runs
+    down to the pocket face. Its UNDERSIDE lies on the slant, through `lip_z`
+    at the tip and falling toward the panel at `lip_slope`: parallel to the
+    rest floor it floats over, so the REST_CLEARANCE is the same along the
+    whole lip and not only at the tip, and the box printing upright it is an
     overhang at the slant's angle rather than a flat one. `LIP_HEIGHT +
-    reach * slope` tall at the root (2.6 on 333 Sl, 3.9 on Compile). On a
-    POST — the panel's back face carried up to the lip's top over the lip's
-    width and rooted POST_ROOT down into the panel below its bevel — with
-    the ramp of its top for the wall's bottom edge to ride over. Fused AFTER the angled cutout (`front_pocket`). The same
-    chamfered footprint as `lip_tool`'s, which the short reach truncates:
-    the tip is `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the
-    12.800 rest.
+    reach * slope` tall at the root (2.6 on 333 Sl, 3.9 on Compile).
+
+    On a POST — the panel's back face carried up to the lip's top over the
+    lip's width and rooted POST_ROOT down into the panel below its bevel —
+    with the ramp of its top for the wall's bottom edge to ride over. Fused
+    AFTER the angled cutout (`front_pocket`). The same chamfered footprint as
+    `lip_tool`'s, which the short reach truncates: the tip is
+    `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the 12.800 rest.
     """
     fw, fb, back = pocket_span(d)
     lz, out = lip_z(d), lip_reach(d)
@@ -939,7 +936,7 @@ def flat_lip_tool(d):
     under_root = lz - out / lip_slope(d)      # the slant, `1/lip_slope` = dZ/dY
     # The post's top continues the panel's own bevel (`angled_cutout`), from
     # the lip's top edge down toward the pocket over the panel's full
-    # thickness (Allan, 2026-09-14): a ridge, no flat and no square corner.
+    # thickness: a ridge, no flat and no square corner.
     bevel = (POCKET_CUT_TOP - FRONT_TOP) / (back - fw)
     front_top = top - bevel * (back - fb)      # the bevel's end at the pocket face
     # The root stays a millimetre under that end: on FCM's 6-card box the
@@ -1206,7 +1203,7 @@ def fastener_centres(d):
     reference, so they belong to the holder and not to the box.
 
     **The narrow one carries ONE, in the middle. That is a DELIBERATE
-    DIVERGENCE** (Allan): `Box Innovation 130U` has none at all, and a label
+    DIVERGENCE**: `Box Innovation 130U` has none at all, and a label
     with nothing gripping its top edge is the thing being fixed. One is what
     fits — two at the thirds of `65.600` would sit `10.933` out, and each ridge
     is `10.000` long.
@@ -1243,8 +1240,8 @@ def label_holders(d, part):
     Every feature in both groups carries Onshape's `fx` marker, which nothing
     else in the tree does — conditional suppression on that variable. No
     catalogue row can exercise the `0` branch (it needs Colours or a single
-    horizontal slot), but Allan wants the option real, so it is built behind the
-    flag rather than unconditionally.
+    horizontal slot), but the option is real, so it is built behind the flag
+    rather than unconditionally.
 
     The side holder is on the **-X end only**, which is the whole of the box's
     asymmetric 2.600 width offset: 1.600 here against the closing bump's 1.000.
@@ -1261,8 +1258,8 @@ def label_holders(d, part):
 
 
 # `Model name` and the `Logo` group — the engraving in the two side floors.
-# Allan supplied the four sketches; every placement below is one of their
-# dimensions, and each is confirmed on all five references.
+# Every placement below is one of the four sketches' dimensions, and each is
+# confirmed on all five references.
 ENGRAVE = 0.400            # the same depth the Pusher's text uses
 TEXT_INSET = 3.000         # cap top, in from the side floor's inner edge —
 #                            `#calSlotwidth/2 - 3mm` on the -X sketch
@@ -1270,8 +1267,8 @@ MODEL_GAP = 3.000          # between the two -X lines, baseline to cap top
 LOGO_FRONT_INSET = 2.500   # the +X text box, off the FRONT of the card area
 MODEL_MARGIN = 6.900       # the -X block measured, total. Its sketch box is
 #                            5.000 like the +X one, but the text does not fill
-#                            it; Allan: the size "is a bit arbitrary, I just
-#                            wanted to make it fit".
+#                            it: the size is "a bit arbitrary, I just wanted to
+#                            make it fit" and no formula is hiding behind it.
 CAPACITY_GAP = 2 / 3       # x #LogoHeight, ProductName baseline to cap top
 VERSION_GAP = 1 / 2        # x #LogoHeight, capacity baseline to cap top
 VERSION_CAP = 3 / 4        # x #LogoHeight
@@ -1355,11 +1352,11 @@ def floor_text(d, part):
     base = base + CAPACITY_GAP * logo_cap + T.CAP * cap_size
     tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1,
                               floor_top(d)))
-    # `calVersion` — the Onshape sketch still reads "Rev <version>"; Allan:
-    # it should say CC, as the Lid does. A DELIBERATE DIVERGENCE, and
-    # tests/test_box.py asserts both sides of it.
-    # Three quarters of the logo's cap, and no smaller than the floor — but
-    # never larger than the logo's own cap, which the floor is always under.
+    # `calVersion` — the Onshape sketch still reads "Rev <version>" where this
+    # says CC, as the Lid does. A DELIBERATE DIVERGENCE, and tests/test_box.py
+    # asserts both sides of it. Three quarters of the logo's cap, and no
+    # smaller than the floor — but never larger than the logo's own cap, which
+    # the floor is always under.
     ver_size = min(logo_size, T.floored(VERSION_CAP * logo_size))
     ver_cap = T.CAP * ver_size
     base = base + VERSION_GAP * logo_cap + ver_cap
@@ -1401,8 +1398,8 @@ def sharp_edges(d, part):
     Two exclusions are the reference's own, and both also happen to be what
     OCCT will not fillet — which is a good sign the rule is the right one:
 
-    * **the back wall's rim** is notched for the pusher tabs and stays sharp
-      (Allan), so only the END WALLS' rim is rounded;
+    * **the back wall's rim** is notched for the pusher tabs and stays sharp,
+      so only the END WALLS' rim is rounded;
     * **`Lower the front`** is not rounded AT ALL. Its inner edge is where the
       pocket's pads and dividers land, and two adjacent segments of it are the
       minimal pair OCCT refuses; its outer edge survives all three reference
@@ -1553,9 +1550,8 @@ def build(d, lattice=True):
     part = label_holders(d, part)
     # The floor text stays LAST before the rounds, though it is the most
     # expensive cut (2 to 3 s of a box's 6). Cutting it into the bare shell
-    # first, the way the Lid takes its logo pocket, was tried on 2026-09-05:
-    # identical geometry (symmetric difference 0.000000 on three boxes) and
-    # nearly twice the build time, because every boolean after it then
-    # carries the text's hundreds of spline faces. Spline text is the cost,
-    # not the order.
+    # first, the way the Lid takes its logo pocket, gives identical geometry
+    # (symmetric difference 0.000000 on three boxes) and nearly twice the
+    # build time, because every boolean after it then carries the text's
+    # hundreds of spline faces. Spline text is the cost, not the order.
     return smooth_edges(d, floor_text(d, part))

@@ -1,11 +1,10 @@
 """Where each object goes: the plate scheme, the bed, the packing, the tower.
 
-Lifted from `automation/make_cascade.py --auto-plates` (its lines 60-326 and
-1019-1360 as of 2026-09-05), which laid out every regenerated cascade so far,
-so that a project can be laid out without a donor to mutate. The rules are
-the same rules and, where one was learned the hard way, the reason is kept
-beside it; `tests/test_layout.py` holds this module to make_cascade's own
-placements on a real cascade while both exist.
+Lifted from `automation/make_cascade.py --auto-plates`, which laid out every
+regenerated cascade so far, so that a project can be laid out without a donor
+to mutate. The rules are the same rules and, where one was learned the hard
+way, the reason is kept beside it; `tests/test_layout.py` holds this module to
+make_cascade's own placements on a real cascade while both exist.
 
     from cad import layout as LY, project as PJ
     bed, plates, placements = LY.layout(objects)     # objects: [project.Obj]
@@ -43,8 +42,7 @@ What is decided here, in order:
    from the bed's centre.
    When no spot clears, the plate's contents are slid to each edge in turn to
    open the opposite one, then turned 90 degrees and tried again; a plate
-   that still has no room for its tower is REFUSED, not warned about (Allan,
-   2026-09-05 — make_cascade left the tower colliding and said so).
+   that still has no room for its tower is REFUSED, not warned about.
 """
 import json
 import math
@@ -255,8 +253,8 @@ def fit_angle(w, d, uw, ud):
     object whose 45-degree span does not fit. Dominion 650 Sleeved's lid,
     343.9 x 111.3, spans 321.9 at 45 against an H2C's 320 of depth, and fits
     at 44 with 0.3 to spare on the 325 of usable width, which is where its
-    shipped project has it (Allan, 2026-09-05: it fits, just, and prints).
-    A negative slack means it does not fit at any angle."""
+    shipped project has it: it fits, just, and prints. A negative slack means
+    it does not fit at any angle."""
     best = None
     a = 30.0
     while a <= 60.0 + 1e-9:
@@ -334,8 +332,7 @@ def plate_groups(objects, bed):
             continue
         # ALTERNATIVES, not a set: the owner prints one of them, so they get a
         # plate each, named by the object. One object is the ordinary case and
-        # keeps the scheme's own label — a cascade with one lid lays out today
-        # exactly as it did before 7.1d.
+        # keeps the scheme's own label.
         names = list(dict.fromkeys(objects[i].name for i in idxs))
         if alt and len(names) > 1:
             for name in names:
@@ -567,7 +564,6 @@ def misfit(objects, placed, bed, exclude):
 
 
 def shifted(placed, dx, dy):
-    """The same plate moved by (dx, dy)."""
     return [(i, ob.moved(dx, dy)) for i, ob in placed]
 
 
@@ -652,9 +648,8 @@ def tower(ps, bed, placed, exclude, start=None):
 
     Legal is TOWER_INSET inside `tower_bounds`, on every side. A tower's
     `(x, y)` is its origin corner, and Studio's geometry spills a little below
-    and left of it: the A1 mini's Lid plate, sliced on 2026-09-06 with its
-    tower at (0, 0), (0.5, 0.5), (1, 1), (1, 4) and (4, 1), was refused every
-    time with -104 ("G-code outside of the printable area ... wipe tower,
+    and left of it: the A1 mini's Lid plate, sliced with its tower at (0, 0),
+    (0.5, 0.5), (1, 1), (1, 4) and (4, 1), was refused every time with -104 ("G-code outside of the printable area ... wipe tower,
     brim, or skirt"), and at (2, 2), (3, 3) and (4, 4) it sliced clean. The
     far edges tolerated a tower flush against them — (145, 4) and (4, 145)
     sliced, the nominal 35 ending exactly at 180 — so the near edges are the

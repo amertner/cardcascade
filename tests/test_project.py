@@ -133,7 +133,6 @@ with tempfile.TemporaryDirectory() as tmp:
         return sorted((names[oid], pl.plate, round(pl.x, 4), round(pl.y, 4), round(pl.angle, 4))
                       for oid, pl in layout.placements.items())
     check("same roles at the same positions on the same plates", key(back), key(lay))
-    # parts and slots
     check("lid: body on slot 1, every inlay on slot 2",
           sorted({(n.startswith("Part "), e) for _id, name, parts in back.objects
                   if name.startswith("Lid") for n, e in parts}), [(False, 1), (True, 2)])
@@ -184,7 +183,6 @@ with tempfile.TemporaryDirectory() as tmp:
             print(f"        {result.read_text()[:600] if result.exists() else 'no result.json'}")
         gcodes = sorted(outdir.glob("*.gcode"))
         check("one gcode per plate", len(gcodes), len(lay.plates))
-        # keep the written project for a look
         keep = ROOT / "tmp" / "test_project"
         keep.mkdir(parents=True, exist_ok=True)
         shutil.copy(out, keep / out.name)

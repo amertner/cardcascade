@@ -76,16 +76,16 @@ def font_size_for_cap(cap, font_path=LOGO_FONT):
 
 # --- floors: no stroke thinner than the printer can lay down --------------
 #
-# Every sizing rule in the catalogue FITS text to a box, and a small box
-# used to shrink a line without limit — a pusher's version line reached a
-# 0.10 mm stroke, a box's model line 0.12. A floor is applied at every
-# placement (Allan, 2026-09-04): text CUT into a part may not go below
-# FLOOR_CUT of stroke, and text that STANDS PROUD — embossed, or laid in the
-# second filament — not below FLOOR_PROUD, the slicer laying a proud line
-# thinner than its nozzle dynamically but not indefinitely. A line whose
-# fitted size is under its floor is raised to it, its margins giving way;
-# where even the floor does not physically fit the part the placement
-# RAISES rather than write something illegible or something that overruns.
+# Every sizing rule in the catalogue FITS text to a box, and a small box used
+# to shrink a line without limit — a pusher's version line reached a 0.10 mm
+# stroke, a box's model line 0.12. A floor is applied at every placement: text
+# CUT into a part may not go below FLOOR_CUT of stroke, and text that STANDS
+# PROUD — embossed, or laid in the second filament — not below FLOOR_PROUD,
+# the slicer laying a proud line thinner than its nozzle dynamically but not
+# indefinitely. A line whose fitted size is under its floor is raised to it,
+# its margins giving way; where even the floor does not physically fit the
+# part the placement RAISES rather than write something illegible or something
+# that overruns.
 #
 # The stroke is each face's THINNEST, in em, measured off a 1000 px/em
 # raster of the strings the catalogue sets (distance transform along the
@@ -267,8 +267,8 @@ def box_trail(font=LOGO_FONT):
     a quarter of the font's space advance.
 
     Read off Allan's right-aligned samples (`spec/reference/Text right-aligned
-    sample*.step`, 2026-09-04): four lines in three fonts, boxes 10 tall, one
-    shared right edge at x 110.135. Open Sans Bold ends its ink 0.0646 em short
+    sample*.step`): four lines in three fonts, boxes 10 tall, one shared right
+    edge at x 110.135. Open Sans Bold ends its ink 0.0646 em short
     of it and Orbitron Bold 0.0761, each ±0.0004 from the dimension's rounding,
     whatever the last glyph — and a quarter of the space advance is 0.0649 and
     0.0765. The two parts had carried these as fitted constants: the holder's

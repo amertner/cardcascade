@@ -27,7 +27,6 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(REPO, "fonts")
 W, H = 2010, 1500
 
-# palette, faces, logos and the shared chrome come from postercommon
 from postercommon import (CREAM, INK, GREEN, GREEN_D, BAR, BLUE, GREY,   # noqa: E402,F401
                           WHITE, PLATE, PLATE_E, ORB, MONO_B, MONO_R, INTER_R,
                           GAME_LOGOS, GAME_DISPLAY, F, cap_scale, load_logo,
@@ -88,7 +87,7 @@ def render_label(text, width_mm, scale, caps, art=None):
     ch = int(0.6 * scale)
     d.rounded_rectangle([ox + ch, oy + ch, ox + w - ch, oy + h - ch],
                         radius=int(0.25 * scale), fill=PLATE)
-    if art is not None:      # artwork labels are drawn from their geometry
+    if art is not None:
         draw_artwork(d, art, width_mm, scale, caps, ox, oy, h)
         return img
     if dl.LINE_BREAK in text:   # stacked names too: labelmaker fits the stack
@@ -136,7 +135,6 @@ def render_label(text, width_mm, scale, caps, art=None):
     return img
 
 
-# ---------- shared chrome (postercommon, at this cover's size) ----------
 def corner_banners(d):
     PC.corner_banners(d, W)
 
@@ -369,7 +367,6 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
              else "for every box size")
     d.text((70, 910), scope, font=F(MONO_R, 46), fill=INK)
 
-    # right-hand stack: large labels by default, shrink to fit if many rows
     rows = stack_rows(rec, game_cfg, profile)
     scale = fit_scale(rows)
     total_h = sum(row_height(scale) for _ in rows)
@@ -394,7 +391,6 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
             x -= slot + 12
         y += max(lab.height for lab, _ in labs if lab is not None) + 6
 
-    # bottom band
     d.polygon([(0, H - 340), (W * 0.72, H - 340), (W * 0.66, H - 200),
                (0, H - 200)], fill=GREEN)
     # "<game>: <set>", but not "Innovation: Innovation" for a set that is

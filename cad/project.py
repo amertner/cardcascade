@@ -285,8 +285,8 @@ def plate_title(scheme, title):
 def object_name(role, d, variant=TB.LID_OWN):
     """What Studio's object list shows. Every role is its own name except the
     Lid, which carries the card capacity and the sleeving — `Lid 168U` — as
-    every shipped project has it (Allan, 2026-09-05): with several projects
-    open it is the lid that says which cascade a plate belongs to.
+    every shipped project has it: with several projects open it is the lid
+    that says which cascade a plate belongs to.
 
     `variant` (`tables.LID_VARIANTS`) names the OTHER lids a cascade ships: the
     alternate edition from 7.1d, named by the EDITION its mark is — `Lid 90U

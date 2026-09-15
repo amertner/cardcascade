@@ -330,8 +330,8 @@ def topper_shape_key(d):
 
 
 # A topper labels which expansion is in a slot, so a cascade that holds only
-# ONE has no use for them (Allan) — and `individual/` bears that out: no cached
-# topper for `Single Set` or `Single Mini`. `Set/Extension` is the column that
+# ONE has no use for them — and `individual/` bears that out: no cached topper
+# for `Single Set` or `Single Mini`. `Set/Extension` is the column that
 # says so, and it is free text, so this matches on the phrase rather than on an
 # exact string. If a future single-set row words it differently it will get
 # toppers built; `tests/test_topper_corpus.py` reports the catalogue against
@@ -432,8 +432,8 @@ def ships_plain_box(row, d):
     """Does this row's cascade ship a SECOND box, without label holders, on a
     plate of its own at the end of the project? From 7.2d
     (`rev.plain_box_plate`), and only where parts.csv's `Plain box` column
-    says so — Compile's three rows (Allan, 2026-09-13). The catalogue and
-    `cad.cascade` ask it here, and this is the ONLY place the flag is asked.
+    says so — Compile's three rows. The catalogue and `cad.cascade` ask it
+    here, and this is the ONLY place the flag is asked.
 
     A column and not a game: the plain box changes nothing about the row's
     own parts, so it is a row property like `TokenHolder` and `Toppers`, read
@@ -473,10 +473,10 @@ def back_pocket_variants_built(row, d):
     the ONLY place the column and the flag are asked: the part builds any
     back at any release.
 
-    The variants REPLACE the ordinary box rather than joining it (Allan,
-    2026-09-14). `Single Mini` is used in PAIRS, and the pair wants one box
-    of each: the `open` one carries the 128 mm player aids in a pocket the
-    full inner width, the `notches` one hangs the pair's pushers. An ordinary
+    The variants REPLACE the ordinary box rather than joining it. `Single
+    Mini` is used in PAIRS, and the pair wants one box of each: the `open` one
+    carries the 128 mm player aids in a pocket the full inner width, the
+    `notches` one hangs the pair's pushers. An ordinary
     2-notch box does neither job, so it is not worth a plate. The FIRST
     entry is the box plate 1 carries — with the pushers, as always — and it
     is also the box the poster measures (`make_posters`).
@@ -738,8 +738,8 @@ def holder_key(p, extra):
     """What a holder's geometry depends on: everything in its Primary but the
     front capacity and the Mat branch, which `holder_file` carries through
     `calModelName` and the part never reads, plus its kind `(first, rear)`.
-    Two files with one key are one build — the six Mat twins, byte-identical
-    before this deduplicated them."""
+    Two files with one key are one build — the six Mat twins, which are
+    byte-identical."""
     return (p.GameName, p.HorizontalSlots, p.RisingSliders,
             p.CardsPerSlidingSlot, p.isFirstSlidingSlotOverride,
             p.FirstSlidingSlotCards, p.isSleeved, p.Version,

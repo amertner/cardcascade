@@ -54,12 +54,11 @@ OUTER_ROUND = 1.000          # every outer edge: 4 vertical, 4 top, 4 bottom
 # what differs is what its underside carries and one line of its floor text.
 
 # What the unmarked lid says where the others say the game's name. "(C)"
-# spelled out: Orbitron Bold has no `©`. The full "(C) Allan Mertner" was
-# measured first and is 45.6 wide at CAP_LINE, which crosses a pusher socket
-# on both XS lids and the staircase's top step on five 3-slot S lids; Allan
-# chose this everywhere instead (2026-09-13). 30.1 wide, and at least 12.4
-# clear of the logo block and the sockets on all 52 lids, which
-# `tests/test_revisions.py` measures.
+# spelled out: Orbitron Bold has no `©`. The full "(C) Allan Mertner" is 45.6
+# wide at CAP_LINE, which crosses a pusher socket on both XS lids and the
+# staircase's top step on five 3-slot S lids, so this short form goes on every
+# lid instead: 30.1 wide, and at least 12.4 clear of the logo block and the
+# sockets on all 52 lids, which `tests/test_revisions.py` measures.
 CREDIT = "(C) Mertner"
 
 
@@ -111,7 +110,7 @@ def socket_count(d):
     * **7.1 and after** — one socket per pusher the cascade ships, so the
       unused MIDDLE socket of those four is gone. `isOnlyTwoPusherSlots` was
       always the right variable for this, and the two parts now agree instead
-      of disagreeing (Allan, 2026-09-06).
+      of disagreeing.
 
     A REVISION CHANGE, not a divergence: a 7.0 build still reproduces the
     STEP and all 48 cached lids exactly. `cad/revisions.py` owns the flag,
@@ -134,7 +133,7 @@ def socket_centres(d):
     """Channel centre X of each socket, left to right.
 
     The FIRST one is placed and the rest step off it, which is the sketch's own
-    shape (Allan):
+    shape:
 
         first block's left edge = the left inner wall
                                   + #calSlotwidth/2 + #calSliderSpaceLeftRight/2
@@ -144,8 +143,7 @@ def socket_centres(d):
 
     That anchor is why the set is NOT centred on the lid: it leaves `35.450` at
     the left and `36.050` at the right, so its centre lands `0.300` to the left
-    of the lid's. This file carried that `-0.300` as a measured constant until
-    the sketch turned up — see spec/LID.md, "What the fit got wrong".
+    of the lid's.
 
     The SPAN is the same at either count, because it is the card slots' and not
     the sockets': at `n = 2` the step is the whole span, so the pair sits where
@@ -228,7 +226,6 @@ def socket(d, x):
 
 
 def sockets(d, part):
-    """Every socket, fused to the floor in one boolean."""
     return part.fuse(*[socket(d, x) for x in socket_centres(d)])
 
 
@@ -285,8 +282,8 @@ def closing_grooves(d, part):
 # Two blocks, both EMBOSSED — where the Box's floor text is engraved. On the
 # +X side three right-aligned lines reading up in Y; on the -X side the
 # `Card Cascade` logo, its version, and the staircase. Every expression below
-# is the part studio's own, from Allan's sketches (2026-09-02); `spec/LID.md`
-# records them and what each was checked against.
+# is the part studio's own, from Allan's sketches; `spec/LID.md` records them
+# and what each was checked against.
 TEXT_PROUD = 0.400           # calModelName, GameName, calCapacityLabel, version
 LOGO_PROUD = 0.600           # ProductName and its staircase
 CAP_MODEL = 3.000            # calModelName's cap height
@@ -295,18 +292,17 @@ LINE_GAP = 2.000             # a line's cap top to the baseline above it
 VERSION_DROP = 2.000         # ProductName's baseline to the version's cap top
 LOGO_DROP = 1.000            # + FootDistanceFromWall, to ProductName's cap top
 
-# How far the +X text block may be SCALED UP, from 7.2c (`rev.larger_lid_text`,
-# `text_scale`). The block is the same ~35 x 14 on every lid at the caps
-# above, while the room beside it runs from ~10 mm (S) to ~140 mm (L). Allan
-# asked for larger where space permits — not filling the space, which would
-# be too large sometimes — so the block grows until it is LINE_GAP from what
-# is to its left or keeps at the front wall what it keeps at the back, and
-# never past this. M and L lids reach it but the four shallowest, which the
-# front wall holds (the 35 mm deep L3.18.6.20-Un stays at 1.0); S lids come
-# to 1.0-1.37 against the Card Cascade block; XS 1.07-1.18 against the left
-# socket. 1.5 is Allan's
-# (2026-09-13): lines 5.25 cap, the model line 4.5. The Card Cascade block
-# does not scale — it is already sized to the slot width.
+# How far the +X text block may be SCALED UP, from 7.2c
+# (`rev.larger_lid_text`, `text_scale`). The block is the same ~35 x 14 on
+# every lid at the caps above, while the room beside it runs from ~10 mm (S)
+# to ~140 mm (L). Larger where space permits, but not filling the space, which
+# would be too large sometimes — so the block grows until it is LINE_GAP from
+# what is to its left or keeps at the front wall what it keeps at the back,
+# and never past this. M and L lids reach it but the four shallowest, which
+# the front wall holds (the 35 mm deep L3.18.6.20-Un stays at 1.0); S lids
+# come to 1.0-1.37 against the Card Cascade block; XS 1.07-1.18 against the
+# left socket. At 1.5 the two lines are 5.25 cap and the model line 4.5. The
+# Card Cascade block does not scale — it is already sized to the slot width.
 TEXT_SCALE_MAX = 1.500
 
 
@@ -527,7 +523,6 @@ def staircase(d, left, top):
 
 
 def floor_text(d, part, variant=TB.LID_OWN):
-    """Both blocks, fused to the floor in one boolean."""
     return part.fuse(*(text_block(d, variant) + logo_block(d)))
 
 
@@ -585,11 +580,10 @@ LOGO_WIDTH_FRACTION = 0.600
 LOGO_DEPTH_FRACTION = 0.850
 
 # And what the mark keeps clear of the outer rounds, on top of the rounds
-# themselves (Allan, 2026-09-10). The hard clamp used to be the flat floor
-# exactly, which left Dominion's `S4.16.10.32-Un` mark `0.011` from the round
-# and Compile's two `20.Un` lids `0.165` — a pocket edge landing where the
-# floor starts to curve away, so the inlay stops sitting flush and the wall
-# under it thins.
+# themselves. Clamped to the flat floor exactly, Dominion's `S4.16.10.32-Un`
+# mark lands `0.011` from the round and Compile's two `20.Un` lids `0.165` — a
+# pocket edge where the floor starts to curve away, so the inlay stops sitting
+# flush and the wall under it thins.
 LOGO_CLEAR = 0.500
 
 
@@ -759,9 +753,6 @@ def inlays(d):
     """The logo's inlay solids alone, without building the lid — the prisms
     `logo_pattern` cuts, moved down as it moves them."""
     return [q.moved(Location((0, 0, -PATTERN_PROUD))) for q in _prisms(d)]
-
-
-# --- the outer rounds ------------------------------------------------------
 
 
 def outer_edges(d, part):

@@ -189,7 +189,6 @@ for name, fn, p, first in REFS:
     check("the build stands as proud of Y=0 as the STEP does",
           round(mb.max.Y, 3), round(rb.max.Y, 3), 1e-3)
 
-    # The base is (CardHeight - 1.5)/2 below the origin on every holder.
     check("base = -(CardHeight - 1.5)/2", round(rb.min.Z, 3),
           round(holder.base_z(d), 3), 1e-3)
     check("... and the build agrees", round(mb.min.Z, 3),
@@ -604,8 +603,8 @@ for name, fn, p, first in REFS:
 # is checked on the built part alone: the Three Expansions RearHolder, whose
 # rear top rises 4 to 5 above `slant_top`. Its scallop must be centred on that
 # top line, FINGER_R deep like every other holder's, not on `slant_top`, which
-# put it that much deeper (Allan, 2026-09-13, off the print). Sampled at the
-# Y = 0 wall's mid-depth, where the true circle survives the modelled fillet.
+# put it that much deeper (measured off the print). Sampled at the Y = 0
+# wall's mid-depth, where the true circle survives the modelled fillet.
 print("\n=== deep holder at the back: the scallop ===")
 d8 = D.derive(row_params("Three Expansions", 0))
 check("the row puts its deep slot at the back", holder.deep_at_back(d8, True), True)

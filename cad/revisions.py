@@ -34,11 +34,11 @@ its own `since`, not a hole in this table.
 
 ## An unreleased release is iterated by LETTER
 
-`7.1a`, `7.1b`, `7.1c`, ... and then plain `7.1` at the lock (Allan,
-2026-09-08). The letter exists so that two parts printed from the SAME
-unreleased release can be told apart on the shelf: while 7.1 is being worked
-on, its geometry moves, and a shelf full of parts all stamped `CC 7.1` cannot
-say which of them is which.
+`7.1a`, `7.1b`, `7.1c`, ... and then plain `7.1` at the lock. The letter
+exists so that two parts printed from the SAME unreleased release can be told
+apart on the shelf: while a release is being worked on, its geometry moves,
+and a shelf full of parts all stamped `CC 7.1` cannot say which of them is
+which.
 
 So **a letter is a release like any other** — a full member of `RELEASES`, with
 its own position, its own `SAME_LOCK` entry and its own stamp signature — and
@@ -48,25 +48,19 @@ and the part stamped with it stays reproducible. A letter that were only a
 build marker, with the flags still keyed on `7.1`, would let two different
 geometries wear the same stamp, which is the thing this is here to stop.
 
-**Bumping.** A design change to a release not yet locked opens its next letter
-— after the 7.1 lock, that is `7.2a`: add it to
-`RELEASES` and `lock.SAME_LOCK`, move `CURRENT` on, give the new flag
-`since: "<the new letter>"`, and leave the earlier letters' flags alone —
-monotonicity carries them forward. Nothing is rebuilt in place; the earlier
+**Bumping.** A design change to a release not yet locked opens its next
+letter: add it to `RELEASES` and `lock.SAME_LOCK`, move `CURRENT` on, give the
+new flag `since: "<the new letter>"`, and leave the earlier letters' flags
+alone — monotonicity carries them forward. Nothing is rebuilt in place; the earlier
 letter is frozen, which is exactly what a version stamped on plastic has to be.
 
-**At the lock**, plain `7.1` joins the END of the line and becomes `CURRENT`.
-The letters STAY on it: parts printed at `7.1b` exist, and this repo's rule is
-that a version you can hold must remain describable and buildable. `7.1` sits
-after them all, so it carries every flag they introduced.
-
-**7.1 was locked on 2026-09-10** and this is what it looks like: `RELEASES`
-ends `..., "7.1d", "7.1"`, `CURRENT` is `7.1`, `lock.SAME_LOCK` admits it, and
-not one flag's `since` moved — they still name the letter each change shipped
-in, which is what keeps the letters meaning something and what
-`tests/test_revisions.py` isolates them by. The next change opens `7.2a`, not
-`7.1e`: `7.1` is on the line now, so a change after it is a change after the
-release.
+**At the lock**, the plain release joins the END of the line and becomes
+`CURRENT`. The letters STAY on it: parts printed at `7.1b` exist, and this
+repo's rule is that a version you can hold must remain describable and
+buildable. The plain release sits after them all, so it carries every flag
+they introduced, and not one flag's `since` moves — they still name the letter
+each change shipped in, which is what `tests/test_revisions.py` isolates them
+by. The next change after a lock opens the next release's first letter.
 """
 from dataclasses import dataclass, field, fields
 
@@ -76,46 +70,12 @@ from .refuse import refuse
 # defaults to; an older one is still buildable and is what every reference
 # STEP and cached mesh in `individual/` is compared against.
 #
-# `7.1a` .. `7.1d` were 7.1 being ITERATED, and the LETTER was the point (Allan,
-# 2026-09-08): see "An unreleased release is iterated by LETTER" below.
-#
-# **7.1 is LOCKED** (Allan, 2026-09-10) and sits at the END of its letters, which
-# is what the lock means: the line is ordered, a flag is on from its `since`
-# onward, so the last release carries every change the letters introduced and
-# `7.1` is `7.1d`'s geometry under a `CC 7.1` stamp. The letters STAY, and are
-# not renamed or removed: a version that has been built has to remain
+# A LETTER is a release being iterated; the plain release sits at the END of
+# its letters and so carries every flag they introduced. Letters are never
+# renamed or removed — a version that has been printed has to remain
 # describable and buildable, and each of them is still only the flags at or
-# before its own letter.
-#
-# **7.2a** (Allan, 2026-09-11) was the first letter after the 7.1 lock. The
-# `low_profile` change it was opened for was withdrawn on 2026-09-13 before
-# the line moved on (`spec/REVISIONS.md`); its one flag is `rear_holder`, and
-# it is where the `Three Expansions` row and its ROW options (`Deep slot`,
-# `Sleeved card width`, `Toppers`) arrived — a row option is not a release
-# change. **7.2b** (Allan, 2026-09-13) added `unmarked_lid`, **7.2c** (the
-# same day) `larger_lid_text`, **7.2d** (the same day again)
-# `plain_box_plate`, **7.2e** (the same day still) `seated_lips`, **7.2f**
-# (2026-09-14) `ribs_forward` and `shorter_box`, PROTOTYPES for a print test
-# (`cad.testkit`), and **7.2g** (2026-09-14) `unsleeved_card_width` and
-# `back_pocket_variants`, both of them row options that only `Single Mini`
-# takes.
-#
-# **8.0 was LOCKED on 2026-09-14** and sits at the END of the line, after the
-# seven `7.2x` letters that made it, which is what a lock means: the line is
-# ordered, a flag is on from its `since` onward, so `8.0` is `7.2g`'s geometry
-# under a `CC 8.0` stamp. The letters STAY and are not renamed — a version
-# that has been printed has to remain describable and buildable — and not one
-# flag's `since` moved. `cascades/` is the 8.0 release; `build/` is 8.0. The
-# next design change opens `8.1a`, not `8.0a`: `8.0` is on the line now.
-#
-# **It is the MAJOR number because the parts stopped fitting** (Allan,
-# 2026-09-14). The lock was made as `7.2` earlier the same day and renamed
-# before anything was printed at it: `7.2f`'s `shorter_box` takes 1.400 of
-# depth out of every box and lid in the catalogue, so a lid from this release
-# does not close a 7.1 box and a 7.1 lid does not close one of these. A minor
-# number said those were interchangeable. Plain `7.2` is therefore NOT on the
-# line — it names nothing that was ever built — while `7.2a`..`7.2g` are,
-# because parts were printed at them while the release was being worked out.
+# before its own letter. See "An unreleased release is iterated by LETTER"
+# below, and `spec/REVISIONS.md` for what each one changed.
 RELEASES = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
             "7.2d", "7.2e", "7.2f", "7.2g", "8.0")
 CURRENT = "8.0"
@@ -377,12 +337,12 @@ class Rev:
     })
 
 
-# A version is a STRING and not a number (Allan, 2026-09-06). It is usually
-# short and usually looks numeric — `7.0`, `7.1` — but it may be `7.1.1` or
-# `7.1B` or anything else short enough to engrave, so NOTHING here parses it.
-# The order of a release is its position in `RELEASES`, which is the only
-# place the line's order is stated; a version that is not on the line has no
-# position and no flags.
+# A version is a STRING and not a number. It is usually short and usually
+# looks numeric — `7.0`, `7.1` — but it may be `7.1.1` or `7.1B` or anything
+# else short enough to engrave, so NOTHING here parses it. The order of a
+# release is its position in `RELEASES`, which is the only place the line's
+# order is stated; a version that is not on the line has no position and no
+# flags.
 #
 # One consequence, recorded because it is easy to trip over: the engraved
 # stamp reader reads `digit . digit`, and a trailing mark after it only where
