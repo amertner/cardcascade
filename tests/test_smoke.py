@@ -60,7 +60,7 @@ def run(label, *cmd):
 
 # The assembly is made here if it is missing — a fresh clone has no
 # build/assemblies/, and a test that needs one should not wait for a hand to
-# run cad.assemble first (found on the first run on a second machine).
+# run cad.assemble first.
 if not ASSEMBLY.exists() and BOX.exists():
     print("=== the assembly this needs, made first ===")
     run("cad.assemble --state closed-lid", PY, "-m", "cad.assemble", "--model",

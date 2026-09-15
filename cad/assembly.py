@@ -59,7 +59,6 @@ class Place:
         self.y_dir = _cross(z_dir, x_dir)
 
     def __call__(self, p):
-        """Place one point."""
         x, y, z = p
         return tuple(self.origin[i] + x * self.x_dir[i] + y * self.y_dir[i]
                      + z * self.z_dir[i] for i in range(3))
@@ -196,8 +195,7 @@ def holders(d):
 
 def rear_of(d, j):
     """Is riser `j` the RearHolder — the rearmost, built without rear lips
-    (`rev.rear_holder`, 7.2a)? Riser 0 is the back one. Before the flag no
-    riser is: every holder has lips."""
+    (`rev.rear_holder`)? Riser 0 is the back one."""
     return bool(d.rev.rear_holder) and j == 0
 
 
@@ -325,10 +323,10 @@ def lid_closed(d):
 
     **Y is used**, and which way up each game's mark then reads is settled by
     a PRINTED lid, not by this placement or a render of it: renders argued
-    Dominion's drawing turned on 2026-09-04, and a printed Dominion lid turned
-    it back on 2026-09-11. A printed Innovation lid put that game's mark in
-    turned the same day (`tables.LID_LOGO_TURNED`); Compile and FCM are open
-    until a lid of each is printed. `spec/ASSEMBLY.md` records it.
+    Dominion's drawing turned and a printed Dominion lid turned it back. A
+    printed Innovation lid put that game's mark in turned
+    (`tables.LID_LOGO_TURNED`); Compile and FCM are open until a lid of each
+    is printed. `spec/ASSEMBLY.md` records it.
 
     The `WallThickness` in the placement is the LID's OWN floor, which stays
     1.600 at every release — the box's is `box.floor_top` and from 7.1 they are
@@ -530,11 +528,9 @@ def topper(d, j, first=False):
       That is what lands the slant: the topper's slant meets the holder's at
       **0.000000** on all four Innovation parameter sets, at BOTH ends of it.
 
-    The earlier version of this fitted the height by resting the part on the
-    cards, first at the label face and then at the plate's underside, and both
-    were wrong — by 0.100 and by 1.300. The part does not rest on the cards at
-    all; it rests on the slant. Fitting a placement that a construction already
-    determines is the mistake `spec/LID.md` records twice, made a third time.
+    The part does not rest on the cards at all; it rests on the slant.
+    Fitting a placement that a construction already determines is the mistake
+    `spec/LID.md` records twice.
     """
     from .parts import topper as topper_part
     depth = holder_part.holder_depth(d, first)
@@ -561,12 +557,11 @@ def topper_play(d, j, first=False):
 # expansion. Nothing here reaches a part.
 #
 # An Innovation expansion is twelve sets of cards, numbered 0 to 11: sets 0
-# and 1 of 16 cards, the rest of 10 (Allan, 2026-09-11). A cascade holds as
-# many expansions as it has slots for, twelve a set, counting the front
-# pockets and every riser slot.
+# and 1 of 16 cards, the rest of 10. A cascade holds as many expansions as it
+# has slots for, twelve a set, counting the front pockets and every riser slot.
 #
 # The fill has to be READABLE, because a slot that has run out of cards has
-# to say what it held (Allan): **an expansion owns a column.** Its sets run
+# to say what it held: **an expansion owns a column.** Its sets run
 # down that column front to back — 0 in the front pocket, 1 in the first
 # riser, which are the two deep slots a column has, then 2, 3, ... to the
 # back — and whatever does not fit continues down the columns no expansion
@@ -577,10 +572,10 @@ def topper_play(d, j, first=False):
 # larger than its slot is cut to the slot: a 16 in a 15-card pocket shows 15.
 #
 # Set 0 is not an age: it is the expansion's achievements and player aids,
-# wanted once at setup (Allan, 2026-09-12), so it is lettered `A` rather than
-# numbered, and on a row whose deep slot is at the BACK (`isDeepSlotAtBack`)
-# it goes there — the least stable riser, used least — with 1 to 8 then
-# running from the front pocket back.
+# wanted once at setup, so it is lettered `A` rather than numbered, and on a
+# row whose deep slot is at the BACK (`isDeepSlotAtBack`) it goes there — the
+# least stable riser, used least — with 1 to 8 then running from the front
+# pocket back.
 CARD_SETS = (16, 16) + (10,) * 10
 CARD_SET_LABELS = {0: "A"}
 
@@ -591,7 +586,7 @@ def card_set_label(n):
 INNOVATION_SETS = ("Innovation", "Artifacts", "Cities", "Echoes",
                    "Figures", "Unseen")
 # `CardHeight` (92) is the studio's envelope and what a SLEEVED card measures;
-# an unsleeved Innovation card is 89 (Allan). Other games' unsleeved cards are
+# an unsleeved Innovation card is 89. Other games' unsleeved cards are
 # taken as the sleeve's worth shorter, which is a render-only guess.
 UNSLEEVED_CARD_HEIGHT = {"Innovation": 89.0}
 SLEEVE_HEIGHT = 3.0

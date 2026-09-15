@@ -95,7 +95,7 @@ def load_logo(path):
     has it, otherwise a white background knocked out."""
     im = Image.open(path).convert("RGBA")
     alpha = im.getchannel("A")
-    if alpha.getextrema()[0] < 250:                 # native transparency
+    if alpha.getextrema()[0] < 250:
         return im.crop(alpha.getbbox())
     grey = im.convert("L")
     alpha = grey.point(lambda v: max(0, min(255, (250 - v) * 4)))
@@ -121,7 +121,6 @@ def wordmark(d, x, y, s=1.0):
         bx = x + i * step
         d.rounded_rectangle([bx, y + bs - bh, bx + step * 0.72, y + bs],
                             radius=int(6 * s), fill=BAR)
-    # two stacked lines of Orbitron, block ~ as tall as the tallest bar
     tx = x + bs + int(24 * s)
     caph = bs * 0.44
     f = cap_scale(caph)

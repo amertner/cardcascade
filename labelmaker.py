@@ -114,9 +114,8 @@ BIG_CAPS = {156.4: 9.0}
 # the lowered layout at ANY width — on a 45 mm side label three expansion
 # names only reach a legible size dropped beside the logo. On a side-width
 # plate a parts= label's ", " list is stacked one name a line as well
-# (set_plate_specs): Allan's choice from a sheet of five layouts
-# (2026-09-13) — the front carries the first name over the other two, the
-# sides all three stacked, which reads 3.6 mm on the 62 against 3.4 for
+# (set_plate_specs): the front carries the first name over the other two,
+# the sides all three stacked, which reads 3.6 mm on the 62 against 3.4 for
 # two lines and 2.6 for one.
 LINE_BREAK = " / "
 LINE_GAP = 0.45
@@ -136,8 +135,8 @@ BOTTOM_CLEARANCE = 2.0
 FONT_FILE = "Orbitron-Bold.ttf"
 CONFIG_FILE = "cc.cfg"       # set/box configuration (see read_config_file)
 
-BASE_COLOR = Color(1.0, 1.0, 1.0)    # white
-RAISED_COLOR = Color(0.0, 0.0, 0.0)  # black
+BASE_COLOR = Color(1.0, 1.0, 1.0)
+RAISED_COLOR = Color(0.0, 0.0, 0.0)
 
 # Mesh tessellation (mm). 0.01 is invisible at print scale and keeps the
 # combined multi-plate file to a manageable size.
@@ -475,10 +474,10 @@ def staircase(size: float, steps: int) -> Polygon:
     left-to-right, exactly as in the original label. Points listed
     counter-clockwise so the face normal is +Z (extrudes upward)."""
     s = size / steps
-    pts = [(0.0, 0.0), (size, 0.0)]            # bottom edge, left to right
-    for i in range(steps):                     # up the staircase, right to left
+    pts = [(0.0, 0.0), (size, 0.0)]
+    for i in range(steps):
         x, y = size - i * s, i * s
-        pts += [(x, y + s), (x - s, y + s)]    # riser up, then tread left
+        pts += [(x, y + s), (x - s, y + s)]
     return Polygon(*pts, align=None)
 
 
@@ -793,35 +792,18 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
     height = LABEL_HEIGHT
     z_top = Vector(0, 0, BASE_THICKNESS)
 
-    # base plate: rectangle extruded with a 45-degree inward taper (chamfer)
     base = extrude(Rectangle(width, height, align=(Align.MIN, Align.MIN)),
                    amount=BASE_THICKNESS, taper=TAPER)
 
-    # staircase logo, bottom-left corner
     logo = staircase(LOGO_SIZE, LOGO_STEPS).translate(Vector(MARGIN, MARGIN, 0))
     raised = extrude(logo.translate(z_top), amount=RAISE_LOGO)
 
-    # "cc" mark, bottom-right corner, bottom-aligned with the logo
     cc = scale(font.render("cc"), by=CC_XHEIGHT / font.xheight)
     bb = cc.bounding_box()
     cc_left = width - MARGIN - bb.size.X
     cc = cc.translate(Vector(width - MARGIN - bb.max.X, MARGIN - bb.min.Y, 0))
     raised += extrude(cc.translate(z_top), amount=RAISE_LOGO)
 
-    # expansion name, centred horizontally, in one of two layouts:
-    #   standard  the text box runs from the logo's left to the cc's right
-    #             edge, from 2 mm above the logo to 3 mm below the top edge;
-    #             the text stands on the box floor at the standard capital
-    #             height for this width (caps), shrunk when the name is
-    #             too long for the box
-    #   lowered   wide labels only (BIG_CAPS): the text drops beside the
-    #             logo and the cc — so it must fit in the gap between them —
-    #             and grows to BIG_CAPS, sitting on a baseline low enough
-    #             for its descenders to clear the bottom margin
-    # The lowered layout is used whenever it renders the name larger. A
-    # box number set apart from the name goes below it (number_below). A
-    # name of several lines (LINE_BREAK) is stacked and fitted as one
-    # block: fit_text.
     if art is not None:
         for shape in art_placement(art, number, font, width, height, cc_left):
             raised += extrude(shape.translate(z_top), amount=RAISE_TEXT)

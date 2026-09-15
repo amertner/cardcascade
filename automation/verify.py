@@ -360,7 +360,6 @@ def pusher_tabs(data, grid=80):
         return sum((u1 - u0) * (w1 - w0)
                    for u0, u1, w0, w1, _ in _loops(_section(verts, tris, axis, at)))
 
-    # The tab face is the one whose near-surface section is the smaller.
     top = hi if area(hi - 0.2) < area(lo + 0.2) else lo
     sign = 1 if top == hi else -1
     tabs = _loops(_section(verts, tris, axis, top - sign * 0.2))
@@ -676,9 +675,7 @@ def _orientations(marks):
 
     All four must be ROTATIONS. A transpose `(u, w) -> (w, u)` looks like it
     turns the page and is a reflection: it lands the baseline in the right place
-    but reads the line backwards, so `7.0` comes out `0.7`. That went unnoticed
-    while every rotated stamp read `6.6`, which is a palindrome; the first box
-    re-exported at 7.0 failed to read at all."""
+    but reads the line backwards, so `7.0` comes out `0.7`."""
     yield marks
     yield [(-m[1], -m[0], -m[3], -m[2]) for m in marks]           # 180
     yield [(m[2], m[3], -m[1], -m[0]) for m in marks]             # +90
@@ -999,10 +996,7 @@ def pusher_rise(data, risers):
     # A step is a DISCONTINUITY in the plate's width along the rise: a riser
     # face drops it by a whole slider distance (4.800 at the least) between
     # two adjacent samples 0.1 apart, where a step's corner chamfer moves it
-    # a tenth of that. It used to be read by quantising the width to equal
-    # drops, which loses edges once a first-riser override's odd drop has
-    # drifted the sum past the tolerance — three steps in on an 8-riser
-    # pusher with the deep drop LAST (`Deep slot = back`, 2026-09-12).
+    # a tenth of that.
     STEP = 2.0
     edges, last = [], None
     for j in range(900):
@@ -1126,10 +1120,6 @@ def audit_box_slots(root):
           f"components.pushers_for.")
     return bad
 
-
-# ---------------------------------------------------------------------------
-# CLI: audit every Pusher on disk
-# ---------------------------------------------------------------------------
 
 def audit_pushers(root, verbose=False):
     """Print a lock line for every exported Pusher under `root`, and return the

@@ -54,7 +54,7 @@ DEFAULT_OUT = ROOT / "build" / "components"
 def built_name(item, d):
     """The `build/` filename for one planner component, or None for a kind
     `cad/` does not make (a `Label`, which the planner only lists under
-    `--labels` and which `labelmaker.py` has made locally since 2026-08-15)."""
+    `--labels` and which `labelmaker.py` makes locally)."""
     kind = item["type"]
     if kind == "Box":
         return B.box_file(d)

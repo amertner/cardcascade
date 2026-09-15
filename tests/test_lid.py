@@ -419,9 +419,8 @@ for name, fn, P in REFS:
         # B-splines and lands at 0.09 %.
         check("inlay volume", round(mv, 3), round(rv, 3), rv * 1e-3)
         # ORIENTATION, asserted from both ends. Printed 7.1 lids settled it
-        # (Allan, 2026-09-11; spec/LID.md): Dominion's drawing is right as
-        # Onshape drew it — its 2026-09-04 turn is undone — and Innovation's
-        # mark goes in a half turn about the lid's centre
+        # (spec/LID.md): Dominion's drawing is right as Onshape drew it, and
+        # Innovation's mark goes in a half turn about the lid's centre
         # (`TB.LID_LOGO_TURNED`). So a turned game's build must be the
         # reference turned and NOT the reference as it stands, and every other
         # game's the reverse, so a half turn cannot come or go unseen. Volume
@@ -630,12 +629,12 @@ for n, ref in ((1.0, "lid_logo_plain.dxf"), (1.6, "lid_logo_plain_big.dxf")):
     check(f"n={n}: worst region edge", round(worst, 3), 0.0, 0.12)
     print(f"       worst region edge {worst:.4f} mm over {len(b)} regions")
 
-# WHERE it sits is `cad/` policy and, from 2026-09-10, a deliberate
-# divergence from the crop — asserted from both ends, as every divergence in
-# this repo is. The crop is BOX-centred (`make_lid_logo_dxf --recentre` puts
-# it back on the full mark's own centre); the build is WORD-centred, because
-# the ring stands above the cap height and the star above that while
-# `Innovation` has no descender, so a box datum lands the word low on the lid.
+# WHERE it sits is `cad/` policy and a deliberate divergence from the crop —
+# asserted from both ends, as every divergence in this repo is. The crop is
+# BOX-centred (`make_lid_logo_dxf --recentre` puts it back on the full mark's
+# own centre); the build is WORD-centred, because the ring stands above the
+# cap height and the star above that while `Innovation` has no descender, so
+# a box datum lands the word low on the lid.
 # Allan, with the lid on screen: "a little bit low". `marks._centre`.
 for n, want in ((1.0, 1.493), (1.6, 2.209)):
     built = Compound(children=list(

@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """One-slot cascades for PRINTING a prototype release change before the
-catalogue moves — the 7.2f `ribs_forward` test (Allan, 2026-09-14).
+catalogue moves — the 7.2f `ribs_forward` test.
 
     .venv/bin/python -m cad.testkit              # every kit, to build/testkits/
     .venv/bin/python -m cad.testkit --kit A
 
 A kit is a real cascade at HorizontalSlots 1 with two or three risers, built
 from the same part modules as the catalogue at `CURRENT`, so what it proves
-is what the catalogue would print — cut down to what the lips need (Allan,
-2026-09-14: no lattice windows, they cost print time; and not the full
-height). It ships:
+is what the catalogue would print — cut down to what the lips need: no lattice
+windows, they cost print time, and not the full height. It ships:
 
 * the **Box** without label holders or lattice, SLICED: everything from
   `FLOOR_Z` up, standing on its own real floor — the box's floor with its

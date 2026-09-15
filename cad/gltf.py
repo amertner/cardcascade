@@ -31,7 +31,7 @@ object-extruder 2 with a `Lid Body` sub-part explicitly on 1, so its 30 logo
 regions inherit 2; each labelled `Topper` is the same shape, body on 1 and its
 lettering inheriting 2; and Box, Holders, Pushers and the blank Topper are
 single parts on 1. Reading the object-level extruder alone gets the Lid exactly
-backwards, which is what a first version of this file did.
+backwards.
 
 Allan: "I sometimes change the filament for the lid and labels, so make that an
 option. I tend to make the boxes white, though the shade might differ." That is

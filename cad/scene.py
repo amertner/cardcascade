@@ -44,7 +44,6 @@ class Refused(Exception):
     pass
 
 
-# ---------- the spec ----------
 def load_spec(path=SPEC):
     with open(path) as f:
         return json.load(f)
@@ -71,7 +70,6 @@ def _row_keys(row, d):
     return keys
 
 
-# ---------- colours ----------
 def luminance(hex_colour):
     r, g, b = (int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -109,7 +107,6 @@ def scene_colours(lid, stacks):
     return parts
 
 
-# ---------- the card plan ----------
 def slots_row_major(d):
     """Every card slot front row first, left to right: how a photographed
     cascade reads. `assembly.card_slots` is column-major."""
@@ -212,7 +209,6 @@ def label_text(rs, row, d):
     return first if first and len(first) < 24 else game
 
 
-# ---------- geometry ----------
 def label_shapes(rs, row, d):
     """`[(name, shape)]` for the front label, in the cascade frame."""
     import labelmaker as LM

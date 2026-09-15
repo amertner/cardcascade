@@ -58,8 +58,8 @@ POCKET_TRIM = 3.500                       # pocket height = CardHeight - 3.5
 
 # Each end stands this far beyond the outer slot edge: 4.000 of end block (which
 # carries the side slot the box's rib runs in) plus 0.900 to the compartment
-# wall. Measured 9.800 overall on all ten references. The studio used to say
-# 5.000; 30 of the 50 cached components still do (spec/HOLDER.md).
+# wall. Measured 9.800 overall on all ten references; 30 of the 50 cached
+# components still say 5.000 (spec/HOLDER.md).
 END_EXTRA = 4.900
 END_BLOCK = 4.000
 
@@ -71,10 +71,10 @@ DEPTH_GAP = 0.400                         # depth = sliderDistance - DEPTH_GAP
 # the top of the card pocket. The slope is the cascade diagonal — see
 # `slant_slope` — and `cad/parts/box.lip_slope` is its reciprocal.
 #
-# SLANT_STEP is `#LipHeight`, a constant 2.000 (Allan). It was measured here as
-# the separation of the two planes before the variable was known, and the two
-# agree — which is the only confirmation either has. Its whole purpose is the
-# rear lip, whose section is the band between them.
+# SLANT_STEP is `#LipHeight`, a constant 2.000, and it is also the measured
+# separation of the two planes — the two agree, which is the only confirmation
+# either has. Its whole purpose is the rear lip, whose section is the band
+# between them.
 SLANT_STEP = 2.000         # `#LipHeight`
 
 
@@ -117,11 +117,8 @@ def slider_distance(d, first):
     is the only evidence that could tell these apart — everywhere else the two
     are equal — and it settles both the depth and the slant.
 
-    Nothing game- or row-specific is read. It nearly was: Compile's `210 Card`
-    was 12 cards deep where its own row and its own sibling row both said 7,
-    which looked like a per-game or per-row term. It was a mis-configured export — re-exported, it lands on
-    this rule to the thousandth under both card thicknesses. Nothing is
-    special-cased, and there is nothing here left for the game to change.
+    Nothing game- or row-specific is read, nothing is special-cased, and there
+    is nothing here left for the game to change.
     """
     return d.calFirstSliderDistance if first else d.calSliderDistance
 
@@ -156,8 +153,8 @@ def x_span(d):
 def deep_at_back(d, first):
     """Is this the deeper first-riser holder of a row that puts it at the
     BACK (`Deep slot = back`, `derive.isDeepSlotAtBack`)? Three things differ
-    there (Allan, 2026-09-13, off the first print): it carries NO rear lips —
-    nothing stands behind it to hook, only the box's back wall, 0.950 away,
+    there (off the first print): it carries NO rear lips — nothing stands
+    behind it to hook, only the box's back wall, 0.950 away,
     which the lips of a shallow slant reach past; its top runs at the PLAIN
     holders' slant, anchored at the front edge, where the holder in front
     rests its lips, so its rear rises instead; and its thumb scallop is
@@ -246,10 +243,9 @@ def compartment_x(d):
 
 
 # `Card holder bottom` drops the pocket's floor FLOOR_DROP below the sketch
-# datum. It is invisible to a probe coarser than 0.200 — an earlier check at
-# -43.750 and -42.750 straddled it and concluded the feature needed no code —
-# and shows in the diff as one lump per compartment, exactly the pocket's
-# footprint by 0.200: 63.400 * 7.600 * 0.200 = 96.368 on `246`.
+# datum. It is invisible to a probe coarser than 0.200, and shows in the diff
+# as one lump per compartment, exactly the pocket's footprint by 0.200:
+# 63.400 * 7.600 * 0.200 = 96.368 on `246`.
 #
 # The `Hole outline` sketch is still measured from the UNDROPPED datum, which is
 # what keeps its 2.000 inset landing on -41.250; `pocket_z` therefore returns
@@ -302,7 +298,7 @@ def card_pockets(d, first, part):
 # anyone sized. `LIP_LEN` below is the same variable doing its actual job on
 # the rear lip and it does NOT move; from 7.1c these two part company, which
 # is why the window has a name of its own here.
-WINDOW_W = 10.000          # 7.0: `#LipLength`, a constant (Allan)
+WINDOW_W = 10.000          # 7.0: `#LipLength`, a constant
 RAIL = 2.000               # between the window rows
 ROWS = 3
 COLS = 5
@@ -424,14 +420,13 @@ def finger_tool(depth):
 
 
 def finger_cutouts(d, first, part):
-    """Cut the finger scallops through the full depth."""
     depth = holder_depth(d, first)
     tool = finger_tool(depth)
     # Centred on the Y = 0 wall's OWN top line: `slant_rear`, which is
     # `slant_top` on every holder but the deep one at the back, whose rear
     # rises 4 to 5. Centred on `slant_top` there, the cut ran that much deeper
-    # than FINGER_R into that wall on the two M8.16 rows (Allan, 2026-09-13,
-    # off the print: the cutout sat below the top line).
+    # than FINGER_R into that wall on the two M8.16 rows (off the print: the
+    # cutout sat below the top line).
     return part.cut(*[tool.moved(Location((x, 0.0, slant_rear(d, first))))
                       for x in compartment_x(d)])
 
@@ -502,7 +497,6 @@ def mouth_flare(d, first):
 
 
 def side_slots(d, first, part):
-    """Cut the two end grooves, and flare the mouth of each."""
     x0, x1 = x_span(d)
     depth = holder_depth(d, first)
     z0 = base_z(d)
@@ -667,7 +661,7 @@ def rear_lips(d, first, part, rear=False):
 # stops changing once the sweep passes ~20, so anything longer is the same
 # cut. 200 clears the tallest holder's diagonal from any start.
 LIP_REST_THROUGH = 200.0
-REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees (Allan) — see `lip_rests`; 7.0 to 7.2d
+REST_CHAMFER = 1.500   # `Chamfer lip rest`, 45 degrees — see `lip_rests`; 7.0 to 7.2d
 # From 7.2e: the rest is the lip's BASE plus this a side, and the lip's band
 # plus this deep, so the tread carries the holder and the lip floats this much
 # above the rest's floor — and still fits with the holder anywhere in the
@@ -708,12 +702,10 @@ def lip_rests(d, first, part):
 
     The section is the lip's OWN LENGTH by SLANT_STEP — `LIP_LEN` wide, 10.000,
     with no chamfer allowance and no clearance — extruded along the slant. That
-    is settled by the rollback `Holder S9.21.10.62-Sl after Lip Rest.step`
-    (2026-09-04): a 10.000 rectangle reproduces Onshape's unchamfered cut over
-    the whole rest region to 0.000 mm3 either way, where the 12.400 base width
-    this used to carry over-cuts by 1.592 and 14.800 by 3.185. The three
-    earlier readings spec/HOLDER.md records tried the base and the tip and
-    never the length itself.
+    is settled by the rollback `Holder S9.21.10.62-Sl after Lip Rest.step`:
+    a 10.000 rectangle reproduces Onshape's unchamfered cut over the whole
+    rest region to 0.000 mm3 either way, where a 12.400 base width over-cuts
+    by 1.592 and 14.800 by 3.185.
 
     `Chamfer lip rest` then WIDENS the mouth: `Holder ... after Chamfer lip
     rest.step` removes 1.143 mm3 per rest, two slivers a `REST_CHAMFER` wide
@@ -725,10 +717,7 @@ def lip_rests(d, first, part):
     9.923 and leaves 0.173). Read as a 45-degree chamfer of the two mouth
     edges, which run along the oblique sweep: in the plane normal to that
     sweep the chamfer is a true 45 degrees, and its trace on the vertical
-    section leans by the section's height times the slant's cosine. The hexagon
-    that stood here (chamfers narrowing the tool on the lower pair) was the
-    best of four readings against the ten references' bands and left 0.37
-    mm3 on this one; it was the right dialog and the wrong edges.
+    section leans by the section's height times the slant's cosine.
 
     An OBLIQUE prism, not a right one: the section lies in the plane Y = 0 and
     is extruded ALONG the slant, which is not its normal, so every
@@ -817,7 +806,7 @@ def text_size(d, first):
     long the strings are, and Onshape can only constrain a text box in one
     dimension, so on a short or a deep holder the two blocks collide: on
     `FirstHolder 246` they fuse into bars 46 and 62 mm wide, 5.8x the ink of a
-    legible one, and run off the end of the part. Allan asked for that fixed.
+    legible one, and run off the end of the part.
 
     So the size is the LESSER of Onshape's and one that makes both blocks fit
     between their insets. That changes only what was broken — on all five
@@ -890,7 +879,6 @@ def engraving(d, first):
 
 
 def bottom_text(d, first, part):
-    """Cut both blocks into the underside, in one boolean."""
     return part.cut(*engraving(d, first))
 
 

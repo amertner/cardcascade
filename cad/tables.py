@@ -76,8 +76,8 @@ LID_LOGO = {
 
 # The games whose mark goes into the lid TURNED a half turn about the lid's
 # centre (`lid.logo_art`), every edition and size of it. Innovation, because a
-# printed 7.1 lid read upside down (Allan, 2026-09-11) — the same finding that
-# turned Dominion's drawing back the same day (`spec/LID.md`).
+# printed lid read upside down — the same finding that turned Dominion's
+# drawing back (`spec/LID.md`).
 #
 # A set here and not a turned file because Innovation's marks are GENERATED:
 # there is no drawing to turn, and `cad/marks.py` stays in the frame of the
@@ -92,8 +92,8 @@ LID_LOGO_TURNED = frozenset({"Innovation"})
 # sets the box holds and not about any dimension.
 #
 # Innovation is the one game with two: the Ultimate mark says "Innovation
-# Ultimate", and the two cascades that hold a single set say just "Innovation"
-# (Allan). Anything not listed gets the game's default mark, `None`.
+# Ultimate", and the two cascades that hold a single set say just
+# "Innovation". Anything not listed gets the game's default mark, `None`.
 LID_LOGO_EDITION = {
     "Innovation": {"S3.15.10": "plain", "XS5.15.10": "plain"},
 }
@@ -103,8 +103,8 @@ LID_LOGO_EDITION = {
 # part because `build.py` and `project.py` name a variant without loading
 # build123d (`cad/lazy.py`); `build.lid_variants_built` says which a release
 # ships, `lid_file` and `project.object_name` what each is called.
-LID_OWN = "own"              # the cascade's mark and its game's name — every
-#                              lid before 7.1d, and the first lid of every project
+LID_OWN = "own"              # the cascade's mark and its game's name — the
+#                              first lid of every project
 LID_ALTERNATE = "alternate"  # the game's other edition of the mark, from 7.1d
 #                              (`rev.both_lid_editions`, `spec/LID.md`)
 LID_UNMARKED = "unmarked"    # no mark, and `lid.CREDIT` where the game's name
@@ -146,17 +146,16 @@ def lid_editions(game, model):
 
     A cascade that carries its game's default mark ships that alone, and that
     is 46 of the 50. One that carries another edition ships the default TOO,
-    on a plate of its own, so its owner prints whichever the shelf should read
-    (Allan, 2026-09-10): Innovation's two single-set cascades say just
-    `Innovation` and get an `Innovation Ultimate` lid beside it.
+    on a plate of its own, so its owner prints whichever the shelf should
+    read: Innovation's two single-set cascades say just `Innovation` and get
+    an `Innovation Ultimate` lid beside it.
 
     `model` is `calModelName`, keyed on up to its third dot exactly as
     `LID_LOGO_EDITION` is — this is a question about which SETS the box holds
     and not about any dimension.
 
     The second is what `rev.both_lid_editions` admits, and it is the flag and
-    not this function that a release turns on: every caller before 7.1d takes
-    `[0]` alone.
+    not this function that a release turns on.
     """
     own = (LID_LOGO_EDITION.get(game) or {}).get(".".join(model.split(".")[:3]))
     return (own,) if own is None else (own, None)

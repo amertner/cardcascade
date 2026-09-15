@@ -156,8 +156,6 @@ def build(d, text=True):
             Box(L.TAB_L, L.TAB_W, L.TAB_PROUD,
                 align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.ADD)
 
-        # The engraving: two Orbitron lines along the rise and the Open Sans
-        # detail line down the depth.
         for cut in cuts:
             add(cut, mode=Mode.SUBTRACT)
     return pusher.part

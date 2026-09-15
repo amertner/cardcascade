@@ -16,8 +16,8 @@ to put roughly Onshape's triangle count on a pusher (10286 against 9984), so the
 sampling checks in `verify.py` — which probe sections on an 80x80 lattice — see
 the same density they were tuned on. NB `TOLERANCE` is a RELATIVE deflection —
 a fraction of each edge's own size, which is how build123d's `Shape.mesh`
-calls OCCT — and not 0.01 mm of chord as its comment once said. The same box
-at an absolute 0.01 would carry 74 000 triangles against these 59 000.
+calls OCCT — and not 0.01 mm of chord. The same box at an absolute 0.01 would
+carry 74 000 triangles against these 59 000.
 
 Vertices are welded on a 1e-6 mm key, which OCCT's per-face tessellation does
 not do for itself; it halves the file for free and leaves no degenerate
@@ -120,9 +120,6 @@ def faults(tris):
     more than once — two faces on the same side of it, which is what two
     pieces of material touching along a LINE look like: not a hole, and a
     slicer's layer polygons survive it, but non-manifold all the same.
-
-    Lifted from `tests/test_holder_corpus.py`, where it ran over holders only
-    while the two known faults were in boxes and lids.
     """
     seen = {}
     for a, b, c in tris:

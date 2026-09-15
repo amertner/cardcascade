@@ -37,8 +37,8 @@ does not. That is the whole point of building it rather than scaling it.
 The same wordmark, ring and star, with `Ultimate` under it in Noto Serif Bold
 Italic and its three flourishes: a lead-in of five dashes, a ring with a bar
 and an upright at the end, and a fan of five boxes under the `U`. Every
-number is read off Allan's own `Logo Flourishes` sketch, exported 2026-09-04
-at `#LogoScaleFactor 1` (`logos/Innovation/sketch/Logo Flourishes.dxf`), or
+number is read off Allan's own `Logo Flourishes` sketch, exported at
+`#LogoScaleFactor 1` (`logos/Innovation/sketch/Logo Flourishes.dxf`), or
 off the two Ultimate drawings where the sketch does not carry the element (the
 words, the end flourish). What scales and what does not is settled by the two
 drawings — 1.6 apart — agreeing on it: the dashes are `1.500 x 0.600` and the
@@ -71,8 +71,8 @@ LINE_WIDTH = 0.600
 # like the line width. It is where Allan drew the seed of the `5x at 270`
 # circular pattern — a rectangle whose axis misses the pattern's centre by this
 # much, so every copy misses it by the same. Read off the Logo Flourishes
-# sketch (2026-09-04): one offset fits all five arms' twenty corners to an rms
-# of 0.00002 mm. The mesh fit before it said 0.1039.
+# sketch: one offset fits all five arms' twenty corners to an rms of
+# 0.00002 mm.
 TWIST = 0.1041
 
 # The font size the SMALL Innovation drawing is set at, fitted over its nine
@@ -90,8 +90,7 @@ ARM = 119.952                # star arm, centre to tip: 2.500 at NOMINAL_SIZE,
 # The first arm of the run, in the READING frame the mark is built in before
 # it is mirrored into the lid. The sketch draws the lid's frame directly, so
 # there its arms read -43.8558, 23.6442, 91.1442, 158.6442 and 226.1442; the
-# mirror maps each to 180 - x, and the run starts at -46.1442. The mesh fit
-# before the sketch said -46.14.
+# mirror maps each to 180 - x, and the run starts at -46.1442.
 ARM0 = -46.1442
 ARM_STEP = 67.5              # 5 arms at 270 degrees
 
@@ -190,8 +189,8 @@ def _centre(faces, word=None):
     `3.195` above the cap height and the star `2.174`, `Innovation` has no
     descender, and so the box reaches `2.236` higher than the tallest letter
     and only `0.208` below the baseline. Centred on it, the WORD sits `1.494`
-    low on the lid at n = 1 (Allan, 2026-09-10, with the lid on screen: "The
-    Innovation logo (without Ultimate) is a little bit low on the lid").
+    low on the lid at n = 1 — "The Innovation logo (without Ultimate) is a
+    little bit low on the lid".
 
     The measurement that settles it is the ink CENTROID against the box
     centre. The plain mark's is `2.693` BELOW it; the Ultimate mark's, which
@@ -271,8 +270,8 @@ UPRIGHT_TOP = -3.750          # n
 # on the sketch at n = 1.6), hand-placed — not on one arc — at +-18 and +-37 degrees
 # off the vertical, the outer ones leaning outward. Centres relative to the
 # I's centre and the ULTIMATE baseline, from the sketch at n = 1.6, where
-# Allan fixed their positions (2026-09-04); the cached small drawing has them
-# where the OLD sketch put them.
+# Allan fixed their positions; the cached small drawing has them where the
+# OLD sketch put them.
 FAN_BOX = (0.625, 1.250)      # n
 ULT_BASELINE = -12.620        # n
 FAN = ((28.1492, -2.1871, 0.0),

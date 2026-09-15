@@ -19,23 +19,20 @@ GENERATION = "7.0"
 # Every RELEASE whose LOCK is GENERATION's. This is about the lock and nothing
 # else: a release in this tuple gets 7.0 tabs, sockets and cutouts, which says
 # NOTHING about the rest of its geometry — 7.1 shares the lock with 7.0 and
-# cuts a different number of pusher sockets (`cad/revisions.py`). It was called
-# SAME_GEOMETRY while the two claims happened to coincide, and the name became
-# false the moment a release changed a part.
+# cuts a different number of pusher sockets (`cad/revisions.py`).
 #
 # A new release must be admitted here deliberately: leave it out and
 # `pusher.build` refuses it rather than stamping the wrong version on 7.0 tabs,
 # which is the right way round. `tests/test_revisions.py` holds the two lists
 # to each other. An ITERATION LETTER is a release like any other
 # (`cad/revisions.py`, "An unreleased release is iterated by LETTER"), so each
-# new one is admitted here too — and plain `7.1` is, from its lock on
-# 2026-09-10. The letters stay admitted beside it: each is still buildable.
+# new one is admitted here too. The letters stay admitted beside a locked
+# release: each is still buildable.
 SAME_LOCK = ("7.0", "7.1a", "7.1b", "7.1c", "7.1d", "7.1", "7.2a", "7.2b", "7.2c",
              "7.2d", "7.2e", "7.2f", "7.2g", "7.2")
 
 
 def lock_generation(version):
-    """The lock generation a version's parts are built to."""
     return GENERATION if version in SAME_LOCK else version
 
 # Sizes that do not move (LOCK_STANDARD.md).

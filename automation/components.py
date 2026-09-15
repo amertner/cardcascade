@@ -7,8 +7,7 @@ files live under individual/<Game folder>/.
 For each component, `key` lists the parameters that make it unique WITHIN a
 game — two cascades whose components share the same key share ONE Onshape
 export. `key` is also (will be) the set of Onshape configuration inputs to set,
-so it does double duty. Values marked TODO need confirming against the actual
-Onshape configuration inputs.
+so it does double duty.
 
 A cascade "context" (built in plan_exports.py) exposes these parameters:
   game, folder, short_name, base_model, model (per-sleeving, e.g.
@@ -27,15 +26,14 @@ GAMES = {
         "folder": "Compile",
         "holder_spans": True,
         "extras": [],
-        # Compile's logo label came from Onshape until 2026-08-15 (0471f01):
-        # labelmaker.py generates it now from logos/Compile/compile_logo_clean.dxf
-        # (cc.cfg `logo=`), like every other game's labels. Nothing is drawn in
-        # Onshape any more; `--labels` plans nothing.
+        # labelmaker.py draws the logo label from
+        # logos/Compile/compile_logo_clean.dxf (cc.cfg `logo=`), so nothing is
+        # drawn in Onshape and `--labels` plans nothing.
         "onshape_label": False,
     },
     "Dominion": {
         "folder": "Dominion",
-        # Token holders are per-row now (parts.csv 'TokenHolder' column:
+        # Token holders are per-row (parts.csv 'TokenHolder' column:
         # none/full/full+half) — only sets whose expansions need them carry one.
         "extras": [],
         "onshape_label": False,  # labels via labelmaker.py
@@ -53,9 +51,8 @@ GAMES = {
         # Innovation uses 2 pushers at EVERY size, which is what the CAD says:
         # `isOnlyTwoPusherSlots` is a per-GAME variable, not a per-size one, and
         # every Innovation box on disk has 2 slots (countable from its rim
-        # cutouts). A per-size map was the wrong shape and had two holes: `L`,
-        # which no Innovation row reaches, and `XS`, which one does — Single
-        # Mini fell through to the default 3 against a box with 2 slots.
+        # cutouts). A per-size map is the wrong shape here: `XS` falls through
+        # to the default 3 against a box with 2 slots.
         "pushers": 2,
 
         # 6 toppers: one per expansion + a blank; same plate, different text.
@@ -72,11 +69,9 @@ GAMES = {
         # project does not have makes build_swap report them as unfillable and
         # SKIP the cascade on every future refresh.
         #
-        # These are SHORT NAMES from parts.csv and must track it: the XS row was
-        # listed here as "Inno 130" while parts.csv called it "Single Mini", so
-        # the entry never matched and the XS cascades composed 12 toppers that do
-        # not exist and that its projects have no slot for — ~38 wasted API calls
-        # on any full-game export.
+        # These are SHORT NAMES from parts.csv and must track it: a name that
+        # does not match composes toppers the projects have no slot for — ~38
+        # wasted API calls on any full-game export.
         "no_toppers": {"Single Set", "Single Mini"},
     },
 }
@@ -170,8 +165,7 @@ def tracked_name(game, short_name, sleeved, model, label=None):
     version. The one place that policy is stated, for both pipelines.
 
     A name in the repo is an identity: git follows a path, so a version in it
-    renames the whole catalogue on every release, and it did once already —
-    `refresh_cascades.find_legacy` is what cleaned up after. A release is a tag.
+    renames the whole catalogue on every release. A release is a tag.
     What a given file IS stays readable from the file: the version goes in the
     3MF `Title` (`refresh_cascades.project_title`, `cad.cascade.title`), which
     Studio shows and no rename can touch, and it is engraved on the parts, which

@@ -190,7 +190,7 @@ for name, fn, p in REFS:
           round(y0, 3), round(BD / 2 - box.SLOT_BITE, 3), 1e-3)
     check("slot band is LOCK_STANDARD's box slot depth",
           round(y1 - y0, 3), round(L.BOX_SLOT_DEPTH, 3), 1e-3)
-    # The outer back wall is capped at REAR_TOP; only the end walls carry on.
+    # Only the end walls carry on above REAR_TOP, so the profile is one span.
     check("outer back wall is capped at REAR_TOP",
           zprofile(0.0, BD / 2 + box.REAR_DEPTH - box.WALL / 2),
           [(0.0, box.REAR_TOP)])
@@ -473,8 +473,6 @@ for name, fn, p in REFS:
               len((shape & bar).solids()), 1)
         # The closing bumps, one per end wall.
         for sign, lbl in ((-1, "-X"), (1, "+X")):
-            # Entirely clear of the wall: include any of it and the biggest
-            # solid is a slice of wall running the full depth and height.
             # Starts 0.050 clear of the wall — include any of it and the
             # biggest solid is a slice of wall running the full depth and
             # height — and reaches past the pad so it clips nothing.

@@ -187,17 +187,13 @@ def values(row, d, spec):
     fp, rs = d.FrontPocketCardCapacity, d.CardsPerSlidingSlot
     v["age_cards"] = str(fp) if fp == rs else f"{fp}/{rs}"
     v["age_cards_unit"] = "" if fp == rs else "base / expansion"
-    # The pocket of the box the project's plate 1 carries (`plate_one_box`).
     x0, x1 = BOX.rear_pocket(plate_one_box(row, d))
     v["pocket_w"] = fmt_num(x1 - x0, 1)
     # A row that ships more than one back gets a STAR on the number and a word
     # under it saying why: the figure is the box on plate 1, and the project
-    # holds another whose back is different (Allan, 2026-09-14). Both are ""
-    # for every ordinary row, so the cell reads exactly as it did.
+    # holds another whose back is different.
     v["pocket_note"] = " (*)" if len(B.back_pocket_variants_built(row, d)) > 1 else ""
-    # every slot, the front pockets included: Compile's "30 protocols" on L5
     v["slots"] = str(d.HorizontalSlots * (d.RisingSliders + 1))
-    # FCM's "4x5": columns by ROWS, the front pocket being a row too
     v["grid"] = f"{d.HorizontalSlots}x{d.RisingSliders + 1}"
     v["model_ref"] = d.calModelName.replace(".", "·")
     bed = CC.bed_for(row, d) or "p1"
@@ -369,7 +365,7 @@ def back_section(d, w, h, pad=6):
     across the bottom), the dividers between them, and the POCKET — the empty
     run — tinted. The arrow inside the tint spans the pocket exactly.
 
-    **Mirrored, because this is the view from BEHIND** (Allan, 2026-09-14).
+    **Mirrored, because this is the view from BEHIND.**
     The storage packs from the box's left inner wall in its own +X, and a
     viewer standing at the back sees +X on their LEFT, so the pushers hang on
     the RIGHT of this drawing. Drawing it unmirrored is a front view of a back.
@@ -542,9 +538,8 @@ def draw_cells(dr, e, spec, v, d, row, img=None):
         if icon == "backbox":
             # A DIAGRAM cell: the caption sits above a section of the box's
             # back, which takes the icon's place and most of the cell's width,
-            # and the number moves right of it (Allan, 2026-09-14). The
-            # drawing stays inside the band so the footer's rule runs unbroken
-            # under it.
+            # and the number moves right of it. The drawing stays inside the
+            # band so the footer's rule runs unbroken under it.
             tx = cx + e.get("diagram_dx", 640)
             dr.text((cx + e["inset"], y + 50), T(caption, v),
                     font=fcap, fill=PC.GREEN_D, anchor="la")

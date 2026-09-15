@@ -4,10 +4,9 @@
     .venv/bin/python -m cad.compare --game Dominion --name 168
 
 For each project the Onshape pipeline shipped — `spec/reference/shipped-7.0/
-<Game>/`, which was `cascades/` until 7.1 took that tree over — this finds the
-project `cad.cascade` wrote for the same release (`cad_dir`; by model code,
-the way `refresh_cascades.find_project` does) and compares what a print would
-see:
+<Game>/` — this finds the project `cad.cascade` wrote for the same release
+(`cad_dir`; by model code, the way `refresh_cascades.find_project` does) and
+compares what a print would see:
 
   * the printer, and the number of plates;
   * the roles present and how many of each — the same box, lid, pushers,
@@ -47,8 +46,7 @@ sys.path.insert(0, str(ROOT / "automation"))
 import filaments as FIL                                  # noqa: E402
 import towers                                            # noqa: E402
 
-# The Onshape pipeline's projects, `cascades/` until the cad-built 7.1 set took
-# that tree over on 2026-09-11 (tags `v7.0` and `v7.1`). Same bytes, moved.
+# The Onshape pipeline's projects.
 SHIPPED = ROOT / "spec" / "reference" / "shipped-7.0"
 
 

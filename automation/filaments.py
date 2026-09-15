@@ -51,12 +51,10 @@ MS = "Metadata/model_settings.config"
 
 WHITE = "#FFFFFF"
 
-# Per-filament arrays, identified positively rather than by shape: this list
-# is the exact set of keys whose length differed between the 9-filament and
-# 2-filament halves of one project (Compile 126, which differed in nothing
-# else). Shape alone cannot decide the question — at 2 filaments a per-NOZZLE
-# array (nozzle_diameter, extruder_printable_area on the dual-nozzle H2C) is
-# also 2 long, and permuting one of those would corrupt the printer setup.
+# Per-filament arrays, identified positively rather than by shape (see the
+# module docstring): the exact set of keys whose length differed between the
+# 9-filament and 2-filament halves of one project (Compile 126, which
+# differed in nothing else).
 PER_FILAMENT = {
     "activate_air_filtration", "additional_cooling_fan_speed",
     "additional_fan_full_speed_layer", "chamber_temperatures",

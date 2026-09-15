@@ -199,8 +199,7 @@ with tempfile.TemporaryDirectory() as tmp:
         problems = []
         if towers.problems(out):
             problems.append(f"tower {towers.problems(out)}")
-        # the tower clears every object on its plate by at least TIGHT_GAP —
-        # the collision make_cascade used to warn about and leave in place
+        # the tower clears every object on its plate by at least TIGHT_GAP
         ps_w = float(LY.profile(bed).get("prime_tower_width", 35))
         bx0, by0, bx1, by1 = LY.tower_bounds(LY.profile(bed))
         for k, plate in enumerate(back.plates, start=1):
@@ -240,8 +239,7 @@ with tempfile.TemporaryDirectory() as tmp:
     if STUDIO.exists():
         print("\n=== 3. Studio slices: a P1, two H2Cs and the A1 mini ===")
         # XS5.15.10.32.Un is the only cascade on the mini bed apart from its
-        # sleeved twin, and the bed had no slice coverage at all until the
-        # tower landed at (0, 0) there and Studio refused it.
+        # sleeved twin, so it is the bed's only slice coverage.
         for model in ("S4.16.10.32.Un", "L6.40.12.62.Sl", "L8.50.10.62.Sl",
                       "XS5.15.10.32.Un"):
             if model not in written:

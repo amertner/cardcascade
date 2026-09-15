@@ -47,7 +47,7 @@ LipDistanceFromFingerHole = 3.0
 LipLength = 10.0
 LipDepth = 2.1                      # "Tried 2.3 mm, it's a bit much"
 LipChamfer = 1.2
-LipHeight = 2.0                     # "Up from 1mm"
+LipHeight = 2.0
 
 
 class Derived:
@@ -135,21 +135,13 @@ def derive(p):
     v["BoxWidth"] = 2 * WallThickness + 11.1 + v["calSlotwidth"] * p.HorizontalSlots
     # `#calPusherSlots` is the second sketch variable: how many pushers the
     # rear storage takes. Here for the same reason `#BoxWidth` is — the Box,
-    # the Lid and the assembly all read it, and it was being re-derived in
-    # `parts/box.py` with its own `GameName == "Innovation"`, a second copy of
-    # the rule this file owns.
+    # the Lid and the assembly all read it, and the rule lives here rather than
+    # a second time in `parts/box.py`.
     #
     # It depends on the RELEASE, and it is the one variable in this file that
-    # does (`cad/revisions.py`):
-    #
-    #   before 7.1  Onshape's own rule — 2 for every Innovation box
-    #               (`isOnlyTwoPusherSlots`, below, is the studio's answer)
-    #               and for an S box, else 3;
-    #   7.1 and on  TWO, at every size and for every game (Allan).
-    #
-    # The 24 boxes that had three lose a slot, its divider and its rim
-    # cutouts; their thumb cutout centres, because `calFingerHoleOffset` is
-    # written in terms of this; and their projects ship one Pusher fewer.
+    # does (`cad/revisions.py`); `isOnlyTwoPusherSlots` below is the studio's
+    # own answer. `calFingerHoleOffset` is written in terms of this, so a box
+    # that loses a slot moves its thumb cutout centres with it.
     v["calPusherSlots"] = 2 if rev.two_pushers else (
         2 if (g == "Innovation" or p.HorizontalSlots <= 3) else 3)
     v["calSlotDepth"] = v["calCardThickness"] * p.CardsPerSlidingSlot
@@ -263,8 +255,8 @@ def derive(p):
     v["gameShortName"] = T.GAME_SHORT_NAME[g]
     # The studio's rule, AND the one input Onshape does not have: parts.csv's
     # `Label holders` column (`params.Primary.LabelHolders`) can turn them off
-    # on a box the rule would give them to. Allan: users have asked for a box
-    # without label holders. It cannot turn them ON where the rule says no.
+    # on a box the rule would give them to: users have asked for a box without
+    # label holders. It cannot turn them ON where the rule says no.
     v["isLabelHoldersOnBox"] = (0 if g == "Colours" or p.HorizontalSlots <= 1
                                 else p.LabelHolders)
     v["isOnlyTwoPusherSlots"] = 1 if g == "Innovation" else 0
@@ -317,8 +309,7 @@ def cascade_slope(d, slider_distance):
     """`dZ/dY` of the cascade diagonal — the Holder's `Top slant angle` and,
     inverted, the Box's lip angle (`Import Holder patterns` brings it across).
 
-    The sketch's own expression (Allan's screenshot, 2026-09-04): a triangle
-    whose vertical leg is
+    The sketch's own expression: a triangle whose vertical leg is
 
         max(#calSlotDepth + 2mm, #calHeightIncrement - 1mm)
 

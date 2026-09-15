@@ -61,13 +61,13 @@ from .. import text as TX
 from . import holder as H
 
 # Where the base sits in assembly. Constant on all 48 cached components and on
-# every reference — and DERIVED since 2026-09-04: there is no mate (Allan); the
-# topper RESTS on the holder, logo up, diagonal meeting diagonal, its fins in
-# the holder's lip rooms. So its base is the holder's slant top plus its own
-# rear thickness, `z_base` below, and that is `48.450` on every Innovation
-# parameter set because all of them have five risers (the slant top) and the
-# rear thickness does not vary. The constant is kept as the catalogue's value
-# and `tests/test_topper.py` holds the two to each other on every set.
+# every reference — and DERIVED: there is no mate; the topper RESTS on the
+# holder, logo up, diagonal meeting diagonal, its fins in the holder's lip
+# rooms. So its base is the holder's slant top plus its own rear thickness,
+# `z_base` below, and that is `48.450` on every Innovation parameter set
+# because all of them have five risers (the slant top) and the rear thickness
+# does not vary. The constant is kept as the catalogue's value and
+# `tests/test_topper.py` holds the two to each other on every set.
 Z_BASE = 48.450
 
 
@@ -84,16 +84,14 @@ FRONT_WALL_RISE = 1.400    # how far the front wall stands above the floor's top
 # BAND of front wall around it. Probing the reference band by band in Y is what
 # separates them: at Z 55 the material at the front face (Y -6.1, -6.5) runs
 # 26.10..40.90, and one step back (Y -6.9 and beyond) only 32.70..34.30. A T in
-# plan, not a solid post — a plan section alone reads as one 14.800 block and
-# is what an earlier revision of spec/TOPPER.md recorded.
+# plan, not a solid post — a plan section alone reads as one 14.800 block.
 RIB_W = D.WallThickness             # 1.600, the rib through the depth
 # The band's half width is DERIVED below, once INNER_END_INSET is defined:
-# `Remove most of front` (Allan's screenshot, 2026-09-04) is sketched on the
-# `Remove Inner Hole` face and puts each opening's edge FRONT_MARGIN = 6.000
-# from that pocket's end — which is INNER_END_INSET in from the part's end —
-# and `6 + 0.6` from the rib's face, which is RIB_W / 2 from the boundary.
-# Both readings are 7.400, and neither is `#FootDistanceFromWall`, which an
-# earlier revision guessed.
+# `Remove most of front` (Allan's screenshot) is sketched on the `Remove Inner
+# Hole` face and puts each opening's edge FRONT_MARGIN = 6.000 from that
+# pocket's end — which is INNER_END_INSET in from the part's end — and `6 +
+# 0.6` from the rib's face, which is RIB_W / 2 from the boundary. Both
+# readings are 7.400, and neither is `#FootDistanceFromWall`.
 FRONT_MARGIN = 6.000
 
 # `Inner Hole Outline` is sketched IN THE SLANT PLANE — its sketch plane is
@@ -112,7 +110,7 @@ assert abs(BAND_HALF - (FRONT_MARGIN + 0.6 + RIB_W / 2)) < 1e-9, \
 
 TAB_W = D.WallThickness    # 1.600
 TAB_INSET = 1.300          # from each end of the part
-TAB_RISE = 44.000          # "extruded to 44 mm blind" (Allan), off the FLOOR
+TAB_RISE = 44.000          # "extruded to 44 mm blind", off the FLOOR
 # How far the tab stops short of the pocket's rear wall. NOT a constant offset
 # from the rear FACE: measured 1.442 in on M10-Un and 1.644 on M15-Sl, and the
 # difference is exactly INNER_INSET * (cos 0.55529 - cos 0.30224). Taken off the
@@ -133,10 +131,10 @@ TOTAL_HEIGHT = FLOOR + TAB_RISE                                       # 45.200
 # 20.400 +- 6.200.
 #
 # LIP_ROOM_RISE is 2.000 on both sets, which is `#LipHeight`. Two constants
-# cannot tell a constant from a variable. It IS `holder.SLANT_STEP` (Allan,
-# 2026-09-04): the `Divider` sketch carries no dimensions of its own and maps
-# onto points imported from the holder, so the notch floor is the holder's
-# slant step by construction, and it is bound to it.
+# cannot tell a constant from a variable. It IS `holder.SLANT_STEP`: the
+# `Divider` sketch carries no dimensions of its own and maps onto points
+# imported from the holder, so the notch floor is the holder's slant step by
+# construction, and it is bound to it.
 LIP_ROOM_RISE = H.SLANT_STEP   # the notch floor, above the topper's floor top
 
 LIP_FILLET = 1.400         # `Fillet Lip Room`
@@ -480,9 +478,9 @@ def top_and_front_edges(d, part):
     fillet surface runs past it until the slant face cuts it off — `slant_z` at
     `rear + r`, to three decimals on both parameter sets.
 
-    It has to be built BEFORE the lettering (Allan): the logo and the name are
-    offset from the edge of these fillets, so `Expansion Name` does not work
-    without it.
+    It has to be built BEFORE the lettering: the logo and the name are offset
+    from the edge of these fillets, so `Expansion Name` does not work without
+    it.
     """
     x0, x1 = x_span(d)
     front, rear = y_span(d)
@@ -660,7 +658,7 @@ assert tuple(sorted(MARKS)) == TB.TOPPER_EXPANSIONS, \
 # `Expansion Name` — the mark and the expansion's name, engraved in the
 # UNDERSIDE. The placement and all five marks; see spec/TOPPER.md.
 
-FONT = str(TX.FONT_DIR / "NotoSerif-Bold.ttf")   # Noto Serif Bold (Allan)
+FONT = str(TX.FONT_DIR / "NotoSerif-Bold.ttf")
 
 # The cap band as a fraction of the em. Measured 0.72025 / 0.72030 / 0.72016 /
 # 0.72016 on four different words, agreeing to 1.5e-4, and NOT the face's own
@@ -694,8 +692,8 @@ def face_datum(d):
     the underside, i.e. inside `Top and front edges`.
 
     Returns `(x, y_rear, y_front)`. This is the whole reason the fillet has to
-    be built before the lettering (Allan) — an offset taken from the part's own
-    edge instead is wrong by EDGE_ROUND, on every one of the six.
+    be built before the lettering — an offset taken from the part's own edge
+    instead is wrong by EDGE_ROUND, on every one of the six.
     """
     x0, _x1 = x_span(d)
     front, rear = y_span(d)
@@ -730,15 +728,14 @@ def font_size(d):
     Cut, not proud, although the sketch stands the inlay 0.010 proud: the
     topper prints face down and flat, the lettering is a second-filament
     fill in a pocket, and the 0.010 is there to make the sliver work, not
-    to raise the text (Allan, 2026-09-04). Noto Serif Bold's hairline is
-    0.054 em, so the floor is 3.70 em. Every size in the catalogue fits at
+    to raise the text. Noto Serif Bold's hairline is 0.054 em, so the floor is
+    3.70 em. Every size in the catalogue fits at
     5.4 em or more except the two 10-card unsleeved ones (`S10-Un`,
     `M10-Un`), which fit at 3.61 and are raised to the floor; their 4.40
     flat holds 4.07 em with the sketch's 1:2 margins and `Figures`' `g`
     under the band (DESCENDER_EM), so the raise fits, and `baseline_y`
     shares what the flat has left in that 1:2. A floor the flat could not
-    hold would raise `DoesNotFit` rather than put the `g` into the round —
-    which is what the PROUD floor's 4.63 em did before this was settled.
+    hold raises `DoesNotFit` rather than putting the `g` into the round.
     """
     fitted = cap_band(d) / BAND_EM
     floor = TX.floor_size(FONT)
@@ -848,9 +845,8 @@ def inlays(d, expansion):
     region of the mark and the word, ENGRAVE tall, standing INLAY_PROUD below
     the underside so they leave that much clear at the pocket's top — the
     same trick the Lid's logo inlays use, and what every hand-exported STEP
-    and cached topper carries beside its body. A topper written without
-    them prints its name as an empty pocket; `cad.compare` found the built
-    files that way on 2026-09-05."""
+    and cached topper carries beside its body. A topper written without them
+    prints its name as an empty pocket."""
     if expansion == "Blank":
         return []
     solid = Pos(0, 0, Z_BASE - INLAY_PROUD) * extrude(name_and_mark(d, expansion),
@@ -895,4 +891,3 @@ def build_all(d, expansion="Blank"):
 # and the hand-exported STEP of the same part reads 4100.698 with the same kind
 # of error in it. The tessellated volume agrees to 0.0014% and the engraving
 # differenced back out agrees to 0.03%, so `tests/test_topper.py` uses those.
-# An hour went into "fixing" a boolean that was correct all along.

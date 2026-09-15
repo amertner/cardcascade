@@ -284,7 +284,6 @@ def build(d, half=False):
                                            Align.CENTER)))
     part = part + stem + cap
 
-    # --- Branding ----------------------------------------------------------
     return part - branding(d, half)
 
 
