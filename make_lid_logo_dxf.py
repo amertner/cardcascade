@@ -2,17 +2,9 @@
 """Lift a lid's logo artwork out of a reference export into a DXF.
 
 The Lid carries its game's logo in the underside of its floor, printed in the
-second filament: a pocket `0.810` deep with an inlay solid sitting in it. In
-Onshape that is one sketch — "derived from a .DXF file with the logo and tidied
-up" (Allan) — and two features, `Remove logo` then `Add Logo Material`.
-
-`cad/` needs the same artwork. The authoritative copy is whatever Allan
-exports from that sketch; this lifts an equivalent one out of a reference that
-already carries the logo, which costs 0 API calls. Use it to bootstrap a game
-that has no DXF yet, and to CHECK one that does — `tests/test_lid.py` holds the
-built pattern to the reference either way.
-
-Two sources, in order of fidelity:
+second filament: a pocket `0.810` deep with an inlay solid in it. The
+authoritative copy is what Allan exports from the Onshape sketch; this lifts
+an equivalent from a reference, at 0 API calls.
 
     # a hand-exported STEP: true curves, exact
     python3 make_lid_logo_dxf.py "spec/reference/Lid Dominion 246S with logo.step" \
@@ -22,20 +14,9 @@ Two sources, in order of fidelity:
     python3 make_lid_logo_dxf.py "individual/Compile/Lid S5.7.7.20-Un.3mf" \
             logos/Compile/lid_logo.dxf
 
-The inlays are the solids in the file that are not the lid body; their top
-faces ARE the artwork, and they are already in the lid's own frame, so the
-lifted DXF needs no placing.
-
-A STEP keeps the curves: `Lid Innovation 130U` carries 361 arcs and 234
-B-splines, and the round trip holds its area to 0.003 % and its bounding box
-exactly. A 3MF has been meshed, so its outlines come back as polylines at
-Onshape's own export tolerance — on the same Innovation mark that is 2773
-segments over 31 regions and 685.614 mm2 against the STEP's 685.790, an area
-error of 0.026 % and about 90 segments a region. Small enough not to matter in
-a 0.810-deep inlay, but a STEP is still better where one exists: prefer it, and
-record in `spec/LID.md` which source each file came from.
-
-Requires the venv (build123d).
+The inlays are the solids that are not the lid body; their top faces ARE the
+artwork, already in the lid's frame.
+A meshed 3MF costs `0.026 %` of area: prefer a STEP, noted in `spec/LID.md`.
 """
 import argparse
 import math
@@ -52,9 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cad import art, mesh3mf                               # noqa: E402
 
 # How far two vertices may be apart and still be the same one when the loops
-# are chained. A 3MF's vertices are welded by the writer, so the ends of two
-# boundary edges either share an index or do not — this only guards a file
-# welded on a coarser key than `mesh3mf` uses.
+# are chained: this only guards a file welded on a coarser key than `mesh3mf`.
 WELD = 1e-6
 
 
@@ -73,7 +52,7 @@ def _from_step(path):
 
 def _volume(verts, tris):
     """Six times the signed tetrahedron sum — only its magnitude is used, to
-    tell the lid body from the inlays without assuming an order or a name."""
+    tell the lid body from the inlays without assuming an order."""
     total = 0.0
     for a, b, c in tris:
         (ax, ay, az), (bx, by, bz), (cx, cy, cz) = verts[a], verts[b], verts[c]
@@ -85,21 +64,15 @@ def _volume(verts, tris):
 def _loops(verts, tris):
     """The outlines of the top of one meshed inlay, as lists of points.
 
-    The top is flat, so its triangles are the ones whose three vertices all sit
-    at the object's maximum z. Each of those is wound counter-clockwise seen
-    from +Z, so every directed edge has the region on its LEFT; an edge whose
-    reverse is also present is interior, and one that stands alone is on the
-    outline. Chaining those gives one loop per region and one more per counter
-    — the `o`s of a wordmark come back as their own loops, which is what
-    `cad.art` then reads as holes.
+    The top is flat, so its triangles are those with all three vertices at
+    maximum z; an edge whose reverse is also present is interior, one that
+    stands alone is on the outline. Chaining gives one loop per region and
+    one per counter, which `cad.art` reads as holes.
 
-    Two loops can MEET at a vertex — a tessellation pinch, and the FCM mark has
-    several. So the walk is the standard face traversal rather than "follow the
-    only other edge": arriving along u->v it leaves along the first edge
-    clockwise from v->u, which keeps the region on the left and so keeps the
-    two loops apart. Chained by nearest-neighbour instead, one FCM inlay came
-    back as a single 1592-point figure of eight that no plane could be fitted
-    to.
+    Two loops can MEET at a vertex (a tessellation pinch, as the FCM mark
+    has), so the walk is the standard face traversal and not "follow the only
+    other edge": chained by nearest neighbour, one FCM inlay came back as a
+    single 1592-point figure of eight.
     """
     zmax = max(v[2] for v in verts)
     top = [t for t in tris if all(abs(verts[i][2] - zmax) < WELD for i in t)]

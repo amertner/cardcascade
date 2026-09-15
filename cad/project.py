@@ -1,15 +1,10 @@
 """A Bambu Studio project 3MF, written from parts and placements — no donor.
 
-`automation/make_cascade.py` mutates a donor project into a new one, and so
-cannot make a project where none exists. This writes one: the bed profile from
-`automation/profiles/` is the settings, the parts come from `build/` (or
-anywhere `mesh3mf.read` reads), and the caller says which plate each object is
-on and where. Nothing here decides a layout — that is the next module's job —
-but a layout can be READ off an existing project (`read`), which is how the
-first cascade written this way was checked against its shipped twin.
-
-The file format is recorded in `spec/PROJECT.md`; the rules below that are
-not obvious from the format carry the reason in place.
+`automation/make_cascade.py` mutates a donor and so cannot make a project
+where none exists. This writes one: the bed profile from
+`automation/profiles/` is the settings, the parts come from `build/`, and the
+CALLER says which plate each object is on. `spec/PROJECT.md` is the record,
+and `cad/layout.py` decides the layout.
 
     from cad import project as PJ
     objs = [PJ.Obj.from_file("Box", Path("build/Dominion/Box S4.16.10.32-Un.3mf")), ...]
@@ -38,8 +33,7 @@ import filaments as FIL                                  # noqa: E402
 PROFILES = ROOT / "automation" / "profiles"
 
 class Bed(NamedTuple):
-    """A print bed: its size, the profile under `automation/profiles/` that
-    IS a project's settings on it (spec/PROJECT.md), and Studio's name."""
+    """A print bed: size, the profile that IS its settings, Studio's name."""
     width: float
     depth: float
     profile: str
@@ -50,8 +44,8 @@ class Bed(NamedTuple):
         return self.width, self.depth
 
 
-# Smallest first. A copy of make_cascade.BED_TABLE for as long as both
-# exist; tests/test_project.py holds the two equal.
+# Smallest first. A copy of make_cascade.BED_TABLE; test_project holds them
+# equal.
 BEDS = {
     "mini": Bed(180.0, 180.0, "a1mini", "Bambu Lab A1 mini"),
     "p1":   Bed(256.0, 256.0, "p1p", "Bambu Lab P1P"),
@@ -63,23 +57,17 @@ PLATE_STRIDE = 1.2          # plates sit on a grid at 1.2 x the plate size
 FILAMENTS = ("#FFFFFF", "#000000")
 BODY, INLAY = 1, 2          # the only two slots: bodies, and a mark's inlays
 
-# Process settings this repo insists on, whatever the profile says: arachne
-# because classic leaves a thin wall's remainder as gap fill, which on these
-# boxes is exactly where the slot dividers and the lid lettering are;
-# `seam_position: back` because `aligned` columns a seam up a slider rib,
-# whose flank is the one surface in a cascade with no slack behind it; and no
-# ironing, which costs time for a finish nothing here needs. A copy of
-# make_cascade.PRINT_SETTINGS, whose comment and PIPELINE.md carry the whole
-# reasoning.
+# Process settings this repo insists on, whatever the profile says: arachne,
+# `seam_position: back` (`aligned` columns a seam up a slider rib, the one
+# surface with no slack behind it) and no ironing. PIPELINE.md says why.
 PRINT_SETTINGS = {
     "wall_generator": "arachne",
     "seam_position": "back",
     "ironing_type": "no ironing",
 }
 
-# What Studio wrote the shipped files with. Kept as the Application string
-# because it is a FORMAT marker — Studio reads it to decide how to interpret
-# the rest — and the generator is named beside it in its own metadata.
+# What Studio wrote the shipped files with, kept as the Application string
+# because it is a FORMAT marker.
 APPLICATION = "BambuStudio-02.07.01.62"
 GENERATOR = "cardcascade cad.project"
 
@@ -90,13 +78,9 @@ NS = ('xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" '
 PLATE_SAFE = re.compile(r'[<>:/\\|?*"]')
 
 
-# --- the inputs -------------------------------------------------------------
-
-
 @dataclass
 class Part:
-    """One mesh of an object, in the object's (the component file's) frame."""
-    name: str
+    name: str                   # one mesh, in the component file's frame
     verts: list
     tris: list
     extruder: int = BODY
@@ -114,18 +98,16 @@ class Part:
 
 @dataclass
 class Obj:
-    """A printed thing: one or more parts sharing a frame, a role name, and
-    the component file it came from — two objects from one file (four
-    holders, two pushers) share one mesh in the project, as Studio's do."""
+    """A printed thing: parts sharing a frame, a role name and the component
+    file it came from. Two objects from one file share one mesh."""
     name: str
     parts: list
     source: str = ""
 
     @classmethod
     def from_file(cls, name, path):
-        """The object a component 3MF holds. Its inlays — `Part N`, the regions
-        of a lid's or a topper's mark — go to the INLAY slot; the body and any
-        other part to BODY (`cad/gltf.slot_for`'s rule)."""
+        """The object a component 3MF holds: `Part N` inlays to the INLAY
+        slot, the body to BODY (`cad/gltf.slot_for`'s rule)."""
         parts = [Part(n, v, t, INLAY if n.startswith("Part ") else BODY)
                  for n, v, t in mesh3mf.read(Path(path))]
         if not parts:
@@ -151,17 +133,15 @@ class Obj:
 
 @dataclass
 class Plate:
-    """One plate: its name (the scheme's, e.g. `Lid`; the title is appended)
-    and the prime tower's corner in PLATE coordinates."""
+    """One plate: the scheme's name and the tower's corner, PLATE frame."""
     name: str
     tower: tuple = (15.0, 200.0)
 
 
 @dataclass
 class Placement:
-    """Object `obj` (an index into the objects list) on plate `plate`
-    (1-based), its bbox centre at (`x`, `y`) in PLATE coordinates, turned
-    `angle` degrees about Z. Every object is placed exactly once."""
+    """Object `obj` on plate `plate` (1-based), its bbox centre at (`x`, `y`)
+    in PLATE coordinates, turned `angle` degrees about Z."""
     obj: int
     plate: int
     x: float
@@ -169,23 +149,16 @@ class Placement:
     angle: float = 0.0
 
 
-# --- geometry ---------------------------------------------------------------
-
-
 def plate_columns(n):
-    """How many columns Studio lays `n` plates in: the ceiling of sqrt(n) —
-    two for 2 to 4 plates, three for 5 to 9. make_cascade.plate_columns."""
     root = n ** 0.5
     return round(root) + 1 if root > round(root) else round(root)
 
 
 def plate_origin(bed, plate, n_plates):
     """Where plate `plate` (1-based, of `n_plates`) sits in the project's one
-    coordinate space: a grid of `plate_columns` columns at PLATE_STRIDE x the
-    plate size, filled row by row, rows going -Y. Studio assigns an object to
-    the plate whose cell it sits in — a five-plate project written on a
-    two-column grid puts plate 3 where Studio has plate 4, and the slice
-    stops with "no object fully inside" (found on Dominion 560 Sleeved)."""
+    coordinate space: `plate_columns` columns at PLATE_STRIDE x the plate
+    size, row by row, rows going -Y. Studio assigns an object to the plate
+    whose CELL it sits in, so a wrong column count moves objects silently."""
     w, d = BEDS[bed].size
     cols = plate_columns(n_plates)
     col, row = (plate - 1) % cols, (plate - 1) // cols
@@ -193,9 +166,8 @@ def plate_origin(bed, plate, n_plates):
 
 
 def item_transform(obj, place, origin):
-    """The build item's 4x3 row-vector transform for a bbox-centred object:
-    a rotation about Z, then the centre to (origin + x, origin + y, h/2), so
-    the object turns about its own centre and sits on the bed."""
+    """The build item's 4x3 row-vector transform for a bbox-centred object: a
+    turn about Z, then the centre to (origin + x, origin + y, h/2)."""
     th = math.radians(place.angle)
     c, s = math.cos(th), math.sin(th)
     h = obj.size[2]
@@ -216,12 +188,8 @@ def _uuid():
     return str(uuid.uuid4())
 
 
-# --- the members ------------------------------------------------------------
-
-
 def _mesh_xml(mesh_id, part):
-    """One `<object>`: the part's mesh, stored centred on its bbox."""
-    cx, cy, cz = part.centre
+    cx, cy, cz = part.centre    # one `<object>`, the mesh centred on its bbox
     body = "".join(f'     <vertex x="{x - cx:.6f}" y="{y - cy:.6f}" z="{z - cz:.6f}"/>\n'
                    for x, y, z in part.verts)
     body += "    </vertices>\n    <triangles>\n"
@@ -233,7 +201,6 @@ def _mesh_xml(mesh_id, part):
 
 
 def sub_model(mesh_ids, parts):
-    """One sub-model file: every mesh of one object, as Studio writes them."""
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<model unit="millimeter" xml:lang="en-US" {NS}>\n'
             ' <metadata name="BambuStudio:3mfVersion">1</metadata>\n'
@@ -244,7 +211,7 @@ def sub_model(mesh_ids, parts):
 
 def settings(bed, n_plates, towers, filaments=FILAMENTS):
     """`project_settings.config`: the bed's profile, the colours in cascade
-    order, PRINT_SETTINGS forced, one tower coordinate per plate."""
+    order, PRINT_SETTINGS forced, a tower per plate."""
     ps = json.loads((PROFILES / f"{BEDS[bed].profile}.config").read_text())
     have = [c.upper() for c in ps.get("filament_colour", [])]
     want = [c.upper() for c in filaments]
@@ -253,7 +220,7 @@ def settings(bed, n_plates, towers, filaments=FILAMENTS):
     order = [have.index(c) for c in want]
     if order != list(range(len(order))):
         # `remap` turns every per-filament array with the colours, the flush
-        # matrix included — the profile is black-first, a cascade white-first.
+        # matrix included: the profile is black-first, a cascade white-first.
         ps, _notes = FIL.remap(ps, order)
     ps = force_print_settings(ps)
     if len(towers) != n_plates:
@@ -265,9 +232,8 @@ def settings(bed, n_plates, towers, filaments=FILAMENTS):
 
 def force_print_settings(ps):
     """PRINT_SETTINGS applied, and each key listed in the PROCESS entry of
-    `different_settings_to_system` — a changed key missing from that list is
-    what makes Studio display the stock value while the project prints its
-    own. A copy of make_cascade.force_print_settings."""
+    `different_settings_to_system` — a changed key MISSING from that list makes
+    Studio show the stock value while the project prints its own."""
     out = dict(ps)
     out.update(PRINT_SETTINGS)
     dev = list(out.get("different_settings_to_system")
@@ -285,15 +251,8 @@ def plate_title(scheme, title):
 def object_name(role, d, variant=TB.LID_OWN):
     """What Studio's object list shows. Every role is its own name except the
     Lid, which carries the card capacity and the sleeving — `Lid 168U` — as
-    every shipped project has it: with several projects open it is the lid
-    that says which cascade a plate belongs to.
-
-    `variant` (`tables.LID_VARIANTS`) names the OTHER lids a cascade ships: the
-    alternate edition from 7.1d, named by the EDITION its mark is — `Lid 90U
-    Ultimate` — because the two lids are the same cascade's and the mark is
-    the whole of the difference; and the unmarked lid from 7.2b, `Lid 90U
-    Unmarked`. Each still starts `Lid`, which is what `layout.role` reads,
-    and they go on a plate each (`layout.plate_groups`)."""
+    every shipped project has it. `variant` names the OTHER lids by a suffix;
+    each still STARTS `Lid`, which is what `layout.role` reads."""
     if role == "Lid":
         name = f"Lid {d.calTotalCards}{'S' if d.isSleeved else 'U'}"
         if variant == TB.LID_ALTERNATE:
@@ -310,8 +269,8 @@ def object_name(role, d, variant=TB.LID_OWN):
 def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
           metadata=None):
     """Write the project. `objects` [Obj], `plates` [Plate] (plate 1 first),
-    `placements` [Placement], one per object. `metadata` is extra
-    name -> value pairs for `3dmodel.model` — the source hash, say."""
+    `placements` [Placement], one per object; `metadata` is extra
+    name -> value pairs for `3dmodel.model`."""
     path = Path(path)
     if bed not in BEDS:
         refuse(f"unknown bed {bed!r}; one of {sorted(BEDS)}")
@@ -340,12 +299,9 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
             meshes[fname.lstrip("/")] = sub_model(mids, obj.parts)
             shared[obj.source] = (fname, mids)
         else:
-            # The SAME part printed more than once — four holders, two pushers.
-            # Studio shares one sub-model between them (its four `<object>`s all
-            # name object_35.model) and so do we: a mesh is stored centred on
-            # its own bbox, so two copies differ only in the build item's
-            # transform. The mesh id and the `<part id>` in model_settings
-            # repeat across objects, as Studio's do.
+            # The SAME part printed more than once. Studio shares one sub-model
+            # between the copies and so do we: a mesh is stored centred on its
+            # own bbox, so two copies differ only in the build transform.
             fname, mids = twin
         for part, mid in zip(obj.parts, mids):
             cx, cy, cz = part.centre
@@ -458,10 +414,8 @@ def write(path, bed, objects, plates, placements, title, filaments=FILAMENTS,
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         for name, text in members.items():
-            # An explicit ZipInfo carries its OWN compress_type, and its default
-            # is ZIP_STORED — the constructor's ZIP_DEFLATED above does not
-            # reach it. Set it here or every project is a stored zip of XML:
-            # 21.7 MB where 1.8 MB will do (`mesh3mf.write` does the same).
+            # An explicit ZipInfo carries its OWN compress_type, defaulting to
+            # ZIP_STORED: the constructor's ZIP_DEFLATED does NOT reach it.
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             z.writestr(info, text)
@@ -488,12 +442,8 @@ SLICE_INFO = (
     '  </header>\n</config>\n')
 
 
-# --- reading a project's layout ---------------------------------------------
-
-
 @dataclass
 class Layout:
-    """What `read` recovers from a project: enough to write it again."""
     bed: str
     title: str
     objects: list = field(default_factory=list)     # (id, name, [(part name, extruder)])
@@ -503,9 +453,8 @@ class Layout:
 
 
 def read(path):
-    """The layout of an existing project: its bed, plates, towers and where
-    each object sits, in PLATE coordinates. The mesh sizes come with it so a
-    caller can tell whether a replacement part still fits the slot."""
+    """An existing project's bed, plates, towers and object positions in PLATE
+    coordinates, with the mesh sizes."""
     zf = zipfile.ZipFile(path)
     ps = json.loads(zf.read("Metadata/project_settings.config"))
     bed = next((k for k, v in BEDS.items() if v.model == ps.get("printer_model")), None)

@@ -2,16 +2,10 @@
 """Fetch the Dominion set glyphs the posters draw, from the Dominion
 Strategy wiki, into logos/Dominion/sets/<Set>.png.
 
-The poster's EXPANSIONS row shows one glyph per expansion a cascade holds
-(make_posters.py, the `band` element). They are the wiki's set icons —
-which is where the Figma originals came from too — one alpha PNG per set,
-named by the set as cc.cfg spells it, so labels and posters share a
-vocabulary. The PNGs are committed; this script is how they got there and
-how to refresh one, and a build never touches the network.
-
-The wiki's HTML sits behind a bot challenge, but its files do not, and a
-MediaWiki file path follows from the file name alone:
-images/<md5[0]>/<md5[0:2]>/<File>. So no scraping.
+One alpha PNG per set, named as cc.cfg spells it, so labels and posters share
+a vocabulary. The PNGs are committed and a build never touches the network.
+The wiki's HTML sits behind a bot challenge but its files do not, and a
+MediaWiki path follows from the file name: images/<md5[0]>/<md5[0:2]>/<File>.
 
     .venv/bin/python fetch_set_icons.py [--force] [Set ...]
 """

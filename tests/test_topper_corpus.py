@@ -2,24 +2,13 @@
 """Every cached Topper in `individual/` against the rules `cad/parts/topper.py`
 states.
 
-    .venv/bin/python tests/test_topper_corpus.py
-
 `tests/test_topper.py` checks the source against four hand-exported STEPs at
-two parameter sets. Two parameter sets cannot tell a rule from a coincidence,
-so this reads all 48 cached meshes instead — 0 API calls — and holds every one
-of them to the placement rules: the envelope, the ribs and front bands, the two
-holder tabs, and the eight lip notches.
-
-Onshape's catalogue is 6 expansions over 8 bodies. The eight `Blank` files are
-checked on volume as well, and the other forty on placement and on the mark's
-rim — an engraved topper is the blank less its lettering, which is 10 to 30
-mm3, and the lettering itself is asserted against the STEPs in test_topper.py.
-
-Probed by ray-casting the mesh, the same way `tests/test_lid_corpus.py` does,
-and with the same rule: **never aim a ray at a feature's exact centre**. A
-rectangular face is two triangles and a ray down their shared diagonal is
-counted twice, which cancels and makes the face vanish. Every probe here is
-offset by EPS.
+two parameter sets, which cannot tell a rule from coincidence; this reads all
+48 cached meshes — 0 API calls. Onshape's catalogue is 6 expansions over 8
+bodies: the `Blank` files are checked on volume too, the other forty on
+placement and the mark's rim, the lettering against the STEPs. Probed by
+ray-casting under `tests/probe.py`'s rule — **never aim a ray at a feature's
+exact centre**.
 """
 import sys
 from pathlib import Path
@@ -54,8 +43,7 @@ def load(path):
 
 
 def spans(V, Tr, axis, u, v, tol=1e-6):
-    """[(lo, hi)] of material along `axis` on the ray through the other two
-    coordinates, in cyclic order — (y, z) for X, (z, x) for Y, (x, y) for Z."""
+    """[(lo, hi)] of material along `axis` — see `tests/probe.spans`."""
     i, j, k = axis, (axis + 1) % 3, (axis + 2) % 3
     A, B, C = V[Tr[:, 0]], V[Tr[:, 1]], V[Tr[:, 2]]
     a = np.column_stack([A[:, j], A[:, k]])
@@ -89,11 +77,7 @@ def mesh_volume(V, Tr):
 
 
 def catalogue():
-    """{`M10-Un`: Primary} — the topper's own key, which is NOT calModelName.
-
-    Size letter, cards per sliding slot and sleeving are the only three things
-    the geometry depends on, and Onshape's file names say exactly that.
-    """
+    """{`M10-Un`: Primary} — the topper's key, which is NOT calModelName."""
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
@@ -101,11 +85,9 @@ def catalogue():
             if p.GameName != "Innovation":
                 continue
             d = D.derive(p)
-            # Single-set cascades hold one expansion, so they carry no
-            # toppers at all (Allan), and a row whose `Toppers` column says
-            # `none` opts out — `M8.16.10-16` shares this key with `M5.10.10`
-            # at a different rise, so it would build the wrong slant under
-            # the cached name. `build.ships_toppers` is the one rule for both.
+            # Single-set cascades carry no toppers, and `Toppers` = `none`
+            # opts out a row sharing this key at another rise
+            # (`build.ships_toppers`).
             if not B.ships_toppers(row, d):
                 continue
             key = (f"{d.calSizeLetter}{p.CardsPerSlidingSlot}"
@@ -133,7 +115,6 @@ for path in files:
     front, rear = T.y_span(d)
     tag = f"{expansion} {key}"
 
-    # --- the envelope, and its three rules ---------------------------------
     check(f"{tag}: X min", round(float(V[:, 0].min()), 3), round(x0, 3), 1e-3)
     check(f"{tag}: X max", round(float(V[:, 0].max()), 3), round(x1, 3), 1e-3)
     check(f"{tag}: Y front", round(float(V[:, 1].max()), 3), round(front, 3), 1e-3)
@@ -142,7 +123,6 @@ for path in files:
     check(f"{tag}: tab tops", round(float(V[:, 2].max()), 3),
           round(T.Z_BASE + T.TOTAL_HEIGHT, 3), 1e-3)
 
-    # --- the two holder tabs, well above the wall -------------------------
     z = T.Z_BASE + T.TOTAL_HEIGHT - 5.0
     y = (front - T.FRONT_WALL + rear) / 2 + EPS
     got = spans(V, Tr, 0, y, z)
@@ -154,10 +134,8 @@ for path in files:
             check(f"{tag}: tab at {round(c, 2)}", (round(a, 3), round(b, 3)),
                   (round(c, 3), round(e, 3)))
 
-    # --- a T in plan: a wide band at the front face, a rib behind it -------
-    # The two END half-bands read short, because `Top and front edges` rounds
-    # the part's front vertical corners and this ray passes EPS inside them.
-    # Their INNER edge is the one this rule is about, so that is what is held.
+    # A T in plan. The END half-bands read short (rounded front corners), so
+    # only their INNER edge is held.
     z = (T.Z_BASE + T.FLOOR + T.FRONT_WALL_RISE
          + T.slant_z(d, front - T.FRONT_WALL)) / 2
     band = spans(V, Tr, 0, front - EPS, z)
@@ -173,9 +151,7 @@ for path in files:
             check(f"{tag}: band at {round(c, 2)}", (round(a, 3), round(b, 3)),
                   (round(c, 3), round(e, 3)))
 
-    # One step behind the front wall only the ribs are left — and, at each end,
-    # the end wall and the tab merged into one 2.900 block: INNER_END_INSET
-    # 1.400 of end wall overlapping a tab that starts TAB_INSET 1.300 in.
+    # One step back only the ribs are left, plus a 2.900 end block each side.
     rib = spans(V, Tr, 0, front - T.FRONT_WALL - EPS, z)
     blk = T.TAB_INSET + T.TAB_W
     want = [(x0, x0 + blk)] + T.rib_x(d) + [(x1 - blk, x1)]
@@ -184,12 +160,9 @@ for path in files:
         check(f"{tag}: rib/block at {round(c, 2)}", (round(a, 3), round(b, 3)),
               (round(c, 3), round(e, 3)))
 
-    # --- the lip notches, in the rear wall --------------------------------
-    # The rear wall is only #TopperHeight - FLOOR - LIP_ROOM_RISE = 1.000 tall
-    # above the notch floor at the rear FACE, so the ray goes half way up that,
-    # where LIP_FILLET has not finished opening. `off` is where the fillet's
-    # arc is at that height, and it has to be allowed for exactly — a probe
-    # that ignores it reads every notch 0.655 too narrow.
+    # The rear wall is only 1.000 tall above the notch floor, so the ray goes
+    # half way up it, where LIP_FILLET is still opening; `off` is the arc
+    # there, and ignoring it reads every notch 0.655 too narrow.
     h = (T.topper_height(d) - T.FLOOR - T.LIP_ROOM_RISE) / 2
     r = T.LIP_FILLET
     off = r - (2 * r * h - h * h) ** 0.5
@@ -199,9 +172,8 @@ for path in files:
     check(f"{tag}: {len(rooms)} notches leave {len(rooms) + 1} runs of wall",
           len(wall), len(rooms) + 1)
     if len(wall) == len(rooms) + 1:
-        # ARC_TOL, not the 1e-3 the flat probes use: this ray lands on the
-        # fillet's curved face, which the mesh chords, so it reads inside the
-        # true surface by up to the sagitta. Measured 0.002 on all 48.
+        # ARC_TOL: this ray lands on a chorded curved face and reads inside
+        # it by up to the sagitta — 0.002 on all 48.
         for (_a, b), (c, _e) in zip(wall, rooms):
             check(f"{tag}: notch starts at {round(c, 2)}", round(b, 3),
                   round(c + off, 3), ARC_TOL)
@@ -209,10 +181,8 @@ for path in files:
             check(f"{tag}: ... and ends at {round(e, 2)}", round(a, 3),
                   round(e - off, 3), ARC_TOL)
 
-    # --- the mark, measured off the pocket's TOP rim ----------------------
-    # A prismatic pocket is tessellated with vertices only at its two ends, so
-    # anything strictly between the two reads the `Top and front edges` fillet
-    # instead and every file comes back 0.800 wide.
+    # Off the pocket's TOP rim: a prismatic pocket has vertices only at its
+    # ends, and between them the reading is the fillet, 0.800 wide.
     if expansion != "Blank":
         rim = V[(np.abs(V[:, 2] - (T.Z_BASE + T.ENGRAVE)) < 1e-4)
                 & (V[:, 0] < T.text_origin_x(d))]
@@ -223,14 +193,8 @@ for path in files:
     blanks.append((tag, expansion, mesh_volume(V, Tr),
                    mesh_volume(*mesh3mf.triangulate(T.build(d, expansion)))))
 
-# The four SLEEVED `Unseen` files are STALE: their mark is drawn at the M10-Un
-# size — 5.3422, which is 1.2644 * 4.2250 — whatever their own
-# calLogoSidelength is. That is a fault in the CACHE, not in the source; the
-# hand-exported `Topper Unseen M5.15.15.62-Sl.step` at the same parameter set
-# has it right at 10.7949. All four UNSLEEVED ones are correct.
-#
-# Listed rather than detected, so that re-exporting them makes this test say
-# so instead of quietly passing on a smaller list.
+# The four SLEEVED `Unseen` files are STALE — a fault in the CACHE, not the
+# source (spec/TOPPER.md). Listed, not detected, so a re-export says so.
 STALE = {("Unseen", k) for k in ("M10-Sl", "M15-Sl", "S10-Sl", "S15-Sl")}
 STALE_MARK_W = 5.3422          # 1.2644 * the M10-Un calLogoSidelength
 
@@ -259,17 +223,14 @@ for tag, expansion, cached, built in sorted(blanks):
               f"{off:+.3f}%   STALE CACHE, not checked")
         continue
     worst = max(worst, abs(off))
-    # Both sides are tessellations of the same tolerance, so this is a real
-    # comparison and not a mesh-versus-solid one. The residual is the font.
+    # Both sides are tessellated alike, so the residual is the font.
     check(f"{tag}: within 0.02% of the cached mesh", abs(off) < 0.02, True)
 print(f"\n  worst of the {len(blanks) - len(STALE)} sound files: {worst:.4f}%")
 
 print(f"\n{len(files)} files, {len(seen)} of {len(cat)} parameter sets matched")
 missing = sorted(set(cat) - seen)
 if missing:
-    # Every parameter set the catalogue emits should be in the cache. A gap
-    # means either a cascade whose toppers were never exported, or a row that
-    # should have been excluded as single-set.
+    # A gap is toppers never exported, or a row that should be single-set.
     check(f"every catalogued parameter set is cached (missing {missing})",
           missing, [])
 if unmatched:

@@ -1,25 +1,19 @@
 #!/usr/bin/env python3
 """Generate board-game expansion-box labels as two-colour 3MF files.
 
-Each label is a chamfered rectangular plate (white) with the expansion
-name, a 3-step staircase logo in the bottom-left corner and a small
-"cc" mark in the bottom-right corner raised on top (black).
+Each label is a chamfered rectangular plate (white) with the expansion name,
+a 3-step staircase logo in the bottom-left corner and a small "cc" mark in
+the bottom-right corner raised on top (black). Geometry from the original
+Onshape SideLabel STEP; font Orbitron Bold. Output goes to
+cascades/<game>/labels/. README.md, "The cc.cfg configuration file", is the
+reference for the set configuration.
 
-Geometry replicated from the original Onshape design (SideLabel STEP
-export). Font: Orbitron Bold (Google Fonts, OFL licence).
-
-All output goes to cascades/<game>/labels/.
-
-Usage:
     python3 labelmaker.py                     # one 3MF per set (default)
     python3 labelmaker.py --plates            # bulk multi-plate 3MFs
     python3 labelmaker.py --individual        # per-label files
     python3 labelmaker.py --game FCM --plates
     python3 labelmaker.py --names "Seaside,Renaissance" --widths 32,53
     python3 labelmaker.py --step              # also export STEP files
-
-Requires: pip install build123d
-Font: Orbitron-Bold.ttf lives in the fonts/ directory.
 """
 
 import argparse
@@ -46,18 +40,11 @@ from build123d import (
     scale,
 )
 
-# --------------------------------------------------------------------------
 # Parameters (mm) — measured from the original Onshape STEP export
-# --------------------------------------------------------------------------
 LABEL_HEIGHT = 22.2          # overall label height (STEP export measured 22.1)
 
-# Label widths per game: "widths" for a set's labels, "split_widths" for the
-# "<name> 1"/"<name> 2" labels of sets split across two boxes. "front" (if
-# any) is the box-front width, included on every box's default plate in
-# --sets mode. "caps" is the standard text size (capital height, mm) per
-# label width — labels of the same width all use it, and long names shrink
-# to fit. A width without an entry (e.g. via --widths) sizes its text to
-# fill the label instead.
+# Per game: label widths, the split-set widths, the box-front width, and the
+# standard capital height per width.
 GAMES = {
     "Dominion": {
         "front": 156.4,
@@ -78,8 +65,7 @@ GAMES = {
         "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
     "Innovation": {
-        # 32 and 20 are the Single Set box's side widths (S3.15.10 lids are
-        # 50.6 and 39.3 mm deep); caps match FCM and Compile at those sizes.
+        # 32 and 20 are the Single Set box's side widths (50.6/39.3 mm lids)
         "front": 156.4,
         "widths": [156.4, 62.0, 45.0, 32.0, 20.0],
         "split_widths": [156.4, 62.0, 45.0, 32.0, 20.0],
@@ -101,22 +87,12 @@ TEXT_TOP_MARGIN = 3.0        # min gap between text top and label top edge
 TEXT_SIDE_GAP = 2.0          # lowered text: clearance from the logo and "cc"
 CC_XHEIGHT = 2.5             # height of the lowercase "cc" mark
 
-# Capital heights (mm) for the lowered layout, per label width: on a label
-# this wide the name can drop to the logo's line and grow into the empty
-# space beside the logo and the "cc" instead of sitting above them. Long
-# names shrink to fit that gap, and a name that would end up no bigger than
-# the standard size keeps the standard layout above the logo.
+# Capital heights for the LOWERED layout, where the name drops beside the
+# logo and the "cc" and grows into that space.
 BIG_CAPS = {156.4: 9.0}
 
-# A name may be set on several lines: " / " in the name breaks a line
-# ("Innovation / Unseen, Echoes"). Lines are stacked at this gap, as a
-# fraction of the capital height, and a stack of two or more lines may take
-# the lowered layout at ANY width — on a 45 mm side label three expansion
-# names only reach a legible size dropped beside the logo. On a side-width
-# plate a parts= label's ", " list is stacked one name a line as well
-# (set_plate_specs): the front carries the first name over the other two,
-# the sides all three stacked, which reads 3.6 mm on the 62 against 3.4 for
-# two lines and 2.6 for one.
+# " / " in a name breaks a line; lines stack at this gap, and a stack of two
+# or more may take the lowered layout at ANY width.
 LINE_BREAK = " / "
 LINE_GAP = 0.45
 
@@ -138,8 +114,7 @@ CONFIG_FILE = "cc.cfg"       # set/box configuration (see read_config_file)
 BASE_COLOR = Color(1.0, 1.0, 1.0)
 RAISED_COLOR = Color(0.0, 0.0, 0.0)
 
-# Mesh tessellation (mm). 0.01 is invisible at print scale and keeps the
-# combined multi-plate file to a manageable size.
+# Mesh tessellation (mm): invisible at print scale, and keeps the file small.
 MESH_LINEAR_DEFLECTION = 0.01
 MESH_ANGULAR_DEFLECTION = 0.2
 
@@ -187,12 +162,8 @@ _ART_CACHE = {}
 
 
 def load_art(path: Path) -> Compound:
-    """The drawing in `path` (DXF) as filled planar faces, ready to extrude.
-
-    A DXF holds only closed outlines, so the letter counters arrive as
-    separate wires: a wire nested in an odd number of others is a hole in
-    the face around it, and one nested in an even number is a face of its
-    own (an island inside a hole). Results are cached per file."""
+    """The DXF in `path` as filled faces: a wire nested in an odd number of
+    others is a hole, one in an even number a face."""
     key = str(path)
     if key in _ART_CACHE:
         return _ART_CACHE[key]
@@ -202,8 +173,6 @@ def load_art(path: Path) -> Compound:
         sys.exit(f"{path}: no closed outlines to fill")
 
     def inner_point(face):
-        """A point strictly inside `face` — its centre when the face is
-        convex enough, else the first hit of a coarse grid."""
         centre = face.center()
         if face.is_inside(centre):
             return centre
@@ -233,8 +202,7 @@ def load_art(path: Path) -> Compound:
                    [faces[j].outer_wire() for j in range(len(faces))
                     if parent[j] == i])
               for i in range(len(faces)) if depth[i] % 2 == 0]
-    # a face built from a clockwise outline faces -Z and would extrude down
-    # into the base plate, so point them all up
+    # a clockwise outline faces -Z and would extrude into the plate
     art = Compound(children=[f if f.normal_at().Z > 0 else -f for f in filled])
     _ART_CACHE[key] = art
     return art
@@ -249,9 +217,7 @@ def find_config_file():
 
 
 def parse_width(text: str, allowed, where: str, key: str) -> float:
-    """A width from cc.cfg must be one of the game's standard
-    widths; returns the canonical float. 0 is always allowed and means
-    'no side label for this sleeving'."""
+    """A cc.cfg width against the game's standard widths; 0 = no label."""
     try:
         width = float(text)
     except ValueError:
@@ -266,8 +232,8 @@ def parse_width(text: str, allowed, where: str, key: str) -> float:
 
 
 def parse_box(value: str, allowed, where: str, key: str) -> dict:
-    """'U[/S][@<box name>:<box model>]' -> {"widths": (unsleeved, sleeved),
-    "info": (box name, box model) | None}. One width means both sleevings."""
+    """'U[/S][@<box>:<model>]' -> {"widths": (un, sl), "info": (box name,
+    model) | None}; one width means both sleevings."""
     width_part, _, info_part = value.partition("@")
     values = width_part.split("/")
     if len(values) not in (1, 2):
@@ -288,58 +254,12 @@ def parse_box(value: str, allowed, where: str, key: str) -> dict:
 
 def read_config_file(path: Path, game: str) -> list:
     """Parse the cc.cfg configuration and return set records for `game`.
-
-    Each line is '<game>,<set name>[,<key>=V]...' where every value V is
-    '<unsleeved>[/<sleeved>][@<box name>:<box model>]' — label widths per
-    sleeving (one value = both) plus the optional recommended-box identity
-    shown in plate titles:
-      box=V    the whole set's box; presence means whole-box labels
-      split=V  both split half-boxes; presence means '<name> 1' and
-               '<name> 2' labels
-      split1=/split2=  like split= but for halves of different sizes
-               (must be given together)
-      parts=<w1>+...@<label1>|<label2>|...[#<tag>]  one part per label;
-               emits one plate PER WIDTH, each holding all parts at that
-               width. The front width reads "<name> <label>", narrower widths
-               just "<label>" (e.g. parts=156.4+45+62@Ages 1-4|Ages 5-8|Ages 9+
-               -> a front, a 45mm and a 62mm plate). Repeatable. Each grouping
-               becomes its own 3MF, named "<part count> Cascades", or
-               "<tag> Cascades" when a #<tag> is given. Tag a grouping when two
-               share a part count, or when the count to show is not the number
-               of boxes (Innovation names its builds by AGES per cascade).
-      names=<w1>+...@<name1>[:<short>]|<name2>[:<short>]|...  the
-               TRANSPOSE of parts=: one plate PER NAME, each holding
-               every width. For a box design that ships once per
-               expansion, so a plate is exactly one box's labels. The
-               NARROWEST width takes the short form when one is given
-               and every other width the full name (a long name shrinks
-               until it will not print only at the bottom of the width
-               range). '(BLANK)' is the blank label.
-
-      side=<text>  short text used on side labels instead of the set
-               name (front labels keep the full name), e.g. FCM/O
-      plate=<title>:<w1>+<w2>+...  an extra plate in the set's 3MF with
-               exactly these label widths (free-form, NOT restricted to
-               the game's standard widths - e.g. legacy sizes); may be
-               given multiple times
-      logo=<file>  artwork in logos/<game>/<file> (DXF) printed instead
-               of the set name; doubles every plate= plate into a "with
-               logo" and a "plain" version
-      numbers=<n>  the set ships as n numbered boxes, so every plate=
-               plate is repeated unnumbered and once per number. Plain
-               labels carry "<name> <i>" at every width; logo labels
-               carry the number on the front label only (the side ones
-               are too narrow for artwork and a number)
-    Widths must be standard widths of the game (box= against `widths`,
-    split*= against `split_widths`; plate= widths are free-form). A line
-    with no keys is skipped. The special name '(BLANK)' is the blank
-    label (logo + cc, no text). Blank lines and '#' comments are ignored.
-    Returns dicts {"name": str, "box": parse_box() | None,
-    "split": [half1, half2] | None, "side": str | None,
-    "plates": [(title, [widths]), ...],
-    "nsplits": [([widths], [labels], tag | None), ...],
-    "names": [(full, short), ...], "name_widths": [widths],
-    "logo": Path | None, "numbers": int}."""
+    README.md, "The cc.cfg configuration file", is the reference for the line
+    grammar and the keys. Returns dicts {"name": str, "box": parse_box() |
+    None, "split": [half1, half2] | None, "side": str | None, "plates":
+    [(title, [widths]), ...], "nsplits": [([widths], [labels], tag), ...],
+    "names": [(full, short), ...], "name_widths": [widths], "logo": Path |
+    None, "numbers": int}."""
     cfg = GAMES[game]
     records = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -347,10 +267,8 @@ def read_config_file(path: Path, game: str) -> list:
         if not line or line.startswith("#"):
             continue
         where = f"{path.name}:{lineno}"
-        # Game and set name are the first two comma-separated fields; the rest
-        # are key=value and are split only on a comma that STARTS another key.
-        # A plain split(",") would break any value holding one, which the
-        # Innovation labels do ("Ages Sp,1-3" — specials plus a range).
+        # the rest split only on a comma that STARTS another key: a value
+        # may hold one ("Ages Sp,1-3")
         head = [p.strip() for p in line.split(",", 2)]
         if len(head) < 2 or not head[0] or not head[1]:
             sys.exit(f"{where}: cannot parse {raw!r} "
@@ -396,10 +314,8 @@ def read_config_file(path: Path, game: str) -> list:
                     sys.exit(f"{where}: plate= widths must be positive")
                 plates.append((title, widths))
             elif key == "parts" and sep:
-                # trailing '#<tag>' qualifies the grouping's 3MF name, so two
-                # ways of splitting a set into the SAME number of cascades can
-                # coexist (Innovation's original age split and its Later Ages
-                # one are both 3-part and 4-part)
+                # '#<tag>' qualifies the 3MF name, so two splits into the
+                # SAME number of cascades can coexist
                 before, hashed, tag = value.rpartition("#")
                 if hashed and "@" in before:
                     value, tag = before, tag.strip()
@@ -420,8 +336,7 @@ def read_config_file(path: Path, game: str) -> list:
                 prof = parts_profile(labels, tag)
                 if any(parts_profile(pl, pt) == prof
                        for _, pl, pt in nsplits):
-                    # each grouping gets a 3MF of its own, named for its part
-                    # count and any tag, so two of the same name would collide
+                    # each grouping gets a 3MF named for its count and tag
                     sys.exit(f"{where}: two parts= groupings both named "
                              f"{prof!r}; give one a different #<tag>")
                 nsplits.append((widths, labels, tag))
@@ -470,9 +385,6 @@ def read_config_file(path: Path, game: str) -> list:
 
 
 def staircase(size: float, steps: int) -> Polygon:
-    """3-step staircase logo, outer corner at (0,0), steps descending
-    left-to-right, exactly as in the original label. Points listed
-    counter-clockwise so the face normal is +Z (extrudes upward)."""
     s = size / steps
     pts = [(0.0, 0.0), (size, 0.0)]
     for i in range(steps):
@@ -505,13 +417,8 @@ _MAIN_ROW_CACHE = {}
 
 
 def art_main_row(art: Compound) -> Compound:
-    """`art` cropped to its densest horizontal band and everything above.
-
-    A logo often hangs a device below its wordmark — Compile's "<!>" —
-    which is charming on its own but eats the height a box number needs
-    underneath. Dropping it doubles the wordmark on a narrow label. The
-    cut is the bottom of the band carrying the bulk of the ink, i.e. the
-    wordmark's baseline, found by scanning ink area band by band."""
+    """`art` cropped to its densest band and above: a device hung below the
+    wordmark eats the height a box number needs."""
     if id(art) in _MAIN_ROW_CACHE:
         return _MAIN_ROW_CACHE[id(art)]
     bb = art.bounding_box()
@@ -562,14 +469,9 @@ def hits(shapes, box) -> bool:
 
 def fit_art(art: Compound, width: float, height: float, cc_left: float,
             group_w: float, group_h: float, keepouts: list):
-    """Largest placement of `art` (as part of a group `group_w` x `group_h`
-    wide in artwork units) that puts no ink in any keep-out rectangle.
-
-    The artwork's bounding box may overlap the staircase and the "cc" as
-    long as no ink lands on them — logos tend to be empty in the corners,
-    which is what lets the big front label carry a big logo — so the
-    boxes are tried largest first. Returns (placed artwork, scale) or
-    (None, 0) when even the smallest box is blocked."""
+    """Largest placement of `art` that puts no ink in a keep-out rectangle;
+    the bounding box may overlap the staircase and the "cc" as long as no INK
+    does, so boxes are tried largest first."""
     top = height - ART_MARGIN
     boxes = [(ART_MARGIN, width - ART_MARGIN, ART_MARGIN),         # whole label
              (MARGIN + LOGO_SIZE + TEXT_SIDE_GAP,                  # between the
@@ -594,16 +496,10 @@ def fit_art(art: Compound, width: float, height: float, cc_left: float,
 
 def art_placement(art: Compound, number: str, font: LabelFont, width: float,
                   height: float, cc_left: float):
-    """Place game artwork, and any box number, on a label.
-
-    The artwork takes the name's place. A number goes beside it only when
-    the label is wide enough for that to cost the artwork nothing — the
-    front label — and otherwise underneath it, on the staircase's line
-    between the staircase and the "cc". Underneath, the artwork is cropped
-    to its wordmark (see art_main_row): the room that frees up more than
-    pays for what is dropped. A label too narrow for a number down there
-    (20mm) falls back to setting it beside the artwork, uncropped.
-    Returns the placed 2D shapes."""
+    """Place game artwork, and any box number, on a label. A number goes
+    beside the artwork where that costs it nothing (the front label), else
+    underneath on the staircase's line, the artwork cropped to its wordmark;
+    too narrow (20mm) and it goes beside, uncropped."""
     bb = art.bounding_box()
     art_w, art_h = bb.size.X, bb.size.Y          # artwork units
     marks = [(MARGIN - TEXT_SIDE_GAP, MARGIN + LOGO_SIZE + TEXT_SIDE_GAP,
@@ -618,8 +514,7 @@ def art_placement(art: Compound, number: str, font: LabelFont, width: float,
     num = font.render(number)
     num_ratio = num.bounding_box().size.X / font.cap     # width per cap height
 
-    # beside the artwork: they scale together, so the number costs the
-    # artwork width but no height
+    # beside the artwork: they scale together, so the number costs width only
     group_w = art_w + (ART_NUMBER_GAP + ART_NUMBER_CAP * num_ratio) * art_h
     beside, beside_factor = fit_art(art, width, height, cc_left,
                                     group_w, art_h, marks)
@@ -635,8 +530,7 @@ def art_placement(art: Compound, number: str, font: LabelFont, width: float,
     if beside is not None and beside_factor >= alone_factor - 1e-9:
         return beside_shapes()
 
-    # under the wordmark: a fixed-height number on the staircase's line,
-    # centred in the gap between the staircase and the "cc" and shrunk to it
+    # under the wordmark: a fixed-height number on the staircase's line
     left = MARGIN + LOGO_SIZE + TEXT_SIDE_GAP
     right = cc_left - TEXT_SIDE_GAP
     cap = min(NUMBER_BELOW_CAP, (right - left) / num_ratio)
@@ -655,8 +549,8 @@ def art_placement(art: Compound, number: str, font: LabelFont, width: float,
         if under is not None:
             return [under, under_number]
 
-    # stacked: no room for a number beside the staircase (20mm), so the
-    # wordmark and the number share the box above it, both centred
+    # stacked: no room beside the staircase (20mm), so wordmark and number
+    # share the box above it
     box_left, box_right = ART_MARGIN, width - ART_MARGIN
     box_bottom = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
     box_top = height - ART_MARGIN
@@ -684,12 +578,9 @@ def art_placement(art: Compound, number: str, font: LabelFont, width: float,
 
 def number_below(number: str, name: str, font: LabelFont, width: float,
                  height: float, cc_left: float, cap: float):
-    """Set a box number under the name; returns (number shape, text floor).
-
-    It goes on the staircase's line, centred in the gap between the
-    staircase and the "cc". On a label too narrow for that gap (20mm) it
-    takes its own line instead, directly above the staircase, and the
-    name's box floor rises to make room — hence the returned floor."""
+    """Set a box number under the name; returns (number shape, text floor). On
+    the staircase's line, or its own line above it where the label is too
+    narrow (20mm), the name's box floor rising to suit."""
     floor = MARGIN + LOGO_SIZE + TEXT_GAP_ABOVE_LOGO
     num = font.render(number)
     ratio = num.bounding_box().size.X / font.cap
@@ -700,8 +591,7 @@ def number_below(number: str, name: str, font: LabelFont, width: float,
         nb = digit.bounding_box()
         return digit.translate(Vector((left + right - nb.size.X) / 2 - nb.min.X,
                                       MARGIN - nb.min.Y, 0)), floor
-    # its own line: the name keeps its standard height, the number takes
-    # what is left over
+    # its own line: the name keeps its height, the number takes the rest
     text_h = font.render(name).bounding_box().size.Y * cap / font.cap
     size = min(NUMBER_BELOW_CAP, (width - 2 * MARGIN) / ratio,
                height - TEXT_TOP_MARGIN - floor - text_h - TEXT_GAP_ABOVE_LOGO)
@@ -720,10 +610,8 @@ def text_lines(name: str):
 
 
 def stack_metrics(lines, font: LabelFont):
-    """The rendered lines of a stack and its extents in render units,
-    relative to the TOP line's baseline: line i's baseline sits i pitches
-    lower. Returns (texts, widest, top, bottom of the ink, bottom of the
-    deepest possible descender)."""
+    """The stack's lines and extents relative to the TOP baseline: (texts,
+    widest, top, ink bottom, descender bottom)."""
     pitch = font.cap * (1 + LINE_GAP)
     texts = [font.render(line) for line in lines]
     boxes = [t.bounding_box() for t in texts]
@@ -735,20 +623,11 @@ def stack_metrics(lines, font: LabelFont):
 
 def fit_text(name: str, font: LabelFont, width: float, height: float,
              cc_left: float, cap: float, box_bottom: float, number: str):
-    """Place a name's text, on one line or several, in the layout that
-    renders it largest. Returns the placed shapes and the capital height.
-
-    The name's lines (`text_lines`) are tried in both layouts:
-      standard  the stack stands on `box_bottom`, in the box from the logo's
-                left to the cc's right edge, up to 3 mm below the top edge,
-                no taller than the width's standard `cap`
-      lowered   the stack drops beside the logo and the cc, in the gap
-                between them, its deepest possible descender just clearing
-                the bottom margin. One line takes it only at a BIG_CAPS
-                width, and grows to that; a stack of two or more may take
-                it at any width, up to the standard cap. Never with a box
-                number, which wants that line.
-    The larger capital height wins."""
+    """Place a name's text, on one line or several, in the layout that renders
+    it largest. STANDARD stands the stack on `box_bottom`, no taller than the
+    width's `cap`; LOWERED drops it beside the logo and the cc, its deepest
+    descender clearing the bottom margin — one line only at a BIG_CAPS width,
+    and never with a box number, which wants that line."""
     box_left, box_right = MARGIN, width - MARGIN
     box_top = height - TEXT_TOP_MARGIN
     centre = (box_left + box_right) / 2
@@ -766,16 +645,14 @@ def fit_text(name: str, font: LabelFont, width: float, height: float,
         big = min(gap / widest, big_cap / font.cap,
                   (box_top - MARGIN) / (top - deepest))
         if big > factor:
-            # a full-descender last line just touches the bottom margin;
-            # shallower ones sit higher, on the same baseline
+            # a full-descender last line just touches the bottom margin
             factor, floor = big, MARGIN + (bottom - deepest) * big
     pitch = font.cap * (1 + LINE_GAP) * factor
     shapes = []
     for i, txt in enumerate(texts):
         txt = scale(txt, by=factor)
         bb = txt.bounding_box()
-        # the top line's baseline lands `bottom` above the floor; each
-        # line below it one pitch lower
+        # the top line's baseline lands `bottom` above the floor
         shapes.append(txt.translate(Vector(
             centre - bb.size.X / 2 - bb.min.X,
             floor - bottom * factor - font.baseline * factor - i * pitch, 0)))
@@ -784,11 +661,8 @@ def fit_text(name: str, font: LabelFont, width: float, height: float,
 
 def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
                art: Compound = None, number: str = ""):
-    """Build one label; returns (base Solid (white), raised Compound (black)).
-    `caps` maps label width -> standard text capital height (mm); without an
-    entry for `width` the text sizes to fill its box. `art` is a drawing
-    printed instead of the name, and `number` a box number set apart from
-    both (a number that reads as part of the name belongs in `name`)."""
+    """Build one label: (base Solid (white), raised Compound (black)). `caps`
+    maps width -> capital height (mm), else the text fills its box."""
     height = LABEL_HEIGHT
     z_top = Vector(0, 0, BASE_THICKNESS)
 
@@ -820,8 +694,7 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
         for txt in shapes:
             raised += extrude(txt.translate(z_top), amount=RAISE_TEXT)
 
-    # Normalise for export: a bare Solid for the base, and one Compound
-    # holding every raised solid (letters, logo, cc) for the black body.
+    # Normalise for export: a bare Solid for the base, one Compound for black.
     base_solid = base.solid()
     base_solid.color = BASE_COLOR
     base_solid.label = "base"
@@ -838,11 +711,8 @@ def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
 
 def label_polygons(name: str, width: float, font: LabelFont, caps: dict = None,
                    art: Compound = None, number: str = "", segments: int = 10):
-    """The label's raised detail as flat polygons, for drawing previews.
-
-    Returns one entry per printed shape, largest first, each a list of
-    rings in mm: the outline followed by its holes (letter counters). The
-    cover images use this so they show exactly what gets printed."""
+    """The label's raised detail as flat polygons, for previews: one entry per
+    shape, largest first, each a list of rings in mm — what gets printed."""
     _, raised = make_label(name, width, font, caps, art, number)
     faces = [face for solid in raised.solids() for face in solid.faces()
              if face.bounding_box().size.Z < 1e-6
@@ -860,12 +730,9 @@ def label_polygons(name: str, width: float, font: LabelFont, caps: dict = None,
 
 def add_mesh_object(mesher: Mesher, shape, part_number: str):
     """Mesh `shape` into the 3MF as ONE object and return the lib3mf object.
-
-    Mesher.add_shape() splits a Compound into one 3MF object per solid and
-    loses the per-shape colour while doing so; slicers would then see every
-    letter as a separate part. This replicates its body (build123d 0.11)
-    without the flattening, and emits no build item — the caller assembles
-    the meshes into a single components object instead.
+    Mesher.add_shape() splits a Compound into one object per solid and loses
+    the per-shape colour, so slicers would see every letter as a separate
+    part; this is its body (build123d 0.11) without the flattening.
     """
     import copy as copy_module
 
@@ -892,8 +759,6 @@ IDENTITY_4X4 = "1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"
 
 
 def add_assembled_label(mesher: Mesher, stem: str, base, raised):
-    """Add one label to the model as a single object with two component
-    parts. Returns (components object, model_settings object entry)."""
     base_3mf = add_mesh_object(mesher, base, "base")
     raised_3mf = add_mesh_object(mesher, raised, "raised")
     assembly = mesher.model.AddComponentsObject()
@@ -909,12 +774,9 @@ def add_assembled_label(mesher: Mesher, stem: str, base, raised):
 
 
 def bambu_model_settings(objects, plates) -> str:
-    """Bambu Studio / OrcaSlicer project metadata: assigns each part of each
-    object to a filament slot (`extruder`) and each object instance to a
-    plate. This is what makes the file open two-coloured — Bambu ignores
-    standard 3MF material colours entirely. `objects` is a list of entries
-    from add_assembled_label(); `plates` is one dict per plate:
-    {"name": plate name, "instances": [(object id, identify id), ...]}."""
+    """Bambu Studio / OrcaSlicer project metadata: each part to a filament
+    slot, each instance to a plate. This is what makes the file open
+    two-coloured — Bambu ignores 3MF material colours."""
     lines = ['<?xml version="1.0" encoding="UTF-8"?>', "<config>"]
     for obj in objects:
         lines += [
@@ -958,9 +820,8 @@ def bambu_model_settings(objects, plates) -> str:
 
 
 def inject_bambu_metadata(path: Path, objects, plates, project_settings=None):
-    """Rewrite the 3MF zip: add Metadata/model_settings.config (and, for
-    multi-plate projects, Metadata/project_settings.config) and stamp the
-    model file so Bambu Studio recognises the project metadata."""
+    """Rewrite the 3MF zip with the Metadata/*.config files, so Bambu Studio
+    sees a project."""
     with zipfile.ZipFile(path) as zf:
         entries = {info.filename: zf.read(info.filename) for info in zf.infolist()}
 
@@ -982,8 +843,7 @@ def inject_bambu_metadata(path: Path, objects, plates, project_settings=None):
 
 
 def write_3mf(path: Path, name: str, base, raised, bambu: bool):
-    """Export base + raised as ONE 3MF object with two component parts,
-    optionally with Bambu Studio filament assignments (raised->1, base->2)."""
+    """Export base + raised as ONE 3MF object of two parts (raised->1)."""
     m = Mesher()
     assembly, entry = add_assembled_label(m, name, base, raised)
     m.model.AddBuildItem(assembly, m.wrapper.GetIdentityTransform())
@@ -993,9 +853,7 @@ def write_3mf(path: Path, name: str, base, raised, bambu: bool):
             {"name": name, "instances": [(entry["id"], 100 + entry["id"])]}])
 
 
-# --------------------------------------------------------------------------
 # --plates: one Bambu multi-plate project with every label laid out
-# --------------------------------------------------------------------------
 
 
 def plate_columns(n_plates: int) -> int:
@@ -1016,9 +874,8 @@ def row_width(row) -> float:
 
 
 def build_block(widths) -> list:
-    """One set's labels as rows of widths (next-fit), identical for every
-    set of the game. The shortest row goes at the bottom so the block can
-    sit beside the no-print corner."""
+    """One set's labels as rows of widths (next-fit), identical for every set,
+    shortest row at the bottom to clear the no-print corner."""
     cap = PLATE_SIZE - 2 * PLATE_MARGIN
     rows, cur = [], []
     for width in widths:
@@ -1032,13 +889,9 @@ def build_block(widths) -> list:
 
 
 def layout_sets(sets) -> tuple:
-    """Place one block per set, bottom-up, plate by plate. Every block of a
-    game gets identical geometry: the bottom row is indented past the
-    no-print corner when it fits there (so the block may sit at the plate
-    bottom); blocks whose bottom row is too wide for the indent start above
-    the corner instead. `sets` is a list of (set display name, labels)
-    with labels = [(label text, width), ...]. Returns (placements, plate
-    count); each placement is (plate, x, y, label text, display, width)."""
+    """Place one block per set, bottom-up, plate by plate, every block of a
+    game identical: the bottom row is indented past the no-print corner when
+    it fits, else the block starts above it. Returns (placements, plates)."""
     indent = max(PLATE_MARGIN, PLATE_EXCLUDE[0] + LABEL_GAP)
     placements = []
     plate, y = 0, PLATE_MARGIN
@@ -1063,8 +916,7 @@ def layout_sets(sets) -> tuple:
 
 
 def render_project_settings(n_plates: int):
-    """Bambu printer/filament profile for the combined file, with one wipe
-    tower position per plate (the top strip above the label rows)."""
+    """Bambu printer/filament profile, one wipe tower position per plate."""
     template = Path(__file__).resolve().parent / PROJECT_SETTINGS_FILE
     if not template.is_file():
         print(f"warning: {PROJECT_SETTINGS_FILE} not found - the combined "
@@ -1077,29 +929,17 @@ def render_project_settings(n_plates: int):
 
 
 def parts_profile(labels, tag=None) -> str:
-    """The profile (and so the 3MF) a parts= grouping goes in: '<tag> Cascades'
-    when the grouping carries a #<tag>, else '<part count> Cascades'.
-
-    A tagged grouping states its own number because the useful one — AGES PER
-    cascade — cannot be derived. Counting the labels gives the number of BOXES,
-    which is the other half of the same 12 columns and reads as its opposite:
-    the 3-box build holds 4 ages each, the 4-box build 3. Nor can it be read off
-    the label text, because an open range hides the specials column ("Ages 9+"
-    is 9, 10, 11 AND the specials, four slots; "Ages 10+" is three). So the tag
-    carries it: '#4 Later Ages' -> '4 Later Ages Cascades'.
-
-    The number leads because make_label_covers lowercases this straight into
-    prose — "for all 4 later ages cascades" reads, "for all later ages 4
-    cascades" does not. Shared with make_label_covers so a cover always sits
-    next to the print it shows."""
+    """The 3MF a parts= grouping goes in: '<tag> Cascades' with a #<tag>, else
+    '<part count> Cascades'. A tag is needed because the useful number — AGES
+    per cascade — cannot be derived; counting labels gives BOXES, which reads
+    as its opposite."""
     return f"{tag} Cascades" if tag else f"{len(labels)} Cascades"
 
 
 def part_text(name: str, label: str, is_front: bool) -> str:
-    """The text a parts= label prints: on the front the set name and the
-    label — unless the label is stacked (LINE_BREAK) or starts with the
-    set name, when it prints as written; on a side the label with its
-    ", " list stacked."""
+    """The text a parts= label prints: the set name and the label on the front
+    (unless the label is stacked or starts with the name); on a side, the
+    label with its ", " list stacked."""
     if not is_front:
         return label.replace(", ", LINE_BREAK)
     if LINE_BREAK in label or re.match(rf"{re.escape(name)}(?:$|,)", label):
@@ -1109,21 +949,14 @@ def part_text(name: str, label: str, is_front: bool) -> str:
 
 def set_plate_specs(record: dict, cfg: dict) -> list:
     """Plates for one set's own 3MF, from its cc.cfg record: single cascade
-    (unsleeved), single cascade (sleeved), split cascade (unsleeved), split
-    cascade (sleeved) — collapsing sleeved/unsleeved pairs that use the
-    same widths — plus, for each parts= grouping, one plate per width
-    holding all its parts at that width, plus one plate per names= entry
-    holding every width — and every other label as spares. Split plates carry one front and one side per half-box. A
-    plate= plate with logo= and/or numbers= expands into one plate per
-    combination (see read_config_file).
+    (unsleeved), single cascade (sleeved), split cascade (both) — collapsing
+    pairs of the same widths — plus one plate per width per parts= grouping,
+    one per names= entry holding every width, and the rest as spares.
 
-    Returns {profile: [(plate name, labels), ...]}, one profile per 3MF
-    the set needs: "" for the set's own file, "<n> Cascades" per parts=
-    grouping (which replaces "", since the groupings are alternative ways
-    to build the same set, and each file repeats the shared plates so it
-    is a complete print on its own), and "Logo" for artwork labels, which
-    are a print of their own. A label is
-    (name, width, artwork | None, box number)."""
+    Returns {profile: [(plate name, labels), ...]}, one profile per 3MF: ""
+    for the set's own file, "<n> Cascades" per parts= grouping (which replaces
+    it and repeats the shared plates, so each is a complete print), and "Logo"
+    for artwork. A label is (name, width, artwork | None, number)."""
     name = record["name"]
     display = name or "Blank"
     front = cfg.get("front")
@@ -1140,10 +973,7 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
         return labels
 
     def boxes_title(entries, sleeving=None):
-        """' 560 Card-U (L6.40.12.45-Un)': the full model is the base model
-        from cc.cfg plus the plate's side width, -U/-S marks sleevedness
-        (omitted on plates that cover both). No slashes: Bambu rejects
-        them in plate names, so models render with dashes."""
+        """' 560 Card-U (...)'. A "/" is illegal in a plate name."""
         tag = f"-{TAG[sleeving]}" if sleeving is not None else ""
         model_suffix = SUFFIX[sleeving] if sleeving is not None else ""
         parts, seen = [], set()
@@ -1187,20 +1017,9 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             plates = [(f"{display} split{boxes_title(split_entries(UNSLEEVED))}",
                        plates[0][1])]
         specs += plates
-    # names=: one plate per NAME, each holding every width. This is the
-    # TRANSPOSE of parts=, which gives one plate per WIDTH holding every part.
-    # Use it where one box design ships once per expansion (Innovation's
-    # Single Set): the print is then organised by which box you are labelling
-    # rather than by label size, so a plate is exactly one box's labels.
-    #
-    # The short form is used on the NARROWEST width only; every other width,
-    # front and side alike, gets the full name. It exists because a long name
-    # on the smallest label shrinks to the point of being unprintable
-    # ("Innovation" reaches 1.61 mm capitals on a 20 mm label against a 2.8 mm
-    # standard), and that only bites at the bottom of the range — the same
-    # name still sets at 3.11 mm on a 32 mm label. Applying it to every side
-    # width, as side= does for a whole set, would needlessly shorten labels
-    # that had room for the real name.
+    # names=: one plate per NAME, each holding every width — the TRANSPOSE of
+    # parts=. The short form goes on the NARROWEST width only, where a long
+    # name is otherwise unprintable (1.61 mm capitals on a 20 mm label).
     name_widths = record.get("name_widths", [])
     narrowest = min(name_widths) if name_widths else None
     short_at = narrowest if narrowest != front else None
@@ -1209,20 +1028,14 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
                       [((short or full) if w == short_at else full, w, None)
                        for w in name_widths]))
 
-    # Each parts= grouping is a separate print — you build the game into
-    # three cascades or into four, never both — so it becomes a profile of
-    # its own rather than more plates in one shared file. Its plates slot in
-    # where the grouping sits in cc.cfg order; box/split/plate=/spares
-    # plates are shared, so every parts file is a complete print.
+    # Each parts= grouping is a separate print — three cascades or four, never
+    # both — so it becomes a profile of its own, in cc.cfg order, with the
+    # shared plates repeated.
     parts_at = len(specs)
     parts_groups = []
     for widths, labels, group_tag in record.get("nsplits", []):
-        # one plate per width, each holding every part at that width. The
-        # front width prefixes the set name ("Innovation Ages 1-4") unless
-        # the label is stacked or starts with it ("Figures / Artifacts,
-        # Cities" prints as written, not as "Innovation Figures / ...");
-        # the narrower side widths carry just the label ("Ages 1-4"), with
-        # a ", " list stacked one name a line (see LINE_BREAK).
+        # one plate per width; the front prefixes the set name unless the
+        # label is stacked or already starts with it
         plates = []
         for w in widths:
             wtag = "front" if w == front else f"{w:g}mm"
@@ -1241,8 +1054,8 @@ def set_plate_specs(record: dict, cfg: dict) -> list:
             art_specs.append((f"{title} with logo{' ' + n if n else ''}",
                               [("", w, logo, n) for w in widths]))
         for n in numbers:
-            # the front label reads "<name> <n>"; the narrower ones have no
-            # room for that, so their number goes on its own below the name
+            # narrower labels have no room for "<name> <n>", so the number
+            # goes on its own line
             specs.append((
                 f"{title}{f' {n}' if n else ''}",
                 [(f"{name} {n}".strip(), w, None, "") if w == front else
@@ -1269,12 +1082,9 @@ PROJECT_PLATE_ROWS = 7    # rows a centred stack can hold below the wipe tower
 
 
 def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = None):
-    """Write a Bambu project with a fixed plate composition: one plate per
-    (plate name, labels) spec. Labels are stacked one per row in list
-    order (first on top), centre-aligned, with the stack roughly centred
-    on the plate but always below the wipe tower strip. More labels than
-    PROJECT_PLATE_ROWS overflow onto continuation plates — labels are
-    never placed side by side."""
+    """Write a Bambu project of fixed composition: one plate per (plate name,
+    labels) spec, labels one per row below the wipe tower strip, overflowing
+    past PROJECT_PLATE_ROWS."""
     pitch = LABEL_HEIGHT + LABEL_GAP
     expanded = []
     for plate_name, labels in plate_specs:
@@ -1327,11 +1137,9 @@ def write_project_3mf(path: Path, plate_specs, font: LabelFont, caps: dict = Non
 
 
 def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
-    """Write labels into one Bambu project 3MF spread across plates: one
-    block of rows per set (same structure for every set), SET_GAP between
-    blocks, wipe tower in the free top strip, plates arranged in
-    BambuStudio's grid (stride 1.2 x plate size). Plates are named after
-    the full list of sets they carry."""
+    """Write labels into one Bambu project 3MF across plates: a block of rows
+    per set, SET_GAP between blocks, wipe tower in the free top strip, plates
+    in BambuStudio's grid (stride 1.2 x plate size)."""
     placements, n_plates = layout_sets(sets)
     cols = plate_columns(n_plates)
 
@@ -1364,9 +1172,7 @@ def write_plates_3mf(path: Path, sets, font: LabelFont, caps: dict = None):
 
 
 def label_file_name(record: dict, profile: str = "", suffix: str = ".3mf") -> str:
-    """The file a set's labels go in: '<set> Labels.3mf', or
-    '<set> Logo Labels.3mf' for a profile. Shared with make_label_covers
-    so a cover always sits next to the print it shows."""
+    """'<set> Labels.3mf', or '<set> <profile> Labels.3mf'."""
     name = f"{record['name'] or 'Blank'}{' ' + profile if profile else ''}"
     return "".join(c if c not in '\\/:*?"<>|' else "_"
                    for c in f"{name} Labels{suffix}")
@@ -1443,8 +1249,7 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
 
     if not args.plates and not args.individual and records is not None:
-        # default: one 3MF per set (whole box / split boxes / spares plates),
-        # and a second one for its logo labels where the set has artwork
+        # default: one 3MF per set, and a second for its logo labels
         setdir = outdir
         setdir.mkdir(parents=True, exist_ok=True)
         for rec in records:

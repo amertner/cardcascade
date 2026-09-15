@@ -15,37 +15,19 @@
     .venv/bin/python -m cad.build --part all      # again: 0 s, all skipped
     .venv/bin/python -m cad.build --jobs 1        # serial; --force rebuilds
 
-Builds run in a process pool, one part per job (`--jobs`, default every
-core), and a stamp beside each file records what it was built from, so a
-rerun with nothing changed skips it; `--model` matches on the filename and
-is the way to build one. Look at the result with
+Builds run in a process pool, one part per job, and a stamp beside each file
+records what it was built from, so a rerun with nothing changed skips it.
+Look at the result with
 
     .venv/bin/python -m cad.render "build/Dominion/Box S2.40.12-30.45-Sl.3mf" \
         --box --contact tmp/box.png
 
-Output is the same interface Onshape's exports are — see `cad/mesh3mf.py` — in
-the same assembly position, so a file here is comparable, part for part, with
-the one in `individual/`. It is written to `build/`, never over `individual/`:
-that directory is 242 components that cost a year's API budget to make and
-cannot be re-fetched, and it is the permanent regression corpus a 7.0 build is
-held to (`tests/reference.py`).
-
-## Naming, and the axis the old key is missing
-
-A pusher's depth depends on `FirstSlidingSlotCards`, but `plan_exports` keys it
-`(risers, cards, sleeved)` and names the file `Pusher RxC-Sl.3mf`. Two Dominion
-rows therefore collide — `324 Card` (no override) and `290 Card (Mat)` (first
-riser 12) — and differ by 1.20 mm sleeved. So this builder carries the axis in
-the name, following parts.csv's own model-code convention (`S2.40.12/30`, with
-`/` folded to `-` as `components.cascade_filename` already does):
-
-    no override        Pusher 6x10-Sl.3mf
-    first riser 12     Pusher 6x10-12-Sl.3mf
-
-Four files are consequently named differently from `individual/` (the 246 Card
-and 472 Card pushers, which have overrides and no collision), and two are new;
-`pusher_file(d, legacy=True)` gives the old name, which is how
-`tests/test_pusher_regression.py` finds a pusher's cached twin.
+Output is the interface Onshape's exports are (`cad/mesh3mf.py`), in the same
+assembly position, written to `build/` and NEVER over `individual/` — that
+corpus cost a year's API budget and cannot be re-fetched. A pusher's name
+carries the `FirstSlidingSlotCards` axis the planner's key is missing;
+`pusher_file(d, legacy=True)` gives the old name, which
+`tests/test_pusher_regression.py` looks a cached twin up by.
 """
 import argparse
 import dataclasses
@@ -64,25 +46,23 @@ from . import revisions as R
 from . import tables as TB
 from .refuse import Refused, refuse
 
-# build123d is NOT imported here. It costs four seconds to load, and the
-# catalogue paths — `--list`, `--help`, `cad.promote`, `cad.assemble --list` —
-# are pure arithmetic over parts.csv; the part modules are imported inside
-# the builders, in the process that actually builds.
+# build123d is NOT imported here: it costs four seconds to load and the
+# catalogue paths are pure arithmetic over parts.csv. The part modules are
+# imported inside the builders, in the process that actually builds.
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "automation" / "parts.csv"
 
 
 def model_stem(code):
-    """A studio model code as the file names carry it: `S2.40.12-30.45-Sl`
-    for `S2.40.12/30.45.Sl` — the dot before the sleeving and the `/` of a
+    """A studio model code as the file names carry it: `S2.40.12-30.45-Sl` for
+    `S2.40.12/30.45.Sl`, the dot before the sleeving and the `/` of a
     first-riser override both folded to `-`."""
     return code.replace(".Sl", "-Sl").replace(".Un", "-Un").replace("/", "-")
 
 
 def model_matches(d, query):
-    """Does a `--model` argument — a model code or part of one, dots or
-    dashes — pick this cascade?"""
+    """Does `--model` — a code or part of one — pick this cascade?"""
     return not query or model_stem(query).lower() in model_stem(d.calModelName).lower()
 
 
@@ -94,22 +74,12 @@ def pusher_file(d, legacy=False):
 
 
 def box_file(d):
-    """`Box <model>.3mf`, the name `individual/` uses.
-
-    `calModelName` IS the box's identity — it carries the size letter, the riser
-    count, the capacities, the first-riser override, the Mat branch and the
-    sleeving — and CLAUDE.md makes the CAD the authority on it. Only the
-    separators differ from the studio's string.
-    """
-    # The one option the model code does not carry. The planner has no such
-    # variant — `plan_exports` names a box by its model alone — so a cascade
-    # built with it is a `cad/` build and not a refresh (spec/BOX.md).
+    """`Box <model>.3mf`, the name `individual/` uses. `calModelName` IS the
+    box's identity and the CAD is the authority on it."""
+    # The two options the model code does not carry: no label holders, and
+    # from 7.2g the back a variant box was built with. A row that ships
+    # variants ships NO ordinary box, so the plain name is not written for it.
     suffix = "" if d.isLabelHoldersOnBox else " no label holders"
-    # And from 7.2g the back a variant box was built with
-    # (`rev.back_pocket_variants`, `tables.BACK_POCKET_VARIANTS`). A row that
-    # ships variants ships NO ordinary box, so the plain name is simply not
-    # written for it — the two suffixed ones are the whole of that row's
-    # boxes, and every earlier release still writes the tree it wrote before.
     suffix += {TB.BACK_STANDARD: "",
                TB.BACK_OPEN: " open back pocket",
                TB.BACK_NOTCHES: " pusher notches"}[d.BackPocket]
@@ -117,23 +87,10 @@ def box_file(d):
 
 
 def lid_file(d, variant=TB.LID_OWN):
-    """`Lid <model>.3mf`, the name `individual/` uses.
-
-    Keyed on `calModelName` exactly as the Box is, which means a Mat cascade
-    gets its own lid where `plan_exports` keys one `("Lid", model)` for both.
-    The two are different files: the floor engraves `calModelName`, which
-    carries the Mat branch's `-M`.
-
-    From 7.1d a cascade whose mark is not its game's default ships a SECOND
-    lid carrying the default mark (`rev.both_lid_editions`), and that one
-    takes the edition's name as a suffix — `Lid S3.15.10.20-Un Ultimate.3mf`
-    beside `Lid S3.15.10.20-Un.3mf`. From 7.2b every cascade ships an
-    UNMARKED lid as well, and it takes `TB.LID_UNMARKED_NAME` the same way —
-    `Lid S3.15.10.20-Un Unmarked.3mf`. The suffix goes on the ALTERNATE or
-    UNMARKED lid and never on the lid the cascade carries, the way
-    `box_file`'s `no label holders` does: the plain name stays the name it has
-    always had, so every earlier release writes the tree it wrote before.
-    """
+    """`Lid <model>.3mf`, keyed on `calModelName` exactly as the Box is, so a
+    Mat cascade gets its own lid. The alternate edition (7.1d) and the
+    unmarked lid (7.2b) take a SUFFIX; it never goes on the lid the cascade
+    carries, so the plain name stays what it has always been."""
     stem = "Lid " + model_stem(d.calModelName)
     if variant == TB.LID_ALTERNATE:
         stem += " " + TB.lid_edition_name(
@@ -146,16 +103,9 @@ def lid_file(d, variant=TB.LID_OWN):
 
 
 def lid_variants_built(d):
-    """The lids this cascade's release ships, as `tables.LID_VARIANTS` members in
-    project order: the one it carries (`LID_OWN`), then the alternate edition
-    beside it, then the unmarked one.
-
-    The alternate is 7.1d's (`rev.both_lid_editions`) and only a cascade
-    whose mark is not its game's default has one; the unmarked lid is 7.2b's
-    (`rev.unmarked_lid`) and every cascade has one. Before either, a cascade
-    has one lid. This is the ONLY place the two flags are asked: the part
-    builds any variant at any release.
-    """
+    """The lids this cascade's release ships, as `tables.LID_VARIANTS` members
+    in project order. The ONLY place those two flags are asked — the part
+    builds any variant at any release."""
     out = [TB.LID_OWN]
     if d.rev.both_lid_editions and TB.has_lid_alternate(d.GameName, d.calModelName):
         out.append(TB.LID_ALTERNATE)
@@ -165,8 +115,8 @@ def lid_variants_built(d):
 
 
 def lid_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary, variant)] — every distinct lid,
-    deduplicated. `variant` (`tables.LID_VARIANTS`) is the builder's `extra`."""
+    """[(folder, filename, Primary, variant)] — every distinct lid; `variant`
+    (`tables.LID_VARIANTS`) is the builder's `extra`."""
     out = {}
     for _row, p in params.cascades(csv, game, version):
         d = D.derive(p)
@@ -179,22 +129,11 @@ def lid_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
 
 
 def component_metadata(d, path):
-    """What a written component says about ITSELF, in its 3MF metadata.
-
-    The engraved `CC <v>` is the only thing a person holding the part can read,
-    and reading it back is not OCR but a signature over the digits' counters
-    (`verify.STAMP_SIGNATURES`) — which cannot tell `7.1` from `7.2`, both
-    being two counterless digits, nor either from the iteration letter `7.1a`,
-    a letter being no kind of counter. So the release goes in the file as TEXT
-    as well, and `verify.check_stamp` holds the two to each other: the glyph says
-    what a person will read off the plastic, the metadata says exactly which
-    release wrote it, and a disagreement is the file lying to itself.
-    `spec/REVISIONS.md`, "What a release moves besides its flags".
-
-    `Title`, `Description` and `Application` are 3MF's own reserved names, so
-    Studio shows them; the version is under our declared namespace, so it is
-    machine-read rather than parsed out of prose.
-    """
+    """What a written component says about ITSELF, in its 3MF metadata. The
+    engraved `CC <v>` is read back by a signature over the digits' counters,
+    which cannot tell one two-digit release from another, so the release goes
+    in the file as TEXT too and `verify.check_stamp` holds the two to each
+    other. `spec/REVISIONS.md`, "What a release moves besides its flags"."""
     return {"Title": path.stem,
             "Application": "Card Cascade cad.build",
             "Description": f"{d.calModelName} at {d.calVersion}",
@@ -203,13 +142,9 @@ def component_metadata(d, path):
 
 def write_component(path, bodies, d, **extra):
     """Mesh `bodies` [(name, shape)] into the component 3MF at `path` and
-    report on it: sizes, whether the bytes moved, and any `extra` a kind
-    wants in its printed row. The first body is the part; the rest are its
-    second-filament inlays.
-
-    `d` is the Derived the bodies were built from, and it is required rather
-    than optional so no kind can be added that writes a part without saying
-    which release wrote it (`component_metadata`)."""
+    report on it; the first body is the part, the rest its inlays. `d` is
+    REQUIRED so no kind can write a part without saying which release wrote
+    it."""
     before = path.read_bytes() if path.exists() else None
     meshed = mesh3mf.write(path, bodies, metadata=component_metadata(d, path))
     return {"path": path, "volume": bodies[0][1].volume, "bodies": len(bodies),
@@ -221,19 +156,10 @@ def write_component(path, bodies, d, **extra):
 
 
 def build_lid(d, extra, path):
-    """Build one lid and write the 3MF. Like the Box, a Lid sits at the part
-    studio's origin, which is the assembly's. `extra` is the lid's VARIANT
-    (`tables.LID_VARIANTS`): the cascade's own, the alternate edition of the game's
-    mark a single-set Innovation cascade ships from 7.1d, or the unmarked
-    lid every cascade ships from 7.2b (`lid_file`).
-
-    A lid is MORE THAN ONE BODY: the logo pattern's inlays print in the second
-    filament, so Onshape exports them as their own objects and so does this.
-    `make_cascade.load_export` pairs bodies to template parts by name and
-    reconciles the rest onto same-extruder slots, so the names matter and the
-    order does not — but the order is fixed anyway (down the artwork, largest
-    first) to keep a rebuild byte-identical.
-    """
+    """Build one lid and write the 3MF; `extra` is its VARIANT. A Lid sits at
+    the part studio's origin, which is the assembly's. It is MORE THAN ONE
+    BODY — the logo inlays print in the second filament — and the order is
+    fixed (largest first) to keep a rebuild byte-identical."""
     from .parts import lid as lid_part
     part, inlays = lid_part.build_all(d, variant=extra)
     bodies = [("Lid", part)]
@@ -248,32 +174,16 @@ def build_lid(d, extra, path):
 def holder_file(d, first=False, rear=False):
     """`Holder <model>.3mf`, `FirstHolder ...` for the deeper first-riser one,
     or `RearHolder ...` for the rearmost, lipless one (`rev.rear_holder`).
-
-    Keyed on `calModelName` like the Box and the Lid. That is a wider key than
-    the geometry needs — a holder does not depend on the front capacity or the
-    Mat branch — so two rows can produce identical files under different names.
-    It is the same trade `lid_file` makes, and the alternative is a name that
-    cannot be looked up from a parts.csv row.
-
-    NB `plan_exports` names these `Holder M-21-r4-Sl`, keyed on
-    `(size, front capacity, risers, sleeved, first)`. That key is missing
-    `HorizontalSlots` for the per-slot games, where the size letter stands in
-    for it, and missing the card count, which sets the depth. Both are in
-    `calModelName`.
-    """
+    Keyed on `calModelName` — wider than the geometry needs, so two rows can
+    produce identical files under different names; the alternative is a name
+    that cannot be looked up from a parts.csv row."""
     kind = "RearHolder" if rear else ("FirstHolder" if first else "Holder")
     return f"{kind} {model_stem(d.calModelName)}.3mf"
 
 
 def holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary, (first, rear))] — every distinct holder.
-
-    The kinds a cascade is built from are `assembly.holder_kinds`: the plain
-    Holder, the deeper `FirstHolder` where the row overrides the first slot
-    and keeps it at the front, and from 7.2a the `RearHolder` — the rearmost
-    one without rear lips, which is the deep one itself where the row puts
-    the deep slot at the back (`rev.rear_holder`).
-    """
+    """[(folder, filename, Primary, (first, rear))] — every distinct holder;
+    the kinds are `assembly.holder_kinds`."""
     out = {}
     for _row, p in params.cascades(csv, game, version):
         d = D.derive(p)
@@ -286,15 +196,8 @@ def holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
 
 
 def build_holder(d, extra, path):
-    """Build one holder and write the 3MF. `extra` is `(first, rear)`.
-
-    The object name is the one `plan_exports` uses, so the file drops straight
-    in. NB `individual/`'s own first-riser files name their body `Holder` — the
-    assembly named both that, and `assembly_split.py` told them apart by height.
-    Generated locally, the part simply gets named; nothing downstream reads the
-    body name (`make_cascade.load_export` sorts by object id), and the `object`
-    role `plan_exports` emits is `FirstHolder` either way.
-    """
+    """Build one holder; `extra` is `(first, rear)`. The object name is the one
+    `plan_exports` uses, so the file drops straight in."""
     from .parts import holder as holder_part
     first, rear = extra
     part = holder_part.build(d, first, rear=rear)
@@ -303,55 +206,33 @@ def build_holder(d, extra, path):
 
 
 def topper_file(d, expansion="Blank"):
-    """`Topper Blank M10-Un.3mf` — the cached corpus' own name.
-
-    The key is NOT `calModelName`. Onshape's catalogue is keyed on three
-    things — `HorizontalSlots` through the size letter, `CardsPerSlidingSlot`
-    and `isSleeved` — and that is the 48 files in `individual/`: 8 bodies, 6
-    expansions each.
-
-    Those three do NOT fully determine the geometry, though. The topper's slant
-    is the Holder's, which comes from `calHeightIncrement`, which comes from
-    `RisingSliders`. Every Innovation row that gets toppers has 5 risers, so
-    the name is sound in practice — but `Single Set` at 3 risers has the same
-    three-part key as `3 Later Ages` and a slope of 2.727 against 2.130, which
-    is a 5% difference in volume under one filename. `topper_catalogue`
-    refuses that rather than letting whichever row came first win.
-    """
+    """`Topper Blank M10-Un.3mf` — the cached corpus' own name. The key is NOT
+    `calModelName` but Onshape's three, which do NOT fully determine the
+    geometry: the slant follows `RisingSliders`, so two rows can share the key
+    and not the rise and `topper_catalogue` REFUSES that."""
     slv = "-Sl" if d.isSleeved else "-Un"
     return f"Topper {expansion} {d.calSizeLetter}{d.CardsPerSlidingSlot}{slv}.3mf"
 
 
 def topper_shape_key(d):
-    """Everything the topper's geometry actually depends on — which is one more
-    thing than its FILENAME carries. See `topper_file`."""
+    """Everything the topper's geometry depends on — one more thing than its
+    FILENAME carries (`topper_file`)."""
     return (d.HorizontalSlots, d.CardsPerSlidingSlot, d.isSleeved,
             d.RisingSliders)
 
 
-# A topper labels which expansion is in a slot, so a cascade that holds only
-# ONE has no use for them — and `individual/` bears that out: no cached topper
-# for `Single Set` or `Single Mini`. `Set/Extension` is the column that
-# says so, and it is free text, so this matches on the phrase rather than on an
-# exact string. If a future single-set row words it differently it will get
-# toppers built; `tests/test_topper_corpus.py` reports the catalogue against
-# the cache, which is where that would show up.
+# A topper labels which expansion is in a slot, so a single-expansion cascade
+# has no use for them. `Set/Extension` says so and is free text, so this
+# matches on the PHRASE.
 SINGLE_SET = "one expansion"
 
 
 def ships_toppers(row, d):
     """Does this row's cascade carry toppers? Innovation only, not a
     single-set cascade (`SINGLE_SET`), and not a row whose `Toppers` column
-    says `none`. The catalogue, `cad.cascade` and `cad.assemble` all ask it
-    here.
-
-    The column exists because a topper's cached name is Onshape's three-key
-    (`topper_file`: size letter, cards per slot, sleeving) and NOT the model,
-    while its slant is the holder's and so depends on the rise. A row that
-    shares the key with another but not the rise — `M8.16.10-16` against
-    `M5.10.10`, both `M10-Un` — would build toppers of one slant over the
-    other's file, so it opts out until toppers are keyed on what they fit.
-    """
+    says `none`; the catalogue, `cad.cascade` and `cad.assemble` all ask it
+    HERE. The column exists because a row sharing `topper_file`'s three-key
+    with another but not the rise would build over the other's file."""
     if (row.get("Toppers") or "").strip().lower() in ("none", "no", "false", "0"):
         return False
     return (d.GameName == "Innovation"
@@ -359,12 +240,8 @@ def ships_toppers(row, d):
 
 
 def topper_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary, expansion)] — every distinct topper.
-
-    Innovation only, single-set cascades excluded (`ships_toppers`): the blank
-    and every expansion whose mark `topper.MARKS` has, which is all five
-    (`tables.TOPPERS`). See spec/TOPPER.md.
-    """
+    """[(folder, filename, Primary, expansion)] — every distinct topper: the
+    blank and all five expansions, where `ships_toppers`."""
     out, shapes = {}, {}
     for row, p in params.cascades(csv, game, version):
         d = D.derive(p)
@@ -388,9 +265,8 @@ def topper_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
 
 def build_topper(d, expansion, path):
     """Build one topper and write the 3MF: the body named as the corpus does,
-    and — for a named expansion — its lettering as `Part 2`, `Part 3`, ...
-    beside it, the second-filament inlays a print needs, as the Lid's logo
-    regions are written (`topper.inlays`)."""
+    and its lettering as `Part 2`, `Part 3`, ... — the second-filament inlays
+    a print needs (`topper.inlays`)."""
     from .parts import topper as topper_part
     part, inlays = topper_part.build_all(d, expansion)
     bodies = [("Topper", part)] + [(f"Part {i}", s) for i, s in enumerate(inlays, start=2)]
@@ -399,14 +275,10 @@ def build_topper(d, expansion, path):
 
 def box_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
     """[(folder, filename, Primary)] — every distinct box, deduplicated.
-
-    Boxes do NOT share across games or sleeving, and `calModelName` separates
-    every axis that changes the geometry, so it is the whole key — plus the
-    one option it does not carry: a row that ships a plain box
-    (`ships_plain_box`) yields its twin as well, under the twin's own Primary
-    (`LabelHolders` 0), which is what `_job` derives and what the stamp
-    hashes, so `build_box` needs no variant.
-    """
+    `calModelName` separates every axis that changes the geometry, so it is
+    the whole key, plus the options it does not carry: a row that ships a
+    plain box or variant backs yields the twins too, each under its own
+    Primary, so `build_box` needs no variant."""
     out = {}
     for row, p in params.cascades(csv, game, version):
         d = D.derive(p)
@@ -430,15 +302,9 @@ def box_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
 
 def ships_plain_box(row, d):
     """Does this row's cascade ship a SECOND box, without label holders, on a
-    plate of its own at the end of the project? From 7.2d
-    (`rev.plain_box_plate`), and only where parts.csv's `Plain box` column
-    says so — Compile's three rows. The catalogue and `cad.cascade` ask it
-    here, and this is the ONLY place the flag is asked.
-
-    A column and not a game: the plain box changes nothing about the row's
-    own parts, so it is a row property like `TokenHolder` and `Toppers`, read
-    off the row the same way, and any game can opt in.
-    """
+    plate of its own at the end of the project? From 7.2d, and only where
+    parts.csv's `Plain box` column says so. The ONLY place the flag is
+    asked."""
     if not d.rev.plain_box_plate:
         return False
     return (row.get("Plain box") or "").strip().lower() in ("true", "1", "yes")
@@ -446,15 +312,10 @@ def ships_plain_box(row, d):
 
 def plain_box_twin(d):
     """The same cascade's Derived with the label holders OFF — what the plain
-    box on the last plate is built from, and what names its file
-    (`box_file`'s ` no label holders`).
-
-    Every Primary field rides on the Derived by name (`derive` starts from
-    `asdict(p)`), so the Primary is rebuilt from it with `LabelHolders` 0 and
-    re-derived; nothing else moves, the model code included. A row whose own
-    box already has no holders (`Label holders` FALSE) is refused: its twin
-    would be the same file, and a project does not ship one box twice.
-    """
+    box on the last plate is built from. Every Primary field rides on the
+    Derived by name, so the Primary is rebuilt and re-derived; nothing else
+    moves, the model code included. A row whose box already has no holders is
+    REFUSED: the twin would be the same file."""
     if not d.isLabelHoldersOnBox:
         refuse(f"{d.calModelName}: the box already has no label holders, so a "
                f"plain twin would be the same box; drop `Plain box` or "
@@ -466,21 +327,10 @@ def plain_box_twin(d):
 
 def back_pocket_variants_built(row, d):
     """The BACKS this row's cascade ships, as `tables.BACK_POCKET_VARIANTS`
-    members in project order, or `()` for a row that ships the ordinary box.
-
-    From 7.2g (`rev.back_pocket_variants`), off parts.csv's `Back pocket`
-    column — a `+`-separated list, `open+notches` on `Single Mini`. This is
-    the ONLY place the column and the flag are asked: the part builds any
-    back at any release.
-
-    The variants REPLACE the ordinary box rather than joining it. `Single
-    Mini` is used in PAIRS, and the pair wants one box of each: the `open` one
-    carries the 128 mm player aids in a pocket the full inner width, the
-    `notches` one hangs the pair's pushers. An ordinary
-    2-notch box does neither job, so it is not worth a plate. The FIRST
-    entry is the box plate 1 carries — with the pushers, as always — and it
-    is also the box the poster measures (`make_posters`).
-    """
+    members in project order, or `()` for the ordinary box. From 7.2g, off
+    parts.csv's `Back pocket` column, and the ONLY place the column and the
+    flag are asked. They REPLACE the ordinary box, and the FIRST is the one
+    plate 1 carries and the poster measures. `spec/BOX.md`."""
     want = [v.strip().lower()
             for v in (row.get("Back pocket") or "").replace(",", "+").split("+")
             if v.strip()]
@@ -500,12 +350,8 @@ def back_pocket_variants_built(row, d):
 
 def back_pocket_twin(d, variant):
     """The same cascade's Derived built with one of the variant BACKS —
-    `plain_box_twin`'s recipe, on `BackPocket` instead of `LabelHolders`.
-
-    Nothing but the back moves: the model code, the width, the lid and the
-    two pushers are the cascade's own, which is what lets one lid close
-    either box of the pair.
-    """
+    `plain_box_twin`'s recipe on `BackPocket`. Nothing but the back moves,
+    which is what lets one lid close either box of the pair."""
     if variant not in TB.BACK_POCKET_VARIANTS:
         refuse(f"unknown back pocket variant {variant!r}; one of "
                f"{', '.join(v for v in TB.BACK_POCKET_VARIANTS if v)}")
@@ -515,18 +361,15 @@ def back_pocket_twin(d, variant):
 
 
 def build_box(d, _extra, path):
-    """Build one box and write the 3MF. Boxes are NOT placed in an assembly
-    offset — the part studio's origin is the assembly's."""
+    """Build one box: NO assembly offset, the part studio's origin being the
+    assembly's."""
     from .parts import box as box_part
     return write_component(path, [("Box", box_part.build(d))], d)
 
 
 def pusher_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary)] — every distinct pusher, deduplicated.
-
-    The key is the full one: the game, the riser count, the cards per slot, the
-    first-riser override and the sleeving. 34 entries against the planner's 32.
-    """
+    """[(folder, filename, Primary)] — every distinct pusher, on the full key:
+    game, risers, cards per slot, first-riser override, sleeving."""
     out = {}
     for _row, p in params.cascades(csv, game, version):
         fn = pusher_file(D.derive(p))
@@ -540,38 +383,24 @@ def pusher_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
 
 
 def token_holder_file(d, half):
-    """`TokenHolder <model>.3mf`.
-
-    Keyed on `calTokenHolderModel`, which is what the part has engraved on it,
-    where `plan_exports` keys `(front capacity, merged, sleeved)` and names the
-    file `TokenHolder <cap>-<slv>[ merged]`. That key is right about the
-    GEOMETRY — `HorizontalSlots` cancels out of `calTokenHolderSlotWidth`, so a
-    3-slot and a 4-slot box with the same front capacity really do want the
-    same tray — and wrong about the ENGRAVING, which carries the size letter.
-    Dominion `324 Card` (M) and `333 Card` (S) collide on `TokenHolder 21-Sl`
-    today and the cached file is stamped `M21.Sl` for both.
-
-    So this builder carries the letter in the name, as it carries the Pusher's
-    first-riser axis.
-    """
+    """`TokenHolder <model>.3mf`, keyed on `calTokenHolderModel`, which is what
+    the part has ENGRAVED on it. The planner's key is right about the geometry
+    and wrong about the engraving, so two Dominion rows collide under it and
+    this builder carries the size letter in the name."""
     kind = "HalfTokenHolder" if half else "TokenHolder"
     return f"{kind} {model_stem(d.calTokenHolderModel)}.3mf"
 
 
 def ships_token_holder(row):
     """Does this row ask for a token holder? parts.csv's `TokenHolder` column,
-    `full` or `none`, blank meaning none — Dominion's rows alone set it. The
-    catalogue, `cad.cascade` and `cad.assemble` all ask it here."""
+    blank meaning none; the catalogue and both CLIs ask it HERE."""
     return (row.get("TokenHolder") or "").strip().lower() not in ("", "none")
 
 
 def token_holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
-    """[(folder, filename, Primary, half)] — every distinct token holder.
-
-    A row asks for one (`ships_token_holder`); the HALF is a Mat-box feature,
-    so a merged row yields both, which is what `plan_exports.compose` emits
-    and what `PIPELINE.md` records.
-    """
+    """[(folder, filename, Primary, half)] — every distinct token holder, where
+    `ships_token_holder`. The HALF is a Mat-box feature, so a merged row
+    yields both."""
     out = {}
     for row, p in params.cascades(csv, game, version):
         if not ships_token_holder(row):
@@ -586,11 +415,8 @@ def token_holder_catalogue(csv=CSV, game=None, model=None, version=R.CURRENT):
 
 
 def build_token_holder(d, half, path):
-    """Build one token holder and write the 3MF.
-
-    Like the Box and the Lid it sits at the part studio's origin, which is the
-    assembly's — every cached component is already at those coordinates.
-    """
+    """Build one token holder. Like the Box and the Lid it sits at the part
+    studio's origin, which is the assembly's."""
     from .parts import token_holder
     name = "HalfTokenHolder" if half else "TokenHolder"
     return write_component(path, [(name, token_holder.build(d, half))], d)
@@ -606,40 +432,27 @@ def build_pusher(d, _extra, path):
                            cls=L.lock_class(d.calPusherTotalDepth)[0])
 
 
-# --- running a catalogue: stamps, a pool, and one loop for every kind --------
-#
 # A build is a list of SPECS — (kind, Primary, extra, targets) — run through
-# `_job`, in a process pool by default. Each job builds once and writes every
-# target: six holders are the same geometry under two names (the Mat twins),
-# and the second name is a copy of the first's bytes, not a second build.
-#
-# A STAMP beside each written file records a digest of everything the file
-# depends on — the Primary, the kind and its extra, and every source file
-# under cad/, logos/ and fonts/ — so a rerun with nothing changed skips the
-# build and says so, and any edit anywhere in cad/ invalidates every stamp.
-# `--force` ignores them. The 3MF itself is still the thing compared: a
-# rebuilt file is `changed` only when its bytes moved.
+# `_job` in a process pool; each job builds once and writes every target, a
+# second target being a copy of the first's bytes. A STAMP beside each file
+# digests everything it depends on — the Primary, the kind and its extra, and
+# every source under cad/, logos/ and fonts/ — so a rerun with nothing changed
+# skips the build and any edit in cad/ invalidates every stamp.
 
 STAMP_DIR = ".stamps"
 
 
 def out_for(version):
-    """Where a release's parts go: `build/` for the current one, and
-    `build/v<version>/` for any other.
-
-    Filenames carry no version (`components.tracked_name`'s rule: a NAME is an
-    identity), so two releases written to one tree overwrite each other part
-    for part, and the stamps — which DO hash the version, through the Primary
-    — would then rebuild the lot on every alternation. Separating them is the
-    whole of the fix, and it is a default rather than a flag you must remember.
-    """
+    """Where a release's parts go: `build/` for the current one,
+    `build/v<version>/` for any other. Filenames carry NO version (a NAME is
+    an identity), so two releases in one tree would overwrite each other part
+    for part."""
     R.check(version)
     return ROOT / "build" if version == R.CURRENT else ROOT / "build" / f"v{version}"
 
 
 def source_hash():
-    """One digest over everything a part can depend on besides its Primary."""
-    h = hashlib.sha256()
+    h = hashlib.sha256()         # all a part depends on but its Primary
     files = sorted(list((ROOT / "cad").rglob("*.py"))
                    + list((ROOT / "logos").rglob("*.dxf"))
                    + list((ROOT / "logos").rglob("*.brep"))
@@ -669,7 +482,6 @@ NOUN = {"lid": "lids", "holder": "holders", "tokenholder": "token holders",
 
 
 def _job(spec):
-    """One unit of work, in a worker: build once, write every target."""
     kind, p, extra = spec["kind"], spec["p"], spec["extra"]
     out_dir, targets = spec["out_dir"], spec["targets"]
     if not spec["force"] and all(
@@ -705,9 +517,7 @@ def _job(spec):
 
 # What a job costs, roughly, in seconds of one core — for ordering ONE pool
 # over every kind longest first, so the last box or Compile lid is not
-# started when everything else has finished and nine cores sit idle. A lid
-# costs what its mark costs (2 s for Dominion's 459 edges, 13 for Compile's
-# 1885), a box its sixteen cuts and its floor text, the rest is small.
+# started when nine cores are already idle. A lid costs what its mark costs.
 COST = {"lid": 8.0, "box": 7.0, "pusher": 3.0, "holder": 1.5, "topper": 1.0,
         "tokenholder": 1.0}
 LID_COST = {"Compile": 13.0, "Innovation": 7.0, "FCM": 4.0, "Dominion": 2.5}
@@ -721,9 +531,8 @@ def cost(spec):
 
 def run_jobs(specs, jobs):
     """Every spec through `_job`, in the order given, `jobs` at a time — one
-    worker per core by default, each meshing single-threaded
-    (`mesh3mf.serial_meshing`): the workers are the parallelism, and OCCT's
-    own threads on top of them only fought for the cores."""
+    worker per core by default, each meshing SINGLE-threaded
+    (`mesh3mf.serial_meshing`): the workers are the parallelism."""
     if jobs <= 1 or len(specs) <= 1:
         return [_job(s) for s in specs]
     import concurrent.futures as cf
@@ -736,26 +545,22 @@ def run_jobs(specs, jobs):
 
 def holder_key(p, extra):
     """What a holder's geometry depends on: everything in its Primary but the
-    front capacity and the Mat branch, which `holder_file` carries through
-    `calModelName` and the part never reads, plus its kind `(first, rear)`.
-    Two files with one key are one build — the six Mat twins, which are
-    byte-identical."""
+    front capacity and the Mat branch, plus its kind `(first, rear)`. Two
+    files with one key are ONE build."""
     return (p.GameName, p.HorizontalSlots, p.RisingSliders,
             p.CardsPerSlidingSlot, p.isFirstSlidingSlotOverride,
             p.FirstSlidingSlotCards, p.isSleeved, p.Version,
             p.SleevedCardWidth, p.DeepSlotAtBack, tuple(extra))
 
 
-# Every kind's catalogue, `(csv, game, model, version) -> items`. The Box's and
-# the Pusher's yield (folder, filename, Primary) — they have no `extra` — and
-# the rest (folder, filename, Primary, extra).
+# Every kind's catalogue, `(csv, game, model, version) -> items`. The Box's
+# and the Pusher's have no `extra`; the rest yield one.
 CATALOGUES = {"lid": lid_catalogue, "holder": holder_catalogue,
               "tokenholder": token_holder_catalogue, "topper": topper_catalogue,
               "box": box_catalogue, "pusher": pusher_catalogue}
 
 
 def specs_for(kind, args, src):
-    """[(folder, filename, Primary, extra)] for `--list`, and the job specs."""
     items = CATALOGUES[kind](args.csv, args.game, args.model, args.version)
     if kind in ("box", "pusher"):
         items = [(f, fn, p, None) for f, fn, p in items]
@@ -772,7 +577,6 @@ def specs_for(kind, args, src):
 
 
 def _row(kind, r):
-    """One printed line per written file."""
     mark = ("skipped" if r["skipped"] else "new" if r["new"]
             else "changed" if r["changed"] else "")
     name = f"{r['folder']}/{r['filename']}"
@@ -821,7 +625,6 @@ def main(argv=None):
 
 
 def run(args):
-    """The build `args` asks for; `main` is the argument parsing round it."""
     kinds = KINDS if args.part == "all" else (args.part,)
     src = source_hash()
     catalogue = {kind: specs_for(kind, args, src) for kind in kinds}
@@ -838,8 +641,7 @@ def run(args):
         return 0
 
     # ONE pool over every kind, longest jobs first: six pools in sequence each
-    # paid ten worker start-ups and idled through its own tail (205 s for the
-    # catalogue against 125 s of CPU per core).
+    # paid ten worker start-ups and idled through its own tail.
     every = [spec for _items, specs in catalogue.values() for spec in specs]
     every.sort(key=cost, reverse=True)
     t0 = time.perf_counter()
@@ -856,7 +658,6 @@ def run(args):
 
 
 def report(kind, results, args):
-    """One line per file, then the kind's totals."""
     for r in results:
         print(_row(kind, r))
     if kind == "lid":

@@ -1,14 +1,11 @@
 """Per-game lookups, keyed by GameName.
 
 The first block is transcribed verbatim from the Onshape variable studio, the
-variable each came from named above it. `Colours`, which Onshape knows about
-and `automation/components.py` does not, is kept so the transcription can be
-diffed against the studio without a mental exclusion. The lid-mark and topper
-tables after it are `cad/`'s own policy (`spec/LID.md`, `spec/TOPPER.md`).
-
-**`CraftGutermann` is deliberately absent.** The studio still has it; the design
-is deprecated and Allan asked for it to go. It is the one place these tables
-knowingly differ from Onshape, so do not add it back when diffing.
+variable each came from named above it; `Colours` is kept so the transcription
+can be diffed without a mental exclusion. The lid-mark and topper tables after
+it are `cad/`'s own policy (`spec/LID.md`, `spec/TOPPER.md`).
+**`CraftGutermann` is deliberately absent** — deprecated, and the one place
+these tables knowingly differ from Onshape.
 """
 
 from .refuse import refuse
@@ -45,139 +42,86 @@ GAME_SHORT_NAME = {
 # calSizeLetter — from HorizontalSlots
 SIZE_LETTER = {2: "XS", 3: "S", 4: "M", 5: "L"}
 
-# --- the Lid's logo pattern ------------------------------------------------
-#
-# Each game's logo is one sketch in the Lid studio, extruded twice: `Remove
-# logo` cuts the pocket and `Add Logo Material` fills it with the second
-# filament. The artwork lives in `logos/<Game>/`; `spec/LID.md` records where
-# each file came from and what it was checked against.
-#
-# Per game, and per edition of a game's mark, the drawn VARIANTS of it, largest
-# first. `lid.logo_choice` takes the first that fits `lid.logo_limit` and then
-# scales it to fill — so a game needs a second file only where its two sizes
-# are not a scale of each other. Compile's are (its small mark is the big one
-# at 1/1.25297, line weights and all, which is why one file serves its six
-# lids); Innovation's are not, because `#LineWidth` and the flourish dashes are
-# absolute in that sketch, so its letters grow between the two drawings and its
-# strokes do not.
+# Each game's logo is one sketch in the Lid studio, extruded twice: a pocket
+# cut and a second-filament fill; the artwork is in `logos/<Game>/`
+# (`spec/LID.md`). Per game and per edition, the drawn VARIANTS largest first:
+# `lid.logo_choice` takes the first that fits `lid.logo_limit` and scales it
+# to fill, so a second file is needed only where the two are not a scale.
 LID_LOGO = {
     "Compile": {None: ("lid_logo.dxf",)},
     "Dominion": {None: ("lid_logo.dxf",)},
     "FCM": {None: ("lid_logo.dxf",)},
-    # Both Innovation marks are GENERATED, not drawn — `cad/marks.py` builds
-    # them from Noto Serif and the Logo Flourishes sketch, so their 0.600
-    # strokes hold at every size the fit picks. The drawings beside them in
-    # `logos/Innovation/` — `lid_logo.dxf` and `lid_logo_big.brep` for the
-    # Ultimate mark, `lid_logo_plain*.dxf` for the plain one — are what they
-    # are CHECKED against, not what is used.
+    # Both Innovation marks are GENERATED, not drawn (`cad/marks.py`), so
+    # their strokes hold at every size. The drawings in `logos/Innovation/`
+    # are what they are CHECKED against, not what is used.
     "Innovation": {None: ("@innovation-ultimate-big", "@innovation-ultimate"),
                    "plain": ("@innovation-plain",)},
 }
 
 # The games whose mark goes into the lid TURNED a half turn about the lid's
-# centre (`lid.logo_art`), every edition and size of it. Innovation, because a
-# printed lid read upside down — the same finding that turned Dominion's
-# drawing back (`spec/LID.md`).
-#
-# A set here and not a turned file because Innovation's marks are GENERATED:
-# there is no drawing to turn, and `cad/marks.py` stays in the frame of the
-# drawings it is checked against, so those comparisons do not move. About the
-# LID's centre and not the mark's own box, because the origin is the
-# placement datum — the plain mark centres its WORD there (`marks._centre`),
-# and a turn about its box would undo that.
+# centre (`lid.logo_art`), every edition and size — settled by a PRINTED lid,
+# never by a render (`spec/LID.md`). A set and not a turned file because
+# Innovation's marks are GENERATED. About the LID's centre and not the mark's
+# own box, the origin being the placement datum.
 LID_LOGO_TURNED = frozenset({"Innovation"})
 
-# Which EDITION of a game's mark a cascade carries — keyed on the base model,
-# `calModelName` up to its third dot, because this is a question about which
-# sets the box holds and not about any dimension.
-#
-# Innovation is the one game with two: the Ultimate mark says "Innovation
-# Ultimate", and the two cascades that hold a single set say just
-# "Innovation". Anything not listed gets the game's default mark, `None`.
+# Which EDITION of a game's mark a cascade carries — keyed on `calModelName`
+# up to its third dot, this being a question about which SETS the box holds
+# and not about any dimension. Anything not listed gets the default, `None`.
 LID_LOGO_EDITION = {
     "Innovation": {"S3.15.10": "plain", "XS5.15.10": "plain"},
 }
 
-# The VARIANTS of a lid a cascade can ship — what its underside carries and
-# what its floor's middle line says (`cad/parts/lid.py`). Here and not in the
-# part because `build.py` and `project.py` name a variant without loading
-# build123d (`cad/lazy.py`); `build.lid_variants_built` says which a release
-# ships, `lid_file` and `project.object_name` what each is called.
-LID_OWN = "own"              # the cascade's mark and its game's name — the
-#                              first lid of every project
-LID_ALTERNATE = "alternate"  # the game's other edition of the mark, from 7.1d
-#                              (`rev.both_lid_editions`, `spec/LID.md`)
-LID_UNMARKED = "unmarked"    # no mark, and `lid.CREDIT` where the game's name
-#                              is, from 7.2b (`rev.unmarked_lid`)
+# The VARIANTS of a lid a cascade can ship (`cad/parts/lid.py`). Here and not
+# in the part because `build.py` and `project.py` name one without loading
+# build123d.
+LID_OWN = "own"              # the cascade's mark and its game's name
+LID_ALTERNATE = "alternate"  # the game's other edition, from 7.1d
+LID_UNMARKED = "unmarked"    # no mark, `lid.CREDIT` for the game's name, 7.2b
 LID_VARIANTS = (LID_OWN, LID_ALTERNATE, LID_UNMARKED)
 
 # The VARIANTS of a BACK a box can be built with (`box.storage_slot_count`),
-# from 7.2g (`rev.back_pocket_variants`). Here for the reason the lid's are:
-# `build.py` names one without loading build123d.
-BACK_STANDARD = ""         # the studio's rear storage — one cavity per pusher
-#                            the cascade ships, and the pocket is what is left
-BACK_OPEN = "open"         # no dividers, no cavities, no rim cutouts: the whole
-#                            slot band empty from the floor up, so the pocket is
-#                            the full inner width (149.100 on XS, which takes
-#                            Innovation's 128 mm player aids)
-BACK_NOTCHES = "notches"   # as many pusher cavities as the width takes — 4 on
-#                            the widened unsleeved XS, 3 on the sleeved — and no
-#                            thumb cutout, there being no pocket left
+# from 7.2g (`rev.back_pocket_variants`). Here for the reason the lid's are.
+BACK_STANDARD = ""         # one cavity per pusher shipped; the rest is pocket
+BACK_OPEN = "open"         # no dividers or cutouts: the pocket is the full
+#                            inner width
+BACK_NOTCHES = "notches"   # as many cavities as the width takes, no pocket
+#                            and so no thumb cutout
 BACK_POCKET_VARIANTS = (BACK_STANDARD, BACK_OPEN, BACK_NOTCHES)
 
 # What an edition is CALLED, where a name has to tell two lids apart: the
-# suffix on the alternate lid's file and on its object in the project, from
-# 7.1d. A game's DEFAULT edition is the `None` key here as it is above, and
-# Innovation's default is the mark that says Ultimate.
+# suffix on the alternate lid's file and object. A game's DEFAULT edition is
+# the `None` key here as it is above.
 LID_EDITION_NAME = {
     "Innovation": {None: "Ultimate", "plain": "Innovation"},
 }
 
-# And the word for the lid that carries NO mark, which every cascade ships
-# from 7.2b (`rev.unmarked_lid`, `LID_UNMARKED`): the same suffix rule, on
-# the file and on the object — `Lid S4.16.10.32-Un Unmarked.3mf`, `Lid 168U
-# Unmarked`. One word for every game, because the lid says nothing about one.
+# And the word for the lid that carries NO mark (7.2b): the same suffix rule,
+# one word for every game, because the lid says nothing about one.
 LID_UNMARKED_NAME = "Unmarked"
 
 
 def lid_editions(game, model):
     """The editions of `game`'s mark a cascade of this model ships, the one it
-    CARRIES first.
-
-    A cascade that carries its game's default mark ships that alone, and that
-    is 46 of the 50. One that carries another edition ships the default TOO,
-    on a plate of its own, so its owner prints whichever the shelf should
-    read: Innovation's two single-set cascades say just `Innovation` and get
-    an `Innovation Ultimate` lid beside it.
-
-    `model` is `calModelName`, keyed on up to its third dot exactly as
-    `LID_LOGO_EDITION` is — this is a question about which SETS the box holds
-    and not about any dimension.
-
-    The second is what `rev.both_lid_editions` admits, and it is the flag and
-    not this function that a release turns on.
-    """
+    CARRIES first. A cascade carrying its game's default mark ships that
+    alone; one carrying another edition ships the default TOO, for its owner
+    to choose. The second is what `rev.both_lid_editions` admits — the FLAG,
+    not this function, is what a release turns on."""
     own = (LID_LOGO_EDITION.get(game) or {}).get(".".join(model.split(".")[:3]))
     return (own,) if own is None else (own, None)
 
 
 def has_lid_alternate(game, model):
-    """Is there a SECOND edition for this cascade to ship?
-
-    Only a cascade whose mark is not its game's default has one. WHETHER it
-    ships is the release's question and not this one's — `cad/build.py` asks
-    both, `rev.both_lid_editions` first.
-    """
+    """Is there a SECOND edition for this cascade to ship? Only a cascade
+    whose mark is not its game's default has one; WHETHER it ships is the
+    release's question, asked in `cad/build.py`."""
     return len(lid_editions(game, model)) > 1
 
 
 def lid_edition_name(game, edition):
-    """The word that names an edition in a file or an object name.
-
-    A refusal rather than a `None` to concatenate: a second edition with no
-    name would otherwise write `Lid <model> None.3mf` and be found on the
-    shelf, not here.
-    """
+    """The word that names an edition in a file or an object name. A REFUSAL
+    rather than a `None` to concatenate, which would write `Lid <model>
+    None.3mf` and be found on the shelf, not here."""
     name = (LID_EDITION_NAME.get(game) or {}).get(edition)
     if name is None:
         refuse(f"{game}'s {edition!r} lid edition has no name to put in a "
@@ -186,9 +130,8 @@ def lid_edition_name(game, edition):
 
 
 # The five Innovation expansions whose topper mark `cad/parts/topper.MARKS`
-# draws, in catalogue order. Data here rather than read off `MARKS` so that
-# `cad.build --list` and `cad.promote` can name the toppers without importing
-# build123d; `topper.py` asserts the two agree.
+# draws, in catalogue order. Data here rather than read off `MARKS` so the
+# catalogue paths need no build123d; `topper.py` asserts the two agree.
 TOPPER_EXPANSIONS = ("Artifacts", "Cities", "Echoes", "Figures", "Unseen")
 # The six toppers a cascade ships, in catalogue order: the Blank and the five.
 TOPPERS = ("Blank",) + TOPPER_EXPANSIONS

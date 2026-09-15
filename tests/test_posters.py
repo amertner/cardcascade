@@ -1,6 +1,6 @@
 """The description posters: the spec resolves for every cascade, every
-asset it names exists, and a poster comes out at 4000x3000 under the
-project's tracked name. No Blender: the picture is the placeholder.
+asset it names exists, and a poster comes out at 4000x3000 under the tracked
+name. No Blender: the picture is the placeholder.
 
     .venv/bin/python tests/test_posters.py
 """
@@ -108,7 +108,6 @@ with tempfile.TemporaryDirectory() as tmp:
 
 
 
-# ---- the render scene's plan (cad.scene), pure python: no build123d ----
 print("\n=== cad.scene: the card plan ===")
 from cad import scene as SC, assembly as A, assemble as AS   # noqa: E402
 

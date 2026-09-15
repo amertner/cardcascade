@@ -2,26 +2,12 @@
 
 An open tray that drops into the last compartment of the box's front pocket —
 the one `calFrontSlotsExceptTokenHolderSlot` does NOT count — and holds the
-game's tokens instead of cards. Dominion only. Two configurations, FULL and
-HALF, which are the same part at two depths.
-
-Measured in `spec/TOKENHOLDER.md` against two hand-exported STEPs and all 18
-cached meshes in `individual/Dominion/`.
-
-Unlike the Pusher, the Box and the Lid, the Onshape feature tree for this part
-has NOT been seen — only three sketches of it. Those name four features:
-`Extrude 1` and `Shell 1` (from the sketch planes the other two are drawn on),
-`Token divider` and `Branding`. The rim's round and the grip are not named
-anywhere, and this file does not invent names for them.
-
-What IS measured is that the rim's round is missing exactly where the grip
-stands, and that the reference carries it as two cylinders rather than one — so
-whatever the features are called, the grip exists before the rim is rounded.
-`build()` does it the other way and patches, because that is what OCCT will
-build; the resulting solid is the same bar one blend. See `spec/TOKENHOLDER.md`.
+game's tokens instead of cards. Dominion only. FULL and HALF are the same part
+differing in the DEPTH alone. Measured in `spec/TOKENHOLDER.md`.
 
 Local frame (the part studio's, which is also the assembly's — a cached 3MF
-sits at exactly these coordinates):
+sits at exactly these coordinates, so `build()` needs no assembly transform,
+unlike the Pusher):
 
     X   0 at the LEFT EDGE OF THE SLOT, the part starting CLEARANCE in
     Y   0 at the FRONT EDGE OF THE SLOT and NEGATIVE going back, the part
@@ -29,14 +15,7 @@ sits at exactly these coordinates):
     Z   0 at the base, the wall tops at FrontPocketHeight
 
 So the origin is the slot's corner, not the part's: the part is the slot inset
-`CLEARANCE` on all four sides, which is what makes it drop in. Every one of the
-18 cached components is at these coordinates, so `build()` needs no assembly
-transform — unlike the Pusher.
-
-FULL and HALF differ in ONE number, the depth, and in nothing else: the two
-reference STEPs have the same 231 faces and 644 edges. `spec/TOKENHOLDER.md`
-has the arithmetic.
-"""
+`CLEARANCE` on all four sides, which is what makes it drop in."""
 from build123d import (
     Align, Box, Cylinder, GeomType, Location, Plane, Pos, Rot, fillet,
 )
@@ -45,24 +24,15 @@ from .. import derive as D
 from ..geom import text_solid
 from .. import text as T
 
-# The part is the slot inset this far on all four sides — the clearance that
-# lets it drop into the front pocket. Confirmed as the part's own origin: every
-# reference starts at X +0.400 and Y -0.400, and its width and depth are each
-# 2 * CLEARANCE short of the opening they sit in.
+# The slot inset on all four sides, and the part's own origin.
 CLEARANCE = 0.400
 
-# The sketch takes calTokenHolderSlotWidth less this before the clearance is
-# applied — Allan's `#calTokenHolderSlotWidth-0.5mm`, which reads 63.9 against
-# a 64.4 slot on the sketch he sent. So the finished width is
-# calTokenHolderSlotWidth - 1.300, exact on all 18 cached holders across two
-# card widths and both Mat states.
+# The sketch takes calTokenHolderSlotWidth less this before the clearance, so
+# the finished width is calTokenHolderSlotWidth - 1.300.
 SLOT_TRIM = 0.500
 
-# The HALF holder is not half of the FULL one — it is `2.600 + half the front
-# pocket`, from Allan's sketch (`2.6mm+#calFrontPocketDepth/2`, reading 8.9
-# against a 12.6 pocket). Confirmed on all four cached half holders: 8.100 and
-# 13.800 sleeved, 5.790 and 9.400 unsleeved, each exactly HALF_BASE plus half
-# the pocket less the two clearances.
+# A HALF holder is NOT half of a FULL one: it is HALF_BASE plus half the front
+# pocket (spec/TOKENHOLDER.md, "The two sketched numbers").
 HALF_BASE = 2.600
 
 SIDE_WALL = 1.900          # the two ends, in X
@@ -70,114 +40,72 @@ END_WALL = 1.400           # front and back, in Y
 FLOOR = 1.400              # floor thickness; the cavity starts here
 RIM_ROUND = 0.600          # on the INNER top edge only; the outer stays sharp
 
-# `Token divider`: one wall across the middle, dividing the tray in two. It is
-# CENTRED on the part and there is exactly one however wide the part gets — a
-# merged holder is twice as wide and still has a single divider, confirmed on
-# all eight merged references. It stops DIVIDER_DROP below the rim and is
-# capped by a half-round, so its top is a 2.000 bead at Z = 65.000.
+# `Token divider`: ONE wall across the middle, CENTRED on the part however
+# wide it gets — a merged holder is twice as wide and still has a single
+# divider. It stops DIVIDER_DROP below the rim under a half-round cap.
 DIVIDER_W = 2.000
 DIVIDER_DROP = 10.000
 
-# `Grip`: the thumb tab standing above the rear wall, a half-disc the wall's own
-# thickness plus the 0.200 it stands proud into the cavity. Centred in X, and
-# its apex at FrontPocketHeight + GRIP_R = 82.500 on every reference whatever
-# the parameters, which is why the overall height is a constant.
+# `Grip`: the thumb tab above the rear wall, a half-disc the wall's thickness
+# plus the 0.200 it stands proud into the cavity. Its apex is at
+# FrontPocketHeight + GRIP_R on every reference, so the overall height is a
+# constant.
 GRIP_R = 7.500
 GRIP_T = D.WallThickness   # 1.600 — 0.200 more than the wall it stands on
 GRIP_ROUND = 0.500
 
-# `Branding` — `CC <version> <model>` engraved into the UNDERSIDE, in Orbitron
-# Bold, the same face and depth the Pusher and the Holder use.
+# `Branding` — `CC <version> <model>` engraved into the UNDERSIDE.
 ENGRAVE = 0.200
-TEXT_INSET = 10.000        # the text box's left edge, from Allan's sketch
+TEXT_INSET = 10.000        # the text box's left edge
 
-# How far short of the right-hand TEXT_INSET the ink stops, in EM: a quarter
-# of Orbitron Bold's space advance, `text.box_trail` — what an Onshape text box
-# does at its right edge, whatever the last glyph. It was a measured 0.0754
-# here (off the STEP, with the em read from the cap band, ±0.002), 0.0764
-# ±0.001 on the 18 cached trays, and 0.0761 ±0.0004 on Allan's right-aligned
-# sample; 0.0765 is inside every one of those and is the same rule that gives
-# the Holder's Open Sans number. It is a constant of the LAYOUT, not the
-# string, which is what said it was not a fudge. Compare `text._LSB_C`, its
-# counterpart at the leading edge. `text.box_run` applies it, in `text_size`.
+# The ink stops `text.box_trail` em short of the right-hand TEXT_INSET —
+# a constant of the LAYOUT, not of the string (spec/TOKENHOLDER.md,
+# "The branding"). `text.box_run` applies it, in `text_size`.
 
 
 def width(d):
-    """The outer width. `calTokenHolderSlotWidth - 1.300`, exact on all 18."""
+    """The outer width: `calTokenHolderSlotWidth - 1.300`."""
     return d.calTokenHolderSlotWidth - SLOT_TRIM - 2 * CLEARANCE
 
 
 def depth(d, half):
-    """The outer depth: the whole front pocket, or Allan's half rule."""
+    """The outer depth: the whole front pocket, or the half rule."""
     pocket = (HALF_BASE + d.calFrontPocketDepth / 2 if half
               else d.calFrontPocketDepth)
     return pocket - 2 * CLEARANCE
 
 
 def height():
-    """The wall top. `#FrontPocketHeight`, and a constant on every reference."""
+    """The wall top — `FrontPocketHeight`, a constant on every reference."""
     return D.FrontPocketHeight
 
 
 def model_name(d):
-    """`calTokenHolderModel` — `M21.Sl`, the string the underside carries.
-
-    NB the size letter comes from `HorizontalSlots`, which `plan_exports` does
-    NOT carry in the TokenHolder's dedup key `(capacity, merged, sleeved)`. The
-    geometry is right to leave it out — HorizontalSlots cancels out of
-    `calTokenHolderSlotWidth` — but the ENGRAVING is not: Dominion `324 Card`
-    (4 slots) and `333 Card` (3 slots) share one cached file, and it is stamped
-    `M21.Sl` for both. See spec/TOKENHOLDER.md, "One file, two model codes".
-    """
+    """`calTokenHolderModel` — `M21.Sl`, the string the underside carries. The
+    size letter comes from `HorizontalSlots`, which the legacy dedup key does
+    NOT carry, so two Dominion rows share one cached file under one stamp
+    (spec/TOKENHOLDER.md, "One file, two model codes")."""
     return d.calTokenHolderModel
 
 
 def text_line(d):
-    """`CC 7.0 M21.Sl` — the version and the model, no separator.
-
-    The Holder writes `CC <version> - <GameName>`; this one carries the model
-    code instead, because a token holder's identity is its slot, not its game
-    (it only has one).
-    """
+    """`CC 7.0 M21.Sl` — the version and the model, no separator. The Holder
+    writes the game's name instead; a token holder's identity is its slot."""
     return f"{d.calVersion} {model_name(d)}"
 
 
 def text_size(d, half):
-    """The em size, fitting BOTH dimensions — a DELIBERATE DIVERGENCE.
-
-    Onshape constrains the WIDTH alone: the text box runs from TEXT_INSET to
-    `width - TEXT_INSET` and the height falls out. That reproduces 15 of the 18
-    cached holders exactly and BREAKS the other three, all of them on a MERGED
-    box — which is where the rule is asked for the most, because merging
-    DOUBLES the width the text is fitted to while leaving the depth alone or,
-    on a half holder, nearly halving it:
-
-        HalfTokenHolder 21-Sl merged   9.105 mm of ink in an 8.100 mm part
-        HalfTokenHolder 21-Un merged   7.180                   5.790
-        TokenHolder     21-Un merged   7.180                   7.180
-
-    On each the engraving runs off the underside and nicks the outer faces of
-    the front and back walls. The tell is that the ink's Y extent equals the
-    part's OWN to three decimals: that is an outline clipping a sketch, not a
-    size that happens to fit.
-
-    So the depth is a second bound here, with the same CLEARANCE of margin the
-    part keeps from its slot. It binds on exactly those three and on nothing
-    else — including `TokenHolder 21-Sl merged`, which is the tightest of the
-    ones that do fit and stays untouched. That is the point: everywhere the
-    Onshape rule works this reproduces it, and where it does not this is what
-    changes. `tests/test_token_holder_corpus.py` asserts both halves.
-    """
+    """The em size, fitting BOTH dimensions — a DELIBERATE DIVERGENCE. Onshape
+    constrains the WIDTH alone, which overruns the underside on three merged
+    references; the depth is a second bound here, binding on exactly those
+    three (spec/TOKENHOLDER.md, "Where the build deliberately differs")."""
     txt = text_line(d)
-    # Width: the text box runs from TEXT_INSET to width - TEXT_INSET, and the
-    # em has to put the box's right edge there (`T.box_run`). Read out of the
-    # font rather than off rendered ink: `T.ink` at size 1.0 is a rendered
-    # bounding box and is out by enough to move the em in the fourth decimal.
+    # Read the width out of the FONT, not off rendered ink: `T.ink` at size
+    # 1.0 is a bounding box and moves the em in the fourth decimal.
     by_width = (width(d) - 2 * TEXT_INSET) / T.box_run(txt, T.LOGO_FONT)
 
     by_depth = (depth(d, half) / 2 - CLEARANCE) / cap_reach(txt)
-    # And no smaller than the cut floor (`cad/text.py`, "floors"): 4.93 em is
-    # the catalogue's smallest against 1.70, so it binds nowhere today.
+    # And no smaller than the cut floor (`cad/text.py`, "floors").
     size = T.floored(min(by_width, by_depth), T.LOGO_FONT)
     if size > min(by_width, by_depth) + 1e-9 and \
             size * cap_reach(txt) > depth(d, half) / 2:
@@ -186,14 +114,10 @@ def text_size(d, half):
 
 
 def cap_reach(txt):
-    """How far the ink reaches from the part's centre, per em.
-
-    The CAP BAND is what is centred, measured exactly: the band's midpoint is
-    the part's own midpoint on every reference, while the INK's is not, because
-    `l` reaches 0.051 past the caps on one side only. So the ink stands
-    `cap/2` one way and the rest the other, and the taller side is the one that
-    has to fit.
-    """
+    """How far the ink reaches from the part's centre, per em. The CAP BAND is
+    what is centred, not the ink: `l` reaches past the caps on one side only,
+    so the ink stands `cap/2` one way and the rest the other, and the taller
+    side has to fit."""
     lo, hi = T.metrics(txt, T.LOGO_FONT)[2:]
     return max(T.CAP / 2, (hi - lo) - T.CAP / 2)
 
@@ -217,15 +141,10 @@ def divider_x(d):
 def build(d, half=False):
     """The finished solid, in assembly position — which is the part's own.
 
-    Built in algebra mode: the tray is one box less its cavity, the two rounds
-    are the only fillets, and everything goes on in the studio's order. That
-    order matters once — the grip stands on the rim BEFORE the rim is rounded,
+    Order matters once: the grip stands on the rim BEFORE the rim is rounded,
     so the round breaks either side of it, which is what the reference has.
     """
     if d.GameName != "Dominion":
-        # Not a refusal on principle — no other game has ever had one, and no
-        # other parts.csv row asks for one, so there is no reference to say
-        # what it would look like.
         raise ValueError(f"TokenHolder is Dominion-only; got {d.GameName!r}")
     w, dp, h = width(d), depth(d, half), height()
     cx0, cx1, cy0, cy1 = cavity(d, half)
@@ -239,31 +158,25 @@ def build(d, half=False):
             * Box(cx1 - cx0, cy1 - cy0, h - FLOOR + 1))
     part = outer - hole
 
-    # `Round rim`: the INNER top edge only — the outer stays sharp, measured on
-    # every reference as an 0.800 flat at the front and back and 1.300 at the
-    # ends, which is each wall less the round.
+    # `Round rim`: the INNER top edge only — the outer stays sharp.
     rim = [e for e in part.edges().filter_by(GeomType.LINE)
            if abs(e.center().Z - h) < 1e-7
            and cx0 - 1e-6 <= e.center().X <= cx1 + 1e-6
            and cy0 - 1e-6 <= e.center().Y <= cy1 + 1e-6]
     part = fillet(rim, RIM_ROUND)
 
-    # ...except where the grip stands. At the grip's own X the rear wall runs
-    # straight to the rim — the reference's section has the inner face at
-    # Y -10.800 from Z 65 to 75 and then the 0.200 ledge, with no arc between,
-    # where every other X has one — so the round's footprint goes back in over
-    # the grip's chord. In Onshape that falls out of rounding the rim after the
-    # grip exists; here the round is put on first and patched, because a fillet
-    # that has to run out against the grip's flank is what OCCT will not build.
+    # ...except where the grip stands: there the rear wall runs straight to
+    # the rim, so the round's footprint goes back in over the grip's chord.
+    # Onshape gets that by rounding after the grip exists; here the round goes
+    # on first and is patched, because a fillet running out against the grip's
+    # flank is what OCCT will not build.
     part = part + Pos(xc, cy0 - RIM_ROUND / 2, h - RIM_ROUND / 2) * Box(
         2 * GRIP_R, RIM_ROUND, RIM_ROUND)
 
     # --- Grip --------------------------------------------------------------
-    # A half-disc standing on the rear wall, GRIP_T thick from the rear outer
-    # face inward — 0.200 more than the wall it stands on, which is the ledge
-    # at the rim. `Round grip` is applied to it ALONE, before it is fused: on
-    # the finished solid the same fillet segfaults OCCT, and on its own the two
-    # edges are clean semicircles.
+    # A half-disc on the rear wall, GRIP_T thick inward from the rear outer
+    # face. The round goes on it ALONE, before it is fused: on the finished
+    # solid the same fillet SEGFAULTS OCCT.
     disc = (Pos(xc, back, h) * Rot(-90, 0, 0)
             * Cylinder(GRIP_R, GRIP_T,
                        align=(Align.CENTER, Align.CENTER, Align.MIN)))
@@ -290,22 +203,12 @@ def build(d, half=False):
 def branding(d, half):
     """The engraved text, as the solid to subtract from the underside.
 
-    The glyphs run toward **-Y**, not +Y. That is not a guess: the reference's
-    `.` sits at Y -4.995..-4.248, hard against -4.248, and a period rests on
-    the baseline — so -4.248 is the baseline and the ascender of `l`, which
-    reaches 0.051 em past the caps, goes to -8.642 on the far side of it. It is
-    what an underside engraving has to be. Onshape sketched this on the bottom
-    face, whose outward normal is -Z, and a right-handed sketch on that face
-    runs (+X, -Y). Built +Y and it is legible from the wrong side.
-
-    Placed by the PEN ORIGIN (`geom.text_solid`), as the Holder's `engrave`
-    is: X so the text box's origin lands TEXT_INSET in from the part's left
-    edge (the ink starts one left bearing later, which is where every
-    reference has it), and Y so the CAP BAND — not the ink — centres on the
-    part's depth. The cap band's centre is the part's centre on every
-    reference; the ink's is not, because `l` reaches past the caps on one
-    side only. Mirroring in Y keeps the X order and turns the glyphs over,
-    so the ink hangs BELOW the baseline.
+    The glyphs run toward **-Y**, not +Y: this is sketched on the bottom face,
+    whose outward normal is -Z, and a right-handed sketch there runs (+X, -Y).
+    Built +Y it is legible from the wrong side. Placed by the PEN ORIGIN, as
+    the Holder's `engrave` is: X so the text box's origin lands TEXT_INSET in
+    from the part's left edge, Y so the CAP BAND — not the ink — centres on
+    the part's depth.
     """
     txt = text_line(d)
     em = text_size(d, half)

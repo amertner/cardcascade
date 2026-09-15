@@ -5,53 +5,22 @@
     .venv/bin/python -m cad.gltf <assembly.3mf> --project <cascade.3mf> \
         --filaments '#1B6CA8,#FFFFFF'
 
-`cad/render.py` is the DIAGNOSTIC renderer and stays that way: flat colours, no
-shadows, one part one hue, because that is what lets you see a pusher's tab
-sitting in the box's rim cutout. Photoreal lighting would hide exactly the
-interfaces the fit test is about. So imagery goes out to a path tracer instead,
-and this is the handoff — see `spec/RENDER.md`.
+`cad/render.py` is the DIAGNOSTIC renderer and stays that way — flat colours,
+no shadows, one part one hue. Imagery goes out to a path tracer, and this is
+the handoff (`spec/RENDER.md`); glTF because it is the one interchange format
+carrying per-object NAMES and MATERIALS as well as geometry.
 
-glTF rather than STL or OBJ because it is the one interchange format that
-carries **per-object names** and **materials** as well as geometry, so the
-Blender side can be about light and nothing else. It is also read by Preview,
-Xcode, three.js and every DCC tool, so a cascade can be looked at without any
-of this pipeline.
+**Which colour a part is**: NOT the part's kind. Every part BODY is the first
+filament and every INLAY the second, an inlay being any object whose name
+contains `Part `. Reading the object-level extruder alone gets the Lid exactly
+BACKWARDS, its body overriding to 1 under an object on 2.
 
-## Which colour a part is
+**Units**: glTF is metres by convention and our meshes are mm, so positions
+are scaled by 1/1000 and a cascade imports at real-world scale.
 
-NOT from the part's kind, and the rule is one line: **every part BODY is the
-first filament and every INLAY is the second.** An assembly names an inlay after
-its body — `Lid Part 7`, `Topper Cities Part 7` — so the inlays are exactly the
-objects whose name CONTAINS `Part `, and the two sets can be told apart, which
-they have to be: a lid's logo is a contrast on a blue lid and a topper's
-lettering is a contrast on a white one.
-
-The project confirms it rather than being needed for it. `Lid 270S` is
-object-extruder 2 with a `Lid Body` sub-part explicitly on 1, so its 30 logo
-regions inherit 2; each labelled `Topper` is the same shape, body on 1 and its
-lettering inheriting 2; and Box, Holders, Pushers and the blank Topper are
-single parts on 1. Reading the object-level extruder alone gets the Lid exactly
-backwards.
-
-Allan: "I sometimes change the filament for the lid and labels, so make that an
-option. I tend to make the boxes white, though the shade might differ." That is
-this split, and it is why `--filaments` takes BOTH colours: the bodies are a
-white whose shade varies, and the inlays are whatever is loaded for them.
-
-## Units
-
-glTF is metres by convention and our meshes are mm, so positions are written
-scaled by 1/1000 — the same convention `mesh3mf` already writes into a 3MF's
-`unit="meter"`. A cascade therefore imports at real-world scale, which is what
-makes a depth of field and a light's falloff behave.
-
-## Normals are deliberately absent
-
-The meshes are welded (`mesh3mf.triangulate` welds on a 1e-6 key), so Blender
-can compute normals from the topology and smooth by angle: a flat face stays
-flat and a fillet goes smooth, which is exactly right for a printed part.
-Supplying flat per-face normals instead would need the topology split, and then
-nothing could smooth the fillets at all.
+**Normals are deliberately absent.** The meshes are welded, so Blender
+computes them from the topology and smooths by angle; flat per-face normals
+would need the topology split, and nothing could then smooth the fillets.
 """
 import argparse
 import json
@@ -65,29 +34,23 @@ from . import mesh3mf
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# An INLAY is any object an assembly names after a body: `Lid Part 2`,
-# `Topper Cities Part 3`, ... — the Lid's logo regions and a Topper's
-# lettering. They are the second filament; every body is the first. See the
-# module docstring for the project evidence.
+# An INLAY is any object an assembly names after a body — the Lid's logo
+# regions, a Topper's lettering. They are the second filament; every body is
+# the first.
 INLAY = "Part "
 DEFAULT_FILAMENTS = ("#FFFFFF", "#000000")
 
-# A printed part is satin, not gloss and not chalk. Measured off nothing —
-# these are the two numbers a Principled BSDF needs to stop looking like clay,
-# and the Blender side is where they are tuned.
+# A printed part is satin, not gloss and not chalk. Measured off nothing; the
+# Blender side is where they are tuned.
 ROUGHNESS = 0.38
 METALLIC = 0.0
 
 
 def project_slots(path):
-    """{sub-part name: effective extruder} from a cascade project.
-
-    Parsed sub-part by sub-part, because the object-level extruder is not the
-    answer: `Lid 270S` carries 2 and its `Lid Body` overrides to 1. A sub-part
-    without an extruder of its own inherits the object's, which is how the 30
-    logo regions end up on 2. Only used to CHECK the built-in rule
-    (`--check-project`); nothing needs it to render.
-    """
+    """{sub-part name: effective extruder} from a cascade project. Parsed
+    sub-part by sub-part, the object-level extruder NOT being the answer; one
+    without an extruder of its own inherits the object's. Only used to CHECK
+    the built-in rule (`--check-project`)."""
     with zipfile.ZipFile(path) as z:
         text = z.read("Metadata/model_settings.config").decode()
 
@@ -108,40 +71,33 @@ def project_slots(path):
 
 
 def project_filaments(path):
-    """The two colours the project itself carries, as `#RRGGBB`."""
     with zipfile.ZipFile(path) as z:
         ps = json.loads(z.read("Metadata/project_settings.config"))
     return tuple(ps.get("filament_colour") or DEFAULT_FILAMENTS)
 
 
 def slot_for(name):
-    """Which filament slot a component is printed in."""
     return 2 if INLAY in (name or "") else 1
 
 
 def _hex(colour):
     """`#RRGGBB` as glTF's `baseColorFactor` — which is LINEAR, not sRGB.
-
-    A hex colour is what a person writes and what Studio shows, so it is sRGB;
-    the factor the spec asks for is linear. Handing the bytes over unconverted
-    lifts every dark colour: `#1B1B1B` lands at 0.106 and a renderer displays
-    it back as 0.36, a mid grey, which is what the label's black lettering
-    came out as. White survives it (0.957 against 0.905), which is why a
-    cascade of white parts never showed the fault.
-    """
+    Handing the bytes over unconverted lifts every DARK colour to a mid grey;
+    white survives it, which is why a cascade of white parts never showed the
+    fault."""
     c = colour.lstrip("#")
     return [_linear(int(c[i:i + 2], 16) / 255.0) for i in (0, 2, 4)] + [1.0]
 
 
 def _linear(u):
-    """One sRGB channel, decoded. The IEC 61966-2-1 curve, verbatim."""
+    # IEC 61966-2-1, verbatim
     return u / 12.92 if u <= 0.04045 else ((u + 0.055) / 1.055) ** 2.4
 
 
 # The cards `cad.assemble --cards` places are not printed and have no
-# filament: a stack is coloured by its EXPANSION, one colour each of the six
-# Innovation sets, and its set number is lettered in the light one. Any other
-# game's stacks get the neutral. `--part 'Cards Cities=#hex'` still overrides.
+# filament: a stack is coloured by its EXPANSION and its set number lettered
+# in the light one. Any other game's stacks get the neutral;
+# `--part 'Cards Cities=#hex'` still overrides.
 CARD_COLOURS = {
     "Innovation": "#7D3C98", "Artifacts": "#C0392B", "Cities": "#2E86C1",
     "Echoes": "#27AE60", "Figures": "#E67E22", "Unseen": "#17A589",
@@ -151,13 +107,9 @@ CARD_LABEL = "#F4F4F2"
 
 
 def colour_of(name, filaments, parts):
-    """The colour a component is rendered in.
-
-    A `--part` override wins, matched on the longest component-name prefix, so
-    `Box` catches the box and `Holder` catches both the standard and the first
-    one. A card stack is coloured by its expansion (`CARD_COLOURS`). Otherwise
-    the filament in the slot the body/inlay rule gives.
-    """
+    """The colour a component is rendered in: a `--part` override on the
+    longest component-name prefix, else a card stack's expansion colour, else
+    the filament in the slot the body/inlay rule gives."""
     for key in sorted(parts or {}, key=len, reverse=True):
         if (name or "").startswith(key):
             return parts[key]
@@ -170,7 +122,6 @@ def colour_of(name, filaments, parts):
 
 
 def build(objects, filaments, parts=None):
-    """(json dict, binary blob) for [(name, verts_mm, tris)]."""
     blob = bytearray()
     buffer_views, accessors, meshes, nodes = [], [], [], []
     palette = {}          # colour -> material index, so one material a colour
@@ -211,8 +162,8 @@ def build(objects, filaments, parts=None):
                             "metallicFactor": METALLIC,
                             "roughnessFactor": ROUGHNESS}}
     # +Z up is our convention and glTF's is +Y up, so the whole scene is turned
-    # -90 degrees about X in the root node rather than in every mesh. Blender is
-    # +Z up too and its importer undoes this, so a cascade lands upright there.
+    # -90 degrees about X in the ROOT node, not in every mesh. Blender is +Z up
+    # too and its importer undoes this, so a cascade lands upright there.
     root = {"name": "Cascade", "children": list(range(len(nodes))),
             "rotation": [-0.7071067811865476, 0.0, 0.0, 0.7071067811865476]}
     nodes.append(root)
@@ -230,7 +181,6 @@ def build(objects, filaments, parts=None):
 
 
 def write(path, objects, filaments=DEFAULT_FILAMENTS, parts=None):
-    """Write a binary glTF. Returns its size in bytes."""
     doc, blob = build(objects, filaments, parts)
     js = json.dumps(doc, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)

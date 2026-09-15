@@ -1,14 +1,8 @@
 """LEGACY: stage built components under the planner's names for refresh_cascades.
 
-The Onshape pipeline can then consume them in place of `individual/`.
-
-`cad.build` names a file by what is engraved on it — `Holder S4.16.10.32-Un`,
-`TokenHolder M21-Sl`, a pusher with its first-riser axis — where
-`plan_exports.compose` names the same part by its dedup key — `Holder
-S-16-r4-Un`, `TokenHolder 21-Sl`, `Pusher 6x10-Sl`. Everything downstream of
-a component (`make_cascade`, `refresh_cascades`, `verify`) knows only the
-planner's names, and `refresh_cascades` looks them up under one root. This
-writes that root:
+`cad.build` names a file by what is ENGRAVED on it; `plan_exports.compose` by
+its DEDUP KEY, and everything downstream knows only the planner's names. This
+writes that root, so the Onshape pipeline can consume it for `individual/`:
 
     python -m cad.promote --model S4.16.10.32-Un        # one cascade
     python -m cad.promote --game Dominion               # a game
@@ -21,14 +15,8 @@ copying each `build/v7.0/<Game>/<cad name>.3mf` to
         --out build/promoted --game Dominion --name 168 --auto
 
 builds the project from them without touching `cascades/`, `individual/` or
-`cad.cascade`'s own `build/cascades/`.
-Nothing here writes into `individual/`: that is a promotion of a different
-kind, and the two collisions the planner's keys carry (`spec/TOKENHOLDER.md`,
-`cad/README.md` decision 5) are refused rather than resolved — where two
-cascades would put two different built files under one planner name, both are
-named and neither is staged.
-
-Zero Onshape API calls.
+`cad.cascade`'s own `build/cascades/`. The two collisions the planner's keys
+carry (`spec/TOKENHOLDER.md`) are REFUSED, not resolved. Zero API calls.
 """
 import argparse
 import shutil
@@ -42,19 +30,15 @@ import components as C                                  # noqa: E402
 import plan_exports as P                                # noqa: E402
 from . import build as B, derive as D, lock as L, params  # noqa: E402
 
-# The tree promotion reads, and it is the LOCK GENERATION's and not the
-# current release's: what is staged goes into a shipped cascade whose other
-# parts are Onshape 7.0 exports. Build it with
-# `cad.build --part all --version 7.0` — which writes `build/v7.0/` — before
-# promoting. See `stage`'s comment on the pinned Primary.
+# The tree promotion reads, and it is the LOCK GENERATION's and NOT the
+# current release's. `cad.build --part all --version 7.0` first.
 SOURCE = B.out_for(L.GENERATION)
 DEFAULT_OUT = ROOT / "build" / "components"
 
 
 def built_name(item, d):
     """The `build/` filename for one planner component, or None for a kind
-    `cad/` does not make (a `Label`, which the planner only lists under
-    `--labels` and which `labelmaker.py` makes locally)."""
+    `cad/` does not make (a `Label`; `labelmaker.py` makes those)."""
     kind = item["type"]
     if kind == "Box":
         return B.box_file(d)
@@ -87,14 +71,9 @@ def stage(games, out, model=None, name=None, dry=False):
                 continue
             if name and name.lower() not in casc["ctx"]["short_name"].lower():
                 continue
-            # PINNED to the lock generation, and not the current release: a
-            # promoted part is staged under the PLANNER's name for
-            # `refresh_cascades.py --components`, so it lands in a cascade
-            # whose other parts are Onshape's and whose recorded generation is
-            # 7.0. Stamping the current release on it would put a `CC 7.1`
-            # part in a 7.0 cascade — exactly the drift `verify.py --stamps`
-            # exists to catch (`automation/PIPELINE.md`, "The engraved version
-            # is not the recorded version").
+            # PINNED to the lock generation, NOT the current release: a
+            # promoted part lands in a cascade recorded as 7.0, so the current
+            # release's stamp is the drift `verify.py --stamps` catches.
             p = params.from_row(casc["row"], 1 if casc["sleeved"] == "Sl" else 0,
                                 version=L.GENERATION)
             d = D.derive(p)
@@ -107,11 +86,9 @@ def stage(games, out, model=None, name=None, dry=False):
                 dst = out / folder / item["file"]
                 prior = plan_for.get(dst)
                 if prior is not None and prior != src:
-                    # Two built files under one planner name. The Mat twins
-                    # (`Holder M4.21.10.45-M-Sl` and `-Sl`) are byte-identical
-                    # — the Mat branch does not touch a holder — and that is
-                    # no collision. The token holders differ in the engraved
-                    # size letter and are: spec/TOKENHOLDER.md.
+                    # Two built files under one planner name. The Mat twins are
+                    # byte-identical and no collision; the token holders differ
+                    # in the engraved size letter and are.
                     if not (prior.exists() and src.exists()
                             and prior.read_bytes() == src.read_bytes()):
                         collisions.append(f"{dst.relative_to(out)}: "

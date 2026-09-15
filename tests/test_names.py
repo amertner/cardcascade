@@ -1,35 +1,9 @@
 """Every project's name, held to the one rule that generates it.
 
-`components.cascade_filename` names a cascade project on BOTH pipelines — the
-shipped tree under `cascades/` (`refresh_cascades`) and the parallel one under
-`build/cascades/` (`cad.cascade`).
-
-A NAME is an identity and a VERSION is a release, and the two are separated:
-the tracked trees hold the name alone, so git follows a path and a release
-does not rename the catalogue; the version goes in the 3MF `Title`, where
-Studio shows it and no rename can touch it, and back into the file name only
-for `--publish`, the tree that leaves the repo and whose reader has nothing
-else to go on.
-
-This suite is what holds that:
-
-  * every shipped project is EXACTLY what the rule generates from its row, so
-    the tree cannot drift from the generator (48 files, no tolerance) — and
-    none of them carries a version;
-  * the version each TITLE carries is the row's own GENERATION, not a
-    constant: a row pinned `6.6` in parts.csv has to be titled `v6.6`
-    (`290 Card (Mat)` is the pinned one, and has no project yet, so the rule is
-    driven directly);
-  * FCM's form, which is generated now rather than hand-written: the label from
-    parts.csv's `Project label`, the sleeving letter joined to it directly when
-    it ends in a digit and after a space otherwise, the card count inside the
-    bracket, the model's dots folded;
-  * `cad.cascade`'s titles, which are the same rule at `p.Version` — including
-    that `--version 7.1` really does title a different set from the 7.0 one,
-    which is the whole point of the 7.1 stamp, and that `--publish` is what
-    puts that apart in the file NAMES too.
-
-Pure string work: no build123d, so system python is fine.
+`components.cascade_filename` names a cascade on BOTH pipelines, and CLAUDE.md
+("A NAME is an identity") is the rule. Held here: every shipped project is
+EXACTLY what the rule generates and carries no version; each TITLE's version is
+the row's GENERATION; FCM's form; and `cad.cascade`'s titles at `p.Version`.
 
     python3 tests/test_names.py
 """
@@ -85,8 +59,6 @@ check("and all four do",
       ["Alt", "Milestones 1", "Occ 1", "Occ 2"])
 
 print("\n=== every shipped project is what the rule generates ===")
-# The planner's own view of the catalogue: one cascade per row per sleeving,
-# each with the generation parts.csv pins it at.
 expected = {}                                   # folder -> {filename: cascade}
 for game, spec in C.GAMES.items():
     plan = P.compute_plan(game, spec, str(ROOT / "automation" / "parts.csv"), False,
@@ -98,9 +70,8 @@ for folder, names in sorted(expected.items()):
     on_disk = {p.name for p in (RC.SHIPPED / folder).glob("*.3mf")}
     unnamed = sorted(on_disk - set(names))
     check(f"{folder}: no project is named outside the rule", unnamed, [])
-    # Not every row has a project (290 Card has none), so the reverse is not a
-    # failure — but every project that IS there must be found by find_project
-    # under its canonical name rather than the model-code fallback.
+    # Not every row has a project, so the reverse is not a failure; but one
+    # that is there must be found under its canonical name, not the fallback.
     for name, c in sorted(names.items()):
         if name not in on_disk:
             continue
@@ -112,11 +83,8 @@ check("and no shipped name carries a version",
       sorted(n for names in expected.values() for n in names if " v" in n), [])
 
 print("\n=== the version each TITLE carries is the row's generation ===")
-# Not CURRENT-and-therefore-always-7.0: the generation is what parts.csv's
-# `Build` pins, and a held-back row has to be named at its pin. No PLANNED row
-# is below CURRENT today — the one that is pinned (`290 Card (Mat)`, at 6.6)
-# has no geometry columns yet, so the planner skips it and it has no project —
-# so this drives the rule directly rather than waiting for a row to prove it.
+# The generation is what parts.csv's `Build` pins, not CURRENT. No PLANNED row
+# is below CURRENT today, so this drives the rule directly.
 for build, want in (("", OC.CURRENT), ("6.6", "6.6"), ("Un:6.6 Sl:7.0", "6.6")):
     gen = OC.generation_for(build, "Un")
     name = C.cascade_filename("Dominion", "290 Card (Mat)", "Un",
@@ -133,20 +101,13 @@ one = [(row, d) for row, d in rows if d.calModelName.startswith("S4.16.10.32")
 check("a cad title is the same rule at p.Version",
       CC.title(*one) + ".3mf",
       C.cascade_filename("Dominion", "168 Card", "Un", "S4.16.10.32-Un", R.CURRENT))
-# The version is read to the SPACE before the model code and not by a fixed
-# width: `[:3]` was right for exactly as long as every version was three
-# characters, and an iteration letter (`7.1a`) is the first that is not.
+# Read to the SPACE before the model code, not by width: `7.1a` broke `[:3]`.
 check("every cad title carries a version, and it is the default release",
       sorted({t.split(" v")[1].split(" ")[0] for t in
               (CC.title(row, d) for row, d in rows)}), [R.CURRENT])
 check("cad names 50 distinct projects",
       len({CC.title(row, d) for row, d in rows}), len(rows))
-# The OLD release is named explicitly and never taken from the default: the
-# default moves, and a test that took it for both sides would compare a set
-# with itself the moment it did. `spec/REVISIONS.md`. The new side is the
-# newest release on the line, which during an unreleased release is its
-# current LETTER — written that way so an iteration bump does not have to be
-# chased through the suite.
+# The OLD release is named explicitly, never taken from the default.
 NEW = R.RELEASES[-1]
 at70 = CC.catalogue(version="7.0")
 at71 = CC.catalogue(version=NEW)

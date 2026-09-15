@@ -3,53 +3,19 @@
 
     blender -b -P render/cascade.py -- tmp/cascade.glb --view hero
     blender -b -P render/cascade.py -- tmp/cascade.glb --view all --samples 512
+    blender -P render/cascade.py -- tmp/cascade.glb --no-render  # tweak by hand
 
-To TWEAK it by hand, drop the `-b` and skip the render — Blender opens with the
-scene built and the camera set, and F12 renders whatever you have changed:
-
-    blender -P render/cascade.py -- tmp/cascade.glb --no-render
-
-Or keep it: `--blend tmp/cascade.blend` saves the scene, headless or not, and
-the file opens like any other. Note that a later run REBUILDS the lights and
-materials from scratch, so tweaks live in the saved file and not in the script
-— move anything you want to keep into the constants at the top.
+`--blend tmp/cascade.blend` saves the scene. A later run REBUILDS the lights
+and materials, so tweaks live in the saved file, not in the script.
 
 `cad/gltf.py` writes the `.glb` this reads; `cad/render.py` stays the
-DIAGNOSTIC renderer and is not replaced. The two have opposite jobs: flat
-colours and no shadows are what let you see a pusher's tab in the box's rim
-cutout, and photoreal lighting would hide exactly the interfaces the fit test is
-about. `spec/RENDER.md` is the record.
+DIAGNOSTIC renderer. `spec/RENDER.md` is the record, including why Cycles and
+the layer lines' known gap. This file CANNOT import `cad`: Blender ships its
+own interpreter with no build123d in it, which is why the handoff is a file.
 
-This file cannot import `cad`: Blender ships its own interpreter with no
-build123d in it. That is why the handoff is a file and not a function call, and
-it is a feature — the exporter is testable without Blender installed.
-
-## Why Cycles
-
-It is the only free, scriptable, genuinely path-traced renderer with a
-first-class Apple Silicon GPU backend (Metal, since Blender 3.1). LuxCore,
-Mitsuba, appleseed and PBRT have no Metal path and would be CPU-only on an M1.
-`--device` picks; the default tries Metal and falls back to CPU, which is how
-this gets tested on a machine that has neither.
-
-Written against **Blender 5.x** (tested on `bpy` 5.0.1, the nearest wheel to
-Allan's Homebrew 5.2.1). Every call that moved between 4.x and 5.x is guarded
-rather than pinned — the glTF importer's name, the smooth-by-angle operator and
-the Principled BSDF's socket names — so it should also run on 4.5 LTS.
-
-## What makes it read as a 3D print rather than as CAD
-
-1. **Soft shadows.** Nothing in a flat render says two parts touch.
-2. **Layer lines.** `LAYER_HEIGHT` 0.200 mm — the shipped projects' own
-   `layer_height` — as a sine in WORLD Z driving a bump. World and not object
-   space on purpose: it is immune to however the glTF import orients a mesh,
-   and the cascade's Z is the print's Z for the box and the lid. Holders and
-   toppers actually print on a plate turned 45 degrees (`PIPELINE.md`), so
-   their lines run the wrong way here; at 0.200 mm that is invisible at
-   listing resolution and `spec/RENDER.md` records it as the known gap.
-3. **Satin, slightly translucent plastic.** PLA is neither gloss nor chalk, and
-   it passes a little light at thin edges — a Principled BSDF with some
-   subsurface, not a flat diffuse.
+Written against **Blender 5.x**; every call that moved between 4.x and 5.x is
+guarded rather than pinned (the glTF importer's name, the smooth-by-angle
+operator, the Principled BSDF's socket names), so it should run on 4.5 LTS.
 """
 import argparse
 import math
@@ -61,10 +27,8 @@ from mathutils import Vector
 
 LAYER_HEIGHT = 0.0002       # 0.200 mm, in metres — the projects' layer_height
 LAYER_BUMP = 0.15           # how much of a layer height the bump stands
-# The key light's power at the distance it is placed, as watts per square
-# metre of the inverse-square falloff — so `energy = KEY * distance**2` keeps
-# the exposure the same on an XS cascade and an L one. Calibrated by rendering,
-# not derived: at 900 the frame was pure white.
+# The key's power per square metre of the inverse-square falloff, so
+# `energy = KEY * distance**2` holds the exposure across cascade sizes.
 KEY = 55.0
 FILL = 0.30                 # of the key
 RIM = 0.55                  # of the key
@@ -75,12 +39,8 @@ SUBSURFACE = 0.06           # PLA passes a little light at a thin edge
 SUBSURFACE_RADIUS = (0.0012, 0.0009, 0.0007)
 
 # The same cameras `cad/render.py` names, in the same (azimuth, elevation)
-# convention, so a photoreal frame and a diagnostic one correspond.
-#
-# The hero is at 36 degrees and not the 24 it started at, because the TOPPER
-# LABELS lie on the holders' slant and 24 foreshortens them to nothing. 48
-# reads them better still and loses the lid and the whole product-on-a-shelf
-# read, so 36 is where both survive. `--aim AZ,EL` overrides it.
+# convention. The hero is at 36 and not 24 degrees because the TOPPER LABELS
+# lie on the holders' slant and 24 foreshortens them away.
 VIEWS = {
     "front": (180, 0), "back": (0, 0), "left": (90, 0), "right": (270, 0),
     "top": (0, 90), "bottom": (0, -90), "hero": (206, 36),
@@ -99,12 +59,8 @@ def forward(az, el):
 
 
 def reset():
-    """An empty scene, with the glTF importer put back.
-
-    `read_factory_settings` drops enabled add-ons, and the glTF importer IS an
-    add-on (`io_scene_gltf2`) — so resetting first and importing after fails
-    with "could not be found", which is what it did.
-    """
+    """An empty scene, the glTF importer put back: read_factory_settings
+    drops add-ons and the importer IS one (`io_scene_gltf2`)."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     import addon_utils
     for module in ("io_scene_gltf2",):
@@ -113,12 +69,9 @@ def reset():
 
 def import_glb(path):
     """Import the glTF, whichever name this Blender gives the operator.
-
-    5.0 still has `import_scene.gltf`; the name is DISCOVERED rather than
-    guarded with getattr, because `bpy.ops` resolves any attribute lazily —
-    every candidate looks present and only fails when called. `dir()` on the
-    operator group is what actually says.
-    """
+    DISCOVERED rather than guarded with getattr, because `bpy.ops` resolves
+    any attribute lazily — every candidate looks present and only fails when
+    called."""
     for group, name in (("import_scene", "gltf"), ("wm", "gltf_import")):
         ops = getattr(bpy.ops, group, None)
         if ops is None or name not in dir(ops):
@@ -133,8 +86,8 @@ def import_glb(path):
 
 
 def smooth(objects, degrees=30.0):
-    """Normals from the topology, smoothed by angle: a flat face stays flat and
-    a fillet goes smooth. This is why `cad/gltf.py` ships no normals."""
+    """Normals from the topology, smoothed by angle: why `cad/gltf.py` ships
+    none."""
     try:
         for o in objects:
             o.select_set(True)
@@ -143,8 +96,7 @@ def smooth(objects, degrees=30.0):
         bpy.ops.object.select_all(action="DESELECT")
     except (AttributeError, RuntimeError, TypeError):
         # Restricted context (a `blender -P` startup script) or an older API.
-        # Per-polygon flags need no context and no operator; what is lost is
-        # the angle SPLIT, so a fillet still smooths and a flat face may too.
+        # Per-polygon flags need no operator; what is lost is the angle SPLIT.
         for o in objects:
             for poly in o.data.polygons:
                 poly.use_smooth = True
@@ -162,11 +114,8 @@ def bounds(objects):
 
 
 def plastic(material):
-    """Rebuild one imported glTF material as printed filament.
-
-    The base colour is taken from what the glTF carried, so the filament
-    choice stays `cad/gltf.py --filaments` and is not duplicated here.
-    """
+    """Rebuild one imported glTF material as printed filament, keeping the
+    glTF's base colour so the filament choice stays `cad/gltf.py`."""
     # `use_nodes` is deprecated (gone in Blender 6.0) and node trees are the
     # only kind of material in 5.x, so it is neither read nor set.
     colour = (0.8, 0.8, 0.8, 1.0)
@@ -190,8 +139,7 @@ def plastic(material):
         if name in bsdf.inputs:
             bsdf.inputs[name].default_value = value
 
-    # Layer lines: a sine in WORLD Z, bumped. Position rather than Object
-    # coordinates so the import's orientation cannot rotate them.
+    # Layer lines: a sine in WORLD Z, so the import cannot rotate them.
     geo = nt.nodes.new("ShaderNodeNewGeometry")
     sep = nt.nodes.new("ShaderNodeSeparateXYZ")
     mul = nt.nodes.new("ShaderNodeMath")
@@ -210,11 +158,8 @@ def plastic(material):
 
 
 def studio(lo, hi, floor=True):
-    """A softbox key, a fill, a rim and a floor, all sized to the scene.
-
-    Every distance and power is a multiple of the scene's own radius, so the
-    lighting does not have to be retuned for an XS cascade against an L one.
-    """
+    """A softbox key, a fill, a rim and a floor, every distance and power a
+    multiple of the scene's radius: no retuning per cascade size."""
     centre = (lo + hi) / 2
     radius = max((hi - lo).length / 2, 1e-4)
 
@@ -225,12 +170,10 @@ def studio(lo, hi, floor=True):
     bg.inputs["Strength"].default_value = AMBIENT
 
     if floor:
-        # Built from data, not with `bpy.ops.mesh.primitive_plane_add`. A
-        # script run by `blender -P` WITHOUT `-b` executes in a restricted
-        # context where `bpy.context.active_object` does not exist at all, so
-        # the operator succeeds and reading back the object it made raises —
-        # which is exactly what the GUI path did while headless was fine.
-        # Nothing here needs an operator, so nothing here uses one.
+        # Built from data, not `bpy.ops.mesh.primitive_plane_add`: a script
+        # run by `blender -P` WITHOUT `-b` is in a restricted context where
+        # `bpy.context.active_object` does not exist, so the operator succeeds
+        # and reading back the object it made raises.
         s = radius * 12
         mesh = bpy.data.meshes.new("floor")
         mesh.from_pydata([(-s, -s, 0), (s, -s, 0), (s, s, 0), (-s, s, 0)],
@@ -264,12 +207,8 @@ def studio(lo, hi, floor=True):
 
 
 def camera(view, lo, hi, margin=1.06, aim=None):
-    """The named view, framed on the scene.
-
-    The six axis views are ORTHOGRAPHIC, as `cad/render.py`'s are, because a
-    straight-on elevation is what they are for. The hero is perspective, at a
-    portrait lens so the cascade does not look wide-angled.
-    """
+    """The named view, framed on the scene. The six axis views are
+    ORTHOGRAPHIC, as `cad/render.py`'s are; the hero is perspective."""
     centre = (lo + hi) / 2
     span = hi - lo
     cam = bpy.data.cameras.new(view)
@@ -293,11 +232,9 @@ def camera(view, lo, hi, margin=1.06, aim=None):
         upv = right.cross(fwd).normalized()
         w = sum(abs(getattr(right, a)) * getattr(span, a) for a in "xyz")
         h = sum(abs(getattr(upv, a)) * getattr(span, a) for a in "xyz")
-        # `ortho_scale` spans the LARGER render dimension, not both — so on a
-        # 4:3 frame it is the width, and fitting a TALL subject to it crops the
-        # top and bottom off. A closed cascade is wider than it is high and
-        # never showed this; a `play` one, holders risen, is taller than it is
-        # wide and lost both ends of itself.
+        # `ortho_scale` spans the LARGER render dimension, not both — on a
+        # 4:3 frame the width — so fitting a TALL subject to it crops the top
+        # and bottom off, as a `play` cascade with its holders risen showed.
         scene = bpy.context.scene
         rx, ry = scene.render.resolution_x, scene.render.resolution_y
         cam.ortho_scale = (max(w, h * rx / ry) if rx >= ry
@@ -333,12 +270,9 @@ def device(prefer="metal"):
 
 
 def settings(samples, width, transparent):
-    """Sampling, resolution and film, applied during SETUP and not at render.
-
-    It has to be here rather than in `render()`, because `--no-render` skips
-    that: a `.blend` saved for the GUI would otherwise carry Blender's default
-    4096 samples, and the first F12 would take all afternoon.
-    """
+    """Sampling, resolution and film, applied during SETUP and not at render:
+    `--no-render` skips render(), and a `.blend` saved for the GUI would
+    otherwise carry Blender's default 4096 samples."""
     scene = bpy.context.scene
     scene.cycles.samples = samples
     scene.cycles.use_denoising = True
@@ -402,8 +336,7 @@ def main(argv):
         camera(view, lo, hi, aim=aim)
         if args.render:
             print(f"  {render(args.out, view)}")
-    # Saved last, so the file carries the render settings and the LAST camera
-    # — which is the one you were looking at.
+    # Saved last, so the file carries the settings and the LAST camera.
     if args.blend:
         args.blend.parent.mkdir(parents=True, exist_ok=True)
         bpy.ops.wm.save_as_mainfile(filepath=str(args.blend.resolve()))

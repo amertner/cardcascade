@@ -1,48 +1,16 @@
 """Where each object goes: the plate scheme, the bed, the packing, the tower.
 
-Lifted from `automation/make_cascade.py --auto-plates`, which laid out every
-regenerated cascade so far, so that a project can be laid out without a donor
-to mutate. The rules are the same rules and, where one was learned the hard
-way, the reason is kept beside it; `tests/test_layout.py` holds this module to
-make_cascade's own placements on a real cascade while both exist.
+Lifted from `automation/make_cascade.py --auto-plates` so that a project can
+be laid out without a donor, with the same rules and numbers.
+`spec/PROJECT.md`, "What the writer does not decide", is the record.
 
     from cad import layout as LY, project as PJ
     bed, plates, placements = LY.layout(objects)     # objects: [project.Obj]
     PJ.write(out, bed, objects, plates, placements, title)
 
-What is decided here, in order:
-
-1. THE BED — the smallest of `project.BEDS` every object clears once turned
-   45 degrees (its rotated span is the diagonal of its footprint) with
-   BED_MARGIN to spare; or the one the caller forces.
-2. THE PLATES — one per role group in PLATE_SCHEME order, pushers riding with
-   the box. A group splits when a big object that must rotate fills its plate
-   diagonally and would leave no room for flat companions (the box and its
-   pushers on a P1), when more thin strips (holders, toppers) than one plate
-   holds need several, and when the group is marked `alt` and holds more than
-   one distinct object — two editions of one lid, which are ALTERNATIVES and
-   go one per plate.
-3. THE PACKING, per plate — thin strips turned 45 degrees and packed along
-   two bed edges from a shared corner, or in one centred diagonal band when
-   that holds more; flat objects grid-searched into the free corners; a
-   plate with nothing to rotate laid out in centred shelf rows, widest first.
-   The whole plate is nudged off a corner exclude area if centring clipped
-   it, and every placement is validated: on the bed, clear of the exclude
-   area, clear of its neighbours by CLEARANCE.
-4. THE TOWER, per plate — `start_spot(bed)` when it is legal and clear, which
-   is the inset position every shipped project puts it at and is derived from
-   the bed rather than hardcoded (a constant written for the P1 was off the end
-   of the A1 mini, so the mini took the corner fallback on every plate and
-   Studio refused to slice it). Otherwise: inside the intersection of every
-   extruder's printable area (the H2C's two nozzles reach different parts of
-   the bed, and both purge into it) and TOWER_INSET inside that rectangle's
-   every edge (Studio refuses a tower whose origin is within 1 mm of the A1
-   mini's x = 0 or y = 0, and takes one at 2; `tower`), and clear of the parts
-   by WIPE_GAP if any spot is, else TIGHT_GAP, preferring the spot furthest
-   from the bed's centre.
-   When no spot clears, the plate's contents are slid to each edge in turn to
-   open the opposite one, then turned 90 degrees and tried again; a plate
-   that still has no room for its tower is REFUSED, not warned about.
+Decided here, in order: THE BED (`choose_bed`), THE PLATES (`plate_groups`),
+THE PACKING (`pack_plate`), THE TOWER (`tower`). A plate with no room for its
+tower is REFUSED.
 """
 import json
 import math
@@ -51,7 +19,6 @@ from typing import NamedTuple
 from . import project as PJ
 from .refuse import refuse
 
-# --- the numbers -------------------------------------------------------------
 
 BED_MARGIN = 8.0      # bed-fit slack: an object's 45-degree span must clear this
 STRIP_MARGIN = 4.0    # bed edge clearance for a 45-degree strip's bounding box
@@ -69,9 +36,8 @@ THIN = 30.0           # a strip is thinner than this
 
 
 class Group(NamedTuple):
-    """One entry of the plate scheme: the plate's name and the roles that go
-    on it. `alt` marks a group whose objects are ALTERNATIVES rather than a
-    set — see `PLATE_SCHEME`."""
+    """One entry of the plate scheme: the plate's name and the roles on it.
+    `alt` marks a group whose objects are ALTERNATIVES (`PLATE_SCHEME`)."""
     label: str
     roles: tuple
     alt: bool = False
@@ -79,30 +45,13 @@ class Group(NamedTuple):
 
 # One plate per role group, in this order. Pushers ride with the Box.
 #
-# `alt` is the Lid's alone: from 7.1d a cascade whose mark is not its game's
-# default edition ships BOTH lids and its owner prints one of them
-# (`cad/cascade.parts`), so they go one per plate, each plate named after its
-# object — `Lid 90U` and `Lid 90U Ultimate`; and from 7.2b every cascade ships
-# an unmarked lid the same way, so every project has a `Lid 90U Unmarked`
-# plate beside its `Lid 90U` and none has a plate called just `Lid`. It is not
-# a rule that could be read off the objects: every OTHER group of several is either copies of one
-# part (pushers, holders) or a named set that shares a plate and is printed
-# whole (the six toppers). Alternatives that were already separate stay
-# separate the way they always were, by role: a TokenHolder and a
-# HalfTokenHolder are alternatives for one pocket and have a scheme entry
-# each — and so, from 7.2d, is the PlainBox: the box without its label
-# holders, an alternative to the box on plate 1 (`rev.plain_box_plate`,
-# Compile's rows). It is LAST, after everything a cascade needs, where an
-# owner who wants the ordinary box never reaches it. Its role does not start
-# with `Box`, because `role` is a prefix match and would seat it with the
-# pushers.
-#
-# From 7.2g a row may ship VARIANT backs instead of the ordinary box
-# (`rev.back_pocket_variants`, `Single Mini`). The first of them is the `Box`
-# on plate 1, with the pushers as always; the second is a `NotchedBox` on a
-# plate of its own — the pair's other half, which hangs their pushers. Its
-# role does not start with `Box` for the reason `PlainBox`'s does not, and it
-# must not start with `Pusher` either, which is why it is not a `PusherBox`.
+# `alt` is the Lid's alone: a cascade ships several lids and its owner prints
+# ONE, so they go one per plate. It cannot be read off the objects — every
+# other group of several is copies of one part or a named set printed whole.
+# Alternatives already separate stay separate by ROLE: TokenHolder and
+# HalfTokenHolder, the 7.2d PlainBox (LAST, where an owner who wants the
+# ordinary box never reaches it) and the 7.2g NotchedBox. NB `role` is a
+# PREFIX match, so neither may start with `Box` nor with `Pusher`.
 PLATE_SCHEME = [
     Group("Box + pushers", ("Box", "Pusher")),
     Group("Lid", ("Lid",), alt=True),
@@ -119,19 +68,14 @@ ROLES = ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "PlainBo
 
 
 def role(name):
-    """An object's role from its name — `Lid 168U` is a Lid."""
     for r in ROLES:
         if name.startswith(r):
             return r
     return "Other"
 
 
-# --- oriented boxes ------------------------------------------------------------
-
-
 class Obb(NamedTuple):
-    """The footprint of a placed object: its centre, its half sizes along its
-    own axes, and its turn about Z in radians."""
+    """A placed footprint: centre, half sizes on its own axes, turn about Z."""
     cx: float
     cy: float
     hx: float
@@ -163,37 +107,28 @@ def sat_overlap(a, b, gap=0.0):
 
 
 def rect_obb(x0, y0, x1, y1):
-    """An axis-aligned rectangle as an Obb."""
     return Obb((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, 0.0)
 
 
 def obb_aabb(o):
-    """(x0, y0, x1, y1) of the axis-aligned box round an oriented one."""
-    c, s = math.cos(o.theta), math.sin(o.theta)
+    c, s = math.cos(o.theta), math.sin(o.theta)   # -> (x0, y0, x1, y1)
     rx = o.hx * abs(c) + o.hy * abs(s)
     ry = o.hx * abs(s) + o.hy * abs(c)
     return o.cx - rx, o.cy - ry, o.cx + rx, o.cy + ry
 
 
 # --- 45-degree strips ---------------------------------------------------------
-# A w x d strip turned 45 degrees has a SQUARE bounding box of side (w+d)/sqrt2,
-# so its centre must stay inside a square inset from the bed by half of that.
-# Step a strip along the bed's x or y axis by (d + gap)*sqrt2 and it moves
-# exactly (d + gap) across its own width — the separation neighbours need —
-# while also sliding (d + gap) along its own length, which costs nothing
-# because the strips are parallel. So a column down one edge plus a row along
-# the next packs them at the right pitch, the two arms sharing their corner
-# strip. It replaced a centred diagonal band, which held fewer: 5 Innovation M
-# holders (285.80 x 9.39 on a P1) went onto two plates when they fit one.
+# A w x d strip turned 45 degrees has a SQUARE bounding box of side
+# (w+d)/sqrt2, so its centre stays inside a square inset from the bed by half
+# of that; a step of (d + gap)*sqrt2 along a bed axis moves it exactly
+# (d + gap) across its own width, the separation neighbours need.
 
 
 def strip_inset(w, d):
-    """Half-side of a w x d strip's bounding box once turned 45 degrees."""
     return (w + d) / (2 * math.sqrt(2))
 
 
 def strip_arm(bed, longest, depth, gap):
-    """How many strips fit along ONE bed edge, corner strip included."""
     side = bed - 2 * STRIP_MARGIN - 2 * strip_inset(longest, depth)
     if side < 0:
         return 0
@@ -201,15 +136,12 @@ def strip_arm(bed, longest, depth, gap):
 
 
 def strip_arms(bed, longest, depth, gap):
-    """How many strips fit ONE plate as two arms sharing their corner."""
-    return max(1, 2 * strip_arm(bed, longest, depth, gap) - 1)
+    return max(1, 2 * strip_arm(bed, longest, depth, gap) - 1)   # two arms
 
 
 def strip_band(bed, longest, depth, gap):
-    """How many strips fit ONE plate as a single centred diagonal band: the
-    strips sit at a common position along their length and are separated only
-    across it, so their centres run the full half-width of the bed's diamond
-    less the strip's own half-diagonal."""
+    """How many strips fit ONE plate as a single centred diagonal band: they
+    share a position along their length and are separated only across it."""
     half = (bed - 2 * STRIP_MARGIN) / math.sqrt(2) \
         - strip_inset(longest, depth) * math.sqrt(2)
     if half < 0:
@@ -218,16 +150,11 @@ def strip_band(bed, longest, depth, gap):
 
 
 def strip_capacity(bed, longest, depth, gap):
-    """How many strips fit ONE plate, whichever arrangement holds more. Two
-    arms is not universally better: an arm advances by (depth+gap)*sqrt2 along
-    a bed axis, so once a strip is thick relative to the bed a single arm
-    holds one and the band more — Dominion's 270 x 27.80 first-riser holder
-    is that case (band 2, arms 1)."""
+    """How many strips fit ONE plate, whichever arrangement holds more: an arm
+    advances by (depth+gap)*sqrt2, so once a strip is thick relative to the
+    bed the band holds more."""
     return max(strip_arms(bed, longest, depth, gap),
                strip_band(bed, longest, depth, gap))
-
-
-# --- the bed ------------------------------------------------------------------
 
 
 def profile(bed):
@@ -235,11 +162,10 @@ def profile(bed):
 
 
 def usable(bed, ps):
-    """(width, depth) an object may occupy on `bed`. The bed, unless the
-    printer declares per-extruder areas and the profile maps every filament
-    to extruder 1 — the H2C, `filament_map` 1,1 — in which case extruder 1's
-    reach: 325 of the 330. Studio holds an object to the reach of the
-    extruder that prints it; the shipped 650 Sleeved lid stops at 324.8."""
+    """(width, depth) an object may occupy on `bed`: the bed, unless the
+    printer declares per-extruder areas and the profile maps every filament to
+    extruder 1 — the H2C, where it is 325 of the 330. Studio holds an object
+    to the reach of the extruder that prints it."""
     areas = ps.get("extruder_printable_area") or []
     if areas and all(str(m) == "1" for m in ps.get("filament_map", [])):
         pts = [tuple(map(float, q.split("x"))) for q in areas[0].split(",")]
@@ -250,11 +176,7 @@ def usable(bed, ps):
 def fit_angle(w, d, uw, ud):
     """(angle in degrees, slack) that fits a w x d footprint into uw x ud with
     the most room to spare, searched between 30 and 60 degrees — for the
-    object whose 45-degree span does not fit. Dominion 650 Sleeved's lid,
-    343.9 x 111.3, spans 321.9 at 45 against an H2C's 320 of depth, and fits
-    at 44 with 0.3 to spare on the 325 of usable width, which is where its
-    shipped project has it: it fits, just, and prints. A negative slack means
-    it does not fit at any angle."""
+    object whose 45-degree span does not fit. Negative slack: no angle fits."""
     best = None
     a = 30.0
     while a <= 60.0 + 1e-9:
@@ -271,11 +193,8 @@ def fit_angle(w, d, uw, ud):
 def fits(bed, objects, relaxed=False, ps=None):
     """Does every object clear this bed once turned 45 degrees, with
     BED_MARGIN to spare? `relaxed` also accepts an object that fits at SOME
-    angle with the margin reduced to whatever is left, down to nothing — for
-    a bed the row forces, or when no bed passes the rule proper. Not for the
-    ladder's own choice: a Dominion S box fits the A1 mini at 44 degrees with
-    nothing to spare, and the Mini is an explicit choice, never something the
-    ladder lands on (PIPELINE.md, "The Mini bed class")."""
+    angle with whatever margin is left — for a bed the row forces, never for
+    the ladder's own choice (PIPELINE.md, "The Mini bed class")."""
     bw, bd = PJ.BEDS[bed].size
     m = min(bw, bd) - BED_MARGIN
     uw, ud = usable(bed, ps or profile(bed)) if relaxed else (None, None)
@@ -290,9 +209,8 @@ def fits(bed, objects, relaxed=False, ps=None):
 
 def choose_bed(objects, forced=None):
     """The smallest bed every object fits by the rule proper; failing every
-    bed, the smallest it fits relaxed (the 650 Sleeved's H2C); or `forced` —
-    the row's `3D printer` column — which need only fit relaxed (Dominion 324
-    Sleeved on its P1P, 4.3 mm from the edge) and is refused otherwise."""
+    bed, the smallest it fits relaxed; or `forced` — the row's `3D printer`
+    column — which need only fit relaxed and is refused otherwise."""
     if forced:
         if forced not in PJ.BEDS:
             refuse(f"unknown bed {forced!r}; one of {sorted(PJ.BEDS)}")
@@ -308,21 +226,17 @@ def choose_bed(objects, forced=None):
     refuse("no candidate bed fits every part at any angle between 30 and 60 deg")
 
 
-# --- the plates ---------------------------------------------------------------
-
-
 def _dims(obj):
     return obj.size[0], obj.size[1]
 
 
 def _gap(obj):
-    """Thin strips pack tight; everything else keeps GAP."""
     return STRIP_GAP if role(obj.name) in ("Holder", "FirstHolder", "RearHolder", "Topper") else GAP
 
 
 def plate_groups(objects, bed):
     """[(plate name, [object indices])] in PLATE_SCHEME order, empty groups
-    skipped, with the two splits described in the module docstring."""
+    skipped."""
     bw, bd = PJ.BEDS[bed].size
     side = min(bw, bd)
     groups = []
@@ -330,17 +244,15 @@ def plate_groups(objects, bed):
         idxs = [i for i, o in enumerate(objects) if role(o.name) in roles]
         if not idxs:
             continue
-        # ALTERNATIVES, not a set: the owner prints one of them, so they get a
-        # plate each, named by the object. One object is the ordinary case and
-        # keeps the scheme's own label.
+        # ALTERNATIVES, not a set: a plate each, named by the object. One
+        # object is the ordinary case and keeps the scheme's own label.
         names = list(dict.fromkeys(objects[i].name for i in idxs))
         if alt and len(names) > 1:
             for name in names:
                 groups.append((name, [i for i in idxs if objects[i].name == name]))
             continue
         # A big object that must rotate fills its plate diagonally and leaves
-        # no room for flat companions (the box's pushers on a P1): give the
-        # companions their own plate.
+        # no room for flat companions: give them their own plate.
         rot = [i for i in idxs if max(_dims(objects[i])) > side - BIG]
         flat = [i for i in idxs if i not in rot]
         if rot and flat:
@@ -361,15 +273,11 @@ def plate_groups(objects, bed):
     return groups
 
 
-# --- one plate ----------------------------------------------------------------
-
-
 def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
-    """[(index, Obb)] in plate coordinates for the objects `idxs` on one
-    plate of `bed` — step 3 of the module docstring. `exclude` is the bed's
-    exclude area as an Obb, or None. `turn` packs everything a quarter turn
-    round, the fallback when the tower has nowhere to go. Nothing here
-    validates: the caller runs `misfit` once the plate is final."""
+    """[(index, Obb)] in plate coordinates for the objects `idxs` on one plate
+    of `bed`. `exclude` is the bed's exclude area as an Obb; `turn` packs
+    everything a quarter turn round, the fallback when the tower has nowhere
+    to go. Nothing here VALIDATES: the caller runs `misfit`."""
     bw, bd = PJ.BEDS[bed].size
     uw, ud = usable(bed, ps or profile(bed))
     quarter = math.pi / 2 if turn else 0.0
@@ -395,10 +303,9 @@ def pack_plate(objects, idxs, bed, exclude, turn=False, ps=None):
 
 def _whole_diagonal(objects, idxs, dims, rot_ids, uw, ud, bw, bd):
     """(index, angle) of the one object whose 45-degree span does not fit the
-    usable area and so takes the angle that does (`fit_angle`), with whatever
-    margin is left — alone on its plate, since the strip packing assumes 45
-    degrees and a shared pitch; or None. Refuses an object that fits at no
-    angle, a plate that would need two such, and one such with company."""
+    usable area and so takes the angle that does (`fit_angle`) — ALONE on its
+    plate, the strip packing assuming 45 degrees; or None. Refuses one that
+    fits at no angle, two such, or one with company."""
     tight = {}
     for i in rot_ids:
         if sum(dims[i]) / math.sqrt(2) > min(uw, ud) - STRIP_MARGIN:
@@ -422,10 +329,8 @@ def _whole_diagonal(objects, idxs, dims, rot_ids, uw, ud, bw, bd):
 
 def _strips(objects, rot_ids, dims, bw, bd, quarter):
     """[(index, Obb)] for the thin strips, at 45 degrees along two bed edges
-    from a shared corner — a column down the +x edge, then a row along the
-    +y edge — or in the centred band when the arms cannot hold this plate's
-    strips. Positions are relative to a local origin and centred on the
-    plate afterwards."""
+    from a shared corner, or in the centred band when the arms cannot hold
+    them. Positions are relative to a local origin and centred afterwards."""
     side = min(bw, bd)
     sr = sorted(rot_ids, key=lambda i: -dims[i][1])
     longest = max(max(dims[i]) for i in sr)
@@ -433,8 +338,7 @@ def _strips(objects, rot_ids, dims, bw, bd, quarter):
     gap = _gap(objects[sr[0]])
 
     def pitch(prev_d, i):
-        """Centre-to-centre separation two neighbouring strips need
-        ACROSS their width."""
+        """Centre-to-centre separation neighbours need ACROSS their width."""
         return prev_d / 2 + _gap(objects[i]) + dims[i][1] / 2
 
     rel, prev = {}, None
@@ -469,8 +373,7 @@ def _strips(objects, rot_ids, dims, bw, bd, quarter):
 
 def _corner_spot(obj, dims_i, bw, bd, quarter, exclude, placed):
     """Where a flat object goes on a plate of strips: grid-searched from the
-    top-left corner, row by row, to the first spot GAP clear of the exclude
-    area and of everything placed so far. Refuses when there is none."""
+    top-left corner to the first spot GAP clear of everything."""
     w, d = dims_i
     cy = bd - EDGE - d / 2
     while cy >= EDGE + d / 2:
@@ -486,8 +389,8 @@ def _corner_spot(obj, dims_i, bw, bd, quarter, exclude, placed):
 
 
 def _shelves(objects, idxs, dims, bw, bd, quarter):
-    """[(index, Obb)] for a plate with nothing to rotate: shelf rows, widest
-    first, the rows centred on the plate."""
+    """[(index, Obb)] for a plate with nothing to rotate: centred shelf rows,
+    widest first."""
     order = sorted(idxs, key=lambda i: -dims[i][0] * dims[i][1])
     rows, cur, cur_w = [], [], 0.0
     for i in order:
@@ -523,9 +426,8 @@ def _shelves(objects, idxs, dims, bw, bd, quarter):
 
 
 def _nudged_off(placed, exclude, bw):
-    """The plate shifted in x off a corner exclude area if centring clipped
-    it (a near-bed-width box on a P1P, whose 18 x 28 bottom-left corner is
-    reserved) — by just enough, and only if everything stays on the bed."""
+    """The plate shifted in x off a corner exclude area if centring clipped it
+    — by just enough, and only if everything stays on the bed."""
     if not (exclude and placed):
         return placed
     ex_x0, ex_y0, ex_x1, ex_y1 = obb_aabb(exclude)
@@ -569,9 +471,7 @@ def shifted(placed, dx, dy):
 
 def slides(placed, bed, exclude):
     """Where a plate's contents can be slid to open a corner for the tower:
-    unmoved first, then hard against each of the four edges (clear of the
-    exclude area by CLEARANCE) — the slack a centred layout splits between
-    two sides is enough for a tower on one of them."""
+    unmoved first, then hard against each of the four edges."""
     bw, bd = PJ.BEDS[bed].size
     x0 = min(obb_aabb(ob)[0] for _, ob in placed)
     y0 = min(obb_aabb(ob)[1] for _, ob in placed)
@@ -592,16 +492,12 @@ def slides(placed, bed, exclude):
         yield ex_x1 + CLEARANCE - x0, 0.0
 
 
-# --- the tower ----------------------------------------------------------------
-
-
 def tower_bounds(ps):
     """The rectangle a prime tower must lie inside: the INTERSECTION of every
-    extruder's printable area, not the bed. The H2C declares extruder 1 over
-    x 0..325 and extruder 2 over 25..330, and every filament purges into the
-    tower, so a tower legal for one nozzle can be unreachable for the other;
-    Bambu notices only after slicing, and MakerWorld slices on upload.
-    Single-nozzle printers declare no extruder_printable_area and get the bed."""
+    extruder's printable area, NOT the bed. The H2C declares extruder 1 over
+    x 0..325 and extruder 2 over 25..330 and every filament purges into the
+    tower, so one legal for one nozzle can be unreachable for the other — and
+    Studio notices only after slicing, which MakerWorld does on upload."""
     boxes = []
     for spec in ps.get("extruder_printable_area") or []:
         pts = [tuple(map(float, p.split("x"))) for p in spec.split(",")]
@@ -616,28 +512,11 @@ def tower_bounds(ps):
 
 
 def start_spot(bed):
-    """The tower's PREFERRED position on `bed`: inset from the near-left corner,
-    high up the plate, where every shipped project has put it.
-
-    It was the constant `(15.0, 200.0)`, which is 200 up a 256 mm P1 bed and off
-    the end of a 180 mm A1 mini one. A start that is not legal is never taken,
-    so the mini bed fell through to the corner search on EVERY plate and put the
-    tower at `(0, 0)`, flush with two bed edges — and Studio refuses to slice
-    that, `-104`, "G-code outside of the printable area ... caused by support,
-    wipe tower, brim, or skirt", which is also what MakerWorld runs on upload.
-    Both mini cascades failed and all 48 others passed, which is the whole
-    catalogue's worth of evidence for one hardcoded number.
-
-    Deriving it from the bed's depth keeps `(15.0, 200.0)` exactly on the P1,
-    leaves the H2C alone (x = 15 is outside ITS x0 = 25, so it falls through to
-    the corner search as before, to the (265, 0) its four published projects
-    were verified at — (261, 4) since TOWER_INSET), and gives the mini a spot
-    15 mm from one edge and 21 from the other.
-
-    That was half the fix. The mini's LID plate never takes this spot — its
-    lid, centred, ends 7.95 mm below it, inside WIPE_GAP — so that plate still
-    fell through to the corner search, and the corner search itself allowed
-    (0, 0). TOWER_INSET is the other half; `tower` records the evidence."""
+    """The tower's PREFERRED position on `bed`: inset from the near-left
+    corner, high up the plate, where every shipped project has put it. DERIVED
+    from the bed's depth, NEVER a constant — a constant written for the P1 was
+    off the end of the A1 mini and Studio refused to slice the result
+    (`spec/PROJECT.md`, "What the writer does not decide", point 4)."""
     return (15.0, PJ.BEDS[bed].depth - 56.0)
 
 
@@ -646,25 +525,10 @@ def tower(ps, bed, placed, exclude, start=None):
     clear, else the legal spot furthest from the bed's centre that clears the
     parts by WIPE_GAP, else by TIGHT_GAP — or None when no spot clears.
 
-    Legal is TOWER_INSET inside `tower_bounds`, on every side. A tower's
-    `(x, y)` is its origin corner, and Studio's geometry spills a little below
-    and left of it: the A1 mini's Lid plate, sliced with its tower at (0, 0),
-    (0.5, 0.5), (1, 1), (1, 4) and (4, 1), was refused every time with -104 ("G-code outside of the printable area ... wipe tower,
-    brim, or skirt"), and at (2, 2), (3, 3) and (4, 4) it sliced clean. The
-    far edges tolerated a tower flush against them — (145, 4) and (4, 145)
-    sliced, the nominal 35 ending exactly at 180 — so the near edges are the
-    ones that matter, and the far ones are inset the same so that the front
-    and back corners still tie for distance from the centre and the scan's
-    first, at the front of the bed where every shipped fallback sits, is the
-    one taken (inset the near edges alone and the grid's last step is the
-    further corner, which sent the H2C's fallback to the back of the bed;
-    (4, 4) on the mini, (261, 4) on the H2C, whose x range is not symmetric
-    about its bed's centre and whose right corner wins outright). 4 mm is a
-    GRID step, twice the threshold; it moves the H2C's corner fallback from
-    (265, 0) to (261, 4), which its slice check covers. Before this the
-    corner search allowed a flush corner and found one first, which put the
-    mini's Lid plate at (0, 0): `start_spot` is inside WIPE_GAP of a centred
-    mini lid, so that plate always fell through."""
+    Legal is TOWER_INSET inside `tower_bounds`, on EVERY side: a tower's
+    `(x, y)` is its origin corner and Studio's geometry spills below and left
+    of it, so one flush to the near edges will not slice (`spec/PROJECT.md`,
+    point 4)."""
     start = start or start_spot(bed)
     bw, bd = PJ.BEDS[bed].size
     w = float(ps.get("prime_tower_width", 35))
@@ -699,11 +563,7 @@ def tower(ps, bed, placed, exclude, start=None):
     return None
 
 
-# --- all of it ------------------------------------------------------------------
-
-
 def layout(objects, bed=None):
-    """(bed, [project.Plate], [project.Placement]) for `objects`."""
     bed = choose_bed(objects, bed)
     ps = profile(bed)
     ex = [tuple(map(float, p.split("x"))) for p in ps.get("bed_exclude_area", [])]
@@ -721,8 +581,7 @@ def layout(objects, bed=None):
 def plate(objects, idxs, bed, ps, exclude, name):
     """One plate packed WITH a home for its tower: as packed if the tower
     clears; else slid to an edge; else the whole plate a quarter turn round
-    and the same again. Refuses when nothing works — a plate whose tower
-    collides is not a plate to print."""
+    and the same again. Refuses when nothing works."""
     for turn in (False, True):
         packed = pack_plate(objects, idxs, bed, exclude, turn=turn, ps=ps)
         for dx, dy in slides(packed, bed, exclude):

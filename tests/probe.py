@@ -1,12 +1,9 @@
 """Ray-casting a cached mesh — the corpus tests' one shared instrument.
 
-Lifted from `tests/test_lid_corpus.py`, whose docstring records the two
-lessons this carries: a vertex scan misses a face wherever the tessellation
-splits one, so the mesh is PROBED with rays; and a ray must **never aim at a
-feature's exact centre** — a rectangular face is two triangles, and a ray
-down their shared diagonal is counted once per triangle, which cancels and
-the face vanishes. Every probe is offset by `EPS`, an amount no dimension in
-the catalogue is a multiple of.
+A vertex scan misses a face wherever the tessellation splits one, so the mesh
+is PROBED with rays — and **never at a feature's exact centre**, where the two
+triangles of a rectangular face cancel and it vanishes. Every probe is offset
+by `EPS`, a value no catalogue dimension is a multiple of.
 """
 import numpy as np
 
@@ -14,8 +11,8 @@ EPS = 0.013
 
 
 def load(path, biggest=True):
-    """(vertices, triangles) of a component 3MF's body — the biggest object,
-    since a lid 3MF carries its inlays as separate objects."""
+    """(vertices, triangles) of a 3MF's body — the biggest object, since a
+    lid 3MF carries its inlays as separate ones."""
     from cad import mesh3mf
     meshes = mesh3mf.read(path)
     _n, verts, tris = (max(meshes, key=lambda m: len(m[2])) if biggest
@@ -24,8 +21,8 @@ def load(path, biggest=True):
 
 
 def spans(V, T, axis, u, v, tol=1e-6):
-    """[(lo, hi)] of material along `axis` on the ray through the other two
-    coordinates, in cyclic order — (y, z) for X, (z, x) for Y, (x, y) for Z."""
+    """[(lo, hi)] of material along `axis`, on the ray at the other two
+    coordinates in cyclic order: (y, z) for X, (z, x) for Y, (x, y) for Z."""
     i, j, k = axis, (axis + 1) % 3, (axis + 2) % 3
     A, B, C = V[T[:, 0]], V[T[:, 1]], V[T[:, 2]]
     a = np.column_stack([A[:, j], A[:, k]])

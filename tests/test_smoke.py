@@ -1,18 +1,15 @@
 """Every command-line entry point runs end to end on one cascade.
 
 The part suites hold the GEOMETRY to its references; this holds the TOOLS
-around it to "still works": each CLI is run as a subprocess on one Dominion
-cascade and its output file checked for existence and format, which is the
-whole claim. It is what catches a renamed argument or a broken import in a
-script no other suite imports — `cad.gltf`, `cad.render` and
-`render/cascade.py` had none until this file.
+around it to "still works": each CLI runs on one Dominion cascade and its
+output is checked for existence and format — a renamed argument or a broken
+import, no more.
 
     .venv/bin/python -m cad.build --part all          # needs build/
     .venv/bin/python tests/test_smoke.py             # about a minute; assembles what it needs
 
-Blender is an APPLICATION, not a dependency (`spec/RENDER.md`): the photoreal
-check runs only where `/Applications/Blender.app` is, and says so when it is
-not. Everything else fails rather than skips.
+Blender is an APPLICATION, not a dependency (`spec/RENDER.md`): that check
+runs only where `/Applications/Blender.app` is; the rest never skips.
 """
 import subprocess
 import sys
@@ -28,9 +25,7 @@ BOX = ROOT / "build" / "Dominion" / "Box M6.21.10.45-Un.3mf"
 
 
 def shipped(folder, model):
-    """The shipped project carrying `model`, whatever named it. The name is not
-    stable — the version went into it on 2026-09-05 — but the model code in the
-    bracket is, and it is unique per cascade (`refresh_cascades.find_project`)."""
+    """The project whose bracket carries `model`; names are not stable."""
     hits = sorted((ROOT / "spec" / "reference" / "shipped-7.0" / folder)
                   .glob(f"*({model}).3mf"))
     assert len(hits) == 1, f"{model}: {len(hits)} shipped projects"
@@ -58,9 +53,6 @@ def run(label, *cmd):
     return proc.stdout + proc.stderr
 
 
-# The assembly is made here if it is missing — a fresh clone has no
-# build/assemblies/, and a test that needs one should not wait for a hand to
-# run cad.assemble first.
 if not ASSEMBLY.exists() and BOX.exists():
     print("=== the assembly this needs, made first ===")
     run("cad.assemble --state closed-lid", PY, "-m", "cad.assemble", "--model",
@@ -105,9 +97,8 @@ with tempfile.TemporaryDirectory() as tmp:
     check("fit reports no failure", "FAIL" not in out)
 
     print("\n=== cad.assemble, the first-riser holder Onshape never exported ===")
-    # Onshape never exported this cascade's first-riser holder; the built one
-    # is what an assembly places. Written under build/, where the box and
-    # pusher already are: an --out elsewhere would have both built again into it.
+    # Onshape never exported this first-riser holder. Written under build/, or
+    # an --out would build the box and pusher again into it.
     made = ROOT / "build" / "assemblies" / "Dominion" / "M6.21.10-12.45-M-Un closed.3mf"
     made.unlink(missing_ok=True)
     run("assemble M6.21.10-12.45-M-Un", PY, "-m", "cad.assemble", "--model",

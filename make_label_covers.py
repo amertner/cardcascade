@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 """Generate MakerWorld cover images for the per-set label 3MFs.
 
-One 4000x3000-style (2010x1500 px, 4:3) cover per cc.cfg record, matching
-the cascade poster design language: Card Cascade wordmark, game logo,
-stacked UNSLEEVED/SLEEVED corner banners, a size-graded stack of the
-set's actual labels (front, box sides, split-box labels) with type/width
-captions, FULL SET / PARTIAL SETS chips, and a bottom band naming the set.
+One 2010x1500 (4:3) cover per cc.cfg record, in the cascade poster's design
+language: wordmark, game logo, UNSLEEVED/SLEEVED banners, a size-graded
+stack of the set's real labels, chips and a band naming it. Written
+beside the 3MFs.
 
     python3 make_label_covers.py [--out cascades] [--version 6.5]
                                  [--sets "Renaissance,Base Set"]
-
-Covers are written to <out>/<game>/labels/, next to the per-set .3mf files.
-
-Requires: pillow (pip install pillow). Reads cc.cfg via labelmaker.
 """
 import argparse
 import os
@@ -57,13 +52,9 @@ def label_font():
 
 
 def draw_artwork(d, art_file, width_mm, scale, caps, ox, oy, h):
-    """Draw a label's printed detail from the real geometry.
-
-    Artwork placement follows rules (which box it lands in, where a number
-    goes) that only labelmaker knows, so the cover asks it for the actual
-    polygons rather than guessing. Holes are painted back in the plate
-    colour, and the shapes come largest first so an island inside a hole
-    lands on top of it."""
+    """Draw a label's printed detail from the real geometry: placement follows
+    rules only labelmaker knows, so the cover asks it for the polygons, holes
+    painted back in the plate colour, largest shape first."""
     for rings in dl.label_polygons("", width_mm, label_font(), caps,
                                    dl.load_art(art_file)):
         for i, ring in enumerate(rings):
@@ -109,9 +100,7 @@ def render_label(text, width_mm, scale, caps, art=None):
             f = cap_scale(caph)
             tw = d.textlength(text, font=f)
         baseline = oy + h - 10.1 * scale
-        # wide labels: the lowered layout of labelmaker.make_label — bigger
-        # text dropped beside the logo and the "cc", shrunk to the gap
-        # between them and standing on a descender-deep baseline.
+        # wide labels: labelmaker.make_label's lowered layout
         big_cap = dl.BIG_CAPS.get(width_mm)
         if big_cap is not None:
             big = big_cap * scale
@@ -146,9 +135,7 @@ def footer(d, version):
 # ---------- per-set label stack ----------
 def front_row(rec, game_cfg):
     """The front-label row. Sets whose box is only ever split have no label
-    reading just the set name — every front label carries the half number
-    (or the part name), so the cover shows "<name> [X]" and says what X is.
-    """
+    reading just the set name, so the cover shows "<name> [X]"."""
     front = game_cfg["front"]
     name = rec["name"]
     if not name:
@@ -173,13 +160,9 @@ def front_row(rec, game_cfg):
 
 
 def parts_rows(rec, game_cfg, profile):
-    """Rows for a "<n> Cascades" cover, or None if the profile isn't one.
-
-    These sets don't fit one box, so the fronts are the story: one per
-    cascade, naming the part it holds. The side labels repeat those same
-    names at every side width, which would double the stack and shrink
-    every label to say nothing new — so only the first cascade's sides are
-    shown, captioned to say which cascade they belong to."""
+    """Rows for a "<n> Cascades" cover, or None if the profile isn't one. The
+    fronts are the story, one per cascade; the sides would repeat those names
+    at every width, so only the first cascade's are shown."""
     grouping = next(((widths, labels)
                      for widths, labels, tag in rec.get("nsplits", [])
                      if dl.parts_profile(labels, tag) == profile), None)
@@ -192,16 +175,15 @@ def parts_rows(rec, game_cfg, profile):
             for i, lab in enumerate(labels, 1)]
     sides = sorted((w for w in widths if w != front), reverse=True)
     if sides:
-        # the sides share one row: side by side they cost a single row of
-        # the stack, which keeps the fronts big enough to read
+        # the sides share one row, which keeps the fronts big enough to read
         listed = " & ".join(f"{w:g}" for w in sides)
         rows.append((f"SIDE LABELS · {listed} MM · CASCADE 1",
                      [(dl.part_text(name, labels[0], False), w) for w in sides]))
     return rows
 
 
-# Two 156.4 mm fronts sit side by side in the stack band; three would force
-# the scale below what the caption type can carry.
+# Two 156.4 mm fronts fit the band side by side; three force the scale under
+# what the caption type can carry.
 FRONTS_PER_ROW = 2
 
 
@@ -209,17 +191,9 @@ def names_rows(rec, game_cfg):
     """Rows for a names= record, or None if it has none.
 
     Every name is a box of its own, so the fronts ARE the list of what this
-    print makes and all of them belong on the cover. One per row would put
-    the stack at eight rows and drive fit_scale under its floor, so they
-    pair up — a front is 156.4 mm and two fit the band side by side — and
-    only the first pair is captioned, so the block reads as one list rather
-    than four unrelated rows.
-
-    The side labels are the same text at the same side widths on every one
-    of those boxes, so a single row stands for all of them; showing them
-    per name would add a row per name per width, all saying nothing new.
-    The narrowest width carries the short form, as it does in the print
-    itself."""
+    print makes; one per row would drive fit_scale under its floor, so they
+    pair up and only the first pair is captioned. One side row stands for all
+    the boxes, the narrowest width carrying the short form."""
     names = rec.get("names") or []
     if not names:
         return None
@@ -228,10 +202,9 @@ def names_rows(rec, game_cfg):
     rows = []
     for i in range(0, len(names), FRONTS_PER_ROW):
         chunk = [(full, front) for full, _ in names[i:i + FRONTS_PER_ROW]]
-        # An odd final name would otherwise sit alone against the stack's
-        # right edge, in the second column, breaking the grid the reader is
-        # following. Pad the row with a blank slot so it keeps its place in
-        # the sequence; make_cover leaves a (None, width) slot empty.
+        # An odd final name would sit alone in the second column, breaking
+        # the grid; pad the row with a blank slot. make_cover leaves a
+        # (None, width) slot empty.
         chunk += [(None, front)] * (FRONTS_PER_ROW - len(chunk))
         # a row is pasted right to left, so reverse to read in list order
         rows.append(("FRONT LABELS · ONE PER SET" if not rows else "",
@@ -248,13 +221,9 @@ def names_rows(rec, game_cfg):
 
 
 def stack_rows(rec, game_cfg, profile=""):
-    """[(caption, [(label text, width_mm), ...])] for one cc.cfg record —
-    one entry per row of the stack. A row holds more than one label only
-    where they are narrow enough to sit side by side.
-
-    The "Logo" profile shows the same widths carrying the set's artwork
-    instead of its name, so the pair of covers reads as two versions of
-    one print."""
+    """[(caption, [(label text, width_mm), ...])] per cc.cfg record, one entry
+    per row; several labels to a row only where they fit side by side. The
+    "Logo" profile carries the artwork instead of the name."""
     rows = parts_rows(rec, game_cfg, profile)
     if rows is not None:
         return rows
@@ -280,8 +249,7 @@ def single_rows(rec, game_cfg, profile=""):
         for wmm in sorted({w for w in (u, s) if w}, reverse=True):
             rows.append((f"SIDE LABEL · {wmm:g} MM", side_text, wmm))
     if rec.get("split"):
-        # one row per sleeving width of each half (mirrors the box branch),
-        # so a half sleeved/unsleeved at different widths shows both.
+        # one row per sleeving width of each half (mirrors the box branch)
         for half_no, half in enumerate(rec["split"], 1):
             for wmm in sorted({w for w in half["widths"] if w}, reverse=True):
                 rows.append((f"SPLIT BOX · {wmm:g} MM",
@@ -296,10 +264,8 @@ def single_rows(rec, game_cfg, profile=""):
 
 # right-hand label stack lives in this vertical band on every cover
 STACK_TOP, STACK_BOTTOM = 350, H - 370
-# ...and in this horizontal one. The left column shares the band's height:
-# its longest line ("Two-colour 3D printable") ends at x=714, so the stack
-# starts clear of that. Only rows carrying several labels ever reach the
-# limit; a lone 156.4 mm front is 1016 px at full scale against 1180 available.
+# ...and in this horizontal one, clear of the left column (which ends at
+# x=714). Only busy rows reach the limit: a lone front is 1016 px of 1180.
 STACK_LEFT, STACK_RIGHT = 740, W - 90
 
 
@@ -308,8 +274,7 @@ def row_height(scale):
 
 
 def row_width(items, scale):
-    """Pixel width of one rendered row, matching render_label's padding and
-    make_cover's 12 px gap between labels."""
+    """Pixel width of one rendered row, as render_label pads it."""
     return (sum(int(w * scale) + 2 * (int(0.35 * scale) + 6) for _, w in items)
             + 12 * (len(items) - 1))
 
@@ -319,13 +284,8 @@ LABEL_SCALE_MAX = 6.4           # large default; shrinks only if rows overflow
 
 def fit_scale(rows):
     """Largest label scale (0.2 steps) that fits `rows` in the stack band.
-
-    Height and WIDTH both bind: a row holding several labels can overflow
-    into the left column long before the stack runs out of vertical room,
-    which is what a names= cover does with two 156.4 mm fronts to a row.
-    Labels stay large by default and only scale down for busier sets; the
-    22.2 mm height and width are always in proportion at whatever scale wins.
-    """
+    Height and WIDTH both bind: a busy row can overflow into the left column
+    long before the stack runs out of vertical room."""
     avail_h, avail_w = STACK_BOTTOM - STACK_TOP, STACK_RIGHT - STACK_LEFT
     scale = LABEL_SCALE_MAX
     while scale > 3.0 and (
@@ -361,7 +321,6 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
     d.text((70, 690), "LABELS", font=fb, fill=GREEN)
     d.text((70, 850), "Two-colour 3D printable", font=F(MONO_R, 46), fill=INK)
     # a parts cover is one whole way to build the set, so it says which
-    # rather than the generic every-box-size line
     scope = (f"for all {profile.lower()}" if profile and profile != "Logo"
              else "for every expansion" if rec.get("names")
              else "for every box size")
@@ -393,8 +352,7 @@ def make_cover(rec, game, game_cfg, version, out_dir, profile=""):
 
     d.polygon([(0, H - 340), (W * 0.72, H - 340), (W * 0.66, H - 200),
                (0, H - 200)], fill=GREEN)
-    # "<game>: <set>", but not "Innovation: Innovation" for a set that is
-    # the whole game
+    # "<game>: <set>", but not "Innovation: Innovation"
     band = (display if not rec["name"] or display == game_disp
             else f"{game_disp}: {display}")
     if profile == "Logo":

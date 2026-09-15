@@ -1,28 +1,14 @@
 """Run every suite in tests/, several at a time, and say which failed.
 
-Each suite is a script of its own — it prints `ok`/`FAIL` lines and exits
-non-zero on any failure — and until this file there was nothing that ran
-them all, so "the tests pass" was never a checkable statement. This runs
-them under the venv's python, one line per suite with its wall time as each
-finishes, and exits non-zero if any did.
-
-The suites are independent processes and most of them use one core, so they
-run CONCURRENTLY: each carries a weight — the cores it takes — and the
-scheduler keeps the running weights within `--jobs` (every core by default),
-starting the longest suites first so the run ends when the longest one does
-rather than when they have all taken their turn. Serially the tree took about
-35 minutes; concurrently it takes about as long as test_box. `--jobs 1` is
-the old serial run, in table order.
+Each suite is a script of its own, printing `ok`/`FAIL` lines and exiting
+non-zero on any failure. They run CONCURRENTLY within a weight budget
+(`--jobs`, every core), longest first; `--jobs 1` is serial, in table order.
+The regression suites read `build/`: run `cad.build --part all`, or `--build`
+here.
 
     .venv/bin/python tests/run_all.py            # everything, ~5 minutes
     .venv/bin/python tests/run_all.py --quick    # skip the slow STEP suites
-    .venv/bin/python tests/run_all.py --only holder,lock
     .venv/bin/python tests/run_all.py --jobs 1   # one at a time, in order
-
-The regression suites read `build/` — run `python -m cad.build --part all`
-first, or `run_all.py --build` to have it done here. `test_pusher_regression`,
-`test_holder_corpus`, `test_smoke`, `test_project`, `test_layout` and
-`test_parallel` need it; `test_build_meshes` scans whatever is there.
 """
 import argparse
 import os
@@ -35,12 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PY = sys.executable
 
-# (name, needs build/, slow, weight in cores, typical seconds). Table order is
-# the serial order: arithmetic first, then source vs STEP, then the corpus and
-# regression suites that read build/ or individual/. The weight is what the
-# suite occupies while it runs — 1 for a single-threaded script, more for one
-# that pools (test_holder_corpus takes every core), slices in Studio (a
-# multi-threaded minute per project) or renders in Blender.
+# (name, needs build/, slow, weight in cores, seconds), in serial order.
 SUITES = [
     ("test_derive", False, False, 1, 1),
     ("test_lock", False, False, 1, 1),
@@ -97,8 +78,7 @@ def schedule(chosen, jobs):
     budget = max(1, jobs)
     while pending or running:
         with lock:
-            # start whatever fits; a suite heavier than the whole budget runs
-            # alone rather than never
+            # one heavier than the whole budget runs alone, not never
             used = sum(s[3] for s in running.values())
             for suite in list(pending):
                 if used + suite[3] <= budget or (not running and suite[3] > budget):

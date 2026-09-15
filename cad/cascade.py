@@ -4,27 +4,16 @@
     .venv/bin/python -m cad.cascade --game Dominion --sleeving un  # some
     .venv/bin/python -m cad.cascade --build --slice                # all, checked
 
-Row in, project out, no donor and no plan: the parts are read from `build/`
-by the names `cad.build` gives them — the names that ARE a part's identity,
-being what is engraved on it, so two cascades that need the same holder ask
-for the same file and nothing has to be deduplicated — the bed is the row's
-`3D printer` column (or the smallest that fits), `cad.layout` places
-everything, `cad.project` writes the file, and the two project guards run on
-it before it counts. `--build` runs `cad.build --part all` first, which the
-stamps make a no-op when nothing changed; `--slice` has BambuStudio slice
-every plate and requires return_code 0, the only check that sees a tower in
-unprintable space. Projects go to `build/cascades/<Game>/`
-(`build/v<version>/cascades/` for another release) unless `--out` says
-otherwise; a release is copied from there into `cascades/`.
-
-`--publish` writes the set that LEAVES the repo, to `build/dist/<version>/`:
-the same projects with the version in their file names. In the repo a name is
-an identity and the version lives in the title and the engraving; on a
-download the name is the first thing its owner reads. See `filename`.
-
-The composition rules are `automation/PIPELINE.md`'s ("Component composition"),
-restated in `parts`; which rows ship toppers and token holders is asked of
-`cad.build` (`ships_toppers`, `ships_token_holder`), as its catalogues ask it.
+Row in, project out, no donor and no plan: the parts are read from `build/` by
+the names `cad.build` gives them, the bed is the row's `3D printer` column (or
+the smallest that fits), `cad.layout` places everything, `cad.project` writes
+the file, and the two project guards run on it before it counts. `--build`
+runs `cad.build --part all` first; `--slice` has BambuStudio slice every plate
+and requires return_code 0, the only check that sees a tower in unprintable
+space. Projects go to `build/cascades/<Game>/` and a release is copied into
+`cascades/`; `--publish` writes the set that LEAVES the repo, with the version
+in the file names (`filename`). The composition rules are
+`automation/PIPELINE.md`'s, restated in `parts`.
 """
 import argparse
 import hashlib
@@ -52,45 +41,26 @@ STUDIO = Path("/Applications/BambuStudio.app/Contents/MacOS/BambuStudio")
 
 
 def parts(row, d):
-    """[(object name, filename under build/<Game>/)] — every printed thing
-    the cascade `row` (with its sleeving already in `d`) is made of, in the
-    order the plate scheme lists them.
+    """[(object name, filename under build/<Game>/)] — every printed thing the
+    cascade `row` is made of, in the order the plate scheme lists them.
 
-    * one Box, `calPusherSlots` Pushers (`#calPusherSlots` is the count of
-      rear slots: 2 at every size from 7.1; at 7.0, 2 for Innovation and for
-      S boxes, 3 for M and L);
-    * `RisingSliders` Holders — one of them the deeper FirstHolder when the row
-      overrides the first slot's capacity, and from 7.2a the rearmost one a
-      RearHolder without rear lips (`rev.rear_holder`), which is the deep one
-      itself where the row puts the deep slot at the back;
-    * one Lid — and from 7.1d a SECOND one, on its own plate, where the
-      cascade's mark is not its game's default edition: Innovation's two
-      single-set cascades carry the plain `Innovation` mark and ship an
-      `Innovation Ultimate` lid beside it, for the owner to choose between
-      (`rev.both_lid_editions`); and from 7.2b an UNMARKED lid on a plate of
-      its own in every cascade, with no mark and `(C) Mertner` where the
-      game's name is (`rev.unmarked_lid`). `build.lid_variants_built` lists
-      them in this order;
-    * a TokenHolder where the row's `TokenHolder` column asks for one
-      (Dominion's alone), and a HalfTokenHolder as well on a merged (Mat) row
-      — the two are alternatives for one pocket, and the cascade ships both;
-    * Innovation: the six Toppers, one per expansion plus Blank, except on a
-      single-set row (`build.ships_toppers`: a box built for ONE set has
-      nothing for a topper to say);
-    * from 7.2d a PlainBox, LAST, where the row's `Plain box` column asks
-      for one (`build.ships_plain_box`: Compile's rows): the same Box
-      without its label holders, on a plate of its own at the end of the
-      project, an alternative to the box on plate 1 (`rev.plain_box_plate`);
-    * from 7.2g, where the row's `Back pocket` column asks for them
-      (`build.back_pocket_variants_built`: `Single Mini`), VARIANT backs IN
-      PLACE OF the ordinary box — the first on plate 1 with the pushers, the
-      rest as a `NotchedBox` on a plate each. The pair's two halves
-      (`rev.back_pocket_variants`).
+    * one Box and `calPusherSlots` Pushers;
+    * `RisingSliders` Holders — one the deeper FirstHolder where the row
+      overrides the first slot, and from 7.2a a lipless RearHolder;
+    * the Lids `build.lid_variants_built` lists, in that order;
+    * a TokenHolder where the row asks for one, and a HalfTokenHolder as well
+      on a merged (Mat) row — alternatives for one pocket, both shipped;
+    * the six Toppers where the row ships them (`build.ships_toppers`);
+    * from 7.2d a PlainBox, LAST, where `build.ships_plain_box` — an
+      alternative to plate 1's box;
+    * from 7.2g VARIANT backs IN PLACE OF the ordinary box
+      (`build.back_pocket_variants_built`) — the first on plate 1, the rest as
+      a `NotchedBox` on a plate each.
     """
     backs = B.back_pocket_variants_built(row, d)
     if backs:
-        # The row ships VARIANT backs INSTEAD of the ordinary box (7.2g). The
-        # first is plate 1's, with the pushers; the rest get a plate each.
+        # VARIANT backs INSTEAD of the ordinary box (7.2g): the first is plate
+        # 1's, with the pushers; the rest get a plate each.
         out = [("Box", B.box_file(B.back_pocket_twin(d, backs[0])))]
         out += [("NotchedBox", B.box_file(B.back_pocket_twin(d, v)))
                 for v in backs[1:]]
@@ -115,8 +85,8 @@ def parts(row, d):
 
 
 def objects(row, d, root=BUILD):
-    """The parts as `project.Obj`s, read from `root/<Game>/`. A missing file
-    is named rather than guessed around — build it first."""
+    """The parts as `project.Obj`s from `root/<Game>/`; a missing one is NAMED,
+    not guessed around."""
     folder = root / d.GameName
     wanted = parts(row, d)
     missing = sorted({fn for _n, fn in wanted if not (folder / fn).exists()})
@@ -132,7 +102,6 @@ def objects(row, d, root=BUILD):
 
 
 def _named(row, d, version):
-    """`components.cascade_filename` for this row, at `version` (None: none)."""
     model = (row.get("Sleeved model" if d.isSleeved else "Unsl Model") or "").strip()
     return C.cascade_filename((row.get("Game") or d.GameName).strip(),
                               (row.get("Short name") or "").strip(),
@@ -141,38 +110,27 @@ def _named(row, d, version):
 
 
 def filename(row, d, versioned=False):
-    """The project's FILE name. No version in it by default.
-
-    The version in a name serves one reader: someone holding a downloaded file,
-    deciding whether the pusher in their hand matches the lid. In the repo there
-    is no such reader — the tree is addressed by path — and it costs the whole
-    catalogue a rename on every release, which `refresh_cascades.find_project`
-    already records happening once: "every one of them did, the day the version
-    went into it". Tags carry a release; a filename should carry an identity.
-
-    So `build/cascades/` and `cascades/` hold the stable name, and `--publish`
-    puts the version back for the tree that leaves the repo. What the file says
-    about itself does NOT change with it — see `title` below."""
+    """The project's FILE name. NO version in it by default: a version in a
+    name serves one reader, someone holding a downloaded file, and in the repo
+    it costs the catalogue a rename on every release. So `cascades/` holds the
+    stable name and `--publish` puts the version back; what the file says
+    about ITSELF does not change with it (`title`)."""
     return _named(row, d, d.Version if versioned else None)
 
 
 def title(row, d):
     """The project's TITLE, which ALWAYS carries the version:
-    `Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)`.
-
-    A filename is the one identifier its owner can trivially change, so the
-    version cannot live only there. `project.write` puts this in the 3MF's
-    `Title` metadata and at the end of every plate name, where Studio shows it
-    and no rename can touch it. The version is `d.Version` — what `cad.build`
-    stamped every part with, and on this path that really is every part, so the
-    title and the engraving say the same thing."""
+    `Dominion 168 Card Unsleeved v7.0 (S4.16.10.32-Un)`. A filename is the one
+    identifier its owner can trivially change, so this goes in the 3MF's
+    `Title` metadata and at the end of every plate name. The version is
+    `d.Version`, what `cad.build` stamped every part with."""
     return _named(row, d, d.Version)[:-len(".3mf")]
 
 
 def bed_for(row, d):
-    """The bed parts.csv's `3D printer` column names — Mini, Standard, Large,
-    or Mixed (P1 unsleeved, H2C sleeved: the sleeved box is deeper) — or None
-    for the layout to pick the smallest that fits. `refresh_cascades.bed_for`."""
+    """The bed parts.csv's `3D printer` column names — Mini, Standard, Large or
+    Mixed (P1 unsleeved, H2C sleeved) — or None for the layout to pick the
+    smallest that fits."""
     kind = (row.get("3D printer") or "").strip().lower()
     if kind == "mini":
         return "mini"
@@ -186,7 +144,6 @@ def bed_for(row, d):
 
 
 def source_stamp():
-    """`<git hash>[+dirty]` of the working tree — what produced the project."""
     try:
         h = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
                            capture_output=True, text=True, check=True).stdout.strip()
@@ -204,7 +161,6 @@ def row_stamp(row):
 
 def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=None,
               version=CURRENT):
-    """[(row, d)] for the cascades selected."""
     sizes = [x.strip().upper() for x in size.split(",")] if size else None
     out = []
     for row, p in params.cascades(csv, game, version):
@@ -223,7 +179,6 @@ def catalogue(csv=CSV, game=None, model=None, size=None, sleeving=None, name=Non
 
 def make(row, d, out_dir=OUT, bed=None, do_slice=False, root=BUILD,
          versioned=False):
-    """One cascade's project, written and checked. Returns (path, notes)."""
     objs = objects(row, d, root)
     chosen, plates, places = LY.layout(objs, bed or bed_for(row, d))
     path = Path(out_dir) / d.GameName / filename(row, d, versioned)

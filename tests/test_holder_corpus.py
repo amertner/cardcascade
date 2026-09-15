@@ -1,67 +1,20 @@
 #!/usr/bin/env python3
 """Every built holder against the Onshape one it replaces.
 
-    .venv/bin/python -m cad.build --part holder
-    .venv/bin/python tests/test_holder_corpus.py     # about a minute, pooled
+Needs `cad.build --part holder --version 7.0` first; about a minute, pooled.
 
-`tests/test_holder.py` checks the SOURCE against ten hand-exported STEPs, which
-settle the geometry exactly and say nothing about the written file. This checks
-the 3MFs `cad.build` writes against the 50 in `individual/`, through the same
-reader the rest of the toolchain uses, so it covers the meshing and the
-assembly placement too. Same split as the Pusher's two tests.
-
-## What must match, and what must not
-
-`individual/` is a mixed catalogue, as it was for the pushers — but the axis is
-different and it took the provenance dates to see it. Every holder on disk is
-recorded at studio version **6.6**, so `export.py` believes all 50 are current;
-the meshes disagree. Thirty of them stand `5.000` beyond the outer slot edge at
-each end and twenty stand `4.900`, and the split is EXACTLY the export date:
-
-    ..2026-08-20  +10.000  x30      2026-08-24..  +9.800  x20
-
-So the Holder studio changed between those dates and its version was never
-bumped. `cad/` is `4.900` throughout — that is what all ten STEPs measure — so
-it must REPRODUCE the twenty and MOVE the thirty. Both are reported; both are
-asserted, but differently: the thirty have to differ in X and in NOTHING ELSE,
-which is what makes "the end block moved 0.100" a measurement rather than an
-anecdote. A re-export moves a file from one bucket to the other on its own —
-the bucket is read off the mesh, not from a list here.
-
-The engraved VERSION is the other difference, and it is not a divergence: all
-50 cached files engrave `CC 6.6`, exact to a thousandth, while the STEPs Allan
-exported by hand engrave `CC 7.0`. Everything is 7.0 now, and on the Holder that
-bump changed NOTHING but the embossed number (Allan) — which is what licenses
-comparing across it. The build is therefore priced at `Version="6.6"` for the
-volume comparison — one build with `text=False`, less the 6.6 engraving by
-intersection (`measure`) — as `tests/test_token_holder_corpus.py` rebuilds
-for the same stated reason, and the two are compared like for like.
-
-Note the two changes are independent: the end-block trim happened while the
-studio was still at 6.6, so a cached holder can carry the 6.6 string (all of
-them do) and either end block.
-
-The engraved SIZE is a divergence, and a deliberate one: where Onshape's rule
-makes the two blocks collide, `holder.text_size` shrinks them so they do not
-(spec/HOLDER.md, "The size"). Smaller text engraves away less material, so those
-holders come out HEAVIER, by the ink Onshape lost into the overlap. That is
-asserted by sign and a bound rather than by a number — the number itself is held
-against the STEPs, exactly, in `tests/test_holder.py`.
-
-Per file, then:
-
-  * all six bounding-box coordinates, from the written 3MF — the envelope AND
-    where the part sits, which is what `make_cascade` places
-  * the volume, tessellated the same way at `Version="6.6"`, to 0.05%. That
-    tolerance is meshing, not geometry: OCCT and Onshape do not triangulate a
-    12 mm scallop the same way. It is still 5x clear of the end-block move it
-    has to tell apart.
-
-and, on every written holder whether or not it has a cached twin, that the mesh
-is CLOSED and MANIFOLD. That last one is the printability claim: a slicer will
-take a hole or a doubled edge as far as a failed print. `individual/`'s 850
-cached bodies have neither, and neither, now, does anything `cad.build` writes —
-`mesh3mf._drop_flaps` is what closed the two holders that did.
+`tests/test_holder.py` holds the SOURCE to ten hand-exported STEPs; this holds
+the written 3MFs to the 50 in `individual/`, covering the meshing and the
+placement. `individual/` is a MIXED catalogue its own provenance cannot see —
+thirty cached holders stand `10.000` beyond the outer slot edge and twenty
+`9.800` (spec/HOLDER.md, "`individual/` is a mixed catalogue") — so the twenty
+are REPRODUCED and the thirty MOVED, differing in X and in NOTHING ELSE; the
+bucket is read off the mesh, not listed here. Neither the engraved VERSION
+(cache `CC 6.6`, STEPs `CC 7.0`, so it is priced at `Version="6.6"`) nor
+the engraved SIZE (a deliberate divergence, spec/HOLDER.md "The size") is part
+of that difference. Per file: the six bounding-box coordinates and the volume
+at 6.6 to 0.05% — a MESHING tolerance, still 5x clear of the end-block move it
+must tell apart — plus a CLOSED MANIFOLD mesh on every written holder.
 """
 import sys
 from collections import Counter
@@ -77,15 +30,12 @@ import reference as REF                                        # noqa: E402
 from cad import text as TX                                 # noqa: E402
 from cad.parts import holder                               # noqa: E402
 
-# The tree for the release this file asserts, not the current one
-# (`tests/reference.py`): build `--version 7.0` before running it.
+# The tree for the release this file asserts: build `--version 7.0` first.
 BUILD = REF.tree()
 INDIV = ROOT / "individual"
 FOLDER = {"Compile": "Compile", "Dominion": "Dominion", "FCM": "FCM",
           "Innovation": "Innovation"}
-# The two games whose holder spans the box rather than a slot, so `plan_exports`
-# names it `Holder 3x7-r4-Sl` instead of `Holder S-40-r2-Sl`. From
-# `automation/components.GAMES[...]["holder_spans"]`.
+# Holder spans the box, not a slot: `components.GAMES[..]["holder_spans"]`.
 SPANS = {"Compile", "Innovation"}
 CURRENT_END = 9.800        # 2 * holder.END_EXTRA — what the STEPs measure
 STALE_END = 10.000         # the pre-2026-08-24 studio
@@ -105,14 +55,9 @@ def check(label, got, want, tol=1e-6):
 
 
 def legacy_file(row, p, first):
-    """The name `plan_exports.holder` gives this holder in `individual/`.
-
-    Keyed on `(size, front capacity, risers, sleeved, first)` for the per-slot
-    games and on `(HorizontalSlots, cards per slot, risers, sleeved)` for the
-    two that span — neither of which is `calModelName`, which is what
-    `cad.build` uses. The size letter comes from the row's `Base model`, as
-    `plan_exports.build_context` reads it, XS included.
-    """
+    """The name `plan_exports.holder` gives this holder in `individual/`:
+    keyed `(size, capacity, risers, sleeved, first)` or, where it spans,
+    `(slots, cards per slot, risers, sleeved)` — never `calModelName`."""
     slv = "Sl" if p.isSleeved else "Un"
     if p.GameName in SPANS:
         label = f"{p.HorizontalSlots}x{p.CardsPerSlidingSlot}"
@@ -125,12 +70,9 @@ def legacy_file(row, p, first):
 
 
 def catalogue():
-    """[(game, legacy name, built name, Primary, first)] — one per cached file.
-
-    Several parts.csv rows can share one legacy name (the key carries neither
-    the Mat branch nor the card count), and they agree on the geometry by
-    construction; the first is taken.
-    """
+    """[(game, legacy name, built name, Primary, first)] — one per cached
+    file. Rows sharing a legacy name agree on the geometry; the first is
+    taken."""
     out = {}
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
@@ -155,7 +97,6 @@ def box_of(verts):
 
 
 def mesh_volume(verts, tris):
-    """Signed volume of a closed triangle mesh, by the divergence theorem."""
     total = 0.0
     for a, b, c in tris:
         (x1, y1, z1) = verts[int(a)]
@@ -168,24 +109,15 @@ def mesh_volume(verts, tris):
 
 
 def open_edges(verts, tris):
-    """(unpaired, doubled) — `mesh3mf.faults`, which this test is where it
-    came from; kept under its old name so the checks below read as before."""
+    """(unpaired, doubled) — `mesh3mf.faults`."""
     return mesh3mf.faults(tris)
 
 
 def measure(entry):
-    """Everything the checks below need for one cached/built pair, computed
-    in a WORKER: the two meshes' boxes and volumes, and the built holder's
-    volume at the cached generation's `CC 6.6` string.
-
-    The 6.6 volume is NOT a second build. The holder is built once with
-    `text=False` and the engraving priced by intersection at each string —
-    the two differ by nothing but the version digits (Allan) — so what the
-    cached file should weigh is the blank's tessellated volume less the 6.6
-    engraving. That is what `holder.engraving` is for, and it is what took
-    this test from a 6.6 rebuild of all 50 (12-15 minutes, serially) to a
-    pool over one build each.
-    """
+    """One cached/built pair's boxes and volumes, computed in a WORKER. The
+    6.6 volume is NOT a second build: the holder is built once with
+    `text=False` and the engraving priced by intersection, so the expected
+    weight is the blank less the 6.6 engraving."""
     game, legacy, built, p, first = entry
     cpath = INDIV / FOLDER[game] / legacy
     bpath = BUILD / game / built
@@ -211,7 +143,6 @@ def measure(entry):
 
 
 def main():
-    # --- every written holder is a sound mesh -------------------------------
     print("=== the written meshes ===")
     written = sorted(BUILD.glob("*/Holder *.3mf")) + \
         sorted(BUILD.glob("*/FirstHolder *.3mf"))
@@ -230,7 +161,6 @@ def main():
     print(f"  {len(written)} written, closed and manifold" if len(fails) == before
           else f"  {len(written)} written, {len(fails) - before} problem(s)")
 
-    # --- and the 50 with a cached twin are the same part ---------------------
     print("\n=== against individual/ ===")
     print(f"  {'cached file':34s} {'end':>7s} {'corpus mm3':>11s} "
           f"{'built mm3':>11s} {'d%':>8s}        {'built file'}")
@@ -261,7 +191,6 @@ def main():
         for i, axis in ((2, "Y min"), (3, "Y max"), (4, "Z min"), (5, "Z max")):
             check(f"{tag} {axis}", round(bbox[i], 3), round(cbox[i], 3), 1e-3)
         if end == CURRENT_END:
-            # The current studio: the build reproduces it, ends included.
             for i, axis in ((0, "X min"), (1, "X max")):
                 check(f"{tag} {axis}", round(bbox[i], 3), round(cbox[i], 3), 1e-3)
             if capped:
@@ -270,11 +199,8 @@ def main():
             else:
                 check(f"{tag} volume", round(delta, 4), 0.0, VOL_TOL)
         elif end == STALE_END:
-            # The pre-2026-08-24 studio, and the difference is the end block
-            # ALONE: 0.100 in at each end, nothing else anywhere, and exactly
-            # the volume that removes. Asserting the second half is the point
-            # — a stale file that also differed in the lattice or the lip
-            # would pass a width check.
+            # 0.100 in at each end and NOTHING else — the second half is the
+            # point: a stale file differing elsewhere passes a width check.
             moved = (STALE_END - CURRENT_END) / 2
             check(f"{tag} X min moves in by {moved}",
                   round(bbox[0] - cbox[0], 3), round(moved, 3), 1e-3)

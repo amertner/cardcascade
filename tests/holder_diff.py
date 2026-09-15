@@ -2,37 +2,17 @@
 """Band-by-band comparison of cad/parts/holder.py against the reference STEPs —
 a DEV LOOP, not a test. `tests/test_holder.py` is what asserts.
 
-    .venv/bin/python tests/holder_diff.py            # all ten references
-    .venv/bin/python tests/holder_diff.py 246Sl 333Sl
-
-Prints, per reference, the total volume either side and the signed difference
-in each of five bands. Positive means the build has MORE material there than
-the STEP.
-
-## Why this intersects rather than subtracts
-
-`tests/box_diff.py` subtracts slab by slab, because for the Box that works. It
-does not work here: once `Bottom Text` was built, `ref - mine` returns the whole
-solid on five of the ten references — OCCT cannot clean a difference whose
-two operands agree face-for-face over a few hundred engraved glyph edges. A
-fuzzy tolerance does not help and neither does slicing.
-
-Intersecting each solid with the SAME cell and comparing the two volumes does
-work, and it answers the question a diff was being asked for anyway: not "what
-lump is missing" but "which feature group still disagrees, and by how much".
-The cost is that an error which moves material from one band to another within
-a cell cancels, so the bands are cut where the feature groups are:
-
-    lips    everything proud of the rear face — `Rear lip` and its chamfer
-    text    the ENGRAVE-deep slice of the underside — `Bottom Text`
-    base    the underside above the engraving, up to the pocket's floor
-    rests   the swept zone of `Lip Rest`, widened, minus what the lips took
-    body    everything else — the shell, the pocket, the lattice, the scallops
-
-`rests` is the only band that is not a plain half-space: it is the lip rest's
-own oblique prism, widened by REST_MARGIN so that a chamfer error falls inside
-it rather than half in `body`. The two therefore move together and are read
-together — see spec/HOLDER.md, "Completeness, band by band".
+Takes reference keys (`holder_diff.py 246Sl 333Sl`), else all ten, and prints
+the total volume either side plus the signed difference in each of five bands;
+positive means the build has MORE material there. It INTERSECTS where
+`tests/box_diff.py` subtracts: with `Bottom Text` built, `ref - mine` returns
+the whole solid on five of the ten and no fuzzy tolerance helps. An error
+moving material within one cell then cancels, so the bands are cut at the
+feature groups — `lips` (proud of the rear face), `text` (the ENGRAVE-deep
+slice of the underside), `base` (above that, to the pocket's floor), `rests`
+(`Lip Rest`'s swept zone, widened by REST_MARGIN so a chamfer error is in it
+and not in `body`) and `body` (the rest). **`residual` is the method's own
+error, why `rests` is not a measurement** — spec/HOLDER.md, "Completeness".
 """
 import sys
 from pathlib import Path
@@ -86,12 +66,9 @@ def refs():
 
 
 def rest_zone(p, d, first):
-    """The lip rests' swept prisms, widened by REST_MARGIN a side.
-
-    Built the same way `holder.lip_rests` builds the cut — an OBLIQUE prism
-    along the slant — because a right prism would lean the wrong way and put
-    the chamfer residual half outside its own band.
-    """
+    """The lip rests' swept prisms, widened by REST_MARGIN a side — OBLIQUE
+    along the slant, as `holder.lip_rests` cuts them: a right prism puts the
+    chamfer residual outside its band."""
     slope = holder.slant_slope(d, first)
     unit = 1.0 / (1.0 + slope * slope) ** 0.5
     dirv = Vector(0.0, -unit, -slope * unit)
@@ -131,11 +108,9 @@ def bands(p, d, first):
     text = slab(z0, z0 + holder.ENGRAVE, -dep - 1.0, 0.0)
     base = slab(z0 + holder.ENGRAVE, pz0, -dep - 1.0, 0.0)
     upper = slab(pz0, z0 + tall, -dep - 1.0, 0.0)
-    # `body` is not a cell: it is `upper` less `rests`, taken as a SUBTRACTION
-    # OF VOLUMES rather than of solids. Cutting the zone out of the slab and
-    # intersecting with that instead loses a couple of cubic millimetres to
-    # OCCT, and then the five bands no longer add up to the difference they are
-    # supposed to be explaining.
+    # `body` is `upper` less `rests` as a subtraction of VOLUMES, not solids:
+    # cutting the zone out loses a few mm3 to OCCT and the bands then do not
+    # add up to the difference they explain.
     return [("text", text), ("base", base), ("upper", upper),
             ("rests", upper & rest_zone(p, d, first)), ("lips", lips)]
 
@@ -162,8 +137,7 @@ def report(keys=None):
         for name, cell in bands(p, d, first):
             deltas[name] = volume(mine, cell) - volume(ref, cell)
         deltas["body"] = deltas.pop("upper") - deltas["rests"]
-        # The bands tile the part, so they have to add up to the whole
-        # difference. Anything left over is a boolean that quietly failed.
+        # The bands tile the part: what is left over is a failed boolean.
         deltas["residual"] = (mine.volume - ref.volume) - sum(
             deltas[n] for n in COLS)
         rows.append((key, mine.volume, ref.volume, deltas))

@@ -1,46 +1,16 @@
 #!/usr/bin/env python3
 """Every cached Lid in `individual/` against the rules `cad/parts/lid.py` states.
 
-    .venv/bin/python tests/test_lid_corpus.py
-
-`tests/test_lid.py` checks the source against four hand-exported STEPs. Four
-references cannot tell a rule from a coincidence across a 46-lid catalogue, so
-this reads the cached meshes instead — 0 API calls — and holds every one of
-them to the placement rules: the envelope, the socket count, where the sockets
-sit in X and Y, the closing groove, and where the floor's two engraved blocks
-are anchored.
-
-## It reads the corpus at the corpus's own release
-
-Every cached lid was exported at 7.0, so this file builds at 7.0
-(`tests/reference.py`) whatever `cad/` currently defaults to. A later release
-may cut a lid differently — 7.1 gives it one pusher socket per pusher and drops
-the unused middle one of an Innovation M (`cad/revisions.py`) — and none of
-that belongs here: `tests/test_revisions.py` asserts what a release changes,
-and this file asserts that 7.0 still reproduces the cache.
-
-## The corpus is a MIXED generation, exactly as the pushers are
-
-A lid's recess step says which: `1.700` is 7.0 and `1.800` is the pre-7.0
-figure `LOCK_STANDARD.md` records as "loose". The 7.0 lids also put their
-recesses at the socket centreline +- `s` and carry the key rib on that
-centreline; the pre-7.0 ones inset the recesses from the socket's two ends
-instead, which is the same rule their pushers' tabs follow.
-
-`cad/` builds 7.0 only (cad/README.md, "One generation"), so the 7.0 lids are
-REPRODUCED and asserted, and the pre-7.0 ones are MOVED onto the catalogue —
-reported, and asserted only on what does not depend on the generation. That is
-the same split `tests/test_pusher_regression.py` makes.
-
-Probed by ray-casting the mesh: a vertex scan misses a face wherever the
-tessellation splits one, which cost a false reading on three Innovation lids.
-
-**Never aim a ray at a feature's exact centre.** A rectangular face is two
-triangles, and a ray through their shared diagonal is counted once per triangle
-— which cancels, and the face vanishes from the reading. Every probe below is
-offset by `EPS`, an amount no dimension in the part is a multiple of. Aimed at
-the centres instead, half the Compile lids read as pre-7.0 because their recess
-walls disappeared.
+`tests/test_lid.py` checks the source against four hand-exported STEPs, which
+cannot tell a rule from a coincidence across 46 lids. This reads the cached
+meshes instead — 0 API calls — at 7.0 (`tests/reference.py`), the release the
+whole cache was exported at; what a later release changes is
+`tests/test_revisions.py`'s. The corpus is a MIXED generation and the recess
+step is the tell, `1.700` for 7.0 and `1.800` for pre-7.0 (spec/LID.md); only
+the 7.0 lids are asserted. Probed by ray-casting, because a vertex scan misses
+a face wherever the tessellation splits one, and **never at a feature's exact
+centre**, where the two triangles of a rectangular face cancel and it vanishes
+— which read half the Compile lids as pre-7.0. Every probe is offset by `EPS`.
 """
 import sys
 from pathlib import Path
@@ -70,16 +40,14 @@ def check(label, got, want, tol=1e-6):
 
 
 def load(path):
-    """(vertices, triangles) of the lid BODY. A lid 3MF also carries the logo
-    pattern's inlays as separate objects; the body is the biggest."""
+    """(vertices, triangles) of the lid BODY — the biggest object."""
     meshes = mesh3mf.read(path)
     _n, verts, tris = max(meshes, key=lambda m: len(m[2]))
     return np.array(verts), np.array(tris)
 
 
 def spans(V, T, axis, u, v, tol=1e-6):
-    """[(lo, hi)] of material along `axis` on the ray through the other two
-    coordinates, in cyclic order — (y, z) for X, (z, x) for Y, (x, y) for Z."""
+    """[(lo, hi)] of material along `axis` — see `tests/probe.spans`."""
     i, j, k = axis, (axis + 1) % 3, (axis + 2) % 3
     A, B, C = V[T[:, 0]], V[T[:, 1]], V[T[:, 2]]
     a = np.column_stack([A[:, j], A[:, k]])
@@ -107,8 +75,7 @@ def spans(V, T, axis, u, v, tol=1e-6):
 
 
 def faces_at(V, T, z, tol=1e-6):
-    """[(x0, x1, y0, y1)] of the triangles lying in the plane `z` and facing
-    up — the top of one embossed feature."""
+    """[(x0, x1, y0, y1)] of the up-facing triangles in the plane `z`."""
     A, B, C = V[T[:, 0]], V[T[:, 1]], V[T[:, 2]]
     n = np.cross(B - A, C - A)
     ln = np.linalg.norm(n, axis=1)
@@ -149,10 +116,8 @@ for game in GAMES:
         model = path.stem[4:]
         p = cat.get((game, model))
         if p is None:
-            # Empty today: every cached lid matches a parts.csv row. A file
-            # that lands here is a NAME that has drifted from its
-            # calModelName, not a row that has gone — and it silently drops
-            # out of the corpus, so it is reported rather than ignored.
+            # A NAME drifted from its calModelName drops out of the corpus
+            # silently, so it is reported.
             skipped.append(f"{game}/{path.name}")
             continue
         d = D.derive(p)
@@ -161,7 +126,6 @@ for game in GAMES:
         W, DD = lid.lid_width(d) / 2, lid.lid_depth(d) / 2
         H = d.LidHeight
 
-        # --- the envelope --------------------------------------------------
         lo, hi = V.min(0), V.max(0)
         check(f"{model}: envelope", [round(v, 3) for v in hi - lo],
               [round(2 * W, 3), round(2 * DD, 3), round(H, 3)])
@@ -169,7 +133,6 @@ for game in GAMES:
               [round(lo[0] + hi[0], 3), round(lo[1] + hi[1], 3),
                round(float(lo[2]), 3)], [0.0, 0.0, 0.0])
 
-        # --- the sockets ---------------------------------------------------
         y0, y1 = lid.socket_span(d)
         yc = (y0 + y1) / 2
         z = lid.WALL + lid.SOCKET_H / 2 + EPS    # mid-socket, clear of both faces
@@ -182,14 +145,12 @@ for game in GAMES:
             return [iv for iv in spans(V, T, axis, u, v)
                     if -limit < iv[0] and iv[1] < limit]
 
-        # One X ray just inside the socket's front end reads every block: two
-        # walls with the channel between them.
+        # One X ray inside the socket's front end reads every block.
         check(f"{model}: {len(centres)} sockets, channel {L.LID_CHANNEL_W} wide",
               near(cavity(0, y0 + 0.25 + EPS, z, inner),
                    sorted(sum([[(x - half, x - chan), (x + chan, x + half)]
                                for x in centres], []))), True)
 
-        # --- the closing groove --------------------------------------------
         z0, z1 = lid.groove_span(d)
         for probe, want_wall in ((z0 - 0.5, lid.WALL),
                                  ((z0 + z1) / 2, lid.WALL - lid.GROOVE_DEPTH)):
@@ -197,25 +158,17 @@ for game in GAMES:
             check(f"{model}: end wall at z={probe:.2f}",
                   [round(got[0][0], 3), round(got[0][1] - got[0][0], 3)],
                   [round(-W, 3), round(want_wall, 3)])
-        # Along Y, just outboard of the end wall's inner face — inside the
-        # groove, but far enough in that the 1.000 corner rounds are behind us
-        # and the ray reaches the lid's own +-calLidDepth/2.
+        # Along Y inside the groove, past the 1.000 corner rounds.
         check(f"{model}: groove is GROOVE_LEN long, centred on y = 0",
               near(spans(V, T, 1, (z0 + z1) / 2 + EPS, -W + lid.WALL - 0.2),
                    [(-DD, -lid.GROOVE_LEN / 2), (lid.GROOVE_LEN / 2, DD)]), True)
 
-        # --- the engraving's two anchors -----------------------------------
-        # Not the geometry — that is tests/test_lid.py's job against the STEPs
-        # — but the two expressions that place it, which four references
-        # cannot tell from a coincidence. Read off the emboss's own top faces:
-        # 0.400 proud for the text and 0.600 for the logo.
+        # What PLACES the engraving, not its geometry (tests/test_lid.py).
         text_gap = 2.0 if p.HorizontalSlots > 2 else 15.0
         base = (lid.lid_depth(d) / 2 - lid.WALL - D.FootDistanceFromWall
                 - text_gap - lid.CAP_LINE)
-        # One of the 0.400-proud lines is calCapacityLabel, and the rule says
-        # where. Matched by ink TOP rather than by position in the block: the
-        # version is 0.400 proud too, and on an XS lid it sits ABOVE the block
-        # rather than beside it.
+        # Matched by ink TOP, not by position in the block: the version is
+        # 0.400 proud and on an XS lid sits ABOVE the block, not beside it.
         want_top = round(base + TX.metrics(d.calCapacityLabel)[3]
                          * lid.CAP_LINE / TX.CAP, 3)
         tops = {round(b[3], 3) for b in faces_at(V, T, lid.WALL + lid.TEXT_PROUD)}
@@ -228,11 +181,8 @@ for game in GAMES:
               round(left + (0.0 if p.HorizontalSlots > 2
                             else 0.056 * lid.logo_size(d)), 2), 0.35)
 
-        # --- which generation this lid is, and then the 7.0 lock ------------
-        # The recess step is the tell: probe the -X channel wall where 7.0 puts
-        # a recess. At 7.0 the wall has retreated LID_RECESS_STEP there; at 6.6
-        # it has not (its own recesses are elsewhere), or it has retreated the
-        # pre-7.0 1.800 because the two happen to overlap.
+        # Which generation: probe the -X channel wall where 7.0 puts a recess
+        # and 6.6 does not (or retreats the pre-7.0 1.800 where they overlap).
         edge = centres[0] - chan
         ends = [iv[1] for iv in cavity(0, yc - s + EPS, z, inner)
                 if abs(iv[1] - edge) < 2.0]

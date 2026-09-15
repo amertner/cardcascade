@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
 """Lift a game's logo artwork out of a finished label 3MF into a DXF.
 
-The logos we are given are messy - stray outliers, overlapping curves -
-and the clean-up happens in Onshape, on the imported mesh, not in the
-original DXF. The good copy of the artwork is therefore whatever is
-printed on a label that was already made, so this reads that label's
-mesh, chains the boundary of the logo's top faces into closed loops,
-simplifies the tessellation and writes the loops out as a DXF for
-labelmaker to fill and extrude (see its load_art).
+The logos we are given are messy and the clean-up happens in Onshape on the
+imported mesh, so the good copy is whatever is printed on a label already
+made. This chains the logo's top faces into loops and writes a DXF.
 
     python3 make_logo_dxf.py "cascades/Compile/Compile Labels.3mf" \
             logos/Compile/compile_logo_clean.dxf --preview /tmp/logo.svg
 
-The label to lift from is picked automatically: the object with the
-largest artwork on it. Pass --object to choose another. Check the
---preview SVG before committing the result - a label modelled face-down
-lifts mirrored, which the numbers below cannot tell you.
-
-Requires: pip install ezdxf build123d
+The label is picked automatically (the largest artwork); --object chooses
+another. CHECK the --preview SVG before committing: a label modelled face-down
+lifts MIRRORED, which no number here can tell you.
 """
 
 import argparse
@@ -62,14 +55,9 @@ def label_axes(verts):
 
 
 def art_level(verts, thickness):
-    """The thickness coordinate of the logo's top faces.
-
-    The raised detail stands proud of the plate, so it owns one of the
-    two extreme levels. Which one depends on how the label was modelled,
-    so try both, top first, and skip the level that turns out to be the
-    plate's outer face - a bare rectangle, which gives itself away by its
-    handful of vertices. Levels in between hold the underside of the
-    detail and the shorter marks, never the logo alone."""
+    """The thickness coordinate of the logo's top faces: the raised detail
+    owns one of the two extreme levels, so try both, top first, and skip the
+    plate's outer face — a bare rectangle, given away by its few vertices."""
     levels = {}
     for v in verts:
         levels[round(v[thickness], 2)] = levels.get(round(v[thickness], 2), 0) + 1

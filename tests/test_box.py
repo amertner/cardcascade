@@ -3,16 +3,8 @@
 
     .venv/bin/python tests/test_box.py
 
-Nine references in `spec/reference/`, listed in `spec/BOX.md` — six of them
-distinct boxes, three of those with an unfilleted twin. The Box is being built
-group by group against a boolean diff (see that file); this asserts only what
-has actually been written, and grows with it.
-
-Proven so far: the envelope (`#BoxWidth` / `#BoxDepth` / `BoxHeight`), the
-bottom slot, the rear pusher storage — which is what carries the 7.0 lock into
-the box, its rim cutouts sitting at each slot's centreline +- `s` — the lowered
-front, the rounded top corners, the sliders, the front pocket, the thumbs and
-lip, the closing bumps and both label holders.
+Nine references in `spec/reference/`, listed in `spec/BOX.md` — six distinct
+boxes, three with an unfilleted twin. Asserts only what has been written.
 """
 import math
 import sys
@@ -36,27 +28,19 @@ REFS = [
      REF.primary(4, 4, 21, 10, 0, 10, 1, 1, "Dominion")),
     ("Dominion 650 Sl", "Box Dominion 650S.step",
      REF.primary(5, 8, 50, 10, 0, 10, 1, 0, "Dominion")),
-    # Not a parts.csv row — scratch parameters Allan exported as an extra
-    # reference. Kept because it is the smallest box and the only C2 lock.
+    # Not a parts.csv row: scratch params, the smallest box, the only C2 lock.
     ("FCM 72 Sl (scratch)", "Box FCM 72S.step",
      REF.primary(3, 3, 6, 6, 0, 6, 1, 0, "FCM")),
-    # The only reference with a first-riser override, so the only one that can
-    # tell calFirstSliderDistance (20.4) from calSliderDistance (9.6) — the
-    # same gap the Dominion 246 STEP closed for the Pusher.
+    # The only first-riser override: calFirstSliderDistance 20.4 vs 9.6.
     ("Dominion 246 Sl", "Box Dominion 246S.step",
      REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
-    # The three Allan exported once the first six showed what they could not
-    # reach. Every one of the first six is SLEEVED, so half the catalogue had
-    # nothing behind it.
+    # The first six are all SLEEVED; these three cover the unsleeved half.
     ("Dominion 244 Un", "Box Dominion 244U.step",
      REF.primary(4, 4, 21, 10, 0, 10, 0, 0, "Dominion")),
-    # Innovation, XS and unsleeved at once — the only game with no reference,
-    # the only size (HorizontalSlots 2) with none, and it is the exception that
-    # takes 2 pusher slots where its size would otherwise take 3.
+    # XS and unsleeved; takes 2 pusher slots where its size would take 3.
     ("Innovation 130 Un", "Box Innovation 130U.step",
      REF.primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
-    # Nine risers: the RisingSliders > 8 branch of the logo margin, the lowest
-    # rise in the catalogue (9.667, clamped) and the pusher rest at its floor.
+    # Nine risers: the >8 logo margin, the lowest rise, the pusher rest floor.
     ("Dominion 333 Sl", "Box Dominion 333S.step",
      REF.primary(3, 9, 21, 10, 0, 10, 1, 0, "Dominion")),
 ]
@@ -71,17 +55,11 @@ def check(label, got, want, tol=1e-6):
 
 
 def rim_cutouts(solid, p, d, z=102.0):
-    """(centre X, width) of every gap in the box rim, left to right — the
-    pusher tab cutouts.
+    """(centre X, width) of every gap in the box rim — the tab cutouts.
 
-    Probed with a thin bar through the BACK WALL only. A plain section at this
-    height also catches the end walls and the label holders, which run the full
-    depth, and their edges then read as rim pieces: that is what made the
-    leftmost FCM cutout measure 4.15 instead of 4.50.
-
-    The band is the back wall itself, `#BoxDepth/2 - 1.600 .. -0.300` on all
-    four references — 1.300 thick, because the 3.200 pusher slot behind it eats
-    0.300 of the 1.600 wall. LOCK_STANDARD.md puts the cutouts at z 99.75..105.
+    Probed through the BACK WALL only: a plain section also catches the end
+    walls and the label holders, whose edges then read as rim pieces (the
+    4.15-instead-of-4.50 reading, spec/BOX.md). The band is the 1.300 wall.
     """
     y = box.box_depth(d) / 2 - 0.95           # mid-wall
     bar = Box(box.box_width(d) + 20, 0.4, 1.0).moved(Location((0, y, z)))
@@ -95,9 +73,7 @@ for name, fn, p in REFS:
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
-        # A missing reference is a FAILURE, not a skip: every STEP in
-        # spec/reference is checked in, and a suite that turns green
-        # when one goes missing is not a suite.
+        # A missing reference is a FAILURE, not a skip: every STEP is in git.
         print(f"  FAIL — reference {path.name} not present")
         fails.append(f"{name}: reference {path.name} missing")
         continue
@@ -105,16 +81,12 @@ for name, fn, p in REFS:
     d = D.derive(p)
     rb = ref.bounding_box()
 
-    # --- the envelope ------------------------------------------------------
-    # The measured box stands proud of the sketch by 2.600 in width and 6.100
-    # in depth — label holders, closing bumps and the rear storage.
+    # Proud of the sketch by 2.600 in W, 6.100 in D (spec/BOX.md).
     check("width  = #BoxWidth + 2.600", round(rb.size.X, 3),
           round(box.box_width(d) + 2.600, 3), 1e-3)
     check("depth  = #BoxDepth + 6.100", round(rb.size.Y, 3),
           round(box.box_depth(d) + 6.100, 3), 1e-3)
     check("height = BoxHeight", round(rb.size.Z, 3), round(d.BoxHeight, 3), 1e-3)
-    # The sketch box is centred on the origin: its outer walls are the two
-    # largest X-normal planar faces, and they sit at exactly +-#BoxWidth/2.
     walls = {}
     for f in ref.faces():
         try:
@@ -129,7 +101,6 @@ for name, fn, p in REFS:
           sorted([round(-box.box_width(d) / 2, 3),
                   round(box.box_width(d) / 2, 3)]))
 
-    # --- the rear pusher storage, and the lock it carries ------------------
     cuts = rim_cutouts(ref, p, d)
     n = box.pusher_slot_count(d)
     check("rim cutouts = 2 per pusher slot", len(cuts), 2 * n)
@@ -149,10 +120,7 @@ for name, fn, p in REFS:
           round(got[1] - got[0], 2) if n > 1 else None,
           round(d.calPusherTotalDepth + 4.0, 2) if n > 1 else None, 0.05)
 
-    # --- the bottom slot ---------------------------------------------------
-    # Subtract the STEP from the floor slab the shell starts with. What is left
-    # is the bottom slot plus the engraved text (glyph slivers, all under
-    # 11 mm3 even on the biggest box), so take the one real lump.
+    # Slab minus STEP leaves the slot plus glyph slivers; take the one lump.
     slab = Box(box.box_width(d) - 2 * box.WALL,
                box.box_depth(d) - 2 * box.WALL,
                box.WALL).moved(Location((0, 0, box.WALL / 2)))
@@ -166,17 +134,15 @@ for name, fn, p in REFS:
         check("bottom slot centre Y", round(hb.center().Y, 3), round(want_y, 3), 1e-3)
         check("bottom slot goes clean through the floor",
               round(hb.size.Z, 3), round(box.WALL, 3), 1e-3)
-        # A plain prism: the removed volume IS its bounding box, so there is no
-        # chamfer, draft or second pocket hiding inside it.
+        # Volume == bounding box: no chamfer, draft or second pocket inside.
         check("bottom slot is a plain rectangular prism",
               round(lumps[0].volume, 3),
               round(hb.size.X * hb.size.Y * hb.size.Z, 3), 1e-3)
 
-    # --- the rear storage ---------------------------------------------------
     BD = box.box_depth(d)
     box_w = box.box_width(d)
     inner = box_w / 2 - box.WALL
-    mine = box.build(D.derive(p))  # built once; every "build:" check reuses it
+    mine = box.build(D.derive(p))
 
     def zprofile(x, y, shape=None):
         col = Box(0.4, 0.4, d.BoxHeight + 2).moved(
@@ -194,18 +160,13 @@ for name, fn, p in REFS:
     check("outer back wall is capped at REAR_TOP",
           zprofile(0.0, BD / 2 + box.REAR_DEPTH - box.WALL / 2),
           [(0.0, box.REAR_TOP)])
-    # A pusher rests part way up, not on the floor. Probe the strip of
-    # cavity floor BEFORE the first hanging hole — HOLE_INSET wide, so always
-    # inside the first cavity and never pierced. Through a hole instead, the
-    # profile reads (0, 3.000) because the first hole ROW starts at 3.000, which
-    # is the reading that put a 3.000 rest in this file for two stages; on the
-    # slot centreline it can land on a divider and read (0, 85.000).
+    # Probe the cavity floor BEFORE the first hanging hole: through a hole it
+    # reads 3.000, on a slot centreline 85.000 (spec/BOX.md, "NOT `3.000`").
     x_pier = -box_w / 2 + box.WALL + box.HOLE_INSET / 2
     rest = box.pusher_rest(d)
     for who, shape in (("STEP", ref), ("build", mine)):
         check(f"{who}: the pusher rest is min(25, BoxHeight - ptH - 0.5) high",
               zprofile(x_pier, y0 + 1.6, shape)[0], (0.0, round(rest, 3)))
-    # The hanging holes, read off the back wall as gaps along X.
     bar = Box(box.box_width(d) + 20, 0.4, 0.4).moved(
         Location((0, BD / 2 - 0.95, box.hole_rows(d)[0][0] + 3.0)))
     pieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
@@ -216,10 +177,7 @@ for name, fn, p in REFS:
     check("hanging hole positions", gaps, want)
     check("every hanging hole is hole_w wide",
           sorted({round(b - a, 3) for a, b in gaps}), [round(box.hole_w(d), 3)])
-    # The build cuts `hole_openings`, which is `hanging_holes` unless an edge
-    # lands on a divider face (HOLE_CLEAR). None of the nine references is one
-    # of the three boxes where it does, so here the two must be the same and
-    # the build's own back wall must read exactly as the STEP's.
+    # `hole_openings` == `hanging_holes` off the three HOLE_CLEAR boxes.
     check("no reference hole is clipped by a divider face",
           box.hole_openings(d) == box.hanging_holes(d), True)
     mpieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
@@ -228,12 +186,8 @@ for name, fn, p in REFS:
              for a, b in zip(mpieces, mpieces[1:])]
     check("build: hanging hole positions", mgaps, want)
 
-    # `Divider` — WHOLE, and that is a deliberate divergence. Onshape runs the
-    # hanging holes straight through the dividers; `cad/` stops them at the
-    # slot band. So this is the one place the build is knowingly not the STEP,
-    # and the check asserts both halves of that — every divider solid on the
-    # build, and at least one pierced on the STEP, so a future change that
-    # quietly re-converged would still fail here.
+    # DELIBERATE DIVERGENCE: Onshape's holes pierce the dividers, `cad/` stops
+    # them at the slot band. Both ends.
     whole = box.DIVIDER_W * L.BOX_SLOT_DEPTH * box.REAR_TOP
     pierced = 0
     for a, e in box.storage_dividers(d):
@@ -259,22 +213,17 @@ for name, fn, p in REFS:
         check(f"{who}: above it only the end walls remain", ends,
               [(round(-box.box_width(d) / 2, 3), round(-inner, 3)),
                (round(inner, 3), round(box.box_width(d) / 2, 3))])
-    # --- `Round top box corners` and `Sliders` ------------------------------
-    # Both probes take everything ABOVE a plane, so the lump's section is read
-    # at exactly that height with no slab thickness to correct for.
+    # `Round top box corners` and `Sliders`: both probes take all ABOVE a
+    # plane, so there is no slab thickness to correct for.
     def arc_inset(u, r):
         """How far a radius-`r` round has eaten in, `u` below the top."""
         return r - math.sqrt(max(0.0, 2 * r * u - u * u))
 
     for who, shape in (("STEP", ref), ("build", mine)):
-        # The ribs. The bar runs along Y from the back of the front pocket's
-        # divider to just short of the inner back wall, so neither the front
-        # pocket's side padding (not built yet) nor the back panel is in it.
+        # The bar clears the front pocket's side padding and the back panel.
         y_lo = -BD / 2 + box.WALL + d.calFrontPocketDepth + box.FRONT_DIVIDER + 0.05
         y_hi = BD / 2 - box.WALL - 0.05
-        # 8.000 wide so it cannot clip a rib, and starting 0.05 clear of the
-        # inner wall so the ribs stay separate lumps instead of fusing into one
-        # slice of wall.
+        # 8.000 wide so it cannot clip a rib; 0.05 clear so ribs stay apart.
         bar = Box(7.95, y_hi - y_lo, 0.4).moved(
             Location((-inner + 4.025, (y_lo + y_hi) / 2, 50.0)))
         lumps = sorted((q.bounding_box() for q in (shape & bar).solids()),
@@ -285,9 +234,7 @@ for name, fn, p in REFS:
         check(f"{who}: every rib stands SLIDER_PROUD proud",
               sorted({round(b.max.X + inner, 3) for b in lumps}),
               [round(box.SLIDER_PROUD, 3)])
-        # `Round top of slider`: 0.400 below the rim a rib has lost this much
-        # off each side. Read on the backmost rib, which no other feature is
-        # near on any reference.
+        # `Round top of slider`, on the backmost rib: nothing else is near it.
         rib_y0, rib_y1 = box.slider_ribs(d)[0]
         cap = Box(3.0, 20.0, 1.4).moved(
             Location((-inner + 1.5, (rib_y0 + rib_y1) / 2,
@@ -298,9 +245,8 @@ for name, fn, p in REFS:
         check(f"{who}: rib is rounded SLIDER_TOP_R across its top",
               round(b.size.Y, 3),
               round(box.SLIDER_W - 2 * arc_inset(0.4, box.SLIDER_TOP_R), 3), 2e-3)
-        # `Round top box corners`: 2.000 below the rim the end wall has lost
-        # this much off its front and its back. Probed inside the end wall, so
-        # neither the ribs nor the side label holder is in the way.
+        # `Round top box corners`, probed inside the end wall to miss the ribs
+        # and the side label holder.
         u = 2.0
         cap = Box(box.WALL * 0.5, BD + 40, u + 2.0).moved(
             Location((-box.box_width(d) / 2 + box.WALL / 2, 0,
@@ -314,8 +260,7 @@ for name, fn, p in REFS:
     # --- `Front pocket` -----------------------------------------------------
     fw, fb, pback = box.pocket_span(d)
     for who, shape in (("STEP", ref), ("build", mine)):
-        # A section through the middle of the pocket: the two pads, then one
-        # segment per divider. MatPocket shows up here as a missing divider.
+        # MatPocket shows up here as a missing divider.
         bar = Box(box_w + 20, 0.2, 0.05).moved(Location((0, (fw + fb) / 2, 30.0)))
         segs = sorted((round(q.bounding_box().min.X, 3),
                        round(q.bounding_box().max.X, 3))
@@ -326,8 +271,7 @@ for name, fn, p in REFS:
                 + [(round(inner - box.FRONT_PAD, 3), round(box_w / 2, 3))])
         check(f"{who}: pocket section is 2 pads + {len(box.front_dividers(d))} dividers",
               segs, want)
-        # `Angled cutout`: the front face of the pad, read as the frontmost
-        # material above a plane. The x window keeps the end walls out of it.
+        # `Angled cutout`: the x window keeps the end walls out of it.
         def pad_front(z):
             cap = Box(2.0, BD + 40, d.BoxHeight + 20 - z).moved(
                 Location((-inner + 2.9, 0, (z + d.BoxHeight + 20) / 2)))
@@ -347,10 +291,8 @@ for name, fn, p in REFS:
         check(f"{who}: the divider panel is FRONT_DIVIDER thick",
               [y for y in ys if abs(y[0] - fb) < 1e-6],
               [(round(fb, 3), round(pback, 3))])
-        # `Thumb` — one finger hole per horizontal slot, through the panel.
-        # Read as gaps in a section of everything above z=80: a column between
-        # two holes is widest where the holes are narrowest, so the reading is
-        # the section at exactly z=80 and nowhere else.
+        # `Thumb`: read as gaps at exactly z=80, where a column between two
+        # holes is widest. Nowhere else.
         def thumbs(y_at, z_at=80.0):
             cap = Box(box_w + 20, 0.02, 300).moved(
                 Location((0, y_at - 0.01, z_at + 150)))
@@ -364,13 +306,10 @@ for name, fn, p in REFS:
         check(f"{who}: thumb centres",
               [round(c, 3) for c, _w in got],
               [round(x, 3) for x in box.thumb_centres(d)])
-        # A cylinder of THUMB_R about z = THUMB_Z: the implied radius from the
-        # chord at z=80 is the radius itself, so it reads straight off.
         check(f"{who}: thumb is THUMB_R at THUMB_Z",
               sorted({round(math.sqrt((w / 2) ** 2 + (box.THUMB_Z - 80.0) ** 2), 3)
                       for _c, w in got}), [round(box.THUMB_R, 3)])
-        # `Fillet thumb hole`, THUMB_FILLET into both faces. Probed at one
-        # depth inside the arc and one past its tangency.
+        # `Fillet thumb hole`: one depth inside the arc, one past tangency.
         for depth in (0.12, 0.42):
             f = box.THUMB_FILLET
             grew = f - math.sqrt(max(0.0, 2 * f * depth - depth * depth)) if depth < f else 0.0
@@ -378,8 +317,7 @@ for name, fn, p in REFS:
                   sorted({round(math.sqrt((w / 2) ** 2 + (box.THUMB_Z - 80.0) ** 2), 3)
                           for _c, w in thumbs(fb + depth)}),
                   [round(box.THUMB_R + grew, 3)], 2e-3)
-        # `Lip` — two per thumb. Read off its lower ramp face, the one face
-        # that carries the angle, the anchor, the depth and the length at once.
+        # `Lip`: its lower ramp face carries angle, anchor, depth and length.
         c0 = box.thumb_centres(d)[0]
         ramp = []
         for face in shape.faces():
@@ -410,7 +348,6 @@ for name, fn, p in REFS:
                   round(box.LIP_LENGTH + 2 * box.LIP_CHAMFER, 3), 1e-3)
             check(f"{who}: lip centre is LIP_OFFSET from the thumb",
                   round(c0 - bb.center().X, 3), round(box.LIP_OFFSET, 3), 1e-3)
-        # ... and carries the back wall's lattice exactly.
         bar = Box(box_w + 20, 0.2, 0.05).moved(
             Location((0, (fb + pback) / 2, box.hole_rows(d)[0][0] + 3.0)))
         pieces = sorted((q.bounding_box().min.X, q.bounding_box().max.X)
@@ -419,15 +356,11 @@ for name, fn, p in REFS:
               [(round(a[1], 3), round(b[0], 3))
                for a, b in zip(pieces, pieces[1:])],
               [(round(a, 3), round(b, 3)) for a, b in holes])
-    # The rim cutouts, built and measured the same way.
     got = rim_cutouts(mine, p, d)
     check("the BUILD's rim cutouts match the STEP's",
           [(round(c, 2), round(w, 2)) for c, w in got],
           [(round(c, 2), round(w, 2)) for c, w in cuts])
-    # Through a rim cutout the back wall stops at RIM_CUTOUT_Z instead of
-    # reaching the rim. Assert only the TOP: whether the profile below it is one
-    # interval or several depends on whether the cutout centre happens to land
-    # on a hanging hole or a pier, which varies by box.
+    # Only the TOP: below it the profile depends on hole against pier.
     for who, shape in (("STEP", ref), ("build", mine)):
         check(f"{who}: the back wall stops at RIM_CUTOUT_Z in a cutout",
               zprofile(got[0][0], BD / 2 - 0.95, shape)[-1][1],
@@ -439,7 +372,6 @@ for name, fn, p in REFS:
     # `Thumb Cutout in back` and `Closing mechanism`, on both shapes.
     slot_lo, slot_hi = box.slot_band(d)      # y0/y1 are a rib's by now
     for who, shape in (("STEP", ref), ("build", mine)):
-        # The rear thumb, read as the gap in the OUTER back wall at z = 80.
         for depth, radius in ((0.02, box.REAR_THUMB_FILLET
                                - math.sqrt(2 * box.REAR_THUMB_FILLET * 0.02 - 0.0004)),
                               (0.80, 0.0)):
@@ -449,10 +381,8 @@ for name, fn, p in REFS:
                          for q in (shape & bar).solids())
             gaps = [((a[1] + b[0]) / 2, b[0] - a[1])
                     for a, b in zip(pcs, pcs[1:])]
-            # `rear_thumbs_x` and not `rear_thumb_x`: the references are 7.0,
-            # where the pocket has ONE cutout however wide it is, and saying so
-            # through the layout function is what keeps this honest if the
-            # reference release ever moves past 7.1b's row of them.
+            # `rear_thumbs_x`, not a literal: 7.0 has ONE cutout, and the
+            # layout function keeps this honest past 7.1b's row.
             want = box.rear_thumbs_x(d)
             check(f"{who}: one rear thumb, {depth} into the outer back wall",
                   len(gaps), len(want))
@@ -460,22 +390,17 @@ for name, fn, p in REFS:
                 c, w = gaps[0]
                 check(f"{who}: rear thumb centre at {depth}",
                       round(c, 3), round(want[0], 3), 1e-3)
-                # The chord at z=80 gives the radius back directly, since the
-                # hole is centred on REAR_TOP.
+                # The hole is centred on REAR_TOP, so the chord gives r.
                 check(f"{who}: rear thumb radius at {depth}",
                       round(math.sqrt((w / 2) ** 2 + (box.REAR_TOP - 80.0) ** 2), 2),
                       round(d.ThumbCutoutRadius if hasattr(d, "ThumbCutoutRadius")
                             else 12.0, 2) + round(radius, 2), 0.02)
-        # ... and it leaves the 1.300 inner back wall alone, which is what says
-        # it cuts the outer wall only.
+        # ... and leaves the inner back wall alone: it cuts the outer only.
         bar = Box(box_w + 20, 0.2, 0.05).moved(Location((0, BD / 2 - 0.95, 80.0)))
         check(f"{who}: the rear thumb does not touch the inner back wall",
               len((shape & bar).solids()), 1)
-        # The closing bumps, one per end wall.
         for sign, lbl in ((-1, "-X"), (1, "+X")):
-            # Starts 0.050 clear of the wall — include any of it and the
-            # biggest solid is a slice of wall running the full depth and
-            # height — and reaches past the pad so it clips nothing.
+            # 0.050 clear of the wall, else the biggest solid is wall.
             wide = box.BUMP_DEPTH + 0.5
             cell = Box(wide, BD + 30, 30).moved(
                 Location((sign * (box_w / 2 + 0.05 + wide / 2), 0,
@@ -498,8 +423,7 @@ for name, fn, p in REFS:
            round(mine.bounding_box().size.Y, 3)),
           (round(rb.size.X, 3), round(rb.size.Y, 3)))
     for who, shape in (("STEP", ref), ("build", mine)):
-        # Each holder's outer face carries its length, its height and — through
-        # its area — the opening cut out of it, all in one measurement.
+        # The outer face carries length, height and the opening at once.
         front = [f for f in shape.faces()
                  if abs(f.center().Y + BD / 2 + box.LABEL_PROUD) < 1e-6
                  and f.area > 50]
@@ -522,13 +446,8 @@ for name, fn, p in REFS:
                       (round(bb.min.Z, 3), round(bb.max.Z, 3)),
                       (round(box.LABEL_Z0 + box.LABEL_CHAMFER, 3),
                        round(box.LABEL_Z1, 3)))
-        # The fastener: the lens of two FASTENER_R cylinders, clipped by the
-        # stadium that rounds its ends. Both expectations come from those
-        # constants, not from a measured literal — the probe cell is CENTRED on
-        # its point, so the reading is at the edge nearest the ridge's middle,
-        # and a literal silently bakes that offset in.
-        # ... at the thirds of the WIDE holder. The narrow one is checked
-        # separately below, because there the build and the STEP differ.
+        # The lens of two FASTENER_R cylinders. Expectations from the
+        # constants, never a literal: the probe cell is CENTRED. WIDE holder.
         R, cx = box.FASTENER_R, box.fastener_centres(d)[-1]
         if len(box.fastener_centres(d)) < 2:
             continue
@@ -549,7 +468,7 @@ for name, fn, p in REFS:
                for q in (shape & col).solids()],
               [round((R ** 2 - past ** 2) ** 0.5, 3)])
 
-    # --- `Model name` and the `Logo` group ---------------------------------
+    # `Model name` and the `Logo` group.
     y_front, y_back = box.card_area(d)
     span = y_back - y_front
     sf_edge = box_w / 2 - box.WALL - box.side_floor(d)
@@ -561,12 +480,7 @@ for name, fn, p in REFS:
             Location(((lo + hi) / 2, 0, box.WALL - box.ENGRAVE / 2)))
         return [q.bounding_box() for q in (slab - shape).solids()]
 
-    # Where the engraving sits, compared LIKE FOR LIKE. Reconstructing each
-    # line from the glyph boxes and holding it to the sketch rules is doable
-    # but brittle — a line is identified by its baseline, and which glyph
-    # reaches furthest depends on whether the string has an ascender, which
-    # varies by box. The band each side floor's engraving occupies says the
-    # same thing and cannot be fooled by a stray dot.
+    # The BAND, not the lines: per-line reconstruction is brittle (ascenders).
     band = {}
     for who, shape in (("STEP", ref), ("build", mine)):
         for sign, lbl in ((-1, "-X"), (1, "+X")):
@@ -578,8 +492,7 @@ for name, fn, p in REFS:
                   (round(min(g.min.Z for g in gs), 3),
                    round(max(g.max.Z for g in gs), 3)),
                   (round(box.WALL - box.ENGRAVE, 3), round(box.WALL, 3)))
-            # The block starts TEXT_INSET in from the side floor's inner edge
-            # and runs outward; on -X it reads down in Y, on +X up.
+            # Starts TEXT_INSET in and runs outward; -X down in Y, +X up.
             near = (max(g.max.X for g in gs) if sign < 0
                     else min(g.min.X for g in gs))
             start = (max(g.max.Y for g in gs) if sign < 0
@@ -590,31 +503,21 @@ for name, fn, p in REFS:
                   abs(abs(near) - abs(sf_edge) - box.TEXT_INSET) < 0.6, True)
     for lbl in ("-X", "+X"):
         if ("STEP", lbl) in band and ("build", lbl) in band:
-            # Component by component: `check` only tolerances FLOATS, so a
-            # tuple is compared exactly and 0.01 of rounding fails it.
+            # `check` tolerances FLOATS only, so compare component by one.
             for i, what in enumerate(("inset", "start")):
                 check(f"build: {lbl} engraving {what} matches the STEP's",
                       band[("build", lbl)][i], band[("STEP", lbl)][i], 0.3)
-    # A single CENTRED fastener on the NARROW front holder is a DELIBERATE
-    # DIVERGENCE (Allan). `Box Innovation 130U` has none at all, and a label
-    # with nothing gripping its top edge is what that fixes. Asserted from both
-    # ends: one on the build, none on the STEP.
+    # DELIBERATE DIVERGENCE: a centred fastener the STEP has none of; both
+    # ends.
     if len(box.fastener_centres(d)) == 1:
         for who, shape, want in (("STEP", ref, 0), ("build", mine, 1)):
-            # 10.5 wide about the centre — clear of the frame's posts, which
-            # stand at |x| >= 28.800 on the narrow holder.
+            # 10.5 wide: clear of the posts at |x| >= 28.800.
             cell = Box(10.5, 1.8, 2.2).moved(Location((0, -BD / 2 - 0.95, 65.0)))
             found = (shape & cell)
             check(f"{who}: the narrow holder has {want} centred fastener",
                   len(found.solids()) if found else 0, want)
-    # --- `Smooth box edges` ------------------------------------------------
-    # Every rounded corner is probed the same way: a CUBE_ centred on where the
-    # sharp edge WOULD be, positioned from the constants and not from either
-    # solid. At a right convex corner a quarter of it is material while the
-    # corner is sharp; a SMOOTH_R round takes all of it, because the far corner
-    # of that quarter is sqrt(2) * (0.600 - 0.120) = 0.679 from the fillet
-    # cylinder's centre and the cylinder is only 0.600. So "rounded" is exactly
-    # zero and "sharp" is about 0.0035 mm3 — no tolerance to tune.
+    # `Smooth box edges`. A CUBE_ on where the sharp edge WOULD be, from the
+    # constants: rounded is exactly 0, sharp about 0.0035 mm3 (spec/BOX.md).
     CUBE_ = 0.24
     x_out = box_w / 2                      # `inner` is already box_w/2 - WALL
     y_front, y_back = -BD / 2, BD / 2 + box.REAR_DEPTH
@@ -628,12 +531,8 @@ for name, fn, p in REFS:
     for sx in (-1, +1):
         side = "+X" if sx > 0 else "-X"
         for lbl, x, y, z in (
-                # The end wall's vertical corners on its INNER face: front from
-                # FRONT_TOP up, back from REAR_TOP up, both stopping where the
-                # corner round starts. Their outer twins were already rounded.
                 (f"{side} inner back corner", sx * inner, y_back, 92.0),
-                # `Round top box corners` leaves one arc on each face of each
-                # end wall. Rounding all four closes the perimeter chain.
+                # One arc per face of each end wall; all four close the chain.
                 (f"{side} outer back arc", sx * x_out, y_back - c, d.BoxHeight - c),
                 (f"{side} inner back arc", sx * inner, y_back - c, d.BoxHeight - c),
                 (f"{side} outer front arc", sx * x_out, y_front + c, d.BoxHeight - c)):
@@ -641,17 +540,12 @@ for name, fn, p in REFS:
                 check(f"{who}: {lbl} is rounded",
                       corner_stock(shape, x, y, z), 0.0, 1e-9)
 
-    # Two things Onshape rounds on the end walls' INNER face and OCCT will not,
-    # both recorded in cad/parts/box.py sharp_edges: the rim, in every segment
-    # the ribs break it into, and the front vertical corner with the arc above
-    # it. Each is asserted from BOTH ends — rounded on the STEP, sharp on the
-    # build — so a future kernel that manages them fails here rather than
-    # passing quietly.
+    # Two inner-face edges Onshape rounds and OCCT will not (`sharp_edges` in
+    # cad/parts/box.py). Both ends, so a kernel that manages them fails.
     twin = STEP_DIR / fn.replace(".step", " without final fillet.step")
     if twin.exists():
         raw = import_step(str(twin)).solids()[0]
-        # Locations from the UNFILLETED reference, on the +X wall only: the
-        # segments as Onshape cut them, before its own fillet consumed them.
+        # Locations from the UNFILLETED twin, +X wall only.
         segs = sorted((e for e in raw.edges()
                        if abs(e.tangent_at(0.5).Z) < 1e-6
                        and abs(e.tangent_at(0.5).Y) > 1 - 1e-6
@@ -671,16 +565,12 @@ for name, fn, p in REFS:
             check(f"build: ... and OCCT leaves it sharp",
                   corner_stock(mine, x, y, z) > 1e-4, True)
 
-    # The version line is a DELIBERATE DIVERGENCE: Allan's sketch still reads
-    # "Rev <version>" and the build says calVersion, as the Lid does. Told
-    # apart by the line's ink-length-to-cap ratio, which is a property of the
-    # string and the face alone — the same measurement that identified the
-    # font. Asserted BOTH ways, so a future re-export that converged would fail.
+    # DELIBERATE DIVERGENCE: the sketch reads "Rev <version>", the build
+    # calVersion. Told apart by ink-length-to-cap. BOTH ways.
     for who, shape, txt in (("STEP", ref, f"Rev {p.Version}"),
                             ("build", mine, d.calVersion)):
         gs = engraved(shape, 1)
-        # A line shares its BASELINE, which on +X is the glyphs' max X — the
-        # caps grow inward. Grouping by min X instead picks out one glyph.
+        # A line shares its BASELINE: on +X the glyphs' max X, not min X.
         outer = [g for g in gs if g.max.X > max(q.max.X for q in gs) - 0.05]
         if not outer:
             continue
@@ -697,11 +587,8 @@ check("matches the value in the feature tree",
 
 
 print("\n=== the RisingSliders > 8 branch ===")
-# `#RisingSliders <= 8 ? 2.5 mm : 2.5mm + (#RisingSliders-8)*#calSliderDistance`
-# on the `Card Cascade` sketch. No reference reaches it — Dominion's `333 Card`
-# at `S9.21.10` is the only catalogue row that does — so it is checked by its
-# effect: past eight risers the extra term is exactly the depth those risers add
-# to the card area, so the logo block stops growing.
+# The `Card Cascade` sketch's margin branch, checked by its effect: past eight
+# risers the logo block stops growing, at 64.000 (spec/BOX.md).
 _lens = []
 for _r in (8, 9, 10, 12):
     _p = REF.primary(3, _r, 21, 10, 0, 10, 1, 0, "Dominion")
@@ -715,14 +602,10 @@ check("and below eight the margin is the plain 2.500",
       round(box.logo_margin(D.derive(_p)), 3), round(box.LOGO_FRONT_INSET, 3), 1e-9)
 
 
-# --- isLabelHoldersOnBox = 0: the branch no catalogue row can reach ----------
-# `Box Innovation S5.15.15.62-Sl without label holders.step` (2026-09-04) is
-# that row's box exported with the flag off. The build takes a Derived with
-# the flag flipped and must match its envelope exactly — the label holders
-# are the whole of the 2.600 width and 6.100 depth the box otherwise adds —
-# and differ from it only where every box does: the storage dividers stay
-# whole where Onshape's holes sever them, and the floor text is floored and
-# says CC. Asserted from both ends.
+# isLabelHoldersOnBox = 0: the branch no catalogue row can reach.
+# `Box Innovation S5.15.15.62-Sl without label holders.step` is that row's box
+# exported with the flag off: same envelope, differing only in whole dividers
+# and floored `CC` floor text.
 print("\n=== isLabelHoldersOnBox = 0 ===")
 nl_path = STEP_DIR / "Box Innovation S5.15.15.62-Sl without label holders.step"
 if not nl_path.exists():
@@ -734,9 +617,8 @@ else:
                 if D.derive(REF.from_row(r, 1)).calModelName.startswith("S5.15.15"))
     nl_d = D.derive(nl_p)
     check("the catalogue row has the flag ON", nl_d.isLabelHoldersOnBox, 1)
-    # The OPTION: parts.csv's `Label holders` column becomes
-    # `Primary.LabelHolders`, and derive folds it into the flag. Off by the
-    # column, off in the Derived, and named apart on disk.
+    # parts.csv's `Label holders` column becomes `Primary.LabelHolders`, which
+    # derive folds into the flag; the file is named apart on disk.
     nl_row = next(r for r in params.load_rows(ROOT / "automation" / "parts.csv")
                   if D.derive(REF.from_row(r, 1)).calModelName.startswith("S5.15.15"))
     nl_p0 = REF.from_row({**nl_row, "Label holders": "FALSE"}, 1)
@@ -751,9 +633,8 @@ else:
     for ax in "XYZ":
         check(f"no holders: {ax} min", round(getattr(mb.min, ax), 3), round(getattr(rb.min, ax), 3), 1e-3)
         check(f"no holders: {ax} max", round(getattr(mb.max, ax), 3), round(getattr(rb.max, ax), 3), 1e-3)
-    # Without the holders the box is #BoxWidth plus a closing bump each end
-    # by #BoxDepth plus the rear block; the side holder then stands 0.600
-    # further out than the bump it covers and the front holder adds 1.600.
+    # Without holders: #BoxWidth + a bump each end by #BoxDepth + the rear
+    # block. The side holder then adds 0.600 over its bump, the front 1.600.
     check("no holders: the envelope is #BoxWidth + 2 bumps by #BoxDepth + rear block",
           (round(mb.size.X, 3), round(mb.size.Y, 3)),
           (round(box.box_width(nl_d) + 2 * box.BUMP_DEPTH, 3),
@@ -762,12 +643,8 @@ else:
     check("... and the holders add 0.600 and 1.600 to that",
           (round(with_holders.size.X - mb.size.X, 3), round(with_holders.size.Y - mb.size.Y, 3)),
           (0.6, 1.6))
-    # The two differ where every box does, and it is read by RAY rather than
-    # by a boolean between two 1700-face solids (which OCCT cannot clean here):
-    # down each storage divider's centre in the slot band the build is one span
-    # of material — the dividers stay whole — where Onshape's hanging holes
-    # sever the STEP's; and the volumes agree to within what those pieces and
-    # the floored, `CC` floor text account for.
+    # Read by RAY, not a boolean between two 1700-face solids (OCCT cannot
+    # clean that here): each divider is one span where Onshape's holes sever.
     sys.path.insert(0, str(ROOT / "tests"))
     import probe
     import numpy as _np
@@ -785,17 +662,13 @@ else:
         check(f"no holders: build divider at x={xm:.2f} is whole",
               len(probe.spans(MV, MT, 2, xm, y_div)), 1)
         severed += len(probe.spans(RV, RT, 2, xm, y_div)) > 1
-    # Which dividers a hole crosses depends on the layout: on this box the
-    # first is cut clean through at every row and the second only nicked at
-    # its edge, so it is at least one, not every one.
+    # Which dividers a hole crosses depends on the layout: at least one.
     check("no holders: Onshape's holes sever at least one STEP divider", severed >= 1, True)
     check("no holders: volumes agree to 0.3%",
           round(100 * abs(nl_mine.volume / nl_ref.volume - 1), 3) < 0.3, True)
 
-# --- HOLE_CLEAR: the three boxes whose hole edge lands on a divider face -----
-# Asserted from both ends, as every divergence is: on these three, and only
-# these three, exactly ONE hole — the one whose -X edge is the first
-# divider's -X face — is HOLE_CLEAR narrower than the sketch's.
+# HOLE_CLEAR: on these three boxes only, exactly ONE hole — the one whose -X
+# edge is the first divider's -X face — is HOLE_CLEAR narrower (spec/BOX.md).
 print("\n=== HOLE_CLEAR ===")
 clipped = {}
 for row in params.load_rows(ROOT / "automation" / "parts.csv"):

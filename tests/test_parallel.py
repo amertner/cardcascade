@@ -1,25 +1,13 @@
 #!/usr/bin/env python3
 """A 7.0 build still prints what shipped: every project the Onshape pipeline
-shipped (`spec/reference/shipped-7.0/`, which was `cascades/` until the 7.1
-set took that tree over) has a cad twin with the same parts in it.
+shipped (`spec/reference/shipped-7.0/`) has a cad twin with the same parts.
 
 Writes every cascade with `cad.cascade` AT 7.0 and holds each shipped project
-to its twin with `cad.compare`: the same roles in the same numbers, each
-object's size within the known divergence for its role, both slots used the
-same way, the tower legal, MakerWorld clean. Every shipped project must have a
-twin — Dominion 650 Sleeved included, at the H2C's limit (spec/PROJECT.md,
-`layout.fit_angle`).
-
-## Why 7.0 and not the current release
-
-It was the evidence the design review of 2026-09-05 asked for before the
-Onshape pipeline could be retired. It has been retired — `cad/` is
-authoritative — so this is now a REGRESSION test, and what it regresses
-against is what is on the shelf: the Onshape pipeline built everything under
-`cascades/` at 7.0. A later release is MEANT to differ; 7.1 ships two pushers
-where a 7.0 box has three (`spec/REVISIONS.md`), and comparing a 7.1 twin here
-would report that intended change as 24 failures. So the release is PINNED,
-the way every other reference test pins one (`tests/reference.py`).
+to its twin with `cad.compare`: the same roles in the same numbers, each size
+within the known divergence for its role, both slots used the same way, the
+tower legal, MakerWorld clean. Every project must have a twin, Dominion 650
+Sleeved included at the H2C's limit. PINNED to 7.0 like every reference test:
+a later one differs.
 
     .venv/bin/python -m cad.build --part all --version 7.0    # -> build/v7.0/
     .venv/bin/python tests/test_parallel.py       # about 3 minutes
@@ -34,13 +22,7 @@ sys.path.insert(0, str(ROOT))
 from cad import build as B, cascade as CC, compare as CMP   # noqa: E402
 from cad.refuse import Refused                  # noqa: E402
 
-# Everything under `cascades/` was built by the Onshape pipeline at 7.0, so
-# that is the release the twins are written at — not the current one. A later
-# release is MEANT to print differently (7.1 ships two pushers where a 7.0 box
-# has three, `spec/REVISIONS.md`), and a test that took the default would
-# report those intended differences as failures the day the default moved.
-# The claim here is the one that stays true forever: a 7.0 build still prints
-# what shipped.
+# Written at 7.0, not the default: see the docstring.
 VERSION = CMP.REF_VERSION
 COMPONENTS = B.out_for(VERSION)
 TWINS = CMP.cad_dir(VERSION)

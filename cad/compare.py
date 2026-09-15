@@ -4,26 +4,12 @@
     .venv/bin/python -m cad.compare --game Dominion --name 168
 
 For each project the Onshape pipeline shipped — `spec/reference/shipped-7.0/
-<Game>/` — this finds the project `cad.cascade` wrote for the same release
-(`cad_dir`; by model code, the way `refresh_cascades.find_project` does) and
-compares what a print would see:
-
-  * the printer, and the number of plates;
-  * the roles present and how many of each — the same box, lid, pushers,
-    holders, token holders and toppers;
-  * each role's object size, to a tolerance that names the KNOWN divergences
-    (`spec/`): a 7.0 holder is up to 1.6 longer than a 6.6 one, a rebuilt box
-    or lid matches its cached envelope to 0.05;
-  * the filament slots, and which slot each role prints in;
-  * that every object sits on its plate and the tower is legal (the guards).
-
-What it does NOT compare is the layout itself — where on a plate a part sits.
-The shipped layouts are hand-tuned and the cad ones are the rule's; the same
-parts on legal plates is the claim, not the same coordinates.
-
-The output is one row per cascade with `same` or the differences, and a
-summary. `--strict` exits non-zero on any difference outside the known
-tolerances, for a test to call.
+<Game>/` — this finds the project `cad.cascade` wrote for the same release and
+compares what a PRINT would see: the printer and plate count, the roles and
+how many of each, each role's object size to a tolerance naming the KNOWN
+divergences (`spec/`), the filament slots, and that every object sits on its
+plate with a legal tower. NOT the LAYOUT: the claim is the same parts on legal
+plates, not the same coordinates. `--strict` exits non-zero on a difference.
 """
 import argparse
 import glob
@@ -36,9 +22,8 @@ from pathlib import Path
 from . import layout as LY, project as PJ
 from .revisions import RELEASES
 
-# What everything under `SHIPPED` was built at: the Onshape pipeline's
-# generation. NOT `revisions.CURRENT`, and deliberately a literal — the
-# current release moves and the shipped tree does not.
+# What everything under `SHIPPED` was built at. NOT `revisions.CURRENT`, and
+# deliberately a literal: the current release moves, the shipped tree does not.
 REF_VERSION = "7.0"
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,33 +31,24 @@ sys.path.insert(0, str(ROOT / "automation"))
 import filaments as FIL                                  # noqa: E402
 import towers                                            # noqa: E402
 
-# The Onshape pipeline's projects.
 SHIPPED = ROOT / "spec" / "reference" / "shipped-7.0"
 
 
 def cad_dir(version):
-    """Where `cad.cascade` writes the twins for a RELEASE.
-
-    Which release to compare against is not a detail: everything under
-    `SHIPPED` was built by the Onshape pipeline at 7.0, and a later release
-    is MEANT to differ from it — 7.1 ships two pushers where a 7.0 box has
-    three (`spec/REVISIONS.md`). So the claim this module can make forever is
-    "a 7.0 build still prints what shipped", and comparing a 7.1 twin with a
-    7.0 project reports real, intended differences.
-    """
+    """Where `cad.cascade` writes the twins for a RELEASE. Everything under
+    `SHIPPED` was built at 7.0 and a later release is MEANT to differ, so the
+    claim is "a 7.0 build still prints what shipped"."""
     from . import build as B
     return B.out_for(version) / "cascades"
 
 
-# size tolerance per role, mm — the known divergences between the cached
-# parts and the rebuilt ones (spec/HOLDER.md: 30 of 50 shipped holders are
-# 6.6, 1.5 shorter than a 7.0; the rest match to 0.05)
+# size tolerance per role, mm — the known divergences between the cached parts
+# and the rebuilt ones (spec/HOLDER.md)
 TOL = {"Holder": 1.6, "FirstHolder": 1.6, "RearHolder": 1.6}
 DEFAULT_TOL = 0.05
 
 
 def model_of(name):
-    """The model code a project filename carries, `.`-folded to `-`."""
     m = re.search(r"\(([^()]*?)\)\.3mf$", name)
     if not m:
         return None
@@ -83,9 +59,7 @@ def model_of(name):
 
 def shipped_role(name):
     """A shipped object's role, legacy names included: `TokenHolder Half` is
-    the HalfTokenHolder, and a bare `Part 1` is a token holder that a donor
-    imported loose and never renamed (PIPELINE.md, "Interactive refresh") —
-    the only object that ever appears under that name."""
+    the HalfTokenHolder, `Part 1` a token holder imported loose."""
     if name.startswith("TokenHolder Half"):
         return "HalfTokenHolder"
     if re.fullmatch(r"Part \d+", name):
@@ -105,7 +79,6 @@ def by_model(folder):
 
 
 def summary(path):
-    """What a print sees in one project."""
     lay = PJ.read(path)
     ps = json.loads(zipfile.ZipFile(path).read("Metadata/project_settings.config"))
     roles = {}
@@ -120,7 +93,6 @@ def summary(path):
 
 
 def compare(shipped, cad):
-    """[difference strings]; empty when the two are the same print."""
     a, b = summary(shipped), summary(cad)
     diffs, notes = [], []
     if (a["printer"] or "").replace("P1S", "P1P") != (b["printer"] or ""):
@@ -129,7 +101,7 @@ def compare(shipped, cad):
         notes.append(f"plates {a['plates']} -> {b['plates']}")
     if [c.upper() for c in a["slots"]] != [c.upper() for c in b["slots"]]:
         # every cascade is white then black (PIPELINE.md); a shipped project
-        # off that rule is the shipped project's fault, so a note, not a diff
+        # off that rule is its own fault, so a note, not a diff
         notes.append(f"shipped slots {a['slots']} are off the white/black rule")
     for r in sorted(set(a["roles"]) | set(b["roles"])):
         sa, sb = a["roles"].get(r, []), b["roles"].get(r, [])
@@ -144,7 +116,7 @@ def compare(shipped, cad):
                              f"{tuple(round(v, 1) for v in size_b)} ({worst:.2f} > {tol})")
             if slots_a != slots_b:
                 # the shipped lids put the body on the object's slot and the
-                # inlays on their own; ours the other way round — the same
+                # inlays on their own; ours the other way round, and the same
                 # SET of slots is the print
                 diffs.append(f"{r}: slots {slots_a} vs {slots_b}")
     if b["tower_problems"]:

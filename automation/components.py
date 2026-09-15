@@ -1,40 +1,27 @@
 """Per-game component specification for the Card Cascade export planner.
 
-Components are NEVER shared across games (each game has its own card
-dimensions/thickness in Onshape), so every identity is namespaced by game and
-files live under individual/<Game folder>/.
-
-For each component, `key` lists the parameters that make it unique WITHIN a
-game — two cascades whose components share the same key share ONE Onshape
-export. `key` is also (will be) the set of Onshape configuration inputs to set,
-so it does double duty.
-
-A cascade "context" (built in plan_exports.py) exposes these parameters:
-  game, folder, short_name, base_model, model (per-sleeving, e.g.
-  S5.15.15.45-Un), size (S/M/L), risers, cards_per_slot, first_riser (or None),
-  front_capacity, horizontal, merged (bool), sleeved (Un/Sl), sl (U/S),
-  pushers (2 or 3).
+Components are NEVER shared across games, so every identity is namespaced by
+game and files live under individual/<Game folder>/. A component's `key` is
+what makes it unique WITHIN a game — two cascades sharing a key share ONE
+export — and is also its set of Onshape configuration inputs (PIPELINE.md,
+"Dedup identity keys"). A cascade "context" (plan_exports.py) exposes: game,
+folder, short_name, base_model, model, size, risers, cards_per_slot,
+first_riser, front_capacity, horizontal, merged, sleeved, sl, pushers.
 """
 
-# Holder identity = (game, #cards the holder holds, sleeved) for ALL games;
-# there is no separate "size" axis. For per-slot games the capacity is
-# Cards/Riser slot. For Compile the holder spans `Horizontal` protocols of
-# Cards/Riser slot (=7) each, so Horizontal is what varies it (S=3x7, L=5x7);
-# set holder_spans=True for those.
+# Holder identity = (game, #cards held, sleeved) for ALL games; holder_spans
+# marks the games whose holder spans `Horizontal` slots of that capacity.
 GAMES = {
     "Compile": {
         "folder": "Compile",
         "holder_spans": True,
         "extras": [],
-        # labelmaker.py draws the logo label from
-        # logos/Compile/compile_logo_clean.dxf (cc.cfg `logo=`), so nothing is
-        # drawn in Onshape and `--labels` plans nothing.
+        # the logo label is drawn by labelmaker.py, not in Onshape
         "onshape_label": False,
     },
     "Dominion": {
         "folder": "Dominion",
-        # Token holders are per-row (parts.csv 'TokenHolder' column:
-        # none/full/full+half) — only sets whose expansions need them carry one.
+        # Token holders are per-row (parts.csv 'TokenHolder').
         "extras": [],
         "onshape_label": False,  # labels via labelmaker.py
     },
@@ -48,47 +35,30 @@ GAMES = {
         "holder_spans": True,     # holder spans HorizontalSlots (3 wide=S, 4=M)
         "extras": ["Toppers"],
         "onshape_label": False,
-        # Innovation uses 2 pushers at EVERY size, which is what the CAD says:
-        # `isOnlyTwoPusherSlots` is a per-GAME variable, not a per-size one, and
-        # every Innovation box on disk has 2 slots (countable from its rim
-        # cutouts). A per-size map is the wrong shape here: `XS` falls through
-        # to the default 3 against a box with 2 slots.
+        # Innovation uses 2 pushers at EVERY size: `isOnlyTwoPusherSlots` is
+        # per-GAME, and a per-size map would let `XS` fall through to 3.
         "pushers": 2,
 
-        # 6 toppers: one per expansion + a blank; same plate, different text.
-        # ONE Onshape ASSEMBLY export per parameter set yields all six
-        # (onshape_config.TOPPER_ASSEMBLY, split by topper_split.py).
+        # 6 toppers on one plate: ONE assembly export yields all six
         "toppers": ["Cities", "Echoes", "Artifacts", "Figures", "Unseen",
                     "Blank"],
 
-        # Rows that carry NO toppers, by Short name. A topper names which
-        # expansion a riser holds, so a box built for ONE set — either single
-        # box — has nothing for it to say. This has to live here rather than
-        # being handled with `--count Topper=0` at build time: compose() is what
-        # refresh_cascades diffs a project against, so a row listing toppers the
-        # project does not have makes build_swap report them as unfillable and
-        # SKIP the cascade on every future refresh.
-        #
-        # These are SHORT NAMES from parts.csv and must track it: a name that
-        # does not match composes toppers the projects have no slot for — ~38
-        # wasted API calls on any full-game export.
+        # Rows that carry NO toppers, by Short name: a box built for ONE set
+        # has nothing for a topper to say. It lives here rather than as
+        # `--count Topper=0` because compose() is what refresh_cascades diffs
+        # against, so a row listing toppers the project lacks would make
+        # build_swap SKIP the cascade for ever. These track parts.csv.
         "no_toppers": {"Single Set", "Single Mini"},
     },
 }
 
-# Pusher count by box size: 2 for XS and S, 3 for M and L. Innovation is the
-# exception and takes 2 at every size. Games override via their spec's
-# "pushers", an int or a per-size dict; use pushers_for(spec, size).
+# Pusher count by box size; a game overrides with its spec's "pushers".
 PUSHERS_BY_SIZE = {"XS": 2, "S": 2, "M": 3, "L": 3}
 
 
 def pushers_for(spec, size):
-    """How many pushers a box of this size takes.
-
-    A game's `pushers` override may be an INT (the count at every size, which is
-    what Innovation needs) or a per-size dict. Cross-check against a box with
-    `verify.py --boxes`, which counts the rim cutouts: this table and the CAD
-    are two copies of one fact, and the CAD is the authority."""
+    """How many pushers a box of this size takes. This table and the CAD are
+    two copies of one fact and the CAD is the authority (`verify.py`)."""
     over = spec.get("pushers")
     if isinstance(over, int):
         return over
@@ -96,8 +66,7 @@ def pushers_for(spec, size):
 
 
 def game_by_name(name):
-    """Resolve a CLI game argument to (canonical_name, spec) by full name or
-    folder code (e.g. 'FCM')."""
+    """A CLI game argument to (canonical_name, spec), by name or folder."""
     if name in GAMES:
         return name, GAMES[name]
     for gname, spec in GAMES.items():
@@ -112,37 +81,22 @@ def cascade_filename(game, short_name, sleeved, model, version, label=None):
         "<Game> <Short name> <Sleeved|Unsleeved> v<version> (<model>).3mf"
         e.g. "Compile 126 Card Sleeved v7.0 (S5.7.7.45-Sl).3mf"
 
-    The Short name need not be a card count — Innovation's rows are named for
-    what a box holds ("3 Ages 5 Expansions"), which is what its buyers look for.
+    The Short name need not be a card count. `sleeved` is "Sl"/"Un"; `model`
+    is the row's per-sleeving model code.
 
-    `sleeved` is "Sl"/"Un" (as in the cascade context); `model` is the row's
-    per-sleeving model code (e.g. "M8.40.10.62-Sl").
+    `version` is what the name PROMISES about the parts inside. The argument
+    is not optional, but `None` is a legal, deliberate answer — "no version in
+    this name" — and is what the TRACKED trees pass (see `tracked_name`;
+    PIPELINE.md, "A name is an identity, a version is a release"). On the
+    Onshape path it is the cascade's GENERATION, that table not being uniform;
+    on the cad path every part really is built at one version.
 
-    `version` is what the name PROMISES about the parts inside, and the
-    argument is not optional — but `None` is a legal, deliberate answer,
-    meaning "no version in this name", and it is what the TRACKED trees pass.
-    A version in a repo filename renames the whole catalogue on every release
-    and buys nothing there; a downloaded print profile is the one place it has
-    a reader, so `cad.cascade --publish` passes the version and
-    `refresh_cascades.project_title` puts it in the 3MF `Title`, where no
-    rename can touch it. See PIPELINE.md, "A name is an identity, a version is
-    a release". On the Onshape path it is the cascade's GENERATION (parts.csv `Build`,
-    blank meaning onshape_config.CURRENT) — the per-type table behind that name
-    is not uniform (a "7.0" cascade carries 6.6 holders), and the generation is
-    precisely the name for that set. On the cad path every part really is built
-    at one version and it is that version.
-
-    `label` is parts.csv's `Project label` and switches to the FCM form:
-
-        "FCM Occ 2S v7.0 (180 Card L3-18-6-20-Sl).3mf"
-
-    — *the 2nd box for Occupations, sleeved*, which is how those boxes are
-    thought about and which the canonical form cannot say. The label carries
-    the set and its index ("Occ 2", "Milestones 1", "Alt"); the sleeving letter
-    joins it directly when it ends in a digit and after a space otherwise, so
-    "Occ 2" + "S" reads "Occ 2S" and "Alt" + "S" reads "Alt S". The game is its
-    folder code, the card count moves inside the bracket, and the model's dots
-    fold to dashes — all as the four published FCM projects have it."""
+    `label` is parts.csv's `Project label` and switches to the FCM form,
+    "FCM Occ 2S v7.0 (180 Card L3-18-6-20-Sl).3mf" — *the 2nd box for
+    Occupations, sleeved*, which the canonical form cannot say. The sleeving
+    letter joins the label directly when it ends in a digit and after a space
+    otherwise; the game is its folder code, the card count moves inside the
+    bracket, and the model's dots fold to dashes."""
     ver = f" v{version}" if version else ""
     if label:
         folder = (GAMES.get(game) or {}).get("folder", game)
@@ -153,8 +107,8 @@ def cascade_filename(game, short_name, sleeved, model, version, label=None):
     else:
         slv = "Sleeved" if sleeved == "Sl" else "Unsleeved"
         name = f"{game} {short_name} {slv}{ver} ({model}).3mf"
-    # Some model codes carry a '/' (e.g. S2.40.12/30.32-Un) — a path separator,
-    # so fold it and other filesystem-hostile chars to '-' (as legacy names did).
+    # a model code may carry a '/' — a path separator — so fold it and the
+    # other filesystem-hostile chars to '-', as legacy names did
     for ch in "/\\:":
         name = name.replace(ch, "-")
     return name
@@ -165,13 +119,8 @@ def tracked_name(game, short_name, sleeved, model, label=None):
     version. The one place that policy is stated, for both pipelines.
 
     A name in the repo is an identity: git follows a path, so a version in it
-    renames the whole catalogue on every release. A release is a tag.
-    What a given file IS stays readable from the file: the version goes in the
-    3MF `Title` (`refresh_cascades.project_title`, `cad.cascade.title`), which
-    Studio shows and no rename can touch, and it is engraved on the parts, which
-    `verify.py --stamps` reads.
-
-    It goes back into the NAME only for the tree that leaves the repo, where its
-    reader — someone holding a download, deciding whether the pusher in their
-    hand fits the lid — has nothing else to go on: `cad.cascade --publish`."""
+    renames the whole catalogue on every release. What a file IS stays
+    readable from it — the version is in the 3MF `Title` and engraved on the
+    parts. It goes into the NAME only for the tree that leaves the repo, whose
+    reader has nothing else to go on: `cad.cascade --publish`."""
     return cascade_filename(game, short_name, sleeved, model, None, label)

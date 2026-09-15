@@ -5,30 +5,16 @@
     .venv/bin/python -m cad.assemble --game Dominion --state closed
     .venv/bin/python -m cad.assemble --list
 
-`cad/assembly.py` says where each part goes; this puts the meshes there. Output
-is `build/assemblies/<Game>/<model> <state>.3mf`, written the way Onshape's own
-`_raw` assemblies are — the component meshes as objects, one object instancing
-them with a transform each — so eight holders cost one mesh.
+`cad/assembly.py` says where each part goes; this puts the meshes there, into
+`build/assemblies/<Game>/<model> <state>.3mf`, written the way Onshape's own
+`_raw` assemblies are. **It must never be written into `individual/`**:
+`make_cascade.load_export` refuses a build item carrying a transform, and an
+assembly is made of them.
 
-**It must never be written into `individual/`.** `make_cascade.load_export`
-refuses a build item carrying a transform, and an assembly is made of them.
-
-## Where the meshes come from
-
-Every part is taken in its PART frame, because that is the frame
-`cad/assembly.py` places. One source is not in it already and is corrected
-here rather than in the placement, which stays a statement about geometry and
-not about file formats:
-
-* a **Box**, **Lid**, **Holder** or **TokenHolder** in `build/` is at its part
-  origin — `cad.build` writes them so;
-* a **Pusher** in `build/` carries `pusher.assembly_offset`, the transform an
-  Onshape export arrives in, so it is subtracted back off;
-* a **Topper** comes from `individual/`, the Onshape 7.0 corpus, in the frame
-  `assembly.topper` places.
-
-Anything missing from `build/` is built on the spot. The Toppers are the one
-part still read from `individual/`, whatever release is assembled.
+Every part is taken in its PART frame; a **Pusher** in `build/` carries
+`pusher.assembly_offset` and is corrected HERE, not in the placement. Anything
+missing from `build/` is built on the spot, and the **Toppers** are the one
+part still read from `individual/`.
 """
 import argparse
 import sys
@@ -49,47 +35,33 @@ CSV = ROOT / "automation" / "parts.csv"
 
 
 def shifted(mesh, by):
-    """`mesh` moved by `by` — how a file's frame is brought to the part's."""
     name, verts, tris = mesh
     dx, dy, dz = by
     return (name, [(x + dx, y + dy, z + dz) for x, y, z in verts], tris)
 
 
 def _body(objects):
-    """The part among a component's objects: the biggest — a Lid carries its
-    logo inlays as separate objects, and its body dwarfs them."""
+    """The part among a component's objects: the BIGGEST, a Lid's inlays being
+    objects too."""
     return max(objects, key=lambda o: len(o[1]))
 
 
 def _one(path):
-    """The body in a component 3MF."""
     return _body(mesh3mf.read(path))
 
 
 def _all(path):
-    """Every object in a component 3MF, the inlays named after their body.
-
-    A Lid is up to 31 objects: the body and one region of its logo pattern
-    each, all in the same frame, so they all take the lid's placement and the
-    pattern shows. A labelled Topper is the same shape for its lettering.
-
-    `cad/` writes those regions as bare `Part 2`, `Part 3`, ... — which is what
-    the hand-exported STEPs carry and what `individual/` has, so it is not
-    changed there. But an ASSEMBLY holds a Lid's inlays and six Toppers'
-    together, and `Part 7` alone cannot say which body it belongs to. A render
-    needs to: on Allan's prints the lid's logo is a contrast on a BLUE lid
-    while a topper's lettering is a contrast on a WHITE topper, so the two sets
-    are different colours. Here they are qualified — `Lid Part 7`,
-    `Topper Cities Part 7` — and the body keeps its own name.
-    """
+    """Every object in a component 3MF, the inlays named after their body: an
+    ASSEMBLY holds a Lid's inlays and six Toppers' together and a render
+    colours the two sets differently, so here they are QUALIFIED — `Lid Part
+    7`, `Topper Cities Part 7`."""
     objects = mesh3mf.read(path)
     body = _body(objects)[0]
     return [(n if n == body else f"{body} {n}", v, t) for n, v, t in objects]
 
 
 def _built(path, build, d, extra=None):
-    """`path` under build/, built by `build` (a `cad.build` builder) first if
-    it is not there yet."""
+    """`path` under build/, built by `build` first if it is not there yet."""
     if not path.exists():
         build(d, extra, path)
     return path
@@ -115,33 +87,27 @@ def pusher_mesh(d, out_dir, folder):
 
 
 class MissingCached(Exception):
-    """No cached topper in `individual/` for this row. The cascade is skipped
-    and named rather than assembled without its toppers."""
+    """No cached topper in `individual/` for this row: the cascade is skipped
+    and named, not assembled without them."""
 
 
 def holder_mesh(d, out_dir, folder, first=False, rear=False):
-    """The holder an assembly places, in its part frame: `cad.build`'s — the
-    one the released cascades print — built first if it is not there yet.
-    `first` is the deep one, `rear` the RearHolder (`assembly.rear_of`)."""
+    """The holder an assembly places, in its part frame: `cad.build`'s, built
+    first if it is not there yet. `first` is the deep one, `rear` the
+    RearHolder."""
     return _one(_built(out_dir / folder / B.holder_file(d, first, rear),
                        B.build_holder, d, (first, rear)))
 
 
-# The six Innovation toppers, one per riser in this order, back to front;
-# nothing in the geometry picks which expansion goes where, and a cascade with
-# more risers than expansions repeats.
+# The six Innovation toppers, one per riser back to front. Nothing in the
+# geometry picks which expansion goes where; a longer cascade repeats.
 TOPPERS = ("Cities", "Echoes", "Artifacts", "Figures", "Unseen", "Blank")
 
 
 def topper_meshes(d, folder, expansion):
-    """Every object in a topper: the body AND its lettering.
-
-    `_all`, not `_one`. A labelled topper carries its expansion name as inlays
-    the same way a Lid carries its logo — `Topper Cities S15-Un.3mf` is a body
-    plus nine of them — and taking only the body drops the lettering. What is
-    left is the POCKETS the letters sit in, which read as text in a shaded
-    render and are not text at all: they would print as bare recesses.
-    """
+    """Every object in a topper: the body AND its lettering. `_all`, not
+    `_one` — taking only the body leaves the POCKETS, which read as text in a
+    shaded render and are not."""
     path = ROOT / "individual" / folder / B.topper_file(d, expansion)
     if not path.exists():
         raise MissingCached(f"no cached {path.name} in individual/{folder}")
@@ -150,24 +116,22 @@ def topper_meshes(d, folder, expansion):
 
 def topper_risers(d, toppers=False):
     """[(riser, first)] that carry a topper: every riser where the row ships
-    toppers (`build.ships_toppers`), none where it does not."""
+    them (`build.ships_toppers`)."""
     return A.holders(d) if toppers else []
 
 
-# The set number on a card stack's front face, for `--cards`: a numeral this
-# far proud of the front card, its cap top this far below the card's top edge,
-# where the rise leaves it showing in play.
+# The set number on a card stack's front face, for `--cards`: this far proud
+# of the front card, its cap top this far below the card's top edge.
 CARD_LABEL_PROUD = 0.300
 CARD_LABEL_DROP = 1.000
 
 
 def card_meshes(d, state, sets=None):
-    """`[(name, shape)]` — one box per card stack and one numeral per stack,
-    placed in the cascade frame (`assembly.card_fill`, `card_stack`). Named
-    `Cards <expansion> <set>` and `Cards Label <expansion> <set>`, which is
-    what `cad.gltf` colours by."""
-    # Lazily, like every other build123d user here: `cad.assemble --list`
-    # must import none of it (`tests/test_smoke.py`), and `cad.text` does.
+    """`[(name, shape)]` — one box per card stack and one numeral per stack, in
+    the cascade frame (`assembly.card_fill`), named `Cards <expansion> <set>`
+    and `Cards Label <expansion> <set>`, which `cad.gltf` colours by."""
+    # Lazily, like every other build123d user here: `cad.assemble --list` must
+    # import none of it (`tests/test_smoke.py`), and `cad.text` does.
     from build123d import Axis, Box, Location
     from . import text as T
     from .geom import text_solid
@@ -194,10 +158,9 @@ def card_meshes(d, state, sets=None):
 def assemble(d, state, folder, out_dir, take_tokens=False,
              half=False, toppers=False, cards=None, topper_order=TOPPERS):
     """(parts, instances) for one cascade — `parts` the distinct meshes,
-    `instances` [(part index, Place)]. `cards` is None for none, or the
-    expansion names to fill the slots with (`card_meshes`). `topper_order`
-    is the expansion per riser, `j = 0` the back one (`cad.scene` matches
-    it to the cards it puts behind each topper)."""
+    `instances` [(part index, Place)]. `cards` is None or the expansion names
+    to fill the slots with; `topper_order` is the expansion per riser, `j = 0`
+    the back one."""
     parts, instances = [], []
 
     def add(mesh, places):
@@ -219,20 +182,16 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
         add(holder_mesh(d, out_dir, folder, first, rear),
             [place(d, j) for j in js])
 
-    # Toppers — Innovation only, one per riser, and only where the row has them
-    # (`build.ships_toppers`: a box built for ONE set has nothing for a topper
-    # to say). Each is its own cached component, so each is its own mesh with
-    # one instance; the expansion order is `TOPPERS`' and is arbitrary as far
-    # as the geometry is concerned.
+    # Toppers — one per riser, only where the row has them
+    # (`build.ships_toppers`). Each is its own cached component, so each is its
+    # own mesh with one instance; the expansion order is arbitrary.
     for j, first in topper_risers(d, toppers):
         pl = (A.topper if closed else A.topper_play)(d, j, first)
         for mesh in topper_meshes(d, folder, topper_order[j % len(topper_order)]):
             add(mesh, [pl])
 
-    # The token holder is the FULL one: a merged row ships a HALF as well, but
-    # the two are alternatives for one slot, not both at once, and the
-    # placement is the same either way — `assembly.token_holder`. A row with
-    # no `TokenHolder` gets neither.
+    # The token holder is the FULL one: the HALF is an ALTERNATIVE for the same
+    # slot, at the same placement (`assembly.token_holder`).
     if take_tokens and d.GameName == "Dominion":
         add(token_holder_mesh(d, out_dir, folder,
                               half=half and bool(d.MatPocket)),
@@ -256,15 +215,9 @@ def assemble(d, state, folder, out_dir, take_tokens=False,
 
 def catalogue(csv=CSV, game=None, model=None, version=CURRENT):
     """[(folder, Derived, tokens, toppers)] — every cascade, both sleevings.
-
-    `tokens` and `toppers` are per ROW and not derivable from the geometry —
-    only the sets whose expansions need a token holder carry one, and a
-    single-set cascade carries no toppers — so they are asked of the row, the
-    way `cad.build`'s catalogues ask (`ships_token_holder`, `ships_toppers`).
-
-    `version` is the RELEASE assembled, because a release can change a part —
-    a 7.1 Lid has one socket per pusher where a 7.0 one has three
-    (`cad/revisions.py`) — so the mechanism has to be checkable at each."""
+    `tokens` and `toppers` are per ROW and not derivable from the geometry.
+    `version` is the RELEASE assembled: a release can change a part, so the
+    mechanism has to be checkable at each."""
     out = []
     for row, p in params.cascades(csv, game, version):
         d = D.derive(p)

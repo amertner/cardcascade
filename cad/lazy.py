@@ -1,11 +1,9 @@
 """A module that is imported the first time it is used, not when it is named.
 
-`cad.assembly` is pure arithmetic and says so, but it is written in terms of
-the part modules, and importing a part module loads build123d — four seconds
-of start-up that `cad.assemble --list` spent on printing names. A `lazy(...)`
-stands in for the module and imports it on the first attribute read, so the
-call sites stay `box_part.slot_band(d)` and the cost lands only on a
-caller that computes a placement.
+Importing a part module loads build123d — four seconds of start-up a catalogue
+path has no use for. A `lazy(...)` stands in and imports on the first
+attribute read, so call sites stay `box_part.slot_band(d)` and the cost lands
+only on a caller that uses it.
 """
 import importlib
 

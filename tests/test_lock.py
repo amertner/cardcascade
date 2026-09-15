@@ -1,15 +1,9 @@
 """The lock catalogue's three copies, held to each other.
 
-`automation/LOCK_STANDARD.md` is the document. It is transcribed three times:
-`cad/lock.CLASSES` (the standard, as constants), `derive.calTabCentreDistance`
-(the Onshape variable-studio expression, a ladder on `calPusherTotalDepth`)
-and `automation/verify.LOCK_CLASSES` (the audit's own copy, with the minimum
-depth as a formula rather than a number). Any one of them can drift on its own
-and nothing else would notice — `calTabCentreDistance` is read by no code at
-all, only by this test — so this holds all three to one table, and then walks
-every pusher in parts.csv through all three.
-
-Pure arithmetic: no build123d, so system python is fine.
+`automation/LOCK_STANDARD.md` is the document, transcribed three times:
+`cad/lock.CLASSES`, `derive.calTabCentreDistance` (read by no code but this
+test) and `verify.LOCK_CLASSES`; any one can drift unnoticed, so all three are
+held to one table, then to every pusher in parts.csv.
 
     python3 tests/test_lock.py
 """

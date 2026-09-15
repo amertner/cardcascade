@@ -3,31 +3,12 @@
 
     .venv/bin/python tests/test_assembly.py
 
-`cad/fit.py --no-solids` on all 50 cascades in all three states. No B-reps, so
-it is seconds where a solids pass is hours — and it is the tier that generalises:
-a margin that holds on one cascade and not on 50 is the finding worth having,
-which is what `tests/test_lid_corpus.py` exists for on the Lid.
-
-The interference tier is NOT run here. It builds a Box and a Lid per cascade,
-which is minutes each; run `.venv/bin/python -m cad.fit --state all` on the
-cascade you care about instead.
-
-The holder mates are measured off the BUILT holders (`build/`, made on the
-spot where missing), so every cascade has one and a mate that cannot be
-measured is a failure, not a note.
-
-Two things are asserted beyond the margins themselves:
-
-* **the tread offset is a CONSTANT.** `spec/ASSEMBLY.md` derives 0.150 between
-  a pusher's tread centre and its rib's, with every parameter cancelling. If it
-  is ever a function of anything, the derivation is wrong and this catches it.
-  From 7.2f the ribs sit `box.rib_shift` (0.850) forward and the treads do
-  not move (`spec/BOX.md`, "The ribs move forward"), so the constant is
-  `0.150 - rib_shift` = -0.700 — still one number on every cascade.
-* **a holder sits on its tread as the release says** — through 7.2e fully
-  supported, 0.350 inside the front and 0.050 inside the back on every riser;
-  from 7.2f 0.500 OVER the front edge and 0.900 inside the back, the overhang
-  the prototype is printed to judge. Either way an exact number, not a sign.
+`cad/fit.py --no-solids` on all 50 cascades in all three states — seconds, no
+B-reps, and NOT the interference tier (`-m cad.fit --state all` on one cascade
+is). A mate that cannot be measured off the BUILT holders is a failure, not a
+note. Beyond the margins: the tread offset is a CONSTANT on every cascade
+(`spec/ASSEMBLY.md`, "The finding") and a holder sits on its tread at the
+release's exact numbers (`spec/BOX.md`).
 """
 import sys
 from pathlib import Path
@@ -44,9 +25,7 @@ TREAD_SLACK = 0.400             # calSliderDistance tread against a sd - 0.400 h
 
 
 def tread_offset(d):
-    """The release's tread-to-rib offset: the studio's 0.150, less the rib
-    shift (7.2f), less the socket's own move (`lid.socket_back`, 7.2f's
-    `shorter_box`, which brings it to 0.000)."""
+    """The studio's 0.150, less the rib and socket moves (both 7.2f)."""
     return TREAD_OFFSET - box_part.rib_shift(d) - (lid_part.SOCKET_BACK - lid_part.socket_back(d))
 
 
@@ -80,12 +59,7 @@ for folder, d, _tokens, _toppers in rows:
                 continue
             if not m.ok:
                 fail(f"{model} [{state}] {m.name}", f"{m.got:.3f} vs {m.want:.3f}")
-            # A margin is a CLEARANCE: a negative one is parts overlapping,
-            # whatever its nominal says, and the ones with no nominal (the
-            # tread, the lid over the rear storage) are only checked here.
-            # The tread's two are held to the release's own numbers: the
-            # slack split by the offset, `0.350 / 0.050` through 7.2e and
-            # `-0.500 / 0.900` from 7.2f (module docstring).
+            # A margin is a CLEARANCE: a negative one is parts overlapping.
             if "on its tread" in m.name:
                 offset = tread_offset(d)
                 want = (TREAD_SLACK / 2 + offset if m.name.endswith("front")
@@ -96,8 +70,7 @@ for folder, d, _tokens, _toppers in rows:
                 if m.got < 0:
                     fail(f"{model} [{state}] {m.name}", f"negative: {m.got:.3f}")
 
-    # The tread offset, from the two margins it splits: front + back is the
-    # tread's own slack, and their difference is twice the offset.
+    # front + back is the tread's slack; their difference is twice the offset.
     treads = [m for m in fit.tread_margins(d) if "on its tread" in m.name]
     for i in range(0, len(treads), 2):
         back, front = treads[i].got, treads[i + 1].got

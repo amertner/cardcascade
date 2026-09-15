@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
 """`cad/project.py` writes a project Studio slices, and the same one it read.
 
-The first project written without a donor is checked against its shipped
-twin: Dominion 168 Card Unsleeved is read for its layout (`project.read`),
-written again from the parts under `build/` in that exact layout, and the
-result held to the shipped file — the same roles on the same plates at the
-same positions and angles, the same two slots and extruders, the same object
-sizes to the tolerance the corpus tests allow the rebuilt parts — then to the
-two project guards (`filaments`, `towers`) and, where BambuStudio.app is
-installed, to a CLI slice of every plate with `return_code` 0, which is the
-only thing that sees a tower in unprintable space or an object off its plate.
+Dominion 168 Card Unsleeved is read for its layout, written again from the
+parts under `build/`, and held to the shipped file, to the project guards, and
+— where BambuStudio.app is installed — to a CLI slice with `return_code` 0,
+the only thing that sees a tower in unprintable space. The two constants
+copied from make_cascade are held equal to it.
 
     .venv/bin/python -m cad.build --part all     # needs build/Dominion
     .venv/bin/python tests/test_project.py      # a minute; three with the slice
-
-The two constants copied from make_cascade while both exist — the bed table
-and PRINT_SETTINGS — are held equal to it, so the copies cannot drift apart
-unnoticed.
 """
 import json
 import shutil
@@ -37,9 +29,7 @@ import towers                                                    # noqa: E402
 
 
 def shipped(folder, model):
-    """The shipped project carrying `model`, whatever named it. The name is not
-    stable — the version went into it on 2026-09-05 — but the model code in the
-    bracket is, and it is unique per cascade (`refresh_cascades.find_project`)."""
+    """The project whose bracket carries `model`; names are not stable."""
     hits = sorted((ROOT / "spec" / "reference" / "shipped-7.0" / folder)
                   .glob(f"*({model}).3mf"))
     assert len(hits) == 1, f"{model}: {len(hits)} shipped projects"
@@ -61,7 +51,6 @@ def check(label, got, want, tol=0.0):
 
 
 def role(name):
-    """A shipped object's role from its (legacy-suffixed) name."""
     for r in ("HalfTokenHolder", "TokenHolder", "FirstHolder", "RearHolder", "Holder", "Pusher", "Lid", "Box", "Topper"):
         if name.startswith(r):
             return r
@@ -106,11 +95,8 @@ for oid, name, _parts in lay.objects:
     placements.append(PJ.Placement(len(objects) - 1, pl.plate, pl.x, pl.y, pl.angle))
     w, dd, h = objects[-1].size
     sw, sd, sh = lay.sizes[oid]
-    # the rebuilt part's envelope is the cached one's (test_*_corpus), and the
-    # 7.0 holder is 1.5 longer than a 6.6 one (spec/HOLDER.md); the token
-    # holder's tray is the same part at the same depth. From 7.2f the Box and
-    # the Lid are `calRearTrim` shallower than the shipped ones by design
-    # (`rev.shorter_box`, spec/BOX.md).
+    # The rebuilt envelope is the cached one's (test_*_corpus), the 7.0 holder
+    # 1.5 longer than a 6.6 one; 7.2f trims the Box and Lid by `calRearTrim`.
     if r in ("Box", "Lid"):
         sd -= d.calRearTrim
     tol = 1.6 if r == "Holder" else 0.05
@@ -127,7 +113,6 @@ with tempfile.TemporaryDirectory() as tmp:
     check("same bed", back.bed, lay.bed)
     check("same plate count and towers", [(p.name, p.tower) for p in back.plates],
           [(p.name, p.tower) for p in lay.plates])
-    # placements: by (role, plate, x, y, angle), order-free
     def key(layout):
         names = {oid: role(n) for oid, n, _p in layout.objects}
         return sorted((names[oid], pl.plate, round(pl.x, 4), round(pl.y, 4), round(pl.angle, 4))
@@ -150,12 +135,7 @@ with tempfile.TemporaryDirectory() as tmp:
           [x for x in FIL.makerworld_problems(ps) if x[3]], [])
     check("prime tower inside both nozzles' reach on every plate", towers.problems(out), [])
     shipped_ps = json.loads(zipfile.ZipFile(SHIPPED).read("Metadata/project_settings.config"))
-    # Every key but the ones this repo forces: PRINT_SETTINGS is applied on
-    # every path precisely so a project does NOT keep what its donor gave it
-    # (the shipped tree is `seam_position: aligned` throughout, and three
-    # Dominion projects carry `ironing_type: top`), and the process entry of
-    # `different_settings_to_system` moves with them. Those are checked above,
-    # by value; this holds the other ~560 to the profile.
+    # PRINT_SETTINGS is forced (checked above); this holds the other ~560.
     forced = set(PJ.PRINT_SETTINGS) | {"different_settings_to_system"}
     diff = sorted(k for k in ps
                   if k in shipped_ps and k not in forced and ps[k] != shipped_ps[k])

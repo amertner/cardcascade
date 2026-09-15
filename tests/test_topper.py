@@ -3,17 +3,9 @@
 
     .venv/bin/python tests/test_topper.py
 
-The Topper is being built group by group, as the Box was, and this asserts only
-what has actually been written. It grows with it.
-
-The reference it builds against is the **unfilleted** one — `Top and front
-edges` suppressed — because that is the body every dimension can be read off
-without a blend in the way. `spec/TOPPER.md` records what each was measured
-from.
-
-Proven so far: the envelope and its three rules, the frame, `#TopperHeight`
-both ways, the section that `TriangleMatch` and `CardHeight` make, the slant
-being the Holder's OWN, and where the ribs and front bands sit.
+Built against the **unfilleted** reference, `Top and front edges` suppressed:
+the body every dimension reads off without a blend. `spec/TOPPER.md` records
+what each was measured from; this asserts only what has been written so far.
 """
 import sys
 from pathlib import Path
@@ -30,8 +22,7 @@ import reference as REF                                        # noqa: E402
 from cad.parts import holder as H, topper as T           # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
-# Innovation `4 Later Ages 5 Expansions` unsleeved, M5.10.10.32-Un. The
-# unfilleted export is at this parameter set, and so is every logo sketch.
+# Innovation M5.10.10.32-Un: the unfilleted export and every logo sketch.
 P = REF.primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation")
 
 fails = []
@@ -53,9 +44,8 @@ def refuses(fn):
 
 
 def tri_volume(shape):
-    """The TESSELLATED volume. `Solid.volume` drifts by ~1 mm3 on a body
-    carrying the lettering's BSpline faces — on the hand-exported STEPs as much
-    as on the source — so a comparison of two named toppers has to use this."""
+    """The TESSELLATED volume: `Solid.volume` drifts ~1 mm3 on the lettering's
+    BSpline faces, on the STEPs as much as on the source."""
     import numpy as np
     from cad.mesh3mf import triangulate
     v, t = triangulate(shape)
@@ -65,8 +55,7 @@ def tri_volume(shape):
 
 
 def runs(solid, y, z, x_centre=100.5, span=400.0):
-    """X runs of material along a thin bar at (y, z) — the probe that separates
-    a rib from the front band, which a plan section cannot."""
+    """X runs along a thin bar at (y, z): separates rib from front band."""
     cut = solid & (Pos(x_centre, y, z) * Box(span, 0.02, 0.02))
     if cut is None:
         return []
@@ -111,7 +100,6 @@ check("the base is at Z_BASE", round(T.Z_BASE, 3), round(rb.min.Z, 3), 1e-3)
 print("\n=== #TopperHeight, two ways ===")
 th = T.topper_height(d)
 check("Allan's expression gives 4.200", round(th, 3), 4.200, 1e-9)
-# and the geometry says the same: the rear of the section is that thick
 rear_runs = [f for f in Plane.YZ.offset(100.5).intersect(ref).faces()]
 check("the section's REAR is #TopperHeight thick",
       round(T.slant_z(d, rear) - T.Z_BASE, 3), round(th, 3), 1e-9)
@@ -144,8 +132,7 @@ for x in (33.5, 100.5, 167.5):
           1e-3)
 
 print("\n=== ribs and front bands: a T in plan, not a post ===")
-# At the front face the material is BAND wide; one step back it is RIB wide.
-# A plan section cannot tell those apart — it reads one 14.800 block.
+# BAND wide at the front face, RIB one step back; a plan section cannot tell.
 front_runs = runs(ref, front - 0.1, 55.0, x_centre=33.5, span=60.0)
 back_runs = runs(ref, front - 0.9, 55.0, x_centre=33.5, span=60.0)
 check("at the front face the band is 14.800 wide",
@@ -164,9 +151,8 @@ for got, want in zip(T.band_x(d),
     check(f"band at {want}", (round(got[0], 3), round(got[1], 3)), want)
 
 print("\n=== against the rolled-back exports (M15-Sl, a SECOND parameter set) ===")
-# All three rollbacks predate `Upside Down`, so they arrive in the pre-flip
-# frame. That transform is itself a measurement: a 180-degree turn about X
-# through (y = -depth, z = Z_BASE) puts every body on the same envelope exactly.
+# The rollbacks predate `Upside Down`, so they arrive in the pre-flip frame;
+# the turn that undoes it is itself a measurement (spec/TOPPER.md).
 from build123d import Rot                                 # noqa: E402
 Q = REF.primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dq = D.derive(Q)
@@ -218,10 +204,7 @@ grouped = pocketed - T.front_removal(dq) + T.dividers(dq)
 exact("front removal + dividers", grouped, roll2)
 
 print("\n=== `Fillet front holes`, built into the TOOL ===")
-# OCCT will not put a 2.000 round on an 0.800 wall; Onshape's "allow edge
-# overflow" is the permission to do it anyway, so the tool carries the round.
-# The two kinds are equal and opposite, which is why `exact` above has to check
-# both one-sided differences and not merely the volume.
+# OCCT will not put a 2.000 round on an 0.800 wall, so the tool carries it.
 check("the reference carries it as 16 cylinders at r2.0",
       sum(1 for f in roll2.faces()
           if "CYLINDER" in str(f.geom_type)
@@ -251,8 +234,7 @@ check("the reference carries 16 cylinders at r1.4",
           and abs(f.radius - T.LIP_FILLET) < 1e-6), 16)
 
 print("\n=== the lip room IS the holder's lip base, with no clearance ===")
-# the notch on the +x side of the FIRST slot; lip_room_x is sorted, so
-# index 0 is that slot's other one, at negative x.
+# the +x notch of the FIRST slot; lip_room_x is sorted, so index 0 is -x.
 lo, hi = T.lip_room_x(dq)[1]
 xs = [x for x, _y in H.lip_plan(dq, first=False)]
 check("the notch runs |x| min(lip_plan) .. max(lip_plan)",
@@ -281,8 +263,7 @@ for tag, pp in (("M10-Un", P), ("M15-Sl", Q)):
     check(f"{tag}: the bottom perimeter runs width - 2r",
           round(longest.bounding_box().size.X, 3),
           round(T.width(dd) - 2 * r, 3), 1e-3)
-    # the tell: the REAR vertical fillet is trimmed by the SLANT, not by the
-    # rear's own top, so its cylinder reaches slant_z at rear + r.
+    # the tell: the REAR vertical fillet is trimmed by the SLANT, not its top.
     rear_v = [f for f in cyl if abs(f.bounding_box().min.Y - re_) < 1e-6
               and f.bounding_box().size.Z > 1.0]
     check(f"{tag}: two rear vertical fillets", len(rear_v), 2)
@@ -295,9 +276,8 @@ mine = T.build(d)
 exact("unfilleted M10-Un, before the last fillet",
       T.wedge(d) - T.inner_hole(d) - T.front_removal(d)
       + T.dividers(d) + T.holder_tabs(d) - T.lip_rooms(d), ref)
-# The strongest check available: the FILLETED Unseen export at this exact
-# parameter set. Its lettering is a removal, so it may hold LESS than the blank
-# — but it must hold nothing the blank does not.
+# The FILLETED Unseen here may hold LESS than the blank (its lettering is a
+# removal) but nothing the blank lacks.
 unseen = max(import_step(str(STEP_DIR / "Topper Unseen M5.10.10.32-Un.step")).solids(),
              key=lambda s: s.volume)
 left = unseen - mine
@@ -309,10 +289,8 @@ check("... and what the blank has spare is only the engraving",
 check("the blank is a single solid", len(mine.solids()), 1)
 
 print("\n=== a size-S blank, filleted, against build() ===")
-# `Topper Blank S5.15.15.45-Un` (exported 2026-09-04) is the first FILLETED
-# blank reference and the first at size S: three horizontal slots, so
-# BAND_HALF and LIP_ROOM_RISE are read on a third parameter set. It is in
-# the part frame, not the pre-flip one the M rollbacks arrive in.
+# `Topper Blank S5.15.15.45-Un`: the first FILLETED blank and the first at
+# size S, a third parameter set. In the part frame, not the pre-flip one.
 S15UN = REF.primary(3, 5, 15, 15, 0, 15, 0, 0, "Innovation")
 s_ref = import_step(str(STEP_DIR / "Topper Blank S5.15.15.45-Un.step")).solids()[0]
 s_mine = T.build(D.derive(S15UN))
@@ -327,9 +305,7 @@ check("S15-Un blank: symmetric difference under 0.5 mm3",
             + (sum(q.volume for q in _b.solids()) if _b else 0.0), 3) < 0.5, True)
 
 print("\n=== Z_BASE is the holder's slant top plus the rear thickness ===")
-# There is no mate: the topper rests on the holder, diagonal on diagonal. So
-# the constant every reference measures is derived, and held to on every
-# Innovation parameter set the catalogue has.
+# No mate: the topper rests diagonal on diagonal, so the constant is derived.
 _seen = set()
 for _f, _fn, _p, _e in B.topper_catalogue():
     _k = _fn.split(" ", 2)[-1]
@@ -339,25 +315,20 @@ for _f, _fn, _p, _e in B.topper_catalogue():
     check(f"{_k}: z_base derives to Z_BASE", round(T.z_base(D.derive(_p)), 6),
           round(T.Z_BASE, 6), 1e-6)
 check("LIP_ROOM_RISE is the holder's SLANT_STEP", T.LIP_ROOM_RISE, H.SLANT_STEP)
-# `Remove most of front`: the opening's edge is 6.000 from the pocket's end,
-# and the pocket's end is 1.400 from the part's — 7.400, read two ways.
+# `Remove most of front`: 6.000 from the pocket's end + 1.400, read two ways.
 check("BAND_HALF is FRONT_MARGIN + INNER_END_INSET", round(T.BAND_HALF, 6),
       round(T.FRONT_MARGIN + T.INNER_END_INSET, 6))
 check("... and equally 6.6 from the rib's face", round(T.BAND_HALF, 6),
       round(T.FRONT_MARGIN + 0.6 + T.RIB_W / 2, 6))
 
 print("\n=== `Expansion Name`: where the mark and the name go ===")
-# Every filleted STEP: all five expansions at M15-Sl, plus two more Unseens at
-# other parameter sets so no rule below rests on one configuration. A STEP's
-# engraving differences out of the blank exactly, so all of this is measured.
+# Every filleted STEP: five expansions at M15-Sl plus two Unseens elsewhere.
 M15SL = REF.primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 S15SL = REF.primary(3, 5, 15, 15, 0, 15, 1, 0, "Innovation")   # size S
 NAMED = [
     ("Unseen M10-Un", "Topper Unseen M5.10.10.32-Un.step",
      REF.primary(4, 5, 15, 10, 0, 10, 0, 0, "Innovation"), "Unseen"),
-    # Size S — three horizontal slots — exported 2026-09-04: the third
-    # parameter set for BAND_HALF and LIP_ROOM_RISE, and the second size for
-    # Artifacts' and Cities' vertex placement.
+    # Size S: the second size for Artifacts' and Cities' vertex placement.
     ("Artifacts S15-Sl", "Topper Artifacts S5.15.15.62-Sl.step", S15SL, "Artifacts"),
     ("Cities S15-Sl", "Topper Cities S5.15.15.62-Sl.step", S15SL, "Cities"),
     ("Figures S15-Sl", "Topper Figures S5.15.15.62-Sl.step", S15SL, "Figures"),
@@ -372,11 +343,8 @@ NAMED = [
 
 
 def split(sols, pp, dd):
-    """(mark solids, letter solids) of a filleted STEP's inlays.
-
-    Split on the PEN, not on a letter count: `Artifacts` and `Figures` carry a
-    dotted `i` whose tittle is its own solid, so counting glyphs undercounts.
-    """
+    """(mark, letter) solids of a filleted STEP's inlays, split on the PEN: a
+    dotted `i`'s tittle is its own solid, so counting glyphs undercounts."""
     body = max(sols, key=lambda q: q.volume)
     ins = sorted((q for q in sols if q is not body),
                  key=lambda q: q.bounding_box().min.X)
@@ -394,10 +362,7 @@ for tag, fn, pp, word in NAMED:
     mark = [q.bounding_box() for q in m_sol]
     text = [q.bounding_box() for q in t_sol]
 
-    # Two different things, and they differ by 0.010: the POCKET runs from the
-    # underside up by ENGRAVE, and the STEP's separate inlay solids are the
-    # same height but sit 0.010 lower, so they stand proud of the face and
-    # leave 0.010 clear at the pocket's top — as the Lid's logo inlays do.
+    # The STEP's inlays are as tall as the pocket but sit 0.010 lower, proud.
     pocket = T.build(dd) - max(sols, key=lambda q: q.volume)
     pz = pocket.bounding_box()
     check(f"{tag}: the pocket starts at the underside",
@@ -409,9 +374,7 @@ for tag, fn, pp, word in NAMED:
           round(T.ENGRAVE, 3), 1e-3)
     check(f"{tag}: ... and stand 0.010 proud of the face",
           round(T.Z_BASE - min(b.min.Z for b in boxes), 3), 0.010, 1e-3)
-    # OUR inlays — what `cad.build` writes beside the body — against the
-    # STEP's, solid for solid: the same count, each within 0.05 of its box
-    # (the letters' tessellation, as the lid's marks are held)
+    # Our inlays against the STEP's, solid for solid, each within 0.05 of box.
     mine_in = T.inlays(dd, word)
     check(f"{tag}: one inlay solid per STEP inlay", len(mine_in), len(ins))
     if len(mine_in) == len(ins):
@@ -430,11 +393,8 @@ for tag, fn, pp, word in NAMED:
                           for q in m_mine), default=0.0)
         worst_text = max((max(abs(a - b) for a, b in zip(box6(q), box6(nearest(q, t_sol))))
                           for q in t_mine), default=0.0)
-        # the marks are drawn geometry and land exactly; the letters are the
-        # vendored font against Onshape's rendering of it, within 0.07 at
-        # these sizes (the `g` alone differs by 0.00459 em) — except where
-        # the em is RAISED to the cut floor (`font_size`), the two 10-card
-        # unsleeved rows, whose letters are deliberately larger than the STEP's
+        # Marks land exactly; letters are the vendored font against Onshape's,
+        # within 0.07 -- except where `font_size` RAISES the em to the floor.
         raised = T.font_size(dd) > T.cap_band(dd) / T.BAND_EM + 1e-9
         check(f"{tag}: the mark's inlays land on the STEP's", round(worst_mark, 3), 0.0, 0.01)
         if raised:
@@ -443,17 +403,13 @@ for tag, fn, pp, word in NAMED:
         else:
             check(f"{tag}: the letters' inlays land on the STEP's to 0.07",
                   round(worst_text, 3), 0.0, 0.07)
-    # the mark's box: its width and its TOP edge, which every expansion fills
     mx0, my0, mx1, my1 = T.mark_box(dd)
     check(f"{tag}: the mark box is calLogoSidelength wide",
           round(mx1 - mx0, 4), round(dd.calLogoSidelength, 4), 1e-9)
-    # The BOX is the mark's own element — Unseen's shield, Cities' star — and
-    # the largest solid is that element on both. Unseen's five rays are drawn
-    # OUTSIDE it, and symmetrically: the group is 1.2644 * L wide and shares
-    # the box's centre, which is the 1.2644 spec/TOPPER.md records.
+    # The BOX is the mark's own element and the largest solid on both;
+    # Unseen's rays fall outside it, symmetrically (spec/TOPPER.md, 1.2644).
     big = max(m_sol, key=lambda q: q.volume).bounding_box()
-    # unrounded: mark_box lands on exact halves of a thousandth here, and
-    # rounding the two sides separately splits them by a whole 0.001.
+    # unrounded: mark_box lands on exact half-thousandths; rounding splits.
     check(f"{tag}: the mark's left edge is L/2 + MARK_GAP past the flat face",
           big.min.X, mx0, 1e-4)
     check(f"{tag}: ... and its right edge closes the box", big.max.X, mx1, 1e-4)
@@ -466,18 +422,12 @@ for tag, fn, pp, word in NAMED:
           round((my0 + my1) / 2, 6),
           round(sum(T.y_span(dd)) / 2, 6), 1e-9)
 
-    # the lettering: baseline, band, and the pen
     base = T.baseline_y(dd)
     # A flat-bottomed letter sits ON the baseline; a round one overshoots it.
-    # So the LEAST-descending letter's bottom IS the baseline, exactly — `n`
-    # in Unseen, `t` and `i` in Cities.
     a, lsb, lo, _hi = TX.metrics(word, T.FONT)
     size = T.font_size(dd)
-    # The STEP is Onshape's rule UNFLOORED: the band at BAND_EM of the em and
-    # the baseline 2*LogoEdgeDist in. `font_size` raises the 10-card unsleeved
-    # toppers to the 0.250 mm proud floor (`cad/text.py`, "floors"), so on
-    # `Unseen M10-Un` the reference is measured against the unfloored rule
-    # and the build against the floored one — both ends of the divergence.
+    # The STEP is Onshape's rule UNFLOORED; `font_size` raises the 10-card
+    # unsleeved rows to the cut floor (`cad/text.py`); M10-Un goes both ways.
     ref_size = T.cap_band(dd) / T.BAND_EM
     ref_base = T.face_datum(dd)[2] - 2 * T.logo_edge_dist(dd)
     raised = size > ref_size + 1e-9
@@ -488,8 +438,7 @@ for tag, fn, pp, word in NAMED:
               ref_size < TX.floor_size(T.FONT), True)
         check(f"{tag}: ... and the build's IS the floor",
               round(size, 6), round(TX.floor_size(T.FONT), 6))
-    # By LETTER, not by solid: a dotted `i` is two solids and its tittle never
-    # comes near the baseline, so a per-solid minimum reads the dot instead.
+    # By LETTER, not by solid: a dotted `i`'s tittle would read as minimum.
     glyphs = []
     for b in text:
         if glyphs and b.min.X < glyphs[-1][0] + 0.05:
@@ -505,7 +454,6 @@ for tag, fn, pp, word in NAMED:
           round(min(b.min.X for b in text) - lsb * ref_size, 3),
           round(T.text_origin_x(dd), 3), 0.01)
 
-    # and the whole word, rendered and placed the way build() will place it
     sk = T.name_sketch(dd, word)
     placed = (Pos(T.text_origin_x(dd), base, 0)
               * sk.mirror(Plane.XZ))
@@ -513,19 +461,13 @@ for tag, fn, pp, word in NAMED:
     tb = (min(b.min.X for b in text), max(b.max.X for b in text),
           min(b.min.Y for b in text), max(b.max.Y for b in text))
     if raised:
-        # The STEP's ink, scaled up about the pen and the baseline by the
-        # ratio of the two sizes and moved to the floored baseline, is where
-        # the build's ink must be: the same word, the same font, one rule.
+        # The STEP's ink scaled about the pen and baseline by the size ratio.
         k = size / ref_size
         x_pen = T.text_origin_x(dd)
         tb = (x_pen + (tb[0] - x_pen) * k, x_pen + (tb[1] - x_pen) * k,
               base + (tb[2] - ref_base) * k, base + (tb[3] - ref_base) * k)
-    # A tolerance PROPORTIONAL to the em, not an absolute one: the vendored
-    # Noto Serif Bold is not byte-identical to Onshape's — `s` measures
-    # 3.6/1000 em wider there — so the word's ink drifts by a fixed fraction of
-    # the size. Measured 0.0055 em on all three sizes, which is what says the
-    # difference is in the font's metrics and not in the placement. 0.008 em is
-    # that with headroom. spec/TOPPER.md, "The vendored Noto Serif Bold".
+    # A tolerance PROPORTIONAL to the em: the vendored Noto Serif Bold is
+    # not Onshape's (spec/TOPPER.md, "The vendored Noto Serif Bold").
     ftol = 0.008 * size
     check(f"{tag}: the name's ink left", round(pb.min.X, 3), round(tb[0], 3), ftol)
     check(f"{tag}: the name's ink right", round(pb.max.X, 3), round(tb[1], 3), ftol)
@@ -542,8 +484,7 @@ for tag, fn, pp, word in NAMED:
     dd = D.derive(pp)
     sols = import_step(str(STEP_DIR / fn)).solids()
     ref, _t = split(sols, pp, dd)
-    # The STEP's inlays are ENGRAVE tall and sit 0.010 proud, so area is volume
-    # over their own height and not over anything assumed.
+    # Area is volume over the inlays' own measured height, nothing assumed.
     h = (max(q.bounding_box().max.Z for q in ref)
          - min(q.bounding_box().min.Z for q in ref))
     area = sum(q.volume for q in ref) / h
@@ -556,16 +497,10 @@ for tag, fn, pp, word in NAMED:
                 - min(q.bounding_box().min.X for q in ref), 4), 1e-4)
     check(f"{tag}: ... centred on the box",
           round(mine.bounding_box().center().X, 6), 0.0, 1e-6)
-    # ORIENTATION. Area, piece count and width are all invariant under a
-    # mirror or a half turn, and the mark is placed by a mirror about XZ
-    # (`expansion_name`), so this is where a wrong sign would hide. Each
-    # piece's centroid, relative to the mark box's centre, must match a piece
-    # of the built mark's — the built mark is drawn about its own origin and
-    # its +y is the part's -Y once placed — to 0.05 mm. Figures is an annulus
-    # and cannot tell, but Unseen's rays hang below its shield and Artifacts'
-    # and Echoes' triangles point one way.
-    bx0, by0, bx1, by1 = T.mark_box(dd)     # THIS reference's box, not
-    cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2    # the last loop's leftover
+    # ORIENTATION: area, count and width are invariant under a mirror or half
+    # turn and the mark is placed by one, so compare centroids (not Figures).
+    bx0, by0, bx1, by1 = T.mark_box(dd)     # THIS reference's box
+    cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2
     ref_pts = sorted((round(q.center().X - cx, 2), round(cy - q.center().Y, 2))
                      for q in ref)
     mine_pts = sorted((round(f.center().X, 2), round(f.center().Y, 2))
@@ -599,16 +534,12 @@ for tag, fn, pp, word in NAMED:
     blank_b = T.build(dd)
     named = T.build(dd, word)
     ref = max(import_step(str(STEP_DIR / fn)).solids(), key=lambda s: s.volume)
-    # `Solid.volume` is not the metric here: OCCT's GProp over-reports a body
-    # with this many small BSpline faces, on the reference as much as on the
-    # source. What the engraving actually removes is exact.
+    # `Solid.volume` is not the metric: OCCT over-reports these BSpline faces.
     mine_cut = blank_b - named
     ref_cut = blank_b - ref
     check(f"{tag}: the engraving comes out in the same number of pieces",
           len(mine_cut.solids()), len(ref_cut.solids()))
-    # Where the floor raises the lettering (`M10-Un`), the pocket grows by
-    # the name's area at the two sizes — the mark is unchanged — and that is
-    # what the STEP's removed volume is held to; elsewhere the two agree.
+    # Where the floor raises the lettering, the pocket grows by that area.
     ref_size = T.cap_band(dd) / T.BAND_EM
     size = T.font_size(dd)
     extra = 0.0
@@ -621,10 +552,7 @@ for tag, fn, pp, word in NAMED:
           + (f" (plus {extra:.2f} mm3 of raised lettering)" if extra else ""),
           round(100 * abs(mine_cut.volume - (ref_cut.volume + extra))
                 / ref_cut.volume, 3) < 0.2, True)
-    # 0.01 %: the S-size references (2026-09-04) read 0.0054, 0.0027 and
-    # 0.0014 against the 0.005 the M ones sat under, and the EXACT volumes
-    # agree to 0.004 % — the excess is the two tessellations of a slanted
-    # body, not the geometry.
+    # 0.01%: the exact volumes agree to 0.004%; the excess is tessellation.
     check(f"{tag}: tessellated volume within 0.01% of the reference"
           + (" less the raised lettering" if extra else ""),
           round(100 * abs(tri_volume(named) - (tri_volume(ref) - extra))
@@ -635,13 +563,8 @@ check("build() refuses a name that is not an expansion",
       refuses(lambda: T.build(d, "Nonesuch")), True)
 
 print("\n=== `Figures`' descender, which the doubled margin is FOR ===")
-# Allan doubled the bottom margin so the font's lower-case `g` does not run off
-# the face. It is load-bearing on exactly one of the six, so it is the one that
-# has to be checked on every row rather than on the reference at hand — and
-# with Onshape's `g`, which descends 0.00459 em DEEPER than the vendored one.
-# That figure is measured: `Figures`' ink is 0.455% taller than the vendored
-# font predicts, where the other four agree to 0.013%, and the `g` is the only
-# glyph they do not share.
+# The doubled bottom margin keeps `Figures`' `g` on the face, so it is checked
+# on every row and with Onshape's deeper `g` (spec/TOPPER.md, "The typeface").
 _a, _l, g_lo, _hi = TX.metrics("Figures", T.FONT)
 ONSHAPE_G = g_lo - 0.00459
 worst = None
@@ -657,7 +580,6 @@ for row in params.load_rows(ROOT / "automation" / "parts.csv"):
 check("the g clears the face on every row, Onshape's deeper g included",
       round(worst, 3) > 0.0, True)
 check("... with 0.212 to spare at the tightest", round(worst, 3), 0.212, 1e-3)
-# and the rule it depends on: the bottom margin is TWICE the top
 pp = REF.primary(4, 5, 15, 15, 0, 15, 1, 0, "Innovation")
 dd = D.derive(pp)
 _x, rear_f, front_f = T.face_datum(dd)

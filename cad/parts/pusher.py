@@ -1,10 +1,7 @@
 """The Pusher.
 
 A staircase plate that hangs in the box slot and locks into the lid socket.
-Measured from a hand-exported STEP in `spec/PUSHER.md`; the Onshape feature
-tree it mirrors is, in order: Triangle shape / Single step / Round top of step /
-Replicate steps / First Step / Round step 1 / Centre Notch / Tabs / text /
-Chamfer 1 / Chamfer 2.
+Measured in `spec/PUSHER.md`.
 
 Local frame (the part studio's, not the assembly's):
     X   rise, 0 at the leading edge, up to calPusherTotalHeight
@@ -12,8 +9,7 @@ Local frame (the part studio's, not the assembly's):
     Z   thickness, 0 at the back face, PLATE at the front, tabs stand proud
 
 A hand-exported STEP, and a component 3MF, arrive in ASSEMBLY position:
-`assembly_offset` below is that transform; tests/test_pusher.py aligns on the
-bounding box.
+`assembly_offset` below is that transform.
 """
 from build123d import (BuildPart, BuildSketch, BuildLine, Polyline, Plane,
                        Locations, Box, Mode, Pos, Rot, add, make_face, extrude,
@@ -22,13 +18,10 @@ from build123d import (BuildPart, BuildSketch, BuildLine, Polyline, Plane,
 from .. import lock as L
 from .. import text as T
 
-# Assembly position. A component 3MF (and a hand-exported STEP) arrives from
-# Onshape placed by the `Lay down` / `Fix to lid` mates, and all 32 pushers on
-# disk sit at exactly the same rule: X shifted by ASSEMBLY_X, Y unchanged (the
-# part already runs 0 .. -calPusherTotalDepth), and Z at -calHeightIncrement.
-# So the Z that spec/PUSHER.md recorded as "not constant" — -18.000 on Compile
-# 105, -16.000 on Dominion 246 — is not arbitrary; those are their rises.
-ASSEMBLY_X = 3.000        # constant on all 32; equals PusherThickness
+# An Onshape export arrives shifted by ASSEMBLY_X in X, unchanged in Y, and at
+# -calHeightIncrement in Z — a rule, not a constant (spec/PUSHER.md,
+# "Settled by the Dominion export").
+ASSEMBLY_X = 3.000        # equals PusherThickness
 
 CHAMFER = 2.000           # Chamfer 1 / Chamfer 2, 45 degrees, full thickness
 ROUND_FIRST = 1.000       # Round step 1
@@ -38,31 +31,20 @@ ENGRAVE = 0.400           # text depth
 
 def slider_drops(d):
     """The Y drop at each step, leading edge first, summing to
-    calPusherTotalDepth.
-
-    The override goes on the LEADING edge — settled by the Dominion 246 STEP,
-    whose outline drops 20.400 (calFirstSliderDistance) at the first step and
-    9.600 (calSliderDistance) at the second. That is also the step Onshape
-    rounds separately (`First Step` / `Round step 1`, at x = calHeightIncrement),
-    and its riser face measures PLATE - 2r for r = 1.000 rather than 0.800.
-    """
+    calPusherTotalDepth. The override goes on the LEADING edge
+    (spec/PUSHER.md, "Settled by the Dominion export"), or on the LAST drop —
+    the top tread — where the row puts the deep slot at the back."""
     drops = [d.calSliderDistance] * d.RisingSliders
     if d.isFirstSlidingSlotOverride:
-        # ... unless the row puts the deep slot at the BACK (`Deep slot`,
-        # cad/ only): then it is the LAST drop, the top tread, and the
-        # leading step is a plain one.
         drops[-1 if d.isDeepSlotAtBack else 0] = d.calFirstSliderDistance
     return drops
 
 
 def profile_points(d, notch=True):
-    """The staircase outline, in order, starting at the leading edge.
-
-    `notch` mirrors the CAD's suppression formula on `Remove Centre Notch`:
-    C1 and C2 have no room for a 5.400 notch between tabs 6.20 / 10.20 apart
-    (the lands would be -1.50 and 0.50), so those six sizes lock by tabs alone
-    and their lids lose the key rib.
-    """
+    """The staircase outline, in order, starting at the leading edge. `notch`
+    mirrors `Remove Centre Notch`: C1 and C2 have no room for a 5.400 notch
+    between their tabs, so those six sizes lock by tabs alone and their lids
+    lose the key rib."""
     H, W = d.calPusherTotalHeight, d.calPusherTotalDepth
     inc = d.calHeightIncrement
     yc = -W / 2
@@ -108,8 +90,8 @@ def build(d, text=True):
         raise ValueError(f"{name} leaves under {L.EDGE_MIN} mm of plate "
                          f"outboard of a tab at depth {W}")
 
-    # Text objects are only valid inside a BuildSketch, so the engraving
-    # solids are made first, in algebra mode, and subtracted below.
+    # Text is only valid inside a BuildSketch, so the engraving solids are
+    # made first, in algebra mode, and subtracted below.
     cuts = []
     if text:
         for txt, size, x0, baseline in T.logo_lines(d):
@@ -117,10 +99,10 @@ def build(d, text=True):
                           align=(Align.MIN, Align.MIN))
             cuts.append(extrude(Pos(x0, baseline, L.PLATE - ENGRAVE) * glyphs,
                                 amount=ENGRAVE))
-        # The detail line reads down the depth, so it is turned -90 degrees:
-        # that maps +X to -Y and +Y to +X, leaving the baseline running along
-        # -Y with the glyphs standing up +X. Align.MIN then Rot puts the ink's
-        # min X and max Y at the origin, so the anchor is a plain translation.
+        # The detail line reads down the depth, so -90 degrees maps +X to -Y
+        # and +Y to +X: the baseline runs along -Y, glyphs stand up +X.
+        # Align.MIN then Rot puts the ink's min X and max Y at the origin, so
+        # the anchor is a plain translation.
         txt, size, bx, y0 = T.detail_placement(d)
         glyphs = Rot(0, 0, -90) * Text(txt, font_size=size,
                                        font_path=T.DETAIL_FONT,
@@ -135,9 +117,7 @@ def build(d, text=True):
             make_face()
         extrude(amount=L.PLATE)
 
-        # Round top of step / Round step 1 — the riser faces are filleted on
-        # both Z edges, r=1.000 on the step nearest the leading edge and
-        # r=0.800 on the replicated ones. This is why the riser faces measure
+        # Riser faces are filleted on both Z edges, which is why they measure
         # (PLATE - 2r) tall rather than PLATE.
         for k in range(1, d.RisingSliders + 1):
             r = ROUND_FIRST if k == 1 else ROUND_STEP
@@ -150,8 +130,7 @@ def build(d, text=True):
                                  f"found {len(edges)}")
             fillet(edges, radius=r)
 
-        # Tabs — flush with the leading edge, standing TAB_PROUD off the front
-        # face only, at the centreline +- s.
+        # Tabs: flush with the leading edge, proud of the FRONT face only.
         with Locations(*[(0, yc + sign * s, L.PLATE) for sign in (+1, -1)]):
             Box(L.TAB_L, L.TAB_W, L.TAB_PROUD,
                 align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.ADD)

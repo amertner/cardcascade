@@ -3,19 +3,10 @@
 
     .venv/bin/python tests/test_lid.py
 
-Four references in `spec/reference/`, listed in `spec/LID.md`. The Lid is being
-built group by group; this asserts only what is written, and grows with it.
+References in `spec/reference/`, listed in `spec/LID.md`.
 
-Proven: the envelope, the shell, the sockets — the lid's half of the 7.0 lock,
-channel, key rib and both tab recesses — the closing grooves, the `1.000` round
-on all twelve outer edges, the floor's engraving, and the logo pattern: the
-pocket in the underside and the inlay solids that fill it.
-
-Every check runs against the STEP **and** the build wherever it can, because a
-check that only reads the build cannot tell a wrong probe from a wrong model —
-the lesson `spec/BOX.md` records four times over. It caught a real one here:
-the closing groove was built unchamfered, and the volume gap was out by exactly
-the 5.000 mm3 of the four chamfers.
+Every check runs against the STEP **and** the build wherever it can: a check
+that only reads the build cannot tell a wrong probe from a wrong model.
 """
 import math
 import sys
@@ -34,9 +25,8 @@ from cad.parts import lid                       # noqa: E402
 
 STEP_DIR = ROOT / "spec" / "reference"
 REFS = [
-    # The only reference with a first-riser override, and the cascade whose Box
-    # and Pusher are both referenced too — so the lock can be followed across
-    # all three parts of one design.
+    # The only first-riser override, and the only cascade whose Box and Pusher
+    # are referenced too, so the lock can be followed across all three.
     ("Dominion 246 Sl", "Lid Dominion 246S with logo.step",
      REF.primary(3, 2, 40, 12, 1, 30, 1, 0, "Dominion")),
     # M: three sockets, and unsleeved.
@@ -48,20 +38,15 @@ REFS = [
     # XS: the narrowest lid in the catalogue, two horizontal slots.
     ("Innovation 130 Un", "Lid Innovation 130U.step",
      REF.primary(2, 5, 15, 10, 0, 10, 0, 0, "Innovation")),
-    # The Ultimate mark at scale 1, exported 2026-09-04 with the U's underline
-    # boxes corrected — the drawing `lid_logo_big.brep` is lifted from THIS
-    # STEP's inlays, so the inlay checks hold it region for region.
+    # Ultimate at scale 1; `lid_logo_big.brep` is lifted from THIS STEP.
     ("Innovation M5.15.15 Un (Ultimate)", "Lid Innovation M5.15.15.45-Un with logo.step",
      REF.primary(4, 5, 15, 15, 0, 15, 0, 0, "Innovation")),
     # A second GAME's card size, and the only reference whose lock is C4.
     ("Compile 126 Sl", "Lid Compile 126S.step",
      REF.primary(3, 5, 7, 7, 0, 7, 1, 0, "Compile")),
 ]
-# The logo pattern's pocket in the underside of the floor. Deferred with the
-# pattern itself; measured here only so the volume gap can be accounted for.
-# 0.810, not 0.800: the pocket is cut from z = 0 to 0.810 and the inlay solids
-# are 0.810 prisms sitting 0.010 LOWER, so they stand 0.010 proud of the lid's
-# underside. Their total volume is exactly the pocket's.
+# 0.810, not 0.800: the pocket is cut z = 0..0.810 and the inlays are 0.810
+# prisms sitting 0.010 lower, standing that proud of the underside.
 PATTERN_DEPTH = 0.810
 
 fails = []
@@ -93,8 +78,8 @@ def area_at(solid, axis, coord, facing):
 
 
 def radius(face):
-    """A cylindrical face's radius, or None. `Face.radius` raises on the
-    glyph arcs of the embossed text, which are cylinders too."""
+    """A cylindrical face's radius, or None: `Face.radius` raises on the
+    embossed text's glyph arcs, which are cylinders too."""
     try:
         return face.radius
     except Exception:
@@ -102,8 +87,7 @@ def radius(face):
 
 
 def emboss_lines(solid, z):
-    """[(x0, x1, y0, y1)] of the embossed lines standing `z - WALL` proud,
-    clustered into lines by Y. The order is up the lid."""
+    """[(x0, x1, y0, y1)] of the embossed lines, by Y, up the lid."""
     fs = [f for f in solid.faces()
           if f.geom_type == GeomType.PLANE
           and abs(f.center().Z - z) < 1e-6
@@ -120,14 +104,10 @@ def emboss_lines(solid, z):
 
 
 def baselines(solid, z, n):
-    """The `n` baselines of the text standing `z - WALL` proud.
+    """The `n` baselines: the MODAL bottom edge, not the box floor.
 
-    A line's baseline is where MOST of its glyphs sit, so it is the modal
-    bottom edge and not the bounding box's floor: `Compile` has a descending
-    `p` and `126 Cards/S` a descending slash, either of which puts a line's box
-    a millimetre below the line. Clustering by box merged two of Compile's
-    three lines and read the third 1.118 low — the reference and the build
-    agreeing exactly on the wrong number, which is what said it was the probe.
+    A descender puts a line's box a millimetre low; clustering by box read
+    Compile 1.118 low on BOTH ends — agreeing wrongly is a probe fault.
     """
     bottoms = Counter(round(f.bounding_box().min.Y, 2) for f in solid.faces()
                       if f.geom_type == GeomType.PLANE
@@ -137,8 +117,7 @@ def baselines(solid, z, n):
 
 
 def socket_walls(solid, x, y0, y1):
-    """{X: area} of the X-normal faces inside one socket — the whole of the
-    lock in one probe: block sides, recess floor, and both channel walls."""
+    """{X: area} of one socket's X-normal faces — the whole lock."""
     out = {}
     for f in solid.faces():
         if f.geom_type != GeomType.PLANE:
@@ -151,23 +130,9 @@ def socket_walls(solid, x, y0, y1):
     return out
 
 
-# ## The fit rule is PINNED for the reference suite
-#
-# Every reference was exported before `lid.logo_choice` existed, so each
-# carries its game's DEFAULT mark at the size it was drawn — including
-# `Lid Innovation 130U`, an XS lid the rule now gives the plain "Innovation"
-# mark instead of "Innovation Ultimate". Pinning the choice to the drawn
-# default is what lets this suite keep asserting the pattern against Onshape:
-# the artwork itself, the odd/even nesting that makes a counter a hole, the
-# extrusion's direction, and the two Z ranges. The rule the pin replaces is
-# asserted on its own at the bottom of this file.
-# Innovation's references are pinned BY NAME, because its marks are generated
-# now and the table no longer lists the drawings they were exported with: the
-# XS lid carries the small Ultimate drawing of the OLD sketch (its fan is
-# where the old sketch put it, so the generated mark would not match), and
-# the corrected Ultimate lid carries `lid_logo_big.brep` at `#LogoScaleFactor
-# 1` — lifted from this very STEP, and also what the rule picks for it. The
-# other games' references take the table's last (smallest) drawing at 1.0.
+# The fit rule is PINNED here: every STEP predates `lid.logo_choice` and
+# carries its game's DEFAULT mark at the drawn size (the rule itself is
+# asserted at the bottom). Innovation's two are pinned BY NAME.
 _EXPORTED_WITH = {
     "Lid Innovation 130U.step": ("lid_logo.dxf", 1.0),
     "Lid Innovation M5.15.15.45-Un with logo.step": ("lid_logo_big.brep", 1.0),
@@ -183,16 +148,12 @@ for name, fn, P in REFS:
     path = STEP_DIR / fn
     print(f"\n=== {name} ===")
     if not path.exists():
-        # A missing reference is a FAILURE, not a skip: every STEP in
-        # spec/reference is checked in, and a suite that turns green
-        # when one goes missing is not a suite.
+        # A missing reference is a FAILURE, not a skip: every STEP is in git.
         print(f"  FAIL — reference {path.name} not present")
         fails.append(f"{name}: reference {path.name} missing")
         continue
     d = D.derive(P)
-    # The STEP carries the logo pattern's inlays as separate solids sitting in
-    # z -0.010..0.800; the lid body is the big one, and it is NOT pocketed for
-    # them — see spec/LID.md.
+    # The STEP carries the inlays as separate solids; the body is the big one.
     solids = import_step(str(path)).solids()
     ref = max(solids, key=lambda s: s.volume)
     mine = lid.build(D.derive(P))
@@ -201,7 +162,6 @@ for name, fn, P in REFS:
           f"{ref.volume:.3f} mm3;  build {len(mine.faces())} faces, "
           f"{mine.volume:.3f} mm3")
 
-    # --- the envelope ------------------------------------------------------
     check("width  = #BoxWidth + 4.600", round(rb.size.X, 3),
           round(lid.lid_width(d), 3), 1e-3)
     check("depth  = calLidDepth", round(rb.size.Y, 3),
@@ -214,13 +174,10 @@ for name, fn, P in REFS:
           [round(v, 3) for v in (rb.min.X + rb.max.X, rb.min.Y + rb.max.Y,
                                  rb.min.Z)], [0.0, 0.0, 0.0])
 
-    # --- the shell ---------------------------------------------------------
     W = lid.lid_width(d) / 2
     DD = lid.lid_depth(d) / 2
     for who, solid in (("STEP ", ref), ("build", mine)):
-        # A wall's own area is what tells it from its neighbour: the outer
-        # face runs the full height less the 1.000 rounds, the inner one is
-        # WALL shorter in both directions.
+        # A wall's own area is what tells it from its neighbour.
         check(f"{who}: outer end walls at +-lid_width/2",
               [area_at(solid, 0, -W, "-") > 0, area_at(solid, 0, W, "+") > 0],
               [True, True])
@@ -235,7 +192,6 @@ for name, fn, P in REFS:
               round((2 * W - 2 * lid.OUTER_ROUND) * (2 * DD - 2 * lid.OUTER_ROUND)
                     - (2 * W - 2 * lid.WALL) * (2 * DD - 2 * lid.WALL), 3), 1e-3)
 
-    # --- the sockets: the lid's half of the 7.0 lock -----------------------
     y0, y1 = lid.socket_span(d)
     cls, s = L.lock_class(d.calPusherTotalDepth)
     check(f"lock class from calPusherTotalDepth {d.calPusherTotalDepth:.2f}",
@@ -246,12 +202,8 @@ for name, fn, P in REFS:
           round(d.calLidDepth / 2 - y1, 3), round(lid.SOCKET_BACK, 3), 1e-6)
     side = round(lid.SOCKET_H * (y1 - y0), 2)     # a socket block's own side
 
-    # This file builds at the REFERENCE release (7.0, `tests/reference.py`),
-    # where the socket count is Onshape's own size rule and the build and the
-    # STEP agree exactly — including the three sockets of an Innovation M,
-    # whose cascade ships two pushers. 7.1 cuts one socket per pusher and drops
-    # the middle one; that is a RELEASE change, and `tests/test_revisions.py`
-    # asserts both ends of it. Nothing here should know about it.
+    # Pinned to 7.0 (`tests/reference.py`), Onshape's size rule; 7.1's
+    # one-per-pusher is a RELEASE change, asserted in test_revisions.py.
     want_c = lid.socket_centres(d)
     for who, solid in (("STEP ", ref), ("build", mine)):
         xs = sorted(k[0] for k, a in planes(solid, 0).items()
@@ -287,8 +239,7 @@ for name, fn, P in REFS:
     # The recesses carry `s`, and both are cut into the -X wall only.
     for who, solid in (("STEP ", ref), ("build", mine)):
         end = round(L.LID_RECESS_STEP * lid.SOCKET_H, 3)
-        # Deduped: every socket has its recesses at the same two Y, so the
-        # four distinct ends pair up whatever the socket count is.
+        # Deduped: every socket has its recesses at the same two Y.
         ys = sorted({round(f.center().Y, 3) for f in solid.faces()
                      if f.geom_type == GeomType.PLANE
                      and abs(f.normal_at(f.center()).Y) > 0.999
@@ -299,7 +250,6 @@ for name, fn, P in REFS:
               [round(c - (y0 + y1) / 2, 3) for c in centres],
               [-round(s, 3), round(s, 3)])
 
-    # --- the closing grooves ----------------------------------------------
     z0, z1 = lid.groove_span(d)
     flat = round(2 * lid.GROOVE_LEN * (lid.GROOVE_DEPTH - lid.GROOVE_CHAMFER), 3)
     for who, solid in (("STEP ", ref), ("build", mine)):
@@ -307,8 +257,7 @@ for name, fn, P in REFS:
               area_at(solid, 2, z0, "+"), flat, 1e-3)
         check(f"{who}: groove roof GROOVE_HEIGHT above it",
               area_at(solid, 2, z1, "-"), flat, 1e-3)
-        # The floor is INTO the wall, so outboard of its inner face: it faces
-        # back at the cavity, +X on the -X wall and -X on the +X one.
+        # The floor is INTO the wall, so it faces back at the cavity.
         deep = round(W - lid.WALL + lid.GROOVE_DEPTH, 3)
         check(f"{who}: groove floor GROOVE_DEPTH into the wall",
               [area_at(solid, 0, -deep, "+"), area_at(solid, 0, deep, "-")],
@@ -321,7 +270,6 @@ for name, fn, P in REFS:
               [len(ch), sorted({round(f.area, 3) for f in ch})],
               [4, [round(lid.GROOVE_LEN * lid.GROOVE_CHAMFER * 2 ** 0.5, 3)]])
 
-    # --- the outer rounds --------------------------------------------------
     for who, solid in (("STEP ", ref), ("build", mine)):
         cyl = [f for f in solid.faces() if f.geom_type == GeomType.CYLINDER
                and radius(f) is not None
@@ -332,12 +280,8 @@ for name, fn, P in REFS:
               [len(sph), sorted({round(f.area, 4) for f in sph})],
               [8, [round(math.pi * lid.OUTER_ROUND ** 2 / 2, 4)]])
 
-    # --- the floor's engraving --------------------------------------------
-    # The lines are placed by rule, so their BASELINES are what to compare:
-    # every one is a ladder of constants off the pusher socket line. Ink
-    # widths are not, and cannot be — Onshape's advance for a string runs
-    # 0.31 % wider than the font file's, so the build's ink stops up to
-    # 0.25 mm further right. That is the divergence cad/README.md records.
+    # BASELINES, not ink widths: Onshape's advance runs 0.31 % wider than the
+    # font file's, a divergence cad/README.md records.
     for who, solid in (("STEP ", ref), ("build", mine)):
         check(f"{who}: the text stands {lid.TEXT_PROUD} proud of the floor",
               area_at(solid, 2, lid.WALL + lid.TEXT_PROUD, "+") > 0, True)
@@ -352,9 +296,7 @@ for name, fn, P in REFS:
         got = baselines(solid, lid.WALL + lid.TEXT_PROUD, 3)
         check(f"{who}: the three lines' baselines, 5.500 and 5.000 apart",
               [b for b in got if b in want], want)
-        # Only the three lines: the version is right-aligned on the LOGO
-        # block, and on an XS lid that block reaches further right than this
-        # one does, so it belongs to neither this check nor this edge.
+        # Only the three lines: the version is right-aligned on the LOGO.
         right = max(line[1] for line in lines if round(line[2], 3) in want)
         check(f"{who}: text block right edge = text_offset in from the wall",
               right < W - lid.WALL - lid.text_offset(d) + 1e-6, True)
@@ -369,8 +311,7 @@ for name, fn, P in REFS:
               round(logo[-1][0], 1), round(left + 0.056 * size, 1), 0.15)
         check(f"{who}: ProductName's baseline = FootDistanceFromWall + 1 down",
               round(logo[-1][2], 1), round(logo_base, 1), 0.06)
-    # The staircase is the whole of the rest of the 0.600 group, and its area
-    # is closed form: R steps of #LogoStepWidth by #LogoStepHeight.
+    # The staircase is the rest of the 0.600 group; its area is closed form.
     if P.HorizontalSlots > 2:
         top = logo_base - 2 * TX.CAP * size / 3
         slope = top - lid.socket_span(d)[0]
@@ -383,13 +324,10 @@ for name, fn, P in REFS:
             check(f"{who}: staircase, {P.RisingSliders} steps",
                   [len(stair.edges()), round(bb.size.X, 2)],
                   [2 * P.RisingSliders + 2, round(lid.logo_width(d), 2)])
-            # Its HEIGHT is where the 0.31 % divergence between our fitted cap
-            # and Onshape's lands, so it gets a tolerance rather than a round:
-            # on Compile the reference's slope is 31.3 and ours 31.2.
+            # Its HEIGHT carries the 0.31 % cap divergence (31.3 vs 31.2).
             check(f"{who}: staircase height = the slope",
                   round(bb.size.Y, 3), round(slope, 3), 0.15)
-            # Against its OWN box, so the 0.31 % that separates our slope
-            # height from Onshape's cancels: R equal steps fill exactly
+            # Against its OWN box, so the 0.31 % cancels: R equal steps fill
             # (R + 1) / 2R of the rectangle they descend.
             check(f"{who}: staircase area = R steps of LogoStepWidth x Height",
                   round(stair.area, 2),
@@ -401,11 +339,7 @@ for name, fn, P in REFS:
             check(f"{who}: XS carries the word alone, no staircase",
                   len(emboss_lines(solid, lid.WALL + lid.LOGO_PROUD)), 1)
 
-    # --- the logo pattern --------------------------------------------------
-    # Two features off one sketch: `Remove logo` cuts the pocket and
-    # `Add Logo Material` fills it. They are asserted together, because the
-    # whole point of building them from one set of regions is that the inlay
-    # cannot drift out of its pocket.
+    # Pocket and inlay come off ONE sketch, so they are asserted together.
     ref_inlays = [x for x in solids if x is not ref]
     mine_inlays = lid.inlays(D.derive(P))
     check("the reference carries inlay solids", len(ref_inlays) > 0, True)
@@ -413,32 +347,20 @@ for name, fn, P in REFS:
     if mine_inlays:
         rv = sum(x.volume for x in ref_inlays)
         mv = sum(x.volume for x in mine_inlays)
-        # 0.1 %: the artwork is a DXF, and a curve exported from CAD comes
-        # back with its coordinates rounded. Dominion's logo is all straight
-        # lines and matches to 0.000; Innovation's carries 361 arcs and 234
-        # B-splines and lands at 0.09 %.
+        # 0.1 %, the DXF round trip: Dominion is all straight lines and
+        # matches to 0.000; Innovation's 361 arcs land at 0.09 %.
         check("inlay volume", round(mv, 3), round(rv, 3), rv * 1e-3)
-        # ORIENTATION, asserted from both ends. Printed 7.1 lids settled it
-        # (spec/LID.md): Dominion's drawing is right as Onshape drew it, and
-        # Innovation's mark goes in a half turn about the lid's centre
-        # (`TB.LID_LOGO_TURNED`). So a turned game's build must be the
-        # reference turned and NOT the reference as it stands, and every other
-        # game's the reverse, so a half turn cannot come or go unseen. Volume
-        # and footprint cannot see a half turn; this can.
+        # ORIENTATION, from both ends — printed 7.1 lids settled it
+        # (spec/LID.md). Volume and footprint miss a half turn; this can.
         def regions(inlays, turn):
-            """Each region's (x, y, volume) — turned a half turn about the
-            LID's centre, the origin, where `lid.logo_art` turns a mark."""
+            """Each region's (x, y, volume), turned about the lid's centre."""
             s = -1 if turn else 1
             return [(s * q.center().X, s * q.center().Y, q.volume)
                     for q in inlays]
 
         def matched(a, b):
-            """Every region of `a` has one of `b` within 0.1 mm of centroid
-            and 3 % of volume — loose enough for the generated Innovation
-            mark, whose smallest regions are rebuilt from the font rather
-            than lifted (the total agrees to 0.08 %), and a turn moves a
-            region by tens of millimetres, so the negative check keeps its
-            teeth."""
+            """Every region of `a` has one of `b` within 0.1 mm and 3 % —
+            loose for the rebuilt Innovation regions, tight against a turn."""
             return all(any(abs(x - u) < 0.1 and abs(y - v) < 0.1
                            and abs(w - q) < 0.03 * w for u, v, q in b)
                        for x, y, w in a)
@@ -458,9 +380,7 @@ for name, fn, P in REFS:
         check(f"inlay footprint{' (turned)' if turned else ''}",
               [round(v, 3) for v in (mb.min.X, mb.max.X, mb.min.Y, mb.max.Y)],
               [round(v, 3) for v in want])
-        # The one number that says the two features agree: the inlay sits
-        # PATTERN_PROUD below the underside and its top is PATTERN_DEPTH above
-        # that, so it fills a pocket cut 0.810 up from z = 0.
+        # The one number that says the two features agree.
         check("inlays sit PATTERN_PROUD below the underside",
               [round(mb.min.Z, 3), round(mb.max.Z, 3)],
               [round(-lid.PATTERN_PROUD, 3),
@@ -477,24 +397,12 @@ for name, fn, P in REFS:
               area_at(ref, 2, lid.PATTERN_DEPTH, "-"),
               area_at(ref, 2, lid.PATTERN_DEPTH, "-") * 1e-3)
 
-    # --- nothing else may differ -------------------------------------------
-    # To 1 mm3 in 6e4. What is left is the engraving's 0.31 % advance and the
-    # artwork's DXF round trip, both documented in spec/LID.md; every feature
-    # on the part is now built.
-    #
-    # The dropped middle socket is PRICED rather than tolerated: `lid.socket`
-    # builds the very block the STEP has and the build does not, so the whole
-    # difference has to be that block and nothing else. A second change hiding
-    # behind the divergence would show up here.
+    # Nothing else may differ: 1 mm3 in 6e4, the advance and the DXF trip.
     check("reference - build, the whole body", round(ref.volume - mine.volume, 2),
           0.0, 1.0)
 
-# --- the export pair ----------------------------------------------------
-# `Lid Dominion 246S.step` is the one export Allan took WITHOUT the logo
-# meshes embedded: it carries the inlay solids but its body is NOT pocketed
-# for them. The pair is what made the pocket measurable on its own — the same
-# trick as the Box's filleted/unfilleted pair — so it is asserted rather than
-# left as a note.
+# `Lid Dominion 246S.step` is the one export WITHOUT the logo meshes: its body
+# is NOT pocketed, which is what makes the pocket measurable on its own.
 print("\n=== the export pair ===")
 plain = STEP_DIR / "Lid Dominion 246S.step"
 if not plain.exists():
@@ -512,37 +420,25 @@ else:
           round(body.volume - sum(x.volume for x in inlays), 2),
           round(lid.build(D.derive(P)).volume, 2), 1.0)
 
-# --- the fit rule -------------------------------------------------------
-# The pin comes off: from here on `lid.logo_choice` is the rule itself, which
-# is `cad/` policy and not a transcription of Onshape (spec/LID.md, "Sizing the
-# mark"). Four lids are named because each is a different branch, and then the
-# whole catalogue is held to the two invariants that make the rule safe.
+# The pin comes off: `lid.logo_choice` is `cad/` policy, not Onshape
+# (spec/LID.md, "Sizing the mark"). One lid per branch, then two invariants.
 lid.logo_choice = _choice
 print("\n=== the fit rule ===")
 
 for model, want_file, want_scale in [
-        # the mark is drawn to this lid, and came down 2.3 % all the same:
-        # LOGO_CLEAR. Its ink was 0.011 from the round before that — 0.977
-        # through 7.2e; 0.945 from 7.2f, the lid being 1.400 shallower
-        # (`rev.shorter_box`, spec/BOX.md)
+        # drawn to this lid and still down 2.3 % for LOGO_CLEAR; 0.977
+        # through 7.2e, 0.945 from 7.2f's shallower lid (`rev.shorter_box`)
         ("S4.16.10.32-Un", "lid_logo.dxf", 0.945),
         # too deep for the mark as drawn: the width fraction sizes it
         ("L8.50.10.62-Sl", "lid_logo.dxf", 1.655),
-        # shallower than the mark is drawn: shrunk to clear the outer round,
-        # and the lid where that clamp bites hardest — 0.908 filled the flat
-        # floor exactly and still cut 0.561 into the round, the drawing being
-        # 0.618 low as Onshape drew it (spec/LID.md, "`hard` is measured per
-        # SIDE") — 0.855 through 7.2e, 0.821 from 7.2f (the shallower lid)
+        # shallower than drawn, where the round clamp bites hardest
+        # (spec/LID.md, "per SIDE"): 0.855 through 7.2e, 0.821 from 7.2f
         ("S4.7.7.20-Un", "lid_logo.dxf", 0.821),
-        # Innovation's Ultimate mark, generated at its two published sizes:
-        # the big one held where it fits as published, the small one sized
-        # up by the width fraction where it does not (1.211, not the drawn
-        # ladder's 1.210: the generated mark's 0.600 of stroke does not scale)
+        # Ultimate at its two published sizes; 1.211 not the drawn ladder's
+        # 1.210, because the generated mark's 0.600 stroke does not scale
         ("S5.15.15.45-Un", "@innovation-ultimate-big", 1.000),
         ("S5.10.10.32-Un", "@innovation-ultimate", 1.211),
-        # the generated plain mark: held at its drawn size on the XS lid,
-        # which is already wider than the width fraction allows, and sized to
-        # that fraction on the S one
+        # the plain mark: drawn size on the XS lid, the fraction on the S
         ("XS5.15.10.32-Un", "@innovation-plain", 1.000),
         ("S3.15.10.20-Un", "@innovation-plain", 1.211)]:
     hit = [(pp, dd) for _f, fn, pp, _alt in build.lid_catalogue()
@@ -555,19 +451,14 @@ for model, want_file, want_scale in [
     check(f"{model}: drawing", got_file, want_file)
     check(f"{model}: scale", round(got_scale, 3), want_scale, 1e-3)
 
-# Two invariants, over every lid there is. The first is a defect if it fails —
-# a pocket that runs into an outer round breaks the rim — and the second is the
-# promise the rule makes: a mark Allan has already published is never made
-# smaller to satisfy a proportion, only ever to fit.
-# Measured per SIDE and on the ink itself, not as a size against the flat
-# floor: those are the same statement only for a mark centred on the lid, and
-# a drawing is not — which is how Compile's smallest lid came to cut 0.561
-# into its round with its height exactly filling the floor (`marks.reach`).
+# Two invariants over every lid: a pocket into an outer round breaks the rim,
+# and a published mark is never shrunk except to fit. Per SIDE on the INK, not
+# a size against the flat floor — Compile's smallest lid cut 0.561 into its
+# round with its height exactly filling it (`marks.reach`).
 
 
 def slack(game, name, d, n):
-    """How much the mark has to spare on its tightest side at factor `n`,
-    against the line LOGO_CLEAR inside the flat floor."""
+    """Spare on the mark's tightest side, against LOGO_CLEAR."""
     lw, ld = lid.logo_limit(d)
     return min(lim - (a * n + b) for lim, (a, b)
                in zip((lw, lw, ld, ld), marks.reach(game, name)))
@@ -594,11 +485,8 @@ print(f"       tightest is {worst_clear[1]}, "
       f"{worst_clear[0] + lid.LOGO_CLEAR:.3f} mm from the round")
 check("no mark is shrunk that did not have to be", worst_shrink, [])
 
-# --- the generated Innovation mark ---------------------------------------
-# `cad/marks.py` builds the plain mark rather than loading it, so that its
-# 0.600 strokes hold at every size the fit picks. What says the rebuild is
-# right is the two drawings it replaced — the crop of Allan's own artwork,
-# kept in `logos/Innovation/` as the reference and no longer used to build.
+# `cad/marks.py` BUILDS the plain mark so its 0.600 strokes hold at any size;
+# the two drawings it replaced are the reference (spec/LID.md).
 print("\n=== the generated Innovation mark ===")
 for n, ref in ((1.0, "lid_logo_plain.dxf"), (1.6, "lid_logo_plain_big.dxf")):
     drawn = art.logo("Innovation", ref)
@@ -623,19 +511,13 @@ for n, ref in ((1.0, "lid_logo_plain.dxf"), (1.6, "lid_logo_plain_big.dxf")):
     check(f"n={n}: total area", round(sum(x[4] for x in b), 3),
           round(sum(x[4] for x in l), 3), sum(x[4] for x in l) * 2e-3)
     worst = max(max(abs(x[i] - y[i]) for i in range(4)) for x, y in zip(b, l))
-    # The letters land inside 0.035; the star is HAND-PLACED in Allan's sketch
-    # and the two drawings disagree with each other about where it sits by
-    # 0.11 (3.4 font units), which is the whole of the tolerance below.
+    # The letters land inside 0.035; the HAND-PLACED star is where the two
+    # drawings disagree with each other by 0.11, which is the tolerance.
     check(f"n={n}: worst region edge", round(worst, 3), 0.0, 0.12)
     print(f"       worst region edge {worst:.4f} mm over {len(b)} regions")
 
-# WHERE it sits is `cad/` policy and a deliberate divergence from the crop —
-# asserted from both ends, as every divergence in this repo is. The crop is
-# BOX-centred (`make_lid_logo_dxf --recentre` puts it back on the full mark's
-# own centre); the build is WORD-centred, because the ring stands above the
-# cap height and the star above that while `Innovation` has no descender, so
-# a box datum lands the word low on the lid.
-# Allan, with the lid on screen: "a little bit low". `marks._centre`.
+# A deliberate divergence from the crop, both ends: the crop is BOX-centred,
+# the build WORD-centred (spec/LID.md, "The plain mark sits on its WORD").
 for n, want in ((1.0, 1.493), (1.6, 2.209)):
     built = Compound(children=list(
         marks.faces("Innovation", "@innovation-plain", n))).bounding_box()
@@ -643,16 +525,13 @@ for n, want in ((1.0, 1.493), (1.6, 2.209)):
     drawn = Compound(children=list(art.logo("Innovation", ref))).bounding_box()
     bc = (built.min.Y + built.max.Y) / 2
     dc = (drawn.min.Y + drawn.max.Y) / 2
-    # The two are the same SHAPE to 0.12 (above), so the difference of their
-    # box centres IS how much higher the build puts the word.
+    # Same SHAPE to 0.12 above, so the box-centre difference IS the rise.
     check(f"n={n}: the build stands the same word about {want} higher than "
           f"the crop does", round(bc - dc, 3), want, 0.2)
     check(f"n={n}: and the crop's own box is on the lid's centre — box-datum",
           round(dc, 3), 0.0, 0.2)
-    # And the datum itself, from the font metrics the mark is built from: the
-    # box is displaced by exactly the gap between the two datums, which is the
-    # same statement as "baseline to cap is on the origin" and fails the day
-    # `_centre` goes back to the box.
+    # The datum itself, from the font metrics: the same statement as
+    # "baseline to cap is on the origin", and it fails if `_centre` reverts.
     raw_faces, base, letter_I = marks._wordmark(round(marks.NOMINAL_SIZE * n, 6))
     raw = Compound(children=list(raw_faces)).bounding_box()
     gap = (raw.min.Y + raw.max.Y) / 2 - (base + letter_I.bounding_box().max.Y) / 2
@@ -665,14 +544,9 @@ w2, _ = marks.extent("Innovation", "@innovation-plain", 2.0)
 check("the strokes do not scale", round(2 * w1 - w2, 3),
       round(marks.LINE_WIDTH, 3), 1e-3)
 
-# --- the generated Ultimate mark -------------------------------------------
-# Against the corrected sketch export at n = 1.6 (`lid_logo_big.brep`, exact
-# from the STEP of 2026-09-04) every one of the 31 regions must land; against
-# the small drawing at n = 1.0 everything must land EXCEPT the fan under the
-# U, which Allan moved when he fixed the sketch — the small drawing is lifted
-# from a lid printed before that, so it has the fan where the OLD sketch put
-# it. Asserted from both ends: the fan must differ there, or the drawing is
-# not the one this says it is.
+# Against `lid_logo_big.brep` all 31 regions must land; against the small
+# drawing all but the fan under the U, which the corrected sketch moved — and
+# the fan MUST differ there, or that drawing is not the one this says it is.
 print("\n=== the generated Innovation Ultimate mark ===")
 for n, ref, fan_moved in ((1.6, "lid_logo_big.brep", False),
                           (1.0, "lid_logo.dxf", True)):

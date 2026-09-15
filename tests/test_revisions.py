@@ -3,23 +3,12 @@
 
     .venv/bin/python tests/test_revisions.py
 
-`cad/revisions.py` says a release changed something; this says WHAT, by
-building the release before it and the release itself and measuring the
-difference. Both ends, as every deliberate difference in this repo is asserted:
-the older release must still have the OLD behaviour and the newer one the NEW
-one, so re-converging — or forgetting to gate a change on its flag — fails here
-rather than passing quietly.
+Builds the release before a flag and the release itself and measures the
+difference, so re-converging or forgetting to gate a change fails here. Every
+reference STEP and cached mesh is 7.0 (`tests/reference.py`).
 
-Every reference STEP and every cached mesh in `individual/` is 7.0, and the
-corpus tests hold a 7.0 build to them (`tests/reference.py`). That is the other
-half of the claim: a release change must not disturb the release it was
-introduced after.
-
-## Adding the next change
-
-One field in `revisions.Rev` with its `since` and `spec`, one `if d.rev.<flag>`
-in the part, and one case below. If a change lands with no case here, the
-"every change is asserted" check at the end fails and names it.
+Adding a change: a field in `revisions.Rev`, an `if d.rev.<flag>` in the part,
+a case below — the coverage check at the end names a flag that has none.
 """
 import math
 import sys
@@ -42,11 +31,8 @@ CSV = ROOT / "automation" / "parts.csv"
 fails = []
 asserted = set()
 
-# The release under test. NOT pinned the way `tests/reference.py` pins 7.0:
-# nothing here compares against a stored reference, and every assertion below
-# is 7.0 against the NEWEST release, which stays true as an iteration letter
-# moves because the line is monotonic — a flag introduced at 7.1a is still on
-# at 7.1b. `cad/revisions.py`, "An unreleased release is iterated by LETTER".
+# Not pinned the way `tests/reference.py` pins 7.0: the flag line is
+# monotonic.
 NEW = R.RELEASES[-1]
 
 
@@ -64,14 +50,10 @@ def since(flag):
 
 
 def before(flag):
-    """The release just before a flag ships — the OLD end of its comparison.
+    """The OLD end: the release before a flag ships, from its own `since`.
 
-    From the flag's own `since` and NEVER from `RELEASES[-1]`: the newest
-    release is the flag's own only while the flag is the latest change, and
-    the next iteration letter would otherwise have a flag compared with a
-    release that already carries it — a check that cannot fail and says
-    nothing. `7.1d` is what found that: `stout_lattice` shipped at `7.1c` and
-    its OLD end became `7.1c` itself.
+    Never `RELEASES[-1]` — that compares a flag with a release that already
+    carries it (found at 7.1d, `stout_lattice`).
     """
     return R.previous(since(flag))
 
@@ -84,12 +66,8 @@ def at(row, sleeved, version):
     return D.derive(params.from_row(row, sleeved, version))
 
 
-# --- the line itself --------------------------------------------------------
 print("=== the release line ===")
-# A version is an opaque STRING (7.1.1, 7.1B, ...), so the line's order is the
-# tuple's order and nothing can check it against arithmetic. What CAN be
-# checked is that the tuple is a well-formed line and that nothing is on it
-# twice or in two places at once.
+# A version is an opaque STRING: all that can be checked is the line's form.
 check("no release is listed twice", len(set(R.RELEASES)), len(R.RELEASES))
 check("no version is both a release and a historical one",
       sorted(set(R.RELEASES) & set(R.HISTORICAL)), [])
@@ -98,9 +76,7 @@ check("position is the tuple's own order",
 check("a version off the line has no position", R.position("6.6"), None)
 check("CURRENT is in RELEASES", R.CURRENT in R.RELEASES, True)
 check("the reference release is one cad/ can build", REF.VERSION in R.RELEASES, True)
-# Every release must declare its LOCK, because `pusher.build` refuses one that
-# has not. Leaving a new release out of SAME_LOCK is the loud failure; leaving
-# it out silently would stamp a new version on 7.0 tabs.
+# `pusher.build` refuses a release that has not declared its LOCK.
 for v in R.RELEASES:
     check(f"{v}: the lock generation is declared", L.lock_generation(v), L.GENERATION)
 for v in R.RELEASES:
@@ -118,14 +94,10 @@ except Refused:
 check("an unknown release is refused, not silently built", refused, True)
 
 
-# --- the Lid cuts one socket per pusher -------------------------------------
 print(f"\n=== {since('lid_socket_per_pusher')}  lid_socket_per_pusher ===")
 asserted.add("lid_socket_per_pusher")
-# The Innovation M lids, named: the four in the 7.0 catalogue and, from
-# 2026-09-11, the two of the `Three Expansions` row, which is an Innovation M
-# too and so gets Onshape's three sockets at 7.0. Any other row in the
-# catalogue must be IDENTICAL across the two releases: the flag changes these
-# and nothing else.
+# The Innovation M lids, which get Onshape's three sockets at 7.0; every
+# other row must be IDENTICAL across the two releases.
 CHANGED = {"M5.15.15.45.Un", "M5.15.15.62.Sl", "M5.10.10.32.Un", "M5.10.10.45.Sl",
            "M8.16.10-16.45.Un", "M8.16.10-16.62.Sl"}
 
@@ -133,11 +105,7 @@ CHANGED = {"M5.15.15.45.Un", "M5.15.15.62.Sl", "M5.10.10.32.Un", "M5.10.10.45.Sl
 def only_lid_flag(d):
     """`d` with THIS flag on and every other release change off.
 
-    The release carries four changes and two of them reach the Lid:
-    `two_pushers` drops the box to two, and the socket count follows it.
-    Comparing 7.0 with it therefore shows 28 lids changing and says nothing
-    about which flag did what. Turning on one flag at a time is what isolates
-    them, and it is the same technique that prices the socket block below.
+    `two_pushers` reaches the Lid too, so 7.0 alone cannot isolate them.
     """
     return D.Derived(dict(d.items()),
                      R.Rev(**{f.name: f.name == "lid_socket_per_pusher"
@@ -152,7 +120,6 @@ for row in rows():
         n70, n71 = lid.socket_count(d70), lid.socket_count(d71)
         if n70 == n71:
             same += 1
-            # and the sockets are in the same places, not merely as many
             if [round(x, 6) for x in lid.socket_centres(d70)] != \
                [round(x, 6) for x in lid.socket_centres(d71)]:
                 fails.append(f"{d70.calModelName}: centres moved with no count change")
@@ -160,12 +127,10 @@ for row in rows():
         moved.add(d70.calModelName)
         check(f"{d70.calModelName}: 7.0 has 3 sockets, {NEW} has 2",
               [n70, n71], [3, 2])
-        # 7.0 is Onshape's size rule; 7.1 is the box's pusher count.
         check(f"{d70.calModelName}: 7.0 = the size rule",
               n70, 2 if d70.HorizontalSlots <= 3 else 3)
         check(f"{d70.calModelName}: {NEW} = one per pusher",
               n71, box_part.pusher_slot_count(d71))
-        # The OUTER PAIR does not move: that is what makes the change free.
         c70, c71 = lid.socket_centres(d70), lid.socket_centres(d71)
         check(f"{d70.calModelName}: the outer pair is where it was",
               [round(x, 6) for x in c71], [round(c70[0], 6), round(c70[-1], 6)])
@@ -175,21 +140,12 @@ for row in rows():
 check("exactly the Innovation M lids change", sorted(moved), sorted(CHANGED))
 print(f"  ({same} lids identical across the two releases)")
 
-# The size of the change, from the solid. A release moves TWO things at once —
-# the geometry its flags gate, and the `CC <v>` engraved on every part — so
-# they are separated here rather than lumped into one tolerance.
-#
-# The FLAG alone: a 7.0 Derived carrying THIS flag and no other. Everything
-# else, the engraved `CC 7.0` included, is identical, so the difference can
-# only be the socket. This is the number that says the flag changed exactly
-# one thing.
+# The size of the change, from the solid. With the flag alone the only
+# difference can be the socket; the `CC <v>` engraving is priced apart.
 row = next(r for r in rows() if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
 d70, d71 = at(row, 0, "7.0"), at(row, 0, NEW)
-# From 7.2f a release moves a THIRD thing, the lid's DEPTH (`shorter_box`,
-# calRearTrim), which this accounting was not written for: the newest
-# release is taken here at the 7.0 depth, that flag off, so what is left
-# between the two builds is again the sockets, the text and the digits. The
-# depth is asserted in the flag's own case.
+# 7.2f also moves the lid's DEPTH, which this accounting was not written for:
+# the new release is taken at the 7.0 depth, `shorter_box` off.
 import dataclasses as _dc                                        # noqa: E402
 d71 = D.Derived({**dict(d71.items()), "calLidDepth": d70.calLidDepth, "calRearTrim": 0.0},
                 _dc.replace(R.of(NEW), shorter_box=False))
@@ -205,15 +161,11 @@ v_flag = body(lid.build(only_lid_flag(d70)))
 print(f"  (one socket block = {block:.2f} mm3)")
 check("the flag alone removes exactly one socket block",
       round(v70 - v_flag - block, 3), 0.0, 0.02)
-# What the OTHER flags of the newest release do to this lid, on 7.0's ink:
-# nothing until 7.2c, whose `larger_lid_text` scales the text block up.
-# ... at the 7.0 depth, `shorter_box` off, as `d71` above is.
+# The newest release's OTHER flags: 7.2c's `larger_lid_text` scales the text.
 v_all = body(lid.build(D.Derived(dict(d70.items()), _dc.replace(R.of(NEW), shorter_box=False))))
 grown = v_all - v_flag
 print(f"  (the other flags of {NEW} add {grown:+.2f} mm3 — the text block's growth)")
-# The STAMP is the rest of it: `CC 7.0` and `CC <the new release>` are not the
-# same ink — and from an iteration letter they are not even the same number of
-# glyphs — and that difference is the only other thing between the two builds.
+# The STAMP is the rest: `CC 7.0` and `CC <new>` are not the same ink.
 digits = (v_all - v71)
 print(f"  (the version digits = {digits:+.2f} mm3)")
 check(f"and the whole 7.0 -> {NEW} difference is that block, the text's growth and the digits",
@@ -223,11 +175,9 @@ check("the two releases write the same number of solids",
       len(lid.build(d70).solids()), len(lid.build(d71).solids()))
 
 
-# --- 7.1: every cascade takes two pushers -----------------------------------
 print(f"\n=== {since('two_pushers')}  two_pushers ===")
 asserted.add("two_pushers")
-# 24 of the 50 lose their third slot: 16 Dominion, 6 FCM, 2 Compile. Innovation
-# and every S box were on two already, so the count is the assertion.
+# 24 of the 50 lose their third slot; Innovation and every S box had two.
 dropped, kept = [], 0
 for row in rows():
     for sleeved in (0, 1):
@@ -249,18 +199,12 @@ check("and 7.0 still gives 3 to every M and L that is not Innovation",
       [("Compile", 3), ("Dominion", 3), ("FCM", 3)])
 print(f"  ({kept} cascades were on two already)")
 
-# The Lid follows on its own — one socket per pusher — so nothing anywhere has
-# three sockets at 7.1. That is the two flags agreeing, and it is the thing a
-# future change could quietly break.
 check(f"no lid has three sockets at {NEW}",
       sorted({lid.socket_count(at(r, s, NEW))
               for r in rows() for s in (0, 1)}), [2])
 
-# The thumb cutout MOVES, because calFingerHoleOffset is written in terms of
-# the slot count, and three things must stay true of it. Through the part's own
-# `rear_thumb_x` — whose offset is measured from the SECOND cavity's left edge,
-# not the left inner wall, and re-deriving it by hand invents collisions that
-# are not there (spec/BOX.md). An invariant at both releases, not a snapshot.
+# The thumb cutout MOVES with the slot count. Read the part's `rear_thumb_x`:
+# re-deriving its offset invents collisions that are not there (spec/BOX.md).
 def thumb_faults(d):
     left = -box_part.box_width(d) / 2 + box_part.WALL
     run, inner = box_part.rear_pocket(d)
@@ -282,14 +226,10 @@ for v in R.RELEASES:
           bad, {})
 
 
-# --- 7.1: the floor is 2.000, and it grows UPWARD ---------------------------
 print(f"\n=== {since('thick_floor')}  thick_floor ===")
 asserted.add("thick_floor")
-# The claim has two halves and they are asserted separately: the floor IS
-# thicker, and NOTHING ELSE MOVED. The second half is the whole reason the
-# change is cheap — the rim, the rim cutouts, `Top of back` and every other
-# bed-referenced feature of the lock are where they were, and the 0.400 comes
-# out of the cavity.
+# Two halves: the floor IS thicker, and NOTHING ELSE MOVED — the 0.400 comes
+# out of the cavity, not off the rim or any bed-referenced lock feature.
 check("7.0: the floor is the wall's own 1.600",
       sorted({box_part.floor_top(at(r, s, "7.0"))
               for r in rows() for s in (0, 1)}), [1.6])
@@ -299,9 +239,7 @@ check(f"{NEW}: the floor is 2.000",
 check("the WALL is 1.600 at both — this is the FLOOR alone",
       [D.WallThickness, box_part.WALL], [1.6, 1.6])
 
-# One box, built with THIS flag alone against the release before it: the
-# engraved `CC 7.0` and the three pusher slots are then identical, so every
-# difference below is the floor's.
+# One box with THIS flag alone, so every difference below is the floor's.
 box_row = next(r for r in rows()
                if (r.get("Short name") or "").strip() == "4 Ages 5 Expansions")
 dbox70 = at(box_row, 0, "7.0")
@@ -322,9 +260,7 @@ check("and what it grows by lies between the old engraving and the new floor",
       [round(added.bounding_box().min.Z, 4),
        round(added.bounding_box().max.Z, 4)], [1.2, 2.0])
 
-# The floor's top face, and the bottoms of the glyphs cut into it, move up
-# together by exactly 0.400 with the same area: the engraving is carried, not
-# re-fitted, and it is still ENGRAVE deep.
+# Floor top and its glyphs move up together by 0.400 at the same area.
 
 
 def up_area(part, z, tol=1e-4):
@@ -345,16 +281,14 @@ check("and the engraving rides up with it, still 0.400 deep",
       up_area(bfl, box_part.THICK_FLOOR - box_part.ENGRAVE), ink70)
 print(f"  (floor top {top70:.1f} mm2, engraved ink {ink70:.1f} mm2)")
 
-# `bottom_slot` is a THROUGH cut and has to follow the floor: stopping it at
-# 1.600 would leave a 0.400 membrane across the card area, which no test of
-# volume alone would notice.
+# `bottom_slot` is a THROUGH cut and must follow the floor: a 0.400 membrane
+# across the card area is invisible to a volume check.
 _w, _depth, slot_y = box_part.bottom_slot(dboxfl)
 membrane = added & _Box(2.0, 2.0, 6.0).moved(_Loc((0.0, slot_y, 2.0)))
 check("the card area is still cut clean through — no membrane",
       0.0 if membrane is None else round(membrane.volume, 6), 0.0)
 
-# What it costs: everything standing on the floor rises 0.400, and the closed
-# lid's inner face lands on the rim, so the holder's headroom is the budget.
+# What it costs: everything on the floor rises 0.400; headroom is the budget.
 rises, heads = set(), []
 for row_ in rows():
     for sleeved in (0, 1):
@@ -368,13 +302,9 @@ check("and every one of them still clears the rim", min(heads) > 0.4, True)
 print(f"  (the tightest headroom left is {min(heads):.3f} mm)")
 
 
-# --- 7.1b: a thumb cutout every 70 mm of back pocket ------------------------
 print(f"\n=== {since('rear_thumbs_spread')}  rear_thumbs_spread ===")
 asserted.add("rear_thumbs_spread")
-# Before the flag the pocket has ONE cutout however wide it is, and it is
-# `#calFingerHoleOffset` that places it. Both halves are asserted: the older
-# releases keep Onshape's single cutout at Onshape's position, and nothing at
-# them is placed by the pocket.
+# Before the flag the pocket has ONE cutout, placed by `#calFingerHoleOffset`.
 for v in ("7.0", "7.1a"):
     check(f"{v}: one cutout per pocket, wherever the pocket is",
           sorted({len(box_part.rear_thumbs_x(at(r, s, v)))
@@ -384,10 +314,8 @@ for v in ("7.0", "7.1a"):
            != [box_part.rear_thumb_x(at(r, s, v))]}
     check(f"{v}: and `#calFingerHoleOffset` is what places it", off, set())
 
-# From 7.1b the POCKET places them. Four rules, on all 50 boxes: the pitch is a
-# ceiling and not a target, the outer pair keep REAR_THUMB_CLEAR of wall, two
-# cutouts leave at least that much wall between them, and the row is centred —
-# which is what says `#calFingerHoleOffset` has stopped being consulted.
+# From 7.1b the POCKET places them: the pitch is a ceiling, ends and gaps keep
+# REAR_THUMB_CLEAR, and the row is centred — `#calFingerHoleOffset` is unused.
 P, C = box_part.REAR_THUMB_PITCH, box_part.REAR_THUMB_CLEAR
 r_ = D.ThumbCutoutRadius
 counts, gaps, ends, offs = {}, [], [], []
@@ -412,9 +340,7 @@ check("and the wide pockets really did gain cutouts",
 print(f"  (counts {dict(sorted(counts.items()))}, gaps "
       f"{min(gaps):.2f}..{max(gaps):.2f} mm)")
 
-# One box, built with THIS flag alone: at 7.0 it has three pusher slots and a
-# `CC 7.0` stamp, so the only difference is the cutouts. The widest pocket in
-# the catalogue, which is where the change is for.
+# One box with THIS flag alone, on the catalogue's widest pocket.
 dth70 = next(at(r, s, "7.0") for r in rows() for s in (0, 1)
              if at(r, s, "7.0").calModelName == "L3.18.6.20.Sl")
 dthum = D.Derived(dict(dth70.items()),
@@ -425,10 +351,7 @@ check("the flag alone leaves 7.0's single cutout at one",
       len(box_part.rear_thumbs_x(dth70)), 1)
 n_new = len(box_part.rear_thumbs_x(dthum))
 check("and gives that pocket several", n_new > 1, True)
-# It differs BOTH ways, and that is the row moving rather than growing: the
-# 7.0 cutout is not one of the new five, so where it was is filled back in.
-# Both differences must lie in the same place — the outer back wall, in the
-# band between the top of the hanging holes and the cap. A cutout that reached
+# It differs BOTH ways — the row moves rather than grows. A cutout reaching
 # the 1.300 inner wall or the lattice would not show up in a volume alone.
 band = (box_part.slot_band(dthum)[1], box_part.HOLE_ROW_TOP, box_part.REAR_TOP)
 for what, diff in (("removes", t70 - tth), ("fills back in", tth - t70)):
@@ -437,8 +360,7 @@ for what, diff in (("removes", t70 - tth), ("fills back in", tth - t70)):
           [round(bb.min.Y, 3) >= round(band[0], 3) - 1e-6,
            round(bb.min.Z, 3) >= band[1], round(bb.max.Z, 3)],
           [True, True, band[2]])
-# And the net is what four more cutouts cost: a half-cylinder of the 1.600
-# outer wall each, plus their flares.
+# The net is what the extra cutouts cost: a half-cylinder of outer wall each.
 half = 0.5 * math.pi * D.ThumbCutoutRadius ** 2 * box_part.WALL
 net = t70.volume - tth.volume
 check(f"the net is {n_new - 1} more half-cylinders of outer wall",
@@ -446,12 +368,9 @@ check(f"the net is {n_new - 1} more half-cylinders of outer wall",
 print(f"  ({n_new} cutouts on {dthum.calModelName}, {net:.1f} mm3 net, "
       f"{net / half:.3f} half-cylinders)")
 
-# Several cutouts cost the outer back wall's ledge its place in `sharp_edges`
-# — OCCT refuses that chain across a cutout (`box.sharp_edges`). It is a
-# kernel limit and not a design change, so the ledge must still come out
-# ROUNDED, on both faces, between two cutouts. Probed rather than reasoned
-# about: a bar across the wall at 0.01 below the cap, where a 0.600 round has
-# eaten 0.446 of each face, and the same bar 0.700 lower where it has not.
+# OCCT refuses the ledge's `sharp_edges` chain across a cutout — a kernel
+# limit, not a design change — so the round is PROBED: a bar 0.01 below the
+# cap, where a 0.600 round has eaten 0.446 of each face, and 0.700 lower.
 xs_new = box_part.rear_thumbs_x(dthum)
 y_lo, y_hi = box_part.slot_band(dthum)[1], box_part.box_depth(dthum) / 2 + box_part.REAR_DEPTH
 mid = (xs_new[1] + xs_new[2]) / 2       # solid wall between two cutouts
@@ -480,11 +399,8 @@ check("which is what the single-cutout wall does at 7.0, to the micron",
       wall_span(tth, mid, box_part.REAR_TOP - dz / 2), 1e-6)
 
 
-# --- the two witnesses, at every release ------------------------------------
-# A release is claimed twice by a written part: engraved on the plastic, and
-# stated in the file's metadata. Nothing else in the suite reads either, and a
-# stamp signature that has not been recorded for a new release fails silently —
-# `check_stamp` only warns — so it is asserted here, where the release line is.
+# A release is claimed twice, engraved and in metadata; an unrecorded stamp
+# signature fails SILENTLY (`check_stamp` only warns).
 print("\n=== the release is readable off a written part ===")
 import tempfile                                                  # noqa: E402
 from cad import build as B, mesh3mf                              # noqa: E402
@@ -495,11 +411,8 @@ import verify as V                                               # noqa: E402
 check("every release has a stamp signature recorded",
       sorted(v for v in R.RELEASES if v in V.STAMP_SIGNATURES),
       sorted(R.RELEASES))
-# 7.1's is ("none", "none") and cannot be told from any other 7.x — nor from
-# 7.1a's, since an iteration letter is not a counter and does not change the
-# pair. That is WHY the metadata exists, and it is asserted rather than left
-# as a comment: for those releases the glyph narrows a part down to a release
-# family and the metadata names the build.
+# The glyph narrows a 7.x part to a release FAMILY; the metadata names the
+# build. An iteration letter is not a counter, so it does not change the pair.
 check("the whole 7.x family shares the counterless pair",
       sorted({V.STAMP_SIGNATURES[v] for v in R.RELEASES if v.startswith("7.")}),
       [("none", "none"), ("none", "tall")])
@@ -528,29 +441,16 @@ with tempfile.TemporaryDirectory() as tmp:
               v in (V.version_stamp(data) or "").split("/"), True)
         check(f"{v}: both witnesses agree with the release",
               V.check_stamp(data, v), (None, None))
-    # And a part from one release is REFUSED against the other, which is the
-    # whole point: 7.0's glyph differs, and 7.1's metadata is exact.
     for v, other in (("7.0", NEW), (NEW, "7.0")):
         fatal, _warn = V.check_stamp(written[v], other)
         check(f"a {v} part is refused as {other}", fatal is not None, True)
 
-# --- 7.1c: a stouter lattice ------------------------------------------------
 print(f"\n=== {since('stout_lattice')}  stout_lattice ===")
 asserted.add("stout_lattice")
-# Two halves, asserted separately because they answer different halves of the
-# failure. The window is narrower, so the PILLAR between two of them is wider
-# — that is bond area, and a pillar snaps across its layers. And there is one
-# more ROW, so the pillar is tied back to a bridge sooner — that is free
-# height, which is what lets the nozzle and the bridge above break it during
-# the print. `spec/BOX.md` and `spec/HOLDER.md`, "A stouter lattice".
+# Narrower windows, one more ROW: spec/BOX.md, "A stouter lattice".
 OLD = before("stout_lattice")
-# The NEW end is the flag's OWN release and NOT `RELEASES[-1]`, for the reason
-# `before` gives for the old end: this section DIFFS the two ends, so anything
-# a later release changes about a lattice would land here as a failure of
-# `stout_lattice`. 7.2g moves the XS row's `calSlotwidth` (a row option,
-# `rev.unsleeved_card_width`), and with it that row's hole pitch — correctly,
-# and nothing to do with this flag. A flag is isolated by comparing the
-# release it shipped in with the one before it.
+# The NEW end is the flag's OWN release, not `RELEASES[-1]`: 7.2g's
+# `unsleeved_card_width` moves the XS hole pitch and would land here.
 LAT = since("stout_lattice")
 
 
@@ -567,8 +467,7 @@ def only(d, flag):
                      R.Rev(**{f.name: f.name == flag for f in R.flags()}))
 
 
-# --- the width. The pitch does not move, so every 1.000 the window gives up
-# is 1.000 the pillar gains, and only a window's +X edge moves.
+# --- the width: only a window's +X edge moves, so the pillar gains it.
 for v, want in ((OLD, 10.0), (LAT, 9.0)):
     check(f"{v}: every box hanging hole is {want:.3f} wide",
           sorted({round(b - a, 3) for r in rows() for s in (0, 1)
@@ -597,8 +496,7 @@ check("no window's -X edge moves — the pitch is untouched", sorted(moved), [])
 check("so the pillar gains exactly what the window gave up, both parts",
       sorted(gained), [1.0])
 
-# --- the rows. The BAND does not move either: four rows divide
-# HOLE_ROW_BOTTOM..HOLE_ROW_TOP where three did.
+# --- the rows: four now divide HOLE_ROW_BOTTOM..HOLE_ROW_TOP where three did.
 for v, n, tall in ((OLD, 3, 20.833), (LAT, 4, 15.125)):
     check(f"{v}: the box lattice has {n} rows",
           sorted({len(box_part.hole_rows(at(r, s, v)))
@@ -627,8 +525,7 @@ for row_ in rows():
 check("the windows and their rails still fill the outline exactly",
       sorted(unfilled), [])
 
-# --- the worst case in the catalogue, named: FCM at calSlotwidth 63, whose
-# mullion is the thinnest thing either part has.
+# --- the worst case, named: FCM at calSlotwidth 63, the thinnest mullion.
 worst = next((r, s) for r in rows() for s in (0, 1)
              if at(r, s, OLD).calSlotwidth == 63.0)
 dwo, dwn = at(*worst, OLD), at(*worst, LAT)
@@ -637,16 +534,12 @@ check(f"the narrowest holder mullion: {OLD} 1.800 -> {LAT} 2.800",
 gwo, gwn = holder_part.window_grid(dwo)[0], holder_part.window_grid(dwn)[0]
 check(f"and its free run: {OLD} 18.167 -> {LAT} 13.125",
       [round(gwo[3] - gwo[2], 3), round(gwn[3] - gwn[2], 3)], [18.167, 13.125])
-# The decoupling. 7.0's window width IS `#LipLength`, reused; the rear lip is
-# the same variable doing its real job and it does NOT follow the window.
+# 7.0's window width IS `#LipLength` reused; the rear lip does not follow it.
 check("the rear lip keeps #LipLength — the window has parted from it",
       [holder_part.LIP_LEN, holder_part.window_w(dwn)], [10.0, 9.0])
 
-# --- built, with THIS flag alone against 7.0: the engraved `CC 7.0`, the
-# pusher count and the floor are then identical, so every difference is the
-# lattice's. It differs BOTH ways — a row boundary moves, so an old rail's
-# material goes and a new one's arrives — and the sharp claim is that all of
-# it lies inside the lattice band and nothing else on the part moves at all.
+# --- built with THIS flag alone against 7.0. It differs BOTH ways (a row
+# boundary moves) and all of it must lie inside the lattice band.
 for label, part_mod, d70, band in (
         ("holder", holder_part, at(*worst, "7.0"), None),
         ("box", box_part, at(*worst, "7.0"),
@@ -674,14 +567,9 @@ for label, part_mod, d70, band in (
               [True, True])
 
 
-# --- 7.1d: both editions of a mark ship, on a plate each --------------------
 print(f"\n=== {since('both_lid_editions')}  both_lid_editions ===")
 asserted.add("both_lid_editions")
-# Nothing about a lid's SHAPE changes here: what changes is how many lids a
-# project holds. So the assertions are of three kinds — which cascades gain
-# one (named, and no others), what the second one carries, and that the two
-# go on a plate each — and the geometry claim is the negative one: the two
-# lids differ in the mark and in nothing else at all.
+# What changes is how many lids a project holds, not a lid's shape.
 LID_OLD, LID_NEW = before("both_lid_editions"), since("both_lid_editions")
 # The two single-set Innovation cascades, both sleevings: four projects.
 BOTH = {"S3.15.10.20.Un", "S3.15.10.32.Sl",
@@ -714,10 +602,8 @@ check(f"{LID_NEW}: the cascades that ship two are the single-set ones",
       sorted(gained), sorted(BOTH))
 print(f"  ({kept} cascades ship one lid at both releases)")
 
-# What the second one IS. The cascade keeps the mark it carried — the plain
-# `Innovation` — and the alternate is the game's DEFAULT edition, which is the
-# one that says Ultimate. Named from both ends so a swap of the two would fail
-# here rather than print a shelf full of the wrong word.
+# The cascade keeps the plain `Innovation`; the alternate is the game's
+# DEFAULT (Ultimate). Named from both ends so a swap fails here.
 row_ss = next(r for r in rows() if at(r, 0, LID_NEW).calModelName == "S3.15.10.20.Un")
 dss = at(row_ss, 0, LID_NEW)
 check("the cascade's own lid carries the plain mark",
@@ -731,8 +617,6 @@ check("and the cascade's own keeps the name it always had",
 check("the OBJECT in the project says it too",
       [PJ.object_name("Lid", dss, TB.LID_OWN), PJ.object_name("Lid", dss, TB.LID_ALTERNATE)],
       ["Lid 135U", "Lid 135U Ultimate"])
-# A cascade that already carries its game's default has no alternate to ask
-# for, and asking is a caller's bug rather than a lid to build.
 dult = at(next(r for r in rows()
                if at(r, 0, LID_NEW).calModelName == "S5.15.15.45.Un"), 0, LID_NEW)
 try:
@@ -743,9 +627,7 @@ except Refused:
 check("a cascade with one edition refuses to build an alternate", refused, True)
 
 
-# A plate each, and named by the object so the owner can tell which is which
-# in Studio. `plate_groups` reads a name and a footprint off each object and
-# nothing else, so a stub is the whole of what it needs.
+# A plate each, named by the object; `plate_groups` needs only name and size.
 class _Stub:
     def __init__(self, name, size):
         self.name, self.size = name, size
@@ -763,11 +645,8 @@ check("two editions go on a plate each, named by the object",
 check("and one lid still takes the scheme's own plate name",
       plates_for(["Box", "Lid 135U"]), ["Box + pushers", "Lid"])
 
-# The geometry: the two lids are the SAME lid. Everything that is not the mark
-# — the shell, the sockets, the closing grooves, the floor's engraving, the
-# outer rounds — has to be identical, so the whole of the difference lies in
-# the pattern's own Z band. The XS lid is the catalogue's smallest and so the
-# cheapest to build twice.
+# The two lids are the SAME lid, so the whole difference lies in the pattern's
+# Z band. The XS lid is the cheapest to build twice.
 dxs = at(next(r for r in rows()
               if at(r, 0, LID_NEW).calModelName == "XS5.15.10.32.Un"), 0, LID_NEW)
 own, other = lid.build(dxs, TB.LID_OWN), lid.build(dxs, TB.LID_ALTERNATE)
@@ -787,15 +666,10 @@ for way, diff in (("gains", other - own), ("loses", own - other)):
           [True, True])
 
 
-# --- 7.2a: the rearmost holder is a RearHolder, without rear lips ----------
 print(f"\n=== {since('rear_holder')}  rear_holder ===")
 asserted.add("rear_holder")
-# Every holder's rear lips hook the holder behind it; the rearmost has only
-# the box's back wall behind it, 0.950 away, which a shallow slant's lips
-# reach past. So from 7.2a riser 0 is built as a RearHolder — the same holder
-# without the lips — and the change is asserted three ways: what a project
-# CONTAINS, what the flag alone REMOVES from the part, and that the deep
-# holder at the back takes the RearHolder name rather than FirstHolder.
+# The rearmost holder has only the back wall behind it, 0.950 away, which a
+# shallow slant's lips reach past; from 7.2a riser 0 drops its lips.
 RH_OLD, RH_NEW = before("rear_holder"), since("rear_holder")
 
 
@@ -832,9 +706,8 @@ check(f"{RH_OLD}: no cascade ships a RearHolder, and every one ships RisingSlide
 check(f"{RH_NEW}: every cascade ships exactly one RearHolder in a Holder's place", bad_new, [])
 check(f"{RH_NEW}: riser 0 is the rear holder and no other is; at {RH_OLD} none is", bad_rear, [])
 
-# The deep holder at the back is the RearHolder, under that name, with the
-# deep depth; a deep holder at the front stays a FirstHolder beside a plain
-# RearHolder.
+# The deep holder at the back IS the RearHolder; a deep one at the front stays
+# a FirstHolder beside a plain RearHolder.
 d8 = next(at(r, 0, RH_NEW) for r in rows() if at(r, 0, RH_NEW).calModelName == "M8.16.10-16.45.Un")
 check("Three Expansions: RearHolder is the deep one and there is no FirstHolder",
       [k for k, _js in A.holder_kinds(d8)], [(True, True), (False, False)])
@@ -845,10 +718,7 @@ d_front = next(at(r, 1, RH_NEW) for r in rows()
 check(f"{d_front.calModelName}: a plain RearHolder at the back and the FirstHolder at the front",
       [k for k, _js in A.holder_kinds(d_front)], [(False, True), (False, False), (True, False)])
 
-# Built, with THIS flag alone against the release before it: the RearHolder
-# is the plain holder less its lips and nothing else — it loses material, all
-# of it behind the rear face (Y > 0), and gains none. On the deepest plain
-# holder in the catalogue.
+# Built: it loses material behind the rear face (Y > 0) and gains none.
 d_rh = at(box_row, 0, "7.0")
 plain = holder_part.build(d_rh, False)
 rear = holder_part.build(d_rh, False, rear=True)
@@ -860,16 +730,10 @@ check("and what it loses is the lips: all behind the rear face",
 print(f"  (the lips are {0.0 if gone is None else gone.volume:.2f} mm3 on {d_rh.calModelName})")
 
 
-# --- 7.2b: every cascade ships an unmarked lid, on a plate of its own -------
 print(f"\n=== {since('unmarked_lid')}  unmarked_lid ===")
 asserted.add("unmarked_lid")
-# Like `both_lid_editions`, a change to what a project CONTAINS: every
-# cascade gains one more lid, with no mark in its underside and `(C) Mertner`
-# where the game's name is. Asserted four ways: the lids a project holds at
-# both ends; the names; that the credit line clears everything beside it on
-# every lid (the measurement that chose the short form — see `lid.CREDIT`);
-# and, built, that the unmarked lid differs from the cascade's own in the
-# pattern band and the middle line's ink and nowhere else.
+# Every cascade gains a lid with no mark and `(C) Mertner` for the game name.
+# The credit line's clearance is what chose the short form (`lid.CREDIT`).
 UL_OLD, UL_NEW = before("unmarked_lid"), since("unmarked_lid")
 SUFFIX = " " + TB.LID_UNMARKED_NAME
 from fontTools.ttLib import TTFont                               # noqa: E402
@@ -914,11 +778,8 @@ except Refused:
     refused = True
 check("an unknown variant is refused, not built as one of the three", refused, True)
 
-# The credit line clears the logo block and every pusher socket on every lid,
-# at full CAP_LINE and the game line's own right edge: on an XS lid the text
-# block sits beside the sockets, and on a 3-slot S lid the staircase's top
-# step reaches into the middle line's band — which is where the long form
-# collided. Text solids only, no lid build. The clearance is reported.
+# The credit line clears the logo block and every socket: a 3-slot S lid's
+# staircase top step reaches the middle line's band, where the long form hit.
 clear, overlap = None, []
 for r in rows():
     for sleeved in (0, 1):
@@ -940,10 +801,7 @@ check("and keeps more than a line gap clear of the nearest thing",
       clear[0] > lid.LINE_GAP, True)
 print(f"  (tightest: {clear[0]:.2f} mm on {clear[1]})")
 
-# Built, on the XS lid: one body and no inlays; the same envelope as the
-# cascade's own lid; and the whole difference lies in two bands — the mark's
-# pocket, filled back in (0.000..PATTERN_DEPTH), and the middle line's ink
-# (WALL..WALL + TEXT_PROUD), both ways.
+# Built on the XS lid: the whole difference is the mark's pocket and the ink.
 body_u, inlays_u = lid.build_all(dxs, TB.LID_UNMARKED)
 check("the unmarked lid has no inlays and one solid",
       [len(inlays_u), len(body_u.solids())], [0, 1])
@@ -972,15 +830,10 @@ check("what it gains in the pattern band is the mark's pocket, exactly",
       round(sum(q.volume for q in lid.inlays(dxs)), 3), 0.05)
 
 
-# --- 7.2c: the text block grows with the lid, up to 1.5x -------------------
 print(f"\n=== {since('larger_lid_text')}  larger_lid_text ===")
 asserted.add("larger_lid_text")
-# The +X block is the same ~35 x 14 on every lid before the flag; from it,
-# one factor per cascade scales every cap and gap, anchored at the block's
-# cap top and right edge, until the block is LINE_GAP from what is to its
-# left or keeps at the front what it keeps at the back — and never past
-# TEXT_SCALE_MAX (Allan: larger where space permits, not filling the space).
-# Asserted from the built text solids, not the formula: where the ink lands.
+# One factor per cascade scales the ~35 x 14 +X block about its cap top and
+# right edge, never past TEXT_SCALE_MAX. Asserted from the built ink.
 LT_OLD, LT_NEW = before("larger_lid_text"), since("larger_lid_text")
 
 
@@ -1004,25 +857,18 @@ for r in rows():
         s = lid.text_scale(dn)
         scales[dn.calModelName] = (dn.calSizeLetter, round(s, 3))
         bo, bn = block_box(do), block_box(dn)
-        # the anchors: the block is scaled ABOUT its right edge and its cap
-        # top, so every extent of the ink sits `s` times as far from them as
-        # it did — the ink's own top and right included, which overshoot the
-        # pen's by a glyph's bearing and grow with it
+        # the anchors: every extent sits `s` times as far from them as before
         right, top = lid.text_anchor(dn)
         if any(abs((a - n) - s * (a - o)) > 1e-6
                for a, o, n in ((right, bo[0], bn[0]), (right, bo[2], bn[2]),
                                (top, bo[1], bn[1]), (top, bo[3], bn[3]))):
             moved.append(dn.calModelName)
-        # the clearances, off the ink — wherever the block GREW. Where it did
-        # not it is where the sketch put it, which on the two S2 rows is 0.3
-        # from the staircase and on the shallowest L lid inside the front
-        # margin; the rule never makes either worse.
+        # the clearances, off the ink, wherever the block GREW; where it did
+        # not it is where the sketch put it and the rule makes it no worse
         front = -lid.lid_depth(dn) / 2 + lid.WALL + D.FootDistanceFromWall + 2.0
         if s > 1.0 and (bn[0] - left_bound(dn) < lid.LINE_GAP - 1e-6 or bn[1] - front < -1e-6):
             tight.append((dn.calModelName, round(bn[0] - left_bound(dn), 3), round(bn[1] - front, 3)))
-        # and the cascade's own and unmarked lids share the scale (it is per
-        # cascade, not per lid): the lines they have in common land on the
-        # same ink, whichever of their middle lines is the wider
+        # the scale is per CASCADE: own and unmarked lids share the ink
         own_lines, unm_lines = lid.text_block(dn), lid.text_block(dn, TB.LID_UNMARKED)
         for i in (0, 2):
             a, b = own_lines[i].bounding_box(), unm_lines[i].bounding_box()
@@ -1037,9 +883,7 @@ check(f"{LT_NEW}: every scale is within 1.0 .. {lid.TEXT_SCALE_MAX}",
 check("the block is scaled about its cap top and right edge, every extent by s", moved, [])
 check("wherever it grew, the ink keeps LINE_GAP from the left bound and the back's margin from the front", tight, [])
 check("a cascade's own and unmarked lids share one scale", shared, [])
-# The M and L lids that do not reach the cap are the four SHALLOW ones, held
-# by the front wall and not by anything beside them; the shallowest of all
-# has no depth to grow into and stays where it was.
+# The M and L lids that miss the cap are the four SHALLOW ones, depth-bound.
 SHALLOW = ["L3.18.6.20.Sl", "L3.18.6.20.Un", "L5.7.7.20.Un", "M5.6.6.20.Un"]
 check("every M and L lid reaches the cap but the four shallowest",
       sorted(m for m, (l, s) in scales.items() if l in ("M", "L") and s < lid.TEXT_SCALE_MAX),
@@ -1057,9 +901,7 @@ check("but every S lid but the two long-model S2 rows does grow",
 for letter in ("XS", "S", "M", "L"):
     print(f"  ({letter}: {min(sizes[letter])} .. {max(sizes[letter])})")
 
-# The whole block still clears the sockets and the Card Cascade block on
-# every lid, ink against ink: the credit-line check of 7.2b, on all three
-# lines at the new size.
+# The credit-line check of 7.2b, on all three lines at the new size.
 overlap = []
 for r in rows():
     for sleeved in (0, 1):
@@ -1072,9 +914,8 @@ for r in rows():
                 overlap.append((dd.calModelName, variant, round(hit, 3)))
 check("the scaled block meets nothing beside it on any lid, either variant", overlap, [])
 
-# Built with THIS flag alone against 7.0 on an M lid, which reaches the cap:
-# same envelope, and every piece of the difference is in the text band and on
-# the +X side — the Card Cascade block at -X does not scale.
+# Built with THIS flag alone on an M lid: the whole difference is text-band
+# and +X — the -X Card Cascade block does not scale.
 d_m70 = at(box_row, 0, "7.0")                      # M5.15.15.45.Un
 lt = only(d_m70, "larger_lid_text")
 check("the M lid takes the full 1.5 with the flag alone", lid.text_scale(lt), 1.5)
@@ -1095,16 +936,10 @@ for way, diff in (("gains", mlt - m70), ("loses", m70 - mlt)):
 print(f"  (the block gains {(mlt - m70).volume:.2f} mm3 of ink on {d_m70.calModelName})")
 
 
-# --- 7.2d: a plain box, without label holders, on a plate of its own ------
 print(f"\n=== {since('plain_box_plate')}  plain_box_plate ===")
 asserted.add("plain_box_plate")
-# Like `unmarked_lid`, a change to what a project CONTAINS: a cascade whose
-# row sets `Plain box` ships a second box, LAST, built without its label
-# holders — the `Label holders` option's geometry (`tests/test_box.py` holds
-# that to a reference STEP), so nothing is built here. Asserted at both ends
-# over every row: no PlainBox before the flag; from it, exactly the rows with
-# the column, one each, last, named apart on disk, the rest of the project
-# untouched; the twin's Derived; the refusal; and the plate it lands on.
+# A row with `Plain box` ships a second box, LAST, without label holders. The
+# geometry is the `Label holders` option's, held to a STEP by test_box.py.
 PB_OLD, PB_NEW = before("plain_box_plate"), since("plain_box_plate")
 PB_FILE = " no label holders.3mf"
 
@@ -1164,17 +999,10 @@ check("the plain box goes LAST, on a plate of its own, named for what it lacks",
 check("and its role is its own, not the Box's", LY.role("PlainBox"), "PlainBox")
 
 
-# --- 7.2e: lips that seat ---------------------------------------------------
 print(f"\n=== {since('seated_lips')}  seated_lips ===")
 asserted.add("seated_lips")
-# Three formulas become one rule (spec/HOLDER.md, "Lips that seat"): the slant
-# is the diagonal `inc / sd`, a lip reaches the gap plus one wall in Y, and
-# the rest is notched through the whole front wall, the lip's base plus a
-# clearance wide and deep. Asserted at both ends on the cascade whose print
-# found it, 333 Sl — the old numbers as well as the new — then the rule over
-# every row through `cad.fit`'s own margins, and BUILT: consecutive holders
-# and the box with its front holder, placed in play, share no volume from the
-# flag on where 333 Sl shared 46 mm3 before it.
+# Three formulas become one rule: spec/HOLDER.md, "Lips that seat". Both ends
+# on the cascade whose print found it, 333 Sl, which shared 46 mm3 before.
 from cad import fit as FIT                                       # noqa: E402
 SL_OLD, SL_NEW = before("seated_lips"), since("seated_lips")
 
@@ -1205,9 +1033,8 @@ check(f"{SL_NEW}: the rest is at least the lip band plus REST_CLEARANCE deep on 
 check(f"{SL_NEW}: ... and exactly that where the box lip does not need more (Compile S4 Un)",
       round(holder_part.rest_depth(at(row_of("S4.7.7.20.Un", 0), 0, SL_NEW)), 3), 2.2)
 
-# The old relation, stated so re-converging is seen: at 7.2d 333 Sl's lip band
-# sits 0.444 ABOVE the notch band of the holder behind, and the deep 246 Sl
-# holder has no notch at all in its front wall (the cut starts in front of it).
+# The old relation, so re-converging is seen: at 7.2d 333 Sl's lip band sits
+# 0.444 ABOVE the notch band of the holder behind.
 pb, pf = A.holder_play(d_o, 0), A.holder_play(d_o, 1)
 dz_old = ((pf.origin[2] + holder_part.slant_z(d_o, False, 0.0))
           - (pb.origin[2] + holder_part.slant_z(d_o, False, pf.origin[1] - pb.origin[1])))
@@ -1256,9 +1083,8 @@ for model, sleeved in (("S9.21.10.62.Sl", 1), ("M2.60.18-40.62.Sl", 1),
     check(f"{SL_NEW}: {model} — no holder touches the one behind, nor the box its front holder",
           hits, [0.0] * len(hits))
 
-# The lip is IN the notch, not floating over it: on 333 Sl the lip's own
-# solid, placed, lies under the holder-behind's upper slant plane — the
-# band the rest is cut from — over its whole reach past the gap.
+# The lip is IN the notch, not floating over it: it lies under the
+# holder-behind's slant plane over its whole reach past the gap.
 d_m = d_n
 plain = holder_part.build(d_m, False, text=False)
 lips = plain & _Box(1000, 10, 1000).moved(_Loc((0, 5, 0)))          # Y > 0: the lips
@@ -1271,20 +1097,11 @@ check(f"{SL_NEW}: ... with its top on that holder's slant surface there",
       round(bb.max.Z - surface_at_tip, 3), 0.0)
 
 
-# --- 7.2f: the ribs move forward, the box lip onto the diagonal -------------
 print(f"\n=== {since('ribs_forward')}  ribs_forward ===")
 asserted.add("ribs_forward")
 # A PROTOTYPE for a print test (cad.testkit; spec/BOX.md, "The ribs move
-# forward"). Asserted at both ends on every row: the front holder's gap to
-# the panel (1.250 -> 0.400, the holders' own), the box lip's reach (2.050
-# -> 0.550: the gap plus a 0.150 bite) and seat (flat, its top on the
-# holder's slant at the wall's face, so `box_lip_seat` is the plain band and
-# every rest 2.200), the ribs' shift (0.850 derived, 0 before), the rearmost
-# holder's gap to the back wall (0.950 -> 1.800) and the tread overhang the
-# unmoved pusher leaves (0.350 inside -> 0.500 over). Then BUILT, on 333 Sl
-# and Compile S4 Un: the flat lip on its post, no common volume in play, and
-# the INSERTION sweep — the front holder lowered down its ribs passes the
-# lip at the back of its slack, where 7.2e's lip stopped it dead.
+# forward"). Both ends on every row, then BUILT with the INSERTION sweep,
+# where 7.2e's lip stopped the front holder dead.
 RF_OLD, RF_NEW = before("ribs_forward"), since("ribs_forward")
 bad = []
 for r in rows():
@@ -1295,9 +1112,7 @@ for r in rows():
                round(A.box_lip_seat(d_b), 3), round(holder_part.rest_depth(d_b), 3),
                round(box_part.lip_z(d_a), 3), round(A.box_lip_top(d_b) - box_part.lip_z(d_b), 3),
                round(box_part.lip_reach(d_b), 3))
-        # the rib shift is derived from the depth: 0.850 on the studio's,
-        # and 0.850 less calRearTrim once `shorter_box` (the same release)
-        # takes the room behind the last holder out again
+        # the rib shift is derived from the depth: 0.850 less calRearTrim
         if got != (1.25, 0.4, 0.0, round(0.85 - d_b.calRearTrim, 3), 2.0, 2.2, 85.5, 2.0, 0.55):
             bad.append(f"{d_b.calModelName}: {got}")
         # the rearmost holder's rear face to the inner back wall, closed
@@ -1347,23 +1162,17 @@ for model, sleeved in (("S9.21.10.62.Sl", 1), ("S4.7.7.20.Un", 0)):
     tb = tip.bounding_box()
     check(f"{RF_NEW}: {model} — ... and comes to a point: under 0.4 tall in its last 0.05",
           tb.max.Z - tb.min.Z < 0.4, True)
-    # the post at the panel's back face, just under the ridge and above the
-    # panel's own 87.5 top: 0.2 into the panel, where its bevelled top is
+    # the probe sits 0.2 into the panel's back face, where its bevelled top is
     # still above the probe on the steepest pocket (Compile's 4.97)
     post = bx & _Box(20, 0.2, 0.5).moved(_Loc((x, back - 0.1, lz - 0.05)))
     check(f"{RF_NEW}: {model} — ... and the post fills the panel's back face above its bevel",
           round(post.volume, 2), round(12.4 * 0.2 * 0.5, 2))
 
 
-# --- 7.2f: the box loses the room behind the last holder --------------------
 print(f"\n=== {since('shorter_box')}  shorter_box ===")
 asserted.add("shorter_box")
-# With the ribs forward the rearmost holder sat 1.800 from the back wall;
-# the box and lid lose calRearTrim 1.400 so it sits CardHolderGap there, the
-# ribs keep their place against the pocket (rib_shift comes out -0.550), and
-# the lid's sockets follow them so every holder is centred on its tread
-# (spec/BOX.md, "The box loses the room behind the last holder"). Both ends
-# on every row; built on 333 Sl: the rear holder clears the back wall.
+# The box and lid lose calRearTrim 1.400 and the lid's sockets follow the
+# ribs: spec/BOX.md, "The box loses the room behind the last holder".
 SB_OLD, SB_NEW = before("shorter_box"), since("shorter_box")
 from cad.parts import lid as lid_part                          # noqa: E402
 bad = []
@@ -1400,12 +1209,9 @@ check(f"{SB_NEW}: parts.csv's depth columns are the shallower lid's",
       True)
 
 
-# --- 7.2g: a row may state its UNSLEEVED card width -------------------------
 print(f"\n=== {since('unsleeved_card_width')}  unsleeved_card_width ===")
 asserted.add("unsleeved_card_width")
 # A ROW option, gated because the row it serves has a 7.0 corpus behind it.
-# Asserted at both ends: nothing moves before the flag, exactly the rows with
-# the column move after it, and what moves is WIDTH and only width.
 UW_OLD, UW_NEW = before("unsleeved_card_width"), since("unsleeved_card_width")
 UW_COL = "Unsleeved card width"
 
@@ -1433,8 +1239,7 @@ check("the twins are now ONE width, so the pair's lids are interchangeable",
 check("and the holders with them",
       [holder_part.holder_width(xn), holder_part.holder_width(at(xs, 1, UW_NEW))],
       [147.8, 147.8])
-# WIDTH ONLY is the design: the override lands on calCardwidth and reaches the
-# rest through calSlotwidth, so nothing that depends on card THICKNESS moves.
+# The override lands on calCardwidth, so card THICKNESS is untouched.
 check("the card THICKNESS is untouched, so the depth, the rise and the capacity are too",
       [xn.calCardThickness == xo.calCardThickness, xn.calLidDepth == xo.calLidDepth,
        box_part.box_depth(xn) == box_part.box_depth(xo),
@@ -1449,12 +1254,9 @@ check("the SLEEVED twin is untouched by the flag — the column is unsleeved-onl
       at(xs, 1, UW_OLD).calCardwidth == at(xs, 1, UW_NEW).calCardwidth, True)
 
 
-# --- 7.2g: variant backs, IN PLACE OF the ordinary box ----------------------
 print(f"\n=== {since('back_pocket_variants')}  back_pocket_variants ===")
 asserted.add("back_pocket_variants")
-# Unlike `plain_box_plate` and `unmarked_lid`, which ADD a plate, this one
-# REPLACES the ordinary box. Asserted at both ends over every row, then the
-# geometry of each back, then the plate it lands on.
+# Unlike `plain_box_plate` and `unmarked_lid`, this REPLACES the ordinary box.
 BP_OLD, BP_NEW = before("back_pocket_variants"), since("back_pocket_variants")
 
 check(f"{BP_NEW}: exactly one row asks for variant backs",
@@ -1477,8 +1279,7 @@ for r in rows():
             if [n for n, _f in new if n == "NotchedBox"]:
                 wrong.append(f"{model}: a NotchedBox without the column")
             continue
-        # REPLACED, not joined: one Box and one NotchedBox, both suffixed, and
-        # the ordinary box's name is not among them.
+        # REPLACED, not joined: one Box, one NotchedBox, both suffixed.
         names = [n for n, _f in new]
         files = [f for _n, f in new]
         plain = B.box_file(at(r, sleeved, BP_NEW))
@@ -1538,9 +1339,7 @@ try:
 except Refused:
     refused = True
 check("an unknown back is refused, not built", refused, True)
-# The XS project's own object list, so the plates are the ones `cad.cascade`
-# actually writes: three lids (own, Ultimate, Unmarked), each named apart
-# because the Lid group splits by object name.
+# The XS project's own object list: the plates `cad.cascade` really writes.
 check("the notched box goes on a plate of its own, after everything the cascade needs",
       plates_for(["Box", "Pusher", "Lid 130U", "Lid 130U Ultimate",
                   "Lid 130U Unmarked", "Holder", "NotchedBox"]),
@@ -1551,8 +1350,6 @@ check("and its role is its own — not the Box's, and not the Pusher's",
       ["NotchedBox", "NotchedBox"])
 
 
-
-# --- every change has a case here ------------------------------------------
 print("\n=== coverage ===")
 check("every flag in revisions.Rev is asserted above",
       sorted(f.name for f in R.flags()), sorted(asserted))

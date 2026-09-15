@@ -1,43 +1,19 @@
 #!/usr/bin/env python3
 """Every cached Box in `individual/` against the built one and the rules.
 
-    .venv/bin/python -m cad.build --part box
-    .venv/bin/python tests/test_box_corpus.py
+Needs `cad.build --part box --version 7.0` first.
 
-`tests/test_box.py` checks the SOURCE against nine hand-exported STEPs, which
-settle the geometry exactly and say nothing about the other 39 boxes or about
-the written file. This reads the 48 cached meshes AND the 50 written 3MFs — 0
-API calls — and holds both to the placement rules `cad/parts/box.py` states,
-probing each by ray (`tests/probe.py`): the envelope and where it sits, the
-hanging holes through the back wall, the slider ribs, the rim cutouts, the
-front pocket's dividers, and the rear storage dividers.
-
-## Where the two are meant to differ, and where they are not
-
-Three divergences are DELIBERATE and are asserted from both ends:
-
-  * the hanging holes stop at the slot band, so the storage DIVIDERS stay
-    whole — Onshape's cut clean through them (`spec/BOX.md`);
-  * a hole whose edge lands exactly on a divider face stops `HOLE_CLEAR`
-    short of it, on three sleeved Innovation boxes (`box.hole_openings`);
-  * the floor text is floored and says `CC` where the sketch says `Rev`
-    (`tests/test_box.py` holds that; volume is not compared here).
-
-Everything else the cached box has, the built one must have to a thousandth.
-
-## The corpus is one generation, and the cutouts say which
-
-A box's half of the pusher lock is its two rim cutouts per slot, at the
-slot's centreline +- `s` from 7.0 on and inset from the slot's ends before
-it. Read off the mesh, that classifies each cached box; the 7.0 ones are
-asserted on their cutouts and the rest reported, as the pusher and lid
-corpus tests do. Every cached pusher and lid is 7.0 since the September
-refreshes, and this says whether the boxes came with them: all 48 did.
-
-Two parts.csv rows have no cached box under the planner's name — the two
-`M6.21.10-12` cascades, whose model column carries the `.0` placeholder
-`spec/DERIVED.md` records — and are reported as absent, as their holders
-are elsewhere.
+`tests/test_box.py` holds the SOURCE to nine hand-exported STEPs, which say
+nothing about the other 39 boxes or about the written file. This reads the 48
+cached meshes AND the 50 written 3MFs — 0 API calls — and holds both to the
+rules `cad/parts/box.py` states, probing each by ray (`tests/probe.py`). Three
+divergences are DELIBERATE and asserted from both ends — spec/BOX.md, "The
+hanging holes do NOT cut the dividers" and "The version line is a DELIBERATE
+DIVERGENCE", plus `box.hole_openings`; all else matches to a thousandth.
+generation is read off each cached box's own rim cutouts — at the slot
+centreline +- `s` from 7.0 on, inset before it — and only the 7.0 ones are
+asserted on them; all 48 are 7.0 today. The two `M6.21.10-12` rows have no
+cached box under the planner's name (`spec/DERIVED.md`'s `.0` placeholder).
 """
 import sys
 from pathlib import Path
@@ -53,8 +29,7 @@ import probe                                                   # noqa: E402
 from probe import EPS                                          # noqa: E402
 
 INDIV = ROOT / "individual"
-# The tree for the release this file asserts, not the current one
-# (`tests/reference.py`): build `--version 7.0` before running it.
+# The tree for the release this file asserts: build `--version 7.0` first.
 BUILD = REF.tree()
 FOLDER = {"Compile": "Compile", "Dominion": "Dominion", "FCM": "FCM",
           "Innovation": "Innovation"}
@@ -84,30 +59,26 @@ def catalogue():
 
 
 def probe_box(V, T, p, d):
-    """Every reading the checks below compare, from one mesh."""
+    # One ray per reading: hanging holes as gaps through the OUTER back wall,
+    # rim cutouts through the INNER one in the cutout band, ribs and pocket
+    # along the +X end wall's inner face, dividers down the slot band.
     BW, BD = box.box_width(d), box.box_depth(d)
     inner = BW / 2 - box.WALL
     y0, _y1 = box.slot_band(d)
     z_row = box.hole_rows(d)[1]                # the middle row, mid-height
     z_mid = (z_row[0] + z_row[1]) / 2 + EPS
-    # Hanging holes: an X ray through the OUTER back wall reads them as gaps.
     holes = probe.gaps(probe.spans(V, T, 0, BD / 2 - box.WALL / 2 + EPS, z_mid))
     holes = [(a, b) for a, b in holes if -inner < a and b < inner]
-    # Rim cutouts: an X ray through the inner back wall in the cutout band.
     y_wall = (BD / 2 - box.WALL + y0) / 2 + EPS
     cut = probe.gaps(probe.spans(V, T, 0, y_wall, box.RIM_CUTOUT_Z + 2.5 + EPS))
     cut = [(a, b) for a, b in cut if -inner < a and b < inner]
-    # Slider ribs: a Y ray along the +X end wall's inner face, mid-height.
     ribs = probe.spans(V, T, 1, d.BoxHeight / 2 + EPS,
                        inner - box.SLIDER_PROUD / 2 + EPS)
-    # The ray also crosses the front and back walls and the pocket's panel;
-    # a rib is the one thing SLIDER_W thick along Y.
+    # That ray also crosses the walls and the panel; a rib is SLIDER_W thick.
     ribs = [(a, b) for a, b in ribs if abs((b - a) - box.SLIDER_W) < 0.05]
-    # Front pocket: an X ray through the pocket reads pads, dividers and walls.
     fw, fb, _back = box.pocket_span(d)
     front = probe.spans(V, T, 0, (fw + fb) / 2 + EPS, d.BoxHeight / 2 + EPS)
     front = [(a, b) for a, b in front if -inner < a and b < inner]
-    # Storage dividers: a Z ray down each divider's centre in the slot band.
     y_div = y0 + 1.0 + EPS
     divs = [len(probe.spans(V, T, 2, (a + e) / 2 + EPS, y_div))
             for a, e in box.storage_dividers(d)]
@@ -147,11 +118,9 @@ for game, cached, built, p in catalogue():
     c, b = probe_box(CV, CT, p, d), probe_box(BV, BT, p, d)
     tag = f"{game}/{cached}"
 
-    # --- the envelope, and where the part sits -------------------------------
     for i, axis in enumerate(("X min", "X max", "Y min", "Y max", "Z min", "Z max")):
         check(f"{tag} {axis}", round(b["box"][i], 3), round(c["box"][i], 3), 1e-3)
 
-    # --- the generation, from the cached box's own cutouts ------------------
     gen = "7.0" if probe.near(c["cut"], want["cut"], 1e-3) else "pre"
     seen[gen] += 1
     check(f"{tag}: the build's rim cutouts are the catalogue's",
@@ -159,24 +128,20 @@ for game, cached, built, p in catalogue():
     if gen == "7.0":
         check(f"{tag}: ... and so are the cached box's", True, True)
 
-    # --- hanging holes: the sketch on the cached box, HOLE_CLEAR on ours ----
+    # The sketch on the cached box, HOLE_CLEAR on ours.
     check(f"{tag}: cached hanging holes are the sketch's",
           probe.near(c["holes"], want["holes_sketch"], 1e-3), True)
     check(f"{tag}: built hanging holes are hole_openings",
           probe.near(b["holes"], want["holes_built"], 1e-3), True)
 
-    # --- slider ribs and the front pocket: the same on both -----------------
     for name in ("ribs", "front"):
         check(f"{tag}: cached {name} follow the rule",
               probe.near(sorted(c[name]), want[name], 1e-3), True)
         check(f"{tag}: built {name} follow the rule",
               probe.near(sorted(b[name]), want[name], 1e-3), True)
 
-    # --- the storage dividers: WHOLE on ours, severed on Onshape's ----------
-    # Asserted from both ends. A built divider is one span of material down
-    # the slot band; Onshape's holes cut clean through, so a cached divider a
-    # hole crosses reads as several. Which dividers a hole crosses depends on
-    # the layout, so the cached count is reported rather than fixed.
+    # From both ends: a built divider is a single span down the slot band, a
+    # cached one several — which depends on the layout, so it is reported.
     check(f"{tag}: built dividers are whole", all(n == 1 for n in b["divs"]), True)
     check(f"{tag}: cached dividers are severed where a hole crosses",
           all(n >= 1 for n in c["divs"]), True)

@@ -1,38 +1,21 @@
 #!/usr/bin/env python3
 """Filament-slot surgery on a Bambu project (project_settings.config).
 
-A project's settings carry ~150 arrays that scale with the filament count,
-mixed in with arrays that merely LOOK filament-sized, and no rule of shape
-separates them:
-
-  - filament_nozzle_map / filament_volume_map are 9 entries whatever the
-    filament count, so at 9 filaments "len % n == 0" claims them;
-  - nozzle_diameter and extruder_printable_area are per-NOZZLE, so on the
-    dual-nozzle H2C they are 2 long — indistinguishable, at 2 filaments,
-    from a real per-filament array. Permuting one corrupts the printer setup.
-
-So membership decides: PER_FILAMENT below is the exact set of keys whose
-length differed between the 9-filament and 2-filament halves of one project
-(Compile 126, which differed in nothing else), and anything unlisted is left
-alone. A listed key whose shape doesn't agree is reported, not reshaped.
+MEMBERSHIP decides what is per-filament, never shape: PER_FILAMENT below is
+the exact set of keys whose length differed between the 9- and 2-filament
+halves of one project, and anything unlisted is left alone. No rule of shape
+works — nozzle_diameter and extruder_printable_area are per-NOZZLE, so on the
+dual-nozzle H2C they are 2 long and indistinguishable at 2 filaments from a
+real per-filament array, and permuting one corrupts the printer setup.
 
 The one primitive is `remap(ps, order)`: rebuild every per-filament array by
-picking source slots in a new order. Dropping slots, reordering them, or both
-are all just an `order`:
+picking source slots in a new order. Objects name their filament by 1-based
+slot in model_settings.config, so any order that moves a slot must be paired
+with `remap_extruders` or the print comes out in the wrong colours.
 
-    trim 9 -> 2      order = [0, 1]
-    swap the two     order = [1, 0]
-    white-first      order = [white_slot, dark_slot]
+`--makerworld` fixes what makes MakerWorld reject an upload (see
+MAKERWORLD_NOTES); NEVER re-save a project in Bambu Studio to fix one.
 
-Objects name their filament by 1-based slot in model_settings.config, so any
-order that moves a slot must be paired with `remap_extruders`, or the print
-comes out in the wrong colours.
-
-Separately, `--makerworld` fixes what makes MakerWorld reject an upload with
-"Uploading a 3mf file that contains custom printer types or filament types is
-not allowed". See MAKERWORLD_NOTES below.
-
-CLI:
     filaments.py --white-first <project.3mf>...   # two slots: white, then dark
     filaments.py --drop-unused <project.3mf>...   # shed trailing unused slots
     filaments.py --makerworld <project.3mf>...    # make presets stock again
@@ -51,10 +34,7 @@ MS = "Metadata/model_settings.config"
 
 WHITE = "#FFFFFF"
 
-# Per-filament arrays, identified positively rather than by shape (see the
-# module docstring): the exact set of keys whose length differed between the
-# 9-filament and 2-filament halves of one project (Compile 126, which
-# differed in nothing else).
+# Per-filament arrays, identified positively rather than by shape.
 PER_FILAMENT = {
     "activate_air_filtration", "additional_cooling_fan_speed",
     "additional_fan_full_speed_layer", "chamber_temperatures",
@@ -134,8 +114,7 @@ PER_FILAMENT = {
 PER_PRESET = {"different_settings_to_system", "inherits_group"}
 # nozzles x n x n on a multi-nozzle printer (H2C), n x n on a single (P1S).
 MATRIX = "flush_volumes_matrix"
-# Values encode the slot number itself, so they are renumbered positionally
-# after a permutation rather than carried along with their slot.
+# Values encode the slot number itself, so they are renumbered positionally.
 POSITIONAL = {"filament_self_index"}
 
 MAKERWORLD_NOTES = """\
@@ -166,20 +145,15 @@ def slots(ps):
 
 
 def stock_printer_id(ps):
-    """The stock preset name for this project's printer, e.g.
-    "Bambu Lab H2C 0.4 nozzle"."""
     model, variant = ps.get("printer_model", ""), ps.get("printer_variant", "")
     return f"{model} {variant} nozzle" if model and variant else ""
 
 
 def makerworld_problems(ps):
-    """[(key, found, wanted, blocking)] for a MakerWorld upload.
-
-    `blocking` marks what the evidence says actually causes a rejection. The
-    stale nozzle/volume maps are reported but NOT blocking: Dominion 560 and
-    650 carry maps of 3 and 7 entries for 2 filaments and upload fine, so the
-    length mismatch is cosmetic drift from an older Studio, not a gate. Only
-    the preset IDENTITY fields gate the upload."""
+    """[(key, found, wanted, blocking)] for a MakerWorld upload. Only the
+    preset IDENTITY fields gate an upload: a stale nozzle/volume map is
+    reported but NOT blocking, two published projects carrying wrong-length
+    maps and uploading fine."""
     out, n = [], slots(ps)
     stock = stock_printer_id(ps)
     if stock and ps.get("printer_settings_id") != stock:
@@ -203,10 +177,7 @@ def makerworld_problems(ps):
 
 
 def makerworld_fix(ps):
-    """Settings with every BLOCKING makerworld_problems() issue corrected.
-
-    Deliberately leaves the non-blocking maps alone: rewriting 16 published
-    projects to chase something demonstrably not a gate is churn, not a fix."""
+    """Settings with every BLOCKING makerworld_problems() issue fixed."""
     out = dict(ps)
     stock = stock_printer_id(ps)
     if stock:
@@ -221,13 +192,10 @@ def makerworld_fix(ps):
 
 
 def per_filament_keys(ps):
-    """The keys `remap` will rewrite, plus any it cannot account for.
-
-    Membership decides, not shape — but shape still has to agree, so a listed
-    key whose length isn't a whole number of slots is reported rather than
-    reshaped. `unknown` is what makes this safe against a future Bambu adding
-    a per-filament key: remap() refuses instead of silently leaving it at the
-    old slot count."""
+    """The keys `remap` will rewrite, plus any it cannot account for — a
+    listed key of the wrong length is reported, not reshaped. `unknown` is
+    what makes this safe against a future Bambu adding a per-filament key,
+    since remap() then refuses."""
     n = slots(ps)
     keys, unknown = [], []
     for k, v in ps.items():
@@ -244,10 +212,8 @@ def per_filament_keys(ps):
 
 
 def remap(ps, order):
-    """Rebuild every per-filament array picking source slots in `order`.
-
-    `order` holds 0-based source slot indices; the result has len(order) slots.
-    Returns (new settings, list of (key, old length, new length))."""
+    """Rebuild every per-filament array picking source slots in `order`
+    (0-based). Returns (new settings, [(key, old length, new length)])."""
     n = slots(ps)
     if not order or any(not 0 <= i < n for i in order):
         raise SystemExit(f"order {[i + 1 for i in order]} is out of range for a "
@@ -298,11 +264,8 @@ def remap_extruders(model_settings, mapping):
 
 # ------------------------------------------------------------------ policies
 def white_first_order(ps, used):
-    """(order, mapping) putting white in slot 1 and the one dark slot in 2.
-
-    Refuses rather than guessing when the project doesn't reduce to two: no
-    white slot, more than one dark slot in use, or a slot in use that the new
-    order would drop."""
+    """(order, mapping) putting white in slot 1, the dark one in 2; refuses
+    rather than guess where the project doesn't reduce to two."""
     colours = [c.upper() for c in ps["filament_colour"]]
     if WHITE not in colours:
         return None, f"no {WHITE} slot among {colours}"
@@ -323,8 +286,8 @@ def white_first_order(ps, used):
 
 def drop_unused_order(ps, used, keep_min=2):
     """(order, mapping) shedding TRAILING unused slots only — never reorders,
-    so it is always safe to apply unattended. A dead slot in the middle (560's
-    lime) needs a real decision and is left for --white-first."""
+    so it is safe unattended. A dead slot in the MIDDLE needs a real
+    decision and is left for --white-first."""
     n = slots(ps)
     keep = max(max(used, default=1), keep_min)
     if keep >= n:
@@ -335,9 +298,8 @@ def drop_unused_order(ps, used, keep_min=2):
 
 # ------------------------------------------------------------------- rewrite
 def write_settings(path, new_ps, new_ms=None):
-    """Replace project_settings (and optionally model_settings) in place. Every
-    other zip member is copied through byte-for-byte, so geometry is never
-    touched by any operation here."""
+    """Replace project_settings (and optionally model_settings) in place,
+    every other zip member copied byte-for-byte: geometry is untouched."""
     shutil.copy2(path, str(path) + ".bak")
     src = zipfile.ZipFile(str(path) + ".bak")
     blob = (json.dumps(new_ps, ensure_ascii=False, indent=4) + "\n").encode()
@@ -372,11 +334,9 @@ def apply(path, order, mapping, dry=False):
 
 
 def explicit_order(spec, mapping_spec):
-    """--order 3,1 --extruder-map 3=1,2=1,1=2 — 1-based, source slots.
-
-    The escape hatch for cases the policies refuse, above all a MERGE (two
-    source slots landing on one), which no permutation can express: Dominion
-    560's lid body sits on a stray lime slot and has to join the white one."""
+    """--order 3,1 --extruder-map 3=1,2=1,1=2 — 1-based, source slots. The
+    escape hatch for a MERGE (two source slots landing on one), which no
+    permutation can express."""
     order = [int(x) - 1 for x in spec.split(",")]
     mapping = {}
     for pair in mapping_spec.split(","):
@@ -442,8 +402,7 @@ def main():
             continue
         order, mapping = got
         # Nothing an object still points at may be left dangling: an unmapped
-        # or out-of-range extruder renders as a different colour, or Bambu
-        # refuses the file outright.
+        # extruder renders in a different colour, or Bambu refuses the file.
         stray = [e for e in used
                  if not 1 <= mapping.get(e, e) <= len(order)]
         if stray:

@@ -8,30 +8,16 @@ is built from.
     .venv/bin/python make_posters.py --model S5.10.10.32-Un --render
     .venv/bin/python make_posters.py --list
 
-Every number on a poster comes from the CAD (`cad.cascade.catalogue` picks
-the rows; `values()` reads the `Derived`): the model code, the card count,
-the closed cascade's size, the slot sizes. What the CAD does not know — the
-big-stat captions, the cell captions, the expansion band, which photo — is
-`posters.json`, and so is the LAYOUT: every element's box, face and size,
-so a design change is an edit to the spec and not to this file. This file
-only interprets the spec; the drawing primitives are `postercommon`.
+Every number comes from the CAD (`values()` reads the `Derived`); everything
+the CAD does not know, the LAYOUT included, is `posters.json`, so a design
+change is an edit to the spec. The primitives are `postercommon`.
 
-The picture is resolved in this order (`picture_for`):
-  1. `photos/<Game>/<Short name> <Sleeved|Unsleeved>.<png|jpg|jpeg>`
-  2. `photos/<Game>/<Short name>.<png|jpg|jpeg>` (one photo for both sleevings)
-  3. the row's `photo` entry in the spec (any path — this is how a sleeved
-     photo serves its unsleeved twin without a copy; `[path, threshold]`
-     tunes the knockout)
-  4. a cached render under `build/posters/<Game>/`
-  5. with --render, a fresh render: `cad.scene` (the play-state assembly
-     dressed with a lid colour, a front label and the game's cards) then
-     Blender on render/cascade.py --transparent
-  6. a grey placeholder saying so, never a refusal.
-A photo with real transparency is used as it is; one on a plain white
-background is knocked out (`knockout`).
-
-Posters go beside the projects: `build/cascades/<Game>/<tracked name>.png`
-(`cad.cascade.filename` with .png), and reach `cascades/` with a release.
+`picture_for` resolves the picture in order: a photo named
+`photos/<Game>/<Short name>[ <Sleeved|Unsleeved>].<png|jpg>`; the row's
+`photo` entry in the spec (any path, so a sleeved photo can serve its
+unsleeved twin); a cached render under `build/posters/<Game>/`; with --render
+a fresh one; else a grey placeholder, never a refusal. A photo on plain white
+is knocked out.
 """
 import argparse
 import json
@@ -76,8 +62,7 @@ def load_spec(path=SPEC):
 
 
 def row_keys(row, d):
-    """The spec keys this row answers to: `<Game>/<Short name>` and, where
-    the row has one, `<Game>/<Project label>` (FCM's names)."""
+    """Spec keys for this row: `<Game>/<Short name>`, `<Game>/<label>`."""
     keys = [f"{d.GameName}/{(row.get('Short name') or '').strip()}"]
     label = (row.get("Project label") or "").strip()
     if label:
@@ -86,8 +71,8 @@ def row_keys(row, d):
 
 
 def spec_for(spec, row, d):
-    """The merged spec for one cascade: defaults, then the game, then the
-    row. `layout` merges per element name; `hide` accumulates."""
+    """The merged spec: defaults, the game, the row; `layout` merges per
+    element name."""
     game = spec.get("games", {}).get(d.GameName, {})
     rows = spec.get("rows", {})
     r = {}
@@ -116,8 +101,7 @@ def spec_for(spec, row, d):
 
 
 def fmt_num(x, decimals=1):
-    """295.0 -> '295', 84.6 -> '84.6'; `decimals` caps the places shown
-    (0 rounds to the millimetre, which is how a width is quoted)."""
+    """295.0 -> '295', 84.6 -> '84.6'; `decimals` caps the places."""
     x = round(float(x), decimals)
     return str(int(x)) if x == int(x) else f"{x:.{decimals}f}"
 
@@ -128,45 +112,27 @@ PRIMARY = ("HorizontalSlots", "RisingSliders", "FrontPocketCardCapacity", "Cards
 
 
 def plate_one_box(row, d):
-    """The Derived of the box the project's PLATE 1 carries.
-
-    The cascade's own, except where the row ships variant backs (7.2g,
-    `Single Mini`): then it is the FIRST of them, the open one, because that
-    row ships no ordinary box at all. One definition, so the number the poster
-    quotes and the section it draws are the same box.
-    """
+    """The Derived of the box the project's PLATE 1 carries: the cascade's
+    own, or the FIRST variant back where the row ships those (7.2g). One
+    definition, so the number quoted and the section drawn are one box."""
     backs = B.back_pocket_variants_built(row, d)
     return B.back_pocket_twin(d, backs[0]) if backs else d
 
 
 def values(row, d, spec):
-    """Everything a template may name. The derived variables as they are,
-    plus the poster's own:
-      ext_w/ext_d/ext_h  the closed cascade — the lid's outer width and depth
-                         (`BoxWidth + lid.WIDTH_OVER_BOX`, `calLidDepth`, which
-                         reproduce every parts.csv W/D) and its height, the box
-                         with the lid inverted on it: the lid's floor sits at
-                         `WallThickness + BoxHeight` (`assembly.lid_closed`)
+    """Everything a template may name: the derived variables as they are,
+    plus the poster's own —
+      ext_w/ext_d/ext_h  the CLOSED cascade: the lid's outer width and depth
+                         (which reproduce every parts.csv W/D) and the box
+                         with the lid inverted on it
       card_w/card_h      the card the CAD sizes the slot for
-      card_size          the game's stated card size for this sleeving, else
-                         derived
+      card_size          the game's stated card size, else derived
       slot_cards         '12/30' when the first riser is deeper, else '12'
-      age_cards          Innovation's cards per age: '15', or '15/10' where the
-                         front pocket and the risers differ (`age_cards_unit`
-                         then reads 'base / expansion', else '')
-      pocket_w           the back pocket's width in mm — the empty run of the
-                         rear storage right of the pusher slots (`box.rear_pocket`),
-                         measured on the box plate 1 carries, which from 7.2g
-                         may be a variant back (`build.back_pocket_variants_built`)
-      pocket_note        ' (*)' where the project holds MORE than one back, so the
-                         number above is one of two; '' otherwise. What the
-                         star means is the `backbox` diagram beside it and the
-                         project's description
-      slots              every slot, front pockets included (Compile's protocols)
-      grid               'columns x rows', the front pocket a row (FCM)
-      model_ref          the model code with middle dots
-      printer            the phrase for the bed this sleeving needs
-      sleeving           'Sl' / 'Un'
+      age_cards          Innovation's cards per age ('15' or '15/10')
+      pocket_w           the back pocket's width on plate 1's box, which from
+                         7.2g may be a variant back
+      pocket_note        ' (*)' where the project holds MORE than one back
+      slots, grid, model_ref, printer, sleeving
     """
     v = dict(d._v)
     for k in PRIMARY:
@@ -189,9 +155,7 @@ def values(row, d, spec):
     v["age_cards_unit"] = "" if fp == rs else "base / expansion"
     x0, x1 = BOX.rear_pocket(plate_one_box(row, d))
     v["pocket_w"] = fmt_num(x1 - x0, 1)
-    # A row that ships more than one back gets a STAR on the number and a word
-    # under it saying why: the figure is the box on plate 1, and the project
-    # holds another whose back is different.
+    # More than one back: a STAR on the number, the figure being plate 1's
     v["pocket_note"] = " (*)" if len(B.back_pocket_variants_built(row, d)) > 1 else ""
     v["slots"] = str(d.HorizontalSlots * (d.RisingSliders + 1))
     v["grid"] = f"{d.HorizontalSlots}x{d.RisingSliders + 1}"
@@ -221,11 +185,7 @@ def has_alpha(im):
 
 
 def knockout(path, thresh=40, max_w=2600):
-    """A photo on a plain white background as RGBA cropped to its subject.
-    Distance from white (the largest channel deficit) ramps to alpha around
-    `thresh`, the edge is softened, and the JPEG's warm-white fringe goes
-    with the background. A file that already carries transparency is only
-    trimmed."""
+    """A photo on plain white as RGBA cropped to its subject."""
     im = ImageOps.exif_transpose(Image.open(path))
     if im.width > max_w:
         im = im.resize((max_w, int(im.height * max_w / im.width)), Image.LANCZOS)
@@ -243,7 +203,6 @@ def knockout(path, thresh=40, max_w=2600):
 
 
 def photo_path(row, d):
-    """Steps 1 and 2 of the resolution: a photo named by convention."""
     game = PHOTOS / d.GameName
     names = [(row.get("Short name") or "").strip()]
     label = (row.get("Project label") or "").strip()
@@ -264,9 +223,8 @@ def render_cache(d):
 
 
 def render_picture(row, d, spec, samples=256, width=2400, spec_path=SPEC):
-    """A fresh render: the cascade dressed for a poster (`cad.scene`: lid
-    colour, front label, the game's cards in the slots), on nothing. Two
-    subprocesses, each named when it starts so a run never looks hung."""
+    """A fresh render of the cascade dressed for a poster (`cad.scene`), on
+    nothing. Two subprocesses, each named so a run never looks hung."""
     dest = render_cache(d)
     dest.parent.mkdir(parents=True, exist_ok=True)
     py = sys.executable
@@ -306,7 +264,6 @@ def placeholder(text):
 
 
 def picture_for(row, d, spec, do_render=False, force=False, spec_path=SPEC):
-    """(image, note). See the module docstring for the order."""
     p = photo_path(row, d)
     if p is not None:
         return knockout(p), f"photo {p.relative_to(REPO)}"
@@ -357,18 +314,13 @@ def back_section(d, w, h, pad=6):
     """The back of the box in SECTION, straight on, as an RGBA image `w` x `h`.
 
     Every edge is the CAD's — `box.rear_pocket`, `storage_dividers`,
-    `pusher_rest`, `pusher_slots`, `lock.lock_class` — so this is a drawing of
-    the part and not an illustration of it, and a row that changes its back
-    changes its picture with no other edit. What it shows: the slot band of
-    the rear storage from the floor to `Top of back`, with a pusher cavity per
-    stored pusher (its rim cutouts notched in the top edge, its rest stepped
-    across the bottom), the dividers between them, and the POCKET — the empty
-    run — tinted. The arrow inside the tint spans the pocket exactly.
+    `pusher_rest`, `pusher_slots`, `lock.lock_class` — so a row that changes
+    its back changes its picture with no other edit. The POCKET, the empty
+    run, is tinted, with an arrow spanning it exactly.
 
-    **Mirrored, because this is the view from BEHIND.**
-    The storage packs from the box's left inner wall in its own +X, and a
-    viewer standing at the back sees +X on their LEFT, so the pushers hang on
-    the RIGHT of this drawing. Drawing it unmirrored is a front view of a back.
+    **Mirrored, because this is the view from BEHIND**: the storage packs from
+    the box's left inner wall in its own +X and a viewer at the back sees +X
+    on their LEFT, so the pushers hang on the RIGHT here.
     """
     x0, x1 = -BOX.box_width(d) / 2 + BOX.WALL, BOX.box_width(d) / 2 - BOX.WALL
     z0, z1 = BOX.floor_top(d), BOX.REAR_TOP
@@ -414,8 +366,8 @@ def back_section(d, w, h, pad=6):
 
 
 def draw_icon(dr, kind, x, y, s, colour=PC.INK, img=None):
-    """The cell icons, each inside an `s` x `s` box at (x, y): the file in
-    `logos/icons/<kind>.svg|png` where one exists, else drawn in lines."""
+    """The cell icons, each in an `s` x `s` box at (x, y): the file in
+    `logos/icons/<kind>`, else drawn."""
     icon = PC.icon_image(kind, int(s), colour) if img is not None else None
     if icon is not None:
         img.paste(icon, (int(x + (s - icon.width) / 2), int(y + (s - icon.height) / 2)), icon)
@@ -450,8 +402,7 @@ def draw_icon(dr, kind, x, y, s, colour=PC.INK, img=None):
             dr.rounded_rectangle([ox, oy, ox + cw, oy + chh], radius=int(s * 0.06),
                                  fill=PC.CREAM, outline=colour, width=lw)
     elif kind == "size":
-        # a cube in the top right, a vertical ruler down the left and a
-        # horizontal one along the bottom, ticks alternating long and short
+        # a cube top right, rulers down the left and along the bottom
         cx, top, r = x + s * 0.64, y + s * 0.02, s * 0.3
         pts = [(cx, top), (cx + r, top + r * 0.5), (cx + r, top + r * 1.5), (cx, top + r * 2),
                (cx - r, top + r * 1.5), (cx - r, top + r * 0.5)]
@@ -537,9 +488,8 @@ def draw_cells(dr, e, spec, v, d, row, img=None):
             dr.rectangle([cx, y + 40, cx + 3, y + h - 20], fill=PC.RULE)
         if icon == "backbox":
             # A DIAGRAM cell: the caption sits above a section of the box's
-            # back, which takes the icon's place and most of the cell's width,
-            # and the number moves right of it. The drawing stays inside the
-            # band so the footer's rule runs unbroken under it.
+            # back, which takes the icon's place and moves the number right of
+            # it, inside the band so the footer's rule is unbroken.
             tx = cx + e.get("diagram_dx", 640)
             dr.text((cx + e["inset"], y + 50), T(caption, v),
                     font=fcap, fill=PC.GREEN_D, anchor="la")
@@ -558,9 +508,8 @@ def draw_cells(dr, e, spec, v, d, row, img=None):
 
 
 def draw_stats(dr, e, spec, v, d):
-    """The big stats, each centred vertically in its own band: `bands`
-    ([y0, y1] per stat) when the layout gives them, else the box split
-    evenly, so a stat sits between the rules drawn around it."""
+    """The big stats, each centred in its own band: the layout's `bands`, else
+    the box split evenly."""
     x, y, w, h = e["box"]
     stats = spec.get("stats") or []
     if not stats:
@@ -601,7 +550,6 @@ def draw_model(dr, e, spec, v, d):
     fp = font("MONO_R", e["printer_size"])
     if e.get("plate"):
         # Compile's design: the printer line reversed out of a coloured plate
-        # `plate` [x0, w, h], the text keeping the block's x
         px, pw, ph = e["plate"]
         dr.rectangle([px, y - (ph - e["printer_size"]) / 2, px + pw,
                       y - (ph - e["printer_size"]) / 2 + ph], fill=col)
@@ -611,11 +559,8 @@ def draw_model(dr, e, spec, v, d):
 
 
 def place_picture(picture, x, y, bw, bh, anchor, avoid, step=40):
-    """The picture fitted into the box and anchored; where `avoid` lists
-    rectangles [x0, y0, x1, y1] the box is shortened, `step` px at a time,
-    until no opaque pixel of the picture lands in any of them — a render
-    with a sloping lid keeps the whole box, a straight-on photo backs off
-    the band's bar."""
+    """The picture fitted into the box and anchored; the box is shortened
+    until no opaque pixel lands in an `avoid` rectangle."""
     h = bh
     while True:
         pic = PC.fit(picture, bw, h)

@@ -4,34 +4,13 @@
     .venv/bin/python -m cad.build
     .venv/bin/python tests/test_pusher_regression.py
 
-`tests/test_pusher.py` checks the SOURCE against two hand-exported STEPs. This
-checks the 34 written 3MFs against the 32 in `individual/`, through the readers
-the rest of the toolchain uses (`automation/verify.py`), so it covers the
-meshing and the assembly placement as well as the geometry.
-
-## What must match, and what must not
-
-`individual/` is a mixed catalogue: 18 of its 32 pushers were exported at 7.0
-and 14 are still 6.6, whose lock sits where the pre-7.0 formula put it — tabs
-4.00 and 4.20 in from the ends, so their centres are D - 12.00 apart. The
-rebuild is 7.0 throughout, so it must REPRODUCE the first 18 and MOVE the other
-14 onto the catalogue. Both are reported; only the reproduction is asserted.
-
-Text is the other deliberate difference. Onshape could constrain a sketch text
-box in one dimension only, so `cad/text.py` sizes by rule instead (see
-`spec/PUSHER.md`); the engraving is therefore not expected to match and is not
-compared here.
-
-Everything else is the same part and is asserted, per file:
-
-  * the bounding box — height, depth, and 4.500 total thickness
-  * the assembly position — X 3.000, Y max 0, Z min -calHeightIncrement
-  * the rise, read off the staircase treads (`verify.pusher_rise`)
-  * two tabs, 3.800 wide, fully backed with a full 5.00 mm of root
-  * the lock exactly where `verify.target_lock` puts it
-
-The last two are the point of the exercise: they are what the C1-C5 re-cut in
-Onshape would have cost a slice of the API budget to deliver.
+`tests/test_pusher.py` checks the SOURCE against two STEPs; this checks the 34
+written 3MFs against the 32 in `individual/` through the toolchain's own
+readers (`automation/verify.py`), covering the meshing and placement too.
+`individual/` is mixed: 18 were exported at 7.0, 14 are still 6.6 with the
+pre-7.0 lock (`PIPELINE.md`: tab centres D - 12.00), so the rebuild REPRODUCES
+the 18 and MOVES the 14 — only the reproduction is asserted. Engraved text is
+a deliberate divergence (`spec/PUSHER.md`), not compared.
 """
 import sys
 from pathlib import Path
@@ -46,8 +25,7 @@ from cad import build as B, derive as D, lock as L, mesh3mf   # noqa: E402
 import reference as REF                                        # noqa: E402
 from cad.parts import pusher                         # noqa: E402
 
-# The tree for the release this file asserts, not the current one
-# (`tests/reference.py`): build `--version 7.0` before running it.
+# The 7.0 tree this file asserts, not the current one: build --version 7.0.
 BUILD = REF.tree()
 INDIV = ROOT / "individual"
 fails = []
@@ -70,9 +48,7 @@ def span(path):
 
 
 items = B.pusher_catalogue()
-# Which built files the planner's key would collapse onto one name. Only
-# Dominion 6x10 does: `324 Card` (no override) and `290 Card (Mat)` (first
-# riser 12) differ by 1.20 mm sleeved and share `Pusher 6x10-*.3mf`.
+# The planner's key collapses only Dominion 6x10 onto one name.
 by_legacy = {}
 for folder, fn, p in items:
     by_legacy.setdefault((folder, B.pusher_file(D.derive(p), legacy=True)), []).append(fn)
@@ -90,7 +66,6 @@ for folder, fn, p in items:
     data = path.read_bytes()
     h, dep, thk, x0, y1, z0 = span(path)
 
-    # --- the box and where it sits ---------------------------------------
     check(f"{tag} height", round(h, 3), round(d.calPusherTotalHeight, 3), 1e-3)
     check(f"{tag} depth", round(dep, 3), round(d.calPusherTotalDepth, 3), 1e-3)
     check(f"{tag} thickness", round(thk, 3), round(L.PUSHER_TOTAL, 3), 1e-3)
@@ -98,23 +73,17 @@ for folder, fn, p in items:
     check(f"{tag} assembly Y", round(y1, 3), 0.0, 1e-3)
     check(f"{tag} assembly Z", round(z0, 3), round(-d.calHeightIncrement, 3), 1e-3)
 
-    # --- the staircase ----------------------------------------------------
-    # A tread is the gap between two interior step edges, so a 2-riser pusher
-    # has one edge, no tread, and `pusher_rise` reports None — as it does on the
-    # four Onshape 2-riser pushers too. Its rise is pinned anyway by the height
-    # check above: height is rise x risers.
+    # A 2-riser pusher has no tread, so `pusher_rise` reports None.
     rise, _treads = V.pusher_rise(data, p.RisingSliders)
     if rise is not None:
         check(f"{tag} rise", round(rise, 2), round(d.calHeightIncrement, 2), 0.02)
 
-    # --- the lock, against the catalogue ----------------------------------
     got = V.pusher_lock(data)
     want = V.target_lock(got["depth"])
     cls, _s = L.lock_class(d.calPusherTotalDepth)
-    # `pusher_lock` probes 1200 points along the depth to find the notch, so it
-    # can lose up to a sample at each end — 0.126 mm on the 75.60 mm pusher.
-    # The notch's true size is asserted exactly, against the STEP, by
-    # tests/test_pusher.py; here it only has to be the right feature in place.
+    # `pusher_lock` probes 1200 points along the depth, so it can lose a sample
+    # at each end — 0.126 mm on the 75.60 mm pusher; its true size is asserted
+    # by tests/test_pusher.py.
     probe = 2 * got["depth"] / 1200
     check(f"{tag} lock class", want["class"], cls)
     for i, (lo, hi) in enumerate(want["tabs"]):
@@ -131,7 +100,6 @@ for folder, fn, p in items:
               round(got["notch"][1] - got["notch"][0], 2), round(L.NOTCH_W, 2),
               0.05 + probe)
 
-    # --- the tabs are held ------------------------------------------------
     tabs = V.pusher_tabs(data)
     check(f"{tag} tab count", len(tabs), V.TABS_EXPECTED)
     worst_f = min((t["fraction"] for t in tabs), default=0.0)
@@ -154,9 +122,6 @@ for folder, fn, p in items:
           f"{len(tabs):4d} {worst_a:5.2f} "
           f"{'yes' if got['notch'] else 'no':>6s}   {note}")
 
-# ---------------------------------------------------------------------------
-# File against file: the built pusher beside the Onshape one it replaces.
-# ---------------------------------------------------------------------------
 print("\n  Against individual/, file by file. `same` is a pusher Onshape had "
       "already\n  re-cut to the 7.0 catalogue; `moved` is one still at 6.6:")
 print(f"    {'individual/ file':32s} {'H':>7s} {'D':>7s} {'Z':>8s} "

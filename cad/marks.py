@@ -1,55 +1,15 @@
 """Marks that are GENERATED rather than imported.
 
-`cad/art.py` loads a drawing someone else made. This builds one, from the font
-it was set in and the geometry that was drawn around it — which is the only way
-a mark keeps its **stroke weight** when the Lid's fit sizes it. Scale an
-outline and its 0.600 strokes scale with it: at the 1.436 the fit gives
-`S5.10.10.32-Un`, a 0.600 line becomes 0.862. Onshape's sketch does not do
-that, because `#LineWidth` is absolute there, and neither does this.
+`cad/art.py` loads a drawing someone else made. This BUILDS one, from the font
+it was set in and the geometry drawn around it — the only way a mark keeps its
+**stroke weight** when the Lid's fit sizes it. `#LineWidth` is absolute in
+Onshape's sketch and it is absolute here.
 
-## Innovation, the plain mark
-
-Allan: "one that is just Innovation, and one that is Innovation Ultimate. The
-two single-set boxes would be the Innovation version." This is that one, and
-every number in it was measured off the two drawings Allan has already made —
-`spec/LID.md`, "The Innovation mark, rebuilt" records the fit:
-
-* the word is **Noto Serif Regular** at default advances with no kerning,
-  which `build123d`'s own `Text` reproduces to `0.019` over 109 mm of
-  wordmark. `NOMINAL_SIZE` is the size the SMALL drawing is set at; the big
-  one is that x 1.6, to five figures, which is `#LogoScaleFactor` exactly.
-* the **circle** round the `I` is an annulus on the middle of that letter's
-  top serif, its bore the letter's own ink width and its wall `LINE_WIDTH`.
-  Measured `r 3.0306 / 3.6306` against `3.0325` for the letter's half-width
-  and a wall of `0.6000`.
-* the **star** over the `i` is the letter's own tittle with five arms through
-  it — `LINE_WIDTH` wide, `ARM` long, `67.5` apart, which is the `5x at 270`
-  circular pattern Allan's Logo Flourishes sketch holds. Each arm is offset
-  `TWIST` off the centre, a slight pinwheel; with it the five arm tips land on
-  the drawing to `0.0005`, and the "disc" they seemed to stand on turned out
-  to be the tittle itself.
-
-The letters and the geometry hung off them scale with the size; `LINE_WIDTH`
-does not. That is the whole point of building it rather than scaling it.
-
-## Innovation Ultimate
-
-The same wordmark, ring and star, with `Ultimate` under it in Noto Serif Bold
-Italic and its three flourishes: a lead-in of five dashes, a ring with a bar
-and an upright at the end, and a fan of five boxes under the `U`. Every
-number is read off Allan's own `Logo Flourishes` sketch, exported at
-`#LogoScaleFactor 1` (`logos/Innovation/sketch/Logo Flourishes.dxf`), or
-off the two Ultimate drawings where the sketch does not carry the element (the
-words, the end flourish). What scales and what does not is settled by the two
-drawings — 1.6 apart — agreeing on it: the dashes are `1.500 x 0.600` and the
-ring `r 1.400 / 2.000` at both sizes, the fan's boxes are `0.625 x 1.250` and
-`1.000 x 2.000`. Two positions carry an absolute term as well as a scaled one,
-and the sketch alone cannot separate them; both are stated as `a*n + b`, with
-the `b` a round number of the geometry it sits on. `tests/test_lid.py` holds
-the result to the sketch export region for region.
-
-It is registered TWICE in `GENERATED`, at the two sizes the sketch shipped
-at, so that the lid's ladder keeps the big mark where a lid carried it.
+Two marks, both Innovation: the plain one and Ultimate. Every number is read
+off Allan's own drawings and his `Logo Flourishes` sketch, each fit recorded
+in `spec/LID.md`. Ultimate is registered TWICE in `GENERATED`, at the two
+sizes the sketch shipped at, so the lid's ladder keeps the big mark where a
+lid carried it.
 """
 import math
 from functools import lru_cache
@@ -63,52 +23,37 @@ from . import art
 FONT_DIR = Path(__file__).resolve().parent.parent / "fonts"
 NOTO_SERIF = str(FONT_DIR / "NotoSerif-Regular.ttf")
 
-# `#LineWidth`, absolute at every size — the one number here that does not
-# scale. Confirmed on the small drawing's annulus at 0.6000.
+# `#LineWidth`, ABSOLUTE at every size — the one number here that does not
+# scale.
 LINE_WIDTH = 0.600
 
-# Each star arm is offset this far off the centre, a slight pinwheel. ABSOLUTE,
-# like the line width. It is where Allan drew the seed of the `5x at 270`
-# circular pattern — a rectangle whose axis misses the pattern's centre by this
-# much, so every copy misses it by the same. Read off the Logo Flourishes
-# sketch: one offset fits all five arms' twenty corners to an rms of
-# 0.00002 mm.
+# Each star arm's offset off the centre, a slight pinwheel. ABSOLUTE, like the
+# line width: Allan's `5x at 270` pattern seed misses its own centre by this.
 TWIST = 0.1041
 
-# The font size the SMALL Innovation drawing is set at, fitted over its nine
-# clean glyphs to 0.016 mm. The big drawing is 33.3466 = this x 1.59999. The
-# sketch's annulus agrees: its bore of 4.848958 at the big size is the I's
-# half ink width (291 font units) at 33.326, which is this x 1.6 to 0.06 % —
-# one radius read to 0.003 mm is the coarser instrument, so the letters' fit
-# stands and the sketch confirms it rather than replacing it.
+# The font size the SMALL Innovation drawing is set at. The big drawing is
+# 33.3466 = this x 1.59999, which is `#LogoScaleFactor`.
 NOMINAL_SIZE = 20.8416
 
 # Everything below is in font units per 1000 em, so it scales with the size.
 SERIF_MID = 693.0            # middle of the I's top serif slab (672..714)
-ARM = 119.952                # star arm, centre to tip: 2.500 at NOMINAL_SIZE,
-#                              and 4.0002 measured on the big drawing - x1.6002
-# The first arm of the run, in the READING frame the mark is built in before
-# it is mirrored into the lid. The sketch draws the lid's frame directly, so
-# there its arms read -43.8558, 23.6442, 91.1442, 158.6442 and 226.1442; the
-# mirror maps each to 180 - x, and the run starts at -46.1442.
+ARM = 119.952                # star arm, centre to tip
+# The first arm of the run, in the READING frame the mark is built in BEFORE
+# it is mirrored into the lid; the mirror maps each arm to 180 - x.
 ARM0 = -46.1442
 ARM_STEP = 67.5              # 5 arms at 270 degrees
 
 
 def _units(size):
-    """mm per font unit."""
-    return size / 1000.0
+    return size / 1000.0                    # mm per font unit
 
 
 @lru_cache(maxsize=8)
 def innovation_plain(size):
-    """The plain Innovation mark at `size`, in the lid's frame.
-
-    Returned as a tuple of faces on the origin — its bounding box in X, its
-    WORD in Y (see `_centre`) — and MIRRORED in X: the pattern is cut into the
-    far side of the lid's floor. Which way up it then reads on a printed lid
-    is `tables.LID_LOGO_TURNED`'s question, not this one's (`spec/LID.md`).
-    """
+    """The plain Innovation mark at `size`, in the lid's frame: faces on the
+    origin (its box in X, its WORD in Y — `_centre`) and MIRRORED in X, the
+    pattern being cut into the far side of the lid's floor. Which way up it
+    reads on a PRINTED lid is `tables.LID_LOGO_TURNED`'s question."""
     faces, base, letter_I = _wordmark(size)
     shape = _centre(faces, word=(base, letter_I.bounding_box().max.Y))
     return tuple(f.mirror(Plane.YZ) for f in shape)
@@ -116,15 +61,13 @@ def innovation_plain(size):
 
 def _wordmark(size):
     """`Innovation` at `size` with the ring fused into its `I` and the star
-    into its `i`'s tittle: (faces, baseline, the `I`). The plain mark whole,
-    and the first half of the Ultimate one."""
+    into its `i`'s tittle: (faces, baseline, the `I`)."""
     u = _units(size)
     word = Text("Innovation", font_size=size, font_path=NOTO_SERIF,
                 align=(Align.CENTER, Align.MIN))
     faces = list(word.faces())
-    # The tittle is the one face clear of the x-height; every letter reaches
-    # the baseline. The text is aligned MIN in Y, so the baseline is the o's
-    # and a's 10-unit overshoot above the bottom.
+    # The tittle is the one face clear of the x-height. Aligned MIN in Y, so
+    # the baseline is the o's and a's 10-unit overshoot above the bottom.
     base = word.bounding_box().min.Y + 10 * u
     tittle = max(faces, key=lambda f: f.bounding_box().min.Y)
     letter_I = min(faces, key=lambda f: f.bounding_box().min.X)
@@ -143,15 +86,11 @@ def _wordmark(size):
 
 
 def _flat(solid):
-    """The top face of a unit-tall PRIVATE solid, brought down to Z = 0 —
-    a filled outline, which is what a mark is made of."""
-    f = solid.faces().sort_by(lambda f: f.center().Z)[-1]
+    f = solid.faces().sort_by(lambda f: f.center().Z)[-1]   # -> a face at Z 0
     return f.moved(Location((0, 0, -f.center().Z)))
 
 
 def _ring(letter_I, base, u):
-    """The annulus round the `I`: bore = the letter's ink width, wall
-    `LINE_WIDTH`, centred on the middle of its top serif."""
     bb = letter_I.bounding_box()
     r = (bb.max.X - bb.min.X) / 2
     at = Location(((bb.min.X + bb.max.X) / 2, base + SERIF_MID * u, 0))
@@ -159,8 +98,6 @@ def _ring(letter_I, base, u):
 
 
 def _star(tittle, u):
-    """Five arms through the tittle — `LINE_WIDTH` wide, `ARM` long, `ARM_STEP`
-    apart, each `TWIST` off the centre."""
     bb = tittle.bounding_box()
     cx, cy = (bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2
     L, d = ARM * u, TWIST
@@ -178,45 +115,13 @@ def _star(tittle, u):
 
 def _centre(faces, word=None):
     """Put a mark on the origin: its bounding box, or — where `word` is a
-    `(baseline, cap height)` pair — its bounding box in X and that band's
-    middle in Y.
+    `(baseline, cap height)` pair — its box in X and that band's middle in Y.
 
-    ## Why a mark is not always centred on its box
-
-    A box is the right datum for a COMPOSITION, whose parts balance each other
-    about it. It is the wrong one for a single line of type carrying ornaments
-    on ONE side, which is what the plain Innovation mark is: the ring stands
-    `3.195` above the cap height and the star `2.174`, `Innovation` has no
-    descender, and so the box reaches `2.236` higher than the tallest letter
-    and only `0.208` below the baseline. Centred on it, the WORD sits `1.494`
-    low on the lid at n = 1 — "The Innovation logo (without Ultimate) is a
-    little bit low on the lid".
-
-    The measurement that settles it is the ink CENTROID against the box
-    centre. The plain mark's is `2.693` BELOW it; the Ultimate mark's, which
-    has `Ultimate` and its three flourishes underneath to answer the ring and
-    the star above, is `0.391` above. So the imbalance belongs to the plain
-    mark and not to the way marks are placed, and `innovation_ultimate` keeps
-    its box.
-
-    The band is BASELINE to CAP HEIGHT — the box a line of type is centred on
-    — and not the letters' own bounding box: the `i`'s tittle rises above the
-    cap in Noto Serif, as the ring and the star do, and an ornament above the
-    letters is exactly what this datum is for. Centring the ink centroid
-    instead was drawn and looked at, and it overshoots: the word then sits
-    visibly ABOVE the middle, because the centroid is dragged down by the
-    x-height mass in any word set in caps and lowercase.
-
-    In X the box stays the datum. The ring puts `LINE_WIDTH` of itself outside
-    the `I`, so the word is `0.300` off centre there — a fifth of what it was
-    in Y, on a mark four times as wide.
-
-    This is `cad/` policy, not a transcription: Allan's own crop of the
-    Ultimate artwork is box-centred (`make_lid_logo_dxf --recentre`, and the
-    two `lid_logo_plain*.dxf` sit within `0.176` of the lid's centre), and
-    `spec/LID.md` records the divergence. `tests/test_lid.py` asserts it from
-    both ends — the built mark's word on the centre, the drawn crop's box on
-    it — so a rebuild that quietly went back to the box would fail.
+    A box is the right datum for a COMPOSITION but the wrong one for a single
+    line of type carrying ornaments on ONE side: box-centred, the plain
+    Innovation mark's WORD sits low on the lid. So it is centred on its
+    BASELINE-to-CAP band, and Ultimate keeps its box. `cad/` policy, not a
+    transcription (`spec/LID.md`).
     """
     xs = [f.bounding_box() for f in faces]
     cx = (min(b.min.X for b in xs) + max(b.max.X for b in xs)) / 2
@@ -225,53 +130,37 @@ def _centre(faces, word=None):
     return [f.moved(Location((-cx, -cy, 0))) for f in faces]
 
 
-
-# --- Innovation Ultimate, generated -----------------------------------------
-#
 # Everything is in the READING frame relative to the wordmark's anchor — the
-# `I`'s centre in X and the baseline in Y — and in units of `n`, the nominal
-# factor (size / NOMINAL_SIZE), unless marked ABSOLUTE. Read off the sketch
-# export `logos/Innovation/sketch/Logo Flourishes.dxf` (the flourishes, exact,
-# at n = 1.6) and the two Ultimate drawings (the words, both scales).
+# `I`'s centre in X, the baseline in Y — and in units of `n`, the nominal
+# factor (size / NOMINAL_SIZE), unless marked ABSOLUTE (`spec/LID.md`).
 
 NOTO_SERIF_BI = str(FONT_DIR / "NotoSerif-BoldItalic.ttf")
 
-# `Ultimate` is Noto Serif Bold Italic at this fraction of the wordmark's size
-# (12.1539 on the small drawing): its ink runs 84.666 on the big drawing and
-# `Text` at this ratio gives 84.669. Placed by its INK's corner, which lands
-# at the same n-multiple on both drawings to 0.0001.
+# `Ultimate` is Noto Serif Bold Italic at this fraction of the wordmark's
+# size, placed by its INK's corner.
 ULT_RATIO = 0.58316
 ULT_INK_LEFT = 25.2114        # n, right of the I's centre
 ULT_INK_BOTTOM = -12.6196     # n, below the baseline (the baseline is 12.620 n)
 
-# The lead-in: five dashes, ABSOLUTE 1.500 x LINE_WIDTH, their top edge on the
-# bar line 7.500 n below the baseline, at a pitch of 2.8125 n. The run's inner
-# end — the edge nearest the U — sits at 24.0078 n LESS 1.000 from the I's
-# centre; the 1.000 is absolute, and it is what two drawings alone could not
-# separate from the scaled part (spec/LID.md, "`Ultimate` — generated, from the
-# corrected sketch").
+# The lead-in: five dashes, ABSOLUTE, their top edge on the bar line below the
+# baseline. The run's inner end carries an absolute term two drawings alone
+# could not separate from the scaled one.
 DASH_LEN = 1.500
 DASH_PITCH = 2.8125
 BAR_LINE = -7.500             # n: the dashes' top edge and the bar's
 DASH_INNER = (24.0078, -1.000)   # a*n + b
 
 # The end flourish: a ring of bore RING_R and wall LINE_WIDTH, both ABSOLUTE,
-# a bar from its centre 8.750 n back toward the word on the bar line, and an
-# upright from its bottom tangent up to 3.750 n below the baseline. The bore
-# is cut out of all three — the cross does not reach into it. The ring's
-# centre is 87.6654 n plus one outer radius from the I's centre: its FAR edge
-# is the scaled position, which is how the mark's extent is dimensioned.
+# a bar back toward the word, and an upright from its bottom tangent; the bore
+# is cut out of all three. Its FAR edge is the scaled position.
 RING_R = 1.400
 RING_X = (87.6654, RING_R + LINE_WIDTH)
 BAR_BACK = 8.750              # n
 UPRIGHT_TOP = -3.750          # n
 
-# The fan under the U: five 0.625 n x 1.250 n boxes, SCALED (1.000 x 2.000
-# on the sketch at n = 1.6), hand-placed — not on one arc — at +-18 and +-37 degrees
-# off the vertical, the outer ones leaning outward. Centres relative to the
-# I's centre and the ULTIMATE baseline, from the sketch at n = 1.6, where
-# Allan fixed their positions; the cached small drawing has them where the
-# OLD sketch put them.
+# The fan under the U: five SCALED boxes, hand-placed — not on one arc — the
+# outer ones leaning outward. Centres relative to the I's centre and the
+# ULTIMATE baseline, from the sketch.
 FAN_BOX = (0.625, 1.250)      # n
 ULT_BASELINE = -12.620        # n
 FAN = ((28.1492, -2.1871, 0.0),
@@ -280,21 +169,19 @@ FAN = ((28.1492, -2.1871, 0.0),
 
 
 def _rect(x0, x1, y0, y1):
-    """A rectangle as a face on Z = 0."""
     return _flat(Box(x1 - x0, y1 - y0, 1, mode=Mode.PRIVATE)).moved(
         Location(((x0 + x1) / 2, (y0 + y1) / 2, 0)))
 
 
 def _disc(r, at):
-    """A disc of radius `r` as a face on Z = 0, centred at `at`."""
     return _flat(Cylinder(r, 1, mode=Mode.PRIVATE)).moved(Location((at[0], at[1], 0)))
 
 
 @lru_cache(maxsize=8)
 def innovation_ultimate(size):
     """The Innovation Ultimate mark at `size`: the plain mark's wordmark, ring
-    and star, with `Ultimate`, its lead-in, its end flourish and the fan
-    under its U. Same frame and conventions as `innovation_plain`."""
+    and star plus `Ultimate`, its lead-in, its end flourish and the fan under
+    its U. Same frame and conventions as `innovation_plain`."""
     n = size / NOMINAL_SIZE
     u = _units(size)
     out, base, letter_I = _wordmark(size)
@@ -339,29 +226,23 @@ def innovation_ultimate(size):
 
 
 # name -> (builder, the size that is n = 1.0). A generated mark is named with
-# a leading `@` so that `cad/tables.LID_LOGO` can list it beside a filename and
-# nothing has to ask which kind it is.
+# a leading `@` so `cad/tables.LID_LOGO` can list it beside a filename.
 GENERATED = {
     "@innovation-plain": (innovation_plain, NOMINAL_SIZE),
-    # The Ultimate mark at its two PUBLISHED sizes — the small drawing's and
-    # the big one's, `#LogoScaleFactor` 1.6 and 1. Two entries rather than one
-    # so that `lid.logo_choice` keeps the ladder the drawings had: a lid that
-    # carried the big mark at its drawn size keeps it, instead of having the
-    # width fraction size the small one up to three quarters of it.
+    # Ultimate at its two PUBLISHED sizes, so `lid.logo_choice` keeps the
+    # ladder the drawings had.
     "@innovation-ultimate-big": (innovation_ultimate, NOMINAL_SIZE * 1.6),
     "@innovation-ultimate": (innovation_ultimate, NOMINAL_SIZE),
 }
 
 
-# --- one interface over both kinds of mark ---------------------------------
 #
-# `n` is the NOMINAL FACTOR: 1.0 is the mark at the size it was drawn, which is
-# what the Lid's fit clamps against. For a drawing that is a plain scale; for a
-# generated mark it scales the font size, and the strokes stay put.
+# `n` is the NOMINAL FACTOR: 1.0 is the mark at the size it was DRAWN, which
+# is what the Lid's fit clamps against. A plain scale for a drawing; for a
+# generated mark it scales the font size and the strokes stay put.
 
 
 def faces(game, name, n=1.0):
-    """The mark's filled faces at nominal factor `n`, in the lid's frame."""
     if name in GENERATED:
         build, nominal = GENERATED[name]
         return list(build(round(nominal * n, 6)))
@@ -387,7 +268,6 @@ def _extent_at(game, name, n):
 
 @lru_cache(maxsize=32)
 def _bbox_at(game, name, n):
-    """(min X, max X, min Y, max Y) of the mark at `n`, in the LID's frame."""
     fs = faces(game, name, n)
     if not fs:
         return None
@@ -401,28 +281,10 @@ def reach(game, name):
     sides — `((a, b), ...)` for right, left, top and bottom, each a positive
     distance `a*n + b`. None for no such mark.
 
-    `growth` answers a question about SIZE, which is what a PROPORTION of the
-    lid needs. This answers one about PLACE, which is what a CLEARANCE needs,
-    and the two stop being the same the moment a mark is not centred on the
-    lid. Onshape drew Compile's `0.618` low and FCM's `0.915` off in X, and a
-    mark sized by its height alone then hangs off one side by that offset:
-    Compile's smallest lid had `0.561` of its mark cut into the outer round
-    while its height exactly filled the flat floor, which is what this exists
-    to stop (Allan, 2026-09-10).
-
-    Affine for the same reason `growth` is, and read the same way, by two
-    probes rather than by reasoning about it — which is the point, because the
-    two kinds of mark get there differently and one of them surprises. A
-    generated mark's letters scale and its strokes do not. A drawing scales
-    about the LID's centre and not its own, so a drawn offset scales with the
-    fit too (`0.618` becomes `0.561` at `0.908`) — `faces` reads
-    `art.centre` and moves the mark either side of the scale, but `Shape.scale`
-    carries a location through, so the pair cancels and the mark simply scales
-    about the origin. Either way an edge is `a*n + b`.
-
-    The four are kept apart rather than folded into one reach: a mark can be
-    off centre in one direction only, and the clamp should not pay for that
-    twice.
+    `growth` answers a question about SIZE; this answers one about PLACE, and
+    the two stop being the same the moment a mark is not centred on the lid.
+    Affine for the reason `growth` is and read the same way, by two PROBES.
+    The four sides are kept apart: a mark can be off centre in one only.
     """
     one, two = _bbox_at(game, name, 1.0), _bbox_at(game, name, 2.0)
     if one is None:
@@ -435,12 +297,9 @@ def reach(game, name):
 @lru_cache(maxsize=32)
 def growth(game, name):
     """((aw, bw), (ah, bh)) with `size(n) = a*n + b`, or None for no such mark.
-
-    Affine and not proportional, and that is the whole point of a generated
-    mark: its letters scale with `n` and its strokes do not, so its width is
-    `a*n + b` with `b` the strokes. A drawing has `b = 0`. Two probes fix it
-    exactly, and they are cached because the Lid's fit asks this of every lid.
-    """
+    AFFINE and not proportional, which is the whole point of a generated mark:
+    its letters scale with `n` and its strokes do not, so `b` is the strokes
+    and a drawing has `b = 0`. Two probes fix it exactly."""
     one, two = _extent_at(game, name, 1.0), _extent_at(game, name, 2.0)
     if one is None:
         return None
@@ -449,6 +308,5 @@ def growth(game, name):
 
 
 def extent(game, name, n=1.0):
-    """(width, height) of the mark at nominal factor `n`."""
     g = growth(game, name)
     return None if g is None else (g[0][0] * n + g[0][1], g[1][0] * n + g[1][1])

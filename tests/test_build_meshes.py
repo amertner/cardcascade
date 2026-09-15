@@ -1,17 +1,8 @@
 """Every body in every written 3MF under build/ is a closed surface.
 
-`mesh3mf.write` refuses a body with an open boundary, so this should find
-none; it is here because the writer's own guard is the thing under test, and
-because a doubled edge — two pieces of material touching along a line — is
-written with a warning rather than refused, and this is where those are
-listed. The review that added it found fifteen faulty bodies in seven files,
-all Innovation: twelve logo inlays with an open boundary each (fixed: the
-faces carried a stale triangulation, `mesh3mf.triangulate`) and three sleeved
-boxes with a six-edge line contact where a hanging hole's edge landed exactly
-on a divider face (fixed: `box.HOLE_CLEAR`).
-
-Run `python -m cad.build --part all` first; this reads what is there and
-fails on an empty build/.
+`mesh3mf.write` refuses an open boundary, so this should find none: the guard
+is what is under test. A doubled edge (two pieces touching along a line) is
+warned about rather than refused, and is listed here. An empty build/ fails.
 
     .venv/bin/python tests/test_build_meshes.py
 """

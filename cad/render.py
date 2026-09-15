@@ -5,13 +5,8 @@
 
 Orthographic, one z-buffer per view, flat per-triangle Lambert shading. Two
 views per part: the FRONT of the plate, where the engraving and the tabs are,
-tilted just enough off-axis that the 0.400 mm engraving walls catch the light,
-and the BACK, which is what sits on the bed and must be flat.
-
-This is a looking tool, not a checking one — `tests/test_pusher_regression.py`
-is what asserts. It exists because the two things that most want a human eye,
-text legibility and whether the lock looks sensible on a short pusher, are the
-two the numbers are least able to settle.
+tilted off-axis so the engraving walls catch the light, and the BACK, which
+sits on the bed and must be flat. A LOOKING tool: the tests assert.
 """
 import argparse
 import math
@@ -28,19 +23,14 @@ INK = (40, 44, 52)
 
 
 def _basis(az, el):
-    """Camera axes for an azimuth/elevation in degrees.
-
-    Elevation 90 looks straight down -Z, which for a pusher in assembly
-    position is straight at the front of the plate — the face that carries the
-    engraving and the tabs. That is the view worth having, tilted a little so
-    the 0.400 mm engraving walls and the 1.500 mm tabs cast a visible edge."""
+    """Camera axes for an azimuth/elevation in degrees. Elevation 90 looks
+    straight down -Z, which for a pusher in assembly position is its front."""
     a, e = math.radians(az), math.radians(el)
     fwd = np.array([math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e),
                     -math.sin(e)])
     fwd = fwd / np.linalg.norm(fwd)
     # Near a plan view the world up is almost parallel to the view direction
-    # and the basis flips, so switch to +Y well before it degenerates: at 74
-    # degrees of elevation the dot product is already 0.96.
+    # and the basis flips, so switch to +Y well before it degenerates.
     up = np.array([0.0, 0.0, 1.0])
     if abs(np.dot(fwd, up)) > 0.85:
         up = np.array([0.0, 1.0, 0.0])
@@ -51,10 +41,8 @@ def _basis(az, el):
 
 
 def render(verts, tris, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0)):
-    """A shaded orthographic image of ONE mesh, as an 8-bit PIL Image.
-
-    Kept as it was, because the pusher and box sheets are tuned on it. An
-    assembly goes through `scene`, which is the same rasteriser in colour."""
+    """A shaded orthographic image of ONE mesh, as an 8-bit PIL Image. An
+    assembly goes through `scene`, the same rasteriser in colour."""
     return scene([(verts, tris, None)], az, el, width, margin, light
                  ).convert("L")
 
@@ -63,14 +51,10 @@ def scene(items, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0),
           perspective=None):
     """A shaded image of SEVERAL meshes sharing one z-buffer, as an RGB Image.
 
-    `items` is [(verts, tris, colour)], `colour` an (r, g, b) or None for the
-    plain grey the single-part views use. One buffer is the point: an assembly
-    is only worth looking at if a holder can be hidden behind a box wall.
-
-    `perspective` is the camera's distance as a multiple of the scene's own
-    size — `None` for the orthographic views, and about 2.5 for a shot with
-    some depth in it. The divide happens in camera space, so the z-buffer is
-    unaffected and near faces simply come out bigger.
+    `items` is [(verts, tris, colour)], `colour` None for plain grey; ONE
+    buffer is the point. `perspective` is the camera's distance as a multiple
+    of the scene's size (None for orthographic), divided in CAMERA space so
+    the z-buffer is unaffected.
     """
     right, up, fwd = _basis(az, el)
     vs = [np.asarray(v, dtype=float) for v, _t, _c in items]
@@ -110,12 +94,8 @@ def scene(items, az, el, width=1400, margin=0.04, light=(-0.4, -0.5, 1.0),
 
 def _paint(img, zbuf, v, tris, cxp, cyp, czp, x0, y0, span_y, pad, scale,
            width, height, lit, colour):
-    """One mesh into a shared colour buffer and z-buffer.
-
-    Flat per-triangle Lambert, painted brightest first so that exact ties are
-    stable; the z-buffer does the rest, which is what lets a holder disappear
-    behind a box wall.
-    """
+    """One mesh into a shared colour buffer and z-buffer: flat per-triangle
+    Lambert, painted brightest first so exact ties are stable."""
     px = (cxp - x0 + pad) * scale
     py = (span_y - (cyp - y0) + pad) * scale
     z = czp
@@ -151,9 +131,8 @@ def _paint(img, zbuf, v, tris, cxp, cyp, czp, x0, y0, span_y, pad, scale,
         inside = (w0 >= -1e-9) & (w1 >= -1e-9) & (w0 + w1 <= 1 + 1e-9)
         if not inside.any():
             continue
-        # w0 and w1 are the signed sub-triangle areas over the whole signed
-        # area, so they ARE barycentric weights whichever way the triangle
-        # winds: w1 belongs to a, w0 to c, and b takes the remainder.
+        # w0 and w1 are signed sub-triangle areas over the whole signed area,
+        # so they ARE barycentric weights whichever way the triangle winds.
         depth = az_[i] * w1 + bz[i] * (1 - w0 - w1) + cz[i] * w0
         tile_z = zbuf[ty0:ty1, tx0:tx1]
         hit = inside & (depth < tile_z)
@@ -161,9 +140,9 @@ def _paint(img, zbuf, v, tris, cxp, cyp, czp, x0, y0, span_y, pad, scale,
         img[ty0:ty1, tx0:tx1][hit] = 255 * shade[i] * tint
 
 
-# The six named cameras, in the BOX's frame: +Y is the back of the cascade, +Z
-# up. `_basis` points the camera ALONG `fwd`, so the view named for a face is
-# the azimuth that looks at it — front is 180, not 0.
+# The six named cameras, in the BOX's frame: +Y is the back, +Z up. `_basis`
+# points the camera ALONG `fwd`, so the view named for a face is the azimuth
+# that looks AT it — front is 180, not 0.
 VIEWS = {
     "front":  (180, 0),
     "back":   (0, 0),
@@ -177,8 +156,7 @@ HERO = "hero"
 PERSPECTIVE = 2.6              # camera distance as a multiple of the scene's size
 
 # One colour per component, so a render says what it is showing. Deliberately
-# not the print's own white-and-black: two white parts against a white part is
-# the one thing a shaded render cannot separate.
+# NOT the print's own white-and-black, which a shaded render cannot separate.
 PART_COLOURS = {
     "Box": (108, 142, 178),
     "Lid": (128, 170, 132),
@@ -194,12 +172,10 @@ DEFAULT_COLOUR = (200, 200, 200)
 
 
 def colour_for(name):
-    """A component's colour, matched on the name a part is written under."""
     return PART_COLOURS.get(name or "", DEFAULT_COLOUR)
 
 
 def assembly_sheet(path, out, width=1600, views=None):
-    """One PNG per named view of an assembly 3MF, coloured per component."""
     from PIL import ImageDraw
     items = [(v, tr, colour_for(n)) for n, v, tr in mesh3mf.read_assembly(path)]
     for view in views or list(VIEWS):
@@ -216,16 +192,10 @@ def assembly_sheet(path, out, width=1600, views=None):
 
 def assembly_contact(paths, target, views=(HERO,), cell=760, cols=4):
     """One grid image of several assemblies, one tile per assembly per named
-    view — the way to look over a whole build in a glance rather than opening
-    a file at a time.
-
-    Several views because one is not enough to check a cascade: the hero
-    shows the closed product, and `bottom` on the PLAY state is the only
-    picture that shows the lid's mark the way round it prints. It finds the
-    question and a printed lid answers it: a render argued Dominion's mark
-    upside down, and a print turned that back (spec/LID.md). `cols` is rounded
-    down to a multiple of the view count so an assembly's views sit in one row.
-    """
+    view. `bottom` on the PLAY state is the only picture that shows the lid's
+    mark the way round it prints — it finds the question, and a PRINTED lid
+    answers it (spec/LID.md). `cols` is rounded down to a multiple of the view
+    count so an assembly's views sit in one row."""
     if isinstance(views, str):
         views = (views,)
     cols = max(len(views), cols - cols % len(views))
@@ -245,15 +215,13 @@ def assembly_contact(paths, target, views=(HERO,), cell=760, cols=4):
 
 PUSHER_VIEWS = ((14, 74), (-14, -74))
 # A box is TALL, so the near-plan view a pusher wants reads as a squashed
-# ribbon. These two show it: a three-quarter from above the front-left, which
-# is where the pocket, the sliders and the rear storage are all visible at
-# once, and a plan.
+# ribbon. These two show it: a three-quarter from above the front-left, and a
+# plan.
 BOX_VIEWS = ((38, 26), (10, 86))
 
 
 def _grid(tiles, target, cell, cols):
-    """`tiles` [(label, image)] on one canvas, `cols` across, each under its
-    caption; written to `target`."""
+    """`tiles` [(label, image)] on one canvas, `cols` across, captioned."""
     from PIL import ImageDraw
     bar, gap = 18, 6
     rows = (len(tiles) + cols - 1) // cols
@@ -271,8 +239,6 @@ def _grid(tiles, target, cell, cols):
 
 
 def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
-    """One grid image of every part, one tile per view — the way to look over a
-    whole build in one glance rather than 34 files."""
     tiles = []
     for path in paths:
         for _name, verts, tris in mesh3mf.read(path):
@@ -287,11 +253,10 @@ def contact(paths, target, cell=520, cols=4, views=(PUSHER_VIEWS[0],)):
 
 
 def sheet(path, out, width=1200, views=PUSHER_VIEWS):
-    """One PNG per part: one view above the next, with a caption."""
     from PIL import ImageDraw
     for name, verts, tris in mesh3mf.read(path):
-        # NB not `views = [...]`: a file with more than one object comes round
-        # again, and rebinding leaves the camera list holding Images.
+        # NB not `views = [...]`: a multi-object file comes round again, and
+        # rebinding leaves the camera list holding Images.
         shots = [render(verts, tris, az, el, width) for az, el in views]
         gap, bar = 16, 26
         w = max(v.width for v in shots)

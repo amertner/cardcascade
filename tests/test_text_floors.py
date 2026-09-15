@@ -1,19 +1,9 @@
 """No engraved or embossed text in the catalogue is thinner than its floor.
 
-`cad/text.py`, "floors": text CUT into a part is set no smaller than a
-0.200 mm stroke, text that STANDS PROUD no smaller than 0.250 (Allan,
-2026-09-04). This walks every text placement on every part in parts.csv —
-the sizing functions are pure arithmetic, so it is seconds — and asserts,
-from both ends as every divergence is:
-
-  * the FINAL size of every line is at or above its floor;
-  * the lines the floor RAISES are exactly the ones on record — four pusher
-    version lines, one pusher detail line, nine box lines on five boxes, and
-    the lettering on the two 10-card unsleeved topper sizes (a CUT floor:
-    the inlay prints face down in a pocket) — so a floor that quietly
-    started binding somewhere new, or stopped, fails here;
-  * every raised line still fits the part's hard extent (`DoesNotFit` is
-    never raised across the catalogue).
+`cad/text.py`, "floors": text CUT into a part is no smaller than a 0.200 mm
+stroke, PROUD text no smaller than 0.250. This walks every text placement in
+parts.csv and asserts from both ends: every line's FINAL size is at or above
+its floor, and the floor RAISES exactly the lines in `want` below.
 
     .venv/bin/python tests/test_text_floors.py
 """
@@ -37,12 +27,11 @@ def check(label, got, want, tol=0.0):
 
 
 placed = []         # (part, file, line, size, floor)
-raised = []         # (part, file, line) where the fitted size was under it
+raised = []
 
 
 def record(part, fn, line, fitted, final, font, proud):
-    """A line is RAISED when its fitted size was under the floor and its
-    final size is not; one the floor cannot reach is neither."""
+    """RAISED: the fitted size was under the floor, the final size is not."""
     floor = T.floor_size(font, proud)
     placed.append((part, fn, line, final, floor))
     if fitted < floor - 1e-9 and final >= floor - 1e-9:
@@ -97,16 +86,12 @@ for _folder, fn, p in B.box_catalogue():
 print("=== lids ===")
 for _game, fn, p, variant in B.lid_catalogue():
     if variant == TB.LID_ALTERNATE:
-        # The alternate edition is the same lid with the other mark in its
-        # underside (7.1d, `rev.both_lid_editions`). Its floor text is the
-        # cascade's, character for character, so it would only restate the
-        # primary's three lines under a second filename.
+        # Its floor text is the primary's, character for character (7.1d).
         continue
     d = D.derive(p)
     s = lid.text_scale(d)          # 1.0 before 7.2c, up to 1.5 from it
     if variant == TB.LID_UNMARKED:
-        # The unmarked lid (7.2b) restates the cascade's lines too, but for
-        # one: `lid.CREDIT` where the game's name is, at the same cap.
+        # The unmarked lid (7.2b) restates them but for `lid.CREDIT`.
         record("Lid", fn, "credit", lid.CAP_LINE * s / T.CAP,
                T.floored(lid.CAP_LINE * s / T.CAP, proud=True), T.LOGO_FONT, True)
         continue
@@ -159,8 +144,7 @@ want = sorted([
     ("Pusher", "Pusher 2x18-40-Sl.3mf", "version"),
     ("Pusher", "Pusher 3x6-Un.3mf", "detail"),
     ("Box", "Box S4.7.7.20-Un.3mf", "version"),
-    # the same box without its label holders (7.2d, `Plain box`): the same
-    # floor text, so the same floored version line
+    # the plain box (7.2d): the same floor text, so the same floored line
     ("Box", "Box S4.7.7.20-Un no label holders.3mf", "version"),
     ("Box", "Box S2.40.12-30.32-Un.3mf", "model+game"),
     ("Box", "Box S2.40.12-30.32-Un.3mf", "version"),
@@ -170,9 +154,7 @@ want = sorted([
     ("Box", "Box L3.18.6.20-Un.3mf", "capacity"),
     ("Box", "Box L3.18.6.20-Un.3mf", "version"),
     ("Box", "Box S3.15.10.20-Un.3mf", "version"),
-    # 7.2f (`shorter_box`): every box is 1.400 shallower, and on the two
-    # shallowest the floor text loses that much run, so three more lines
-    # bind on the floor
+    # 7.2f (`shorter_box`): 1.400 shallower, so three more lines bind
     ("Box", "Box L3.18.6.20-Sl.3mf", "model+game"),
     ("Box", "Box L3.18.6.20-Sl.3mf", "product"),
     ("Box", "Box S3.15.10.20-Un.3mf", "model+game"),

@@ -1,72 +1,23 @@
 """Post-export sanity checks for the exporter. ZERO API calls.
 
-Two independent guards against one failure mode: Onshape serving a CACHED
-translation computed for the PREVIOUS parameter set. The bytes are a valid 3MF
-of a real component, just the wrong one — so it lands under the right filename,
-parses fine, and is recorded as current in provenance. Nothing downstream
-notices until make_cascade happens to refuse the layout, and only then if the
-wrong part is the wrong SIZE in a way that overflows the bed.
+They all guard one failure mode: Onshape serving a CACHED translation
+computed for the PREVIOUS parameter set — a valid 3MF of the WRONG
+component, landing under the right filename and recorded as current.
 
-  footprint  the exported Box's measured W x D must match the cascade's
-             parts.csv W/D. Those columns are the ASSEMBLED, CLOSED cascade —
-             the LID's outer size, since the box fits inside it. Over the 33
-             built cascades the lid measures parts.csv to within 0.02 mm in
-             depth and a flat -0.10 mm in width (the width column rounds 270.90
-             up to 271.0), and the box measures the lid MINUS 2.00 mm on both
-             axes, with no exceptions. WALL below is that 2.00 plus the 0.1
-             rounding, which is why it is not a round number and why it is not
-             "the box's wall": the 2 mm is the lid wrapping the box, 1 mm a
-             side. WIDTH is the tight discriminator, so a width mismatch is
-             fatal. DEPTH has a handful of parts.csv rows that have drifted from
-             the model, so a depth mismatch only warns — D_TOL is 1.2 mm, wide
-             enough that passing this check does NOT confirm a row's depth to
-             better than a millimetre. An unbuilt row's estimated W/D should be
-             replaced with the lid's measurements once its CAD exists, rather
-             than left to ride on that slack.
-
-  lid        the exported Lid's measured W x D must match the same columns
-             DIRECTLY — it is the closed cascade they describe — so it is held
-             to 0.2 mm on both axes, and fatally. This is the check that
-             notices a row whose W/D were estimated rather than measured; the
-             footprint check above cannot, its depth tolerance being 1.2 mm.
-
-  pusher     a Pusher must carry two raised tabs of the nominal width, and
-             each must sit on solid plate rather than over the U-notch cut into
-             the same end. Unlike the two checks above this is not about a stale
-             translation — it is a CAD sizing defect that only shows on NARROW
-             pushers, and it is a warning, not a refusal, because the export is
-             exactly what the CAD says. The count is checked FIRST: past a
-             point the notch swallows a tab outright, and the survivor's
-             support looks perfect. See pusher_tabs() for the geometry and
-             PIPELINE.md for the rule.
-
+  footprint  the Box's W x D against parts.csv W/D less WALL (those columns
+             are the LID's outer size). Width is fatal; depth only WARNS, so
+             passing D_TOL does NOT confirm a depth to better than a mm.
+  lid        the Lid against the same columns DIRECTLY, 0.2 mm and fatal.
+  pusher     two raised tabs on solid plate. The bytes are right and the CAD
+             is wrong, so it only warns.
   stamp      a Box, Lid or Pusher must be ENGRAVED with the version its
-             cascade is being built at. The stamp comes from Onshape's `Version`
-             primary variable and the recorded version from
-             onshape_config.expected_version() — two different places, and they
-             drifted: 22 components on disk carry 7.0 lock geometry under a
-             `CC 6.6` stamp. That is the one thing a person holding two pushers
-             can read, and the 7.0 lock spans all three parts, so a wrong stamp
-             is how a 7.0 pusher ends up being printed for a 6.6 lid, where the
-             tabs miss the recesses by 5.6 mm. Fatal on a mismatch, a warning
-             when the line cannot be read.
+             cascade is built at: a 7.0 pusher in a 6.6 lid misses the
+             recesses by 5.6 mm.
+  identity   a new export's mesh hash must not equal one recorded for a
+             DIFFERENT component file, in ANY game.
 
-  identity   a new export's mesh hash must not equal one already recorded for a
-             DIFFERENT component file, in ANY game (the stale export usually
-             comes from the previous run, which is usually a different game).
-             Over the 168 components on disk the only such collisions were the
-             three Compile files this bug poisoned: legitimate duplicates don't
-             occur, because every export is keyed on the parameters that
-             determine its geometry.
-
-Beyond the checks, LOCK_CLASSES / target_lock() hold the proposed five-design
-lock catalogue and `verify.py --catalogue` prints the per-pusher worksheet for
-it (PIPELINE.md, "Standardising the lock"). Nothing enforces it yet — the CAD
-still places the features parametrically — so it reports, it does not refuse.
-
-All of them are cheap and local, so they run on every export by default;
-export.py --skip-verify turns them off for the case where parts.csv is the
-thing that's wrong.
+LOCK_CLASSES / target_lock() hold the proposed five-design lock catalogue,
+printed by `--catalogue`. export.py --skip-verify turns the checks off.
 """
 import hashlib
 import io
@@ -77,8 +28,7 @@ import mesh
 
 MODEL = "3D/3dmodel.model"
 
-# parts.csv W/D minus the measured mesh bbox, on both axes. Observed 2.00-2.10
-# over every correct box in individual/ (4 games, 33 boxes).
+# parts.csv W/D less the mesh bbox: 2.00 of lid around the box plus rounding.
 WALL = 2.05
 W_TOL = 0.6        # fatal beyond this
 D_TOL = 1.2        # warn beyond this (some parts.csv depths have drifted)
@@ -92,11 +42,9 @@ def _model_text(data):
 
 
 def mesh_sha(data):
-    """Stable hash of a 3MF's geometry, independent of packaging.
-
-    Hashes the <mesh> blocks only, whitespace-normalised: the assembly splitter
-    re-wraps a mesh into a fresh single-object 3MF and zipfile stamps its own
-    timestamps, so hashing the file bytes would not be reproducible."""
+    """Stable hash of a 3MF's geometry, independent of packaging: the <mesh>
+    blocks only, whitespace-normalised, the file bytes not being
+    reproducible."""
     h = hashlib.sha256()
     for block in re.findall(r"<mesh>.*?</mesh>", _model_text(data), re.S):
         h.update(re.sub(r"\s+", " ", block).encode())
@@ -121,10 +69,7 @@ def footprint(data):
 
 
 def check_box(data, ctx):
-    """(fatal message or None, warning message or None) for an exported Box.
-
-    Skips silently when the cascade's parts.csv row carries no W/D — plan_exports
-    already refuses such rows, so this only guards ad-hoc callers."""
+    """(fatal, warning) for a Box; silent when the row has no W/D."""
     want_w, want_d = ctx.get("box_w"), ctx.get("box_d")
     if not (want_w and want_d):
         return None, None
@@ -142,22 +87,10 @@ def check_box(data, ctx):
 
 
 def check_lid(data, ctx):
-    """(fatal message or None, None) for an exported Lid.
-
-    The parts.csv W/D columns measure the closed cascade, so the lid IS that
-    figure — no wall constant in between, and therefore a far tighter check
-    than check_box can manage. Over the 33 built cascades a lid measures its
-    row to within 0.12 mm in depth and 0.00 to -0.10 mm in width (the width
-    column rounds a 270.90 lid up to 271.0), so L_TOL is slack beyond anything
-    the CAD does while still catching a row whose W/D were never measured:
-    Milestones' pre-build guesses of 40/48 mm were out by 0.22 and 0.30.
-
-    Fatal on BOTH axes, unlike check_box, which has to tolerate a drifted
-    depth because its own comparison is looser. Here a mismatch is either a
-    stale translation or an estimate that wants replacing with these
-    measurements, and both are worth stopping for.
-
-    Skips silently when the row carries no W/D, as check_box does."""
+    """(fatal message or None, None) for an exported Lid. The parts.csv W/D
+    columns measure the closed cascade, so the lid IS that figure — far
+    tighter than check_box can manage (a lid measures its row to 0.12 mm over
+    the 33 built cascades), and fatal on BOTH axes."""
     want_w, want_d = ctx.get("box_w"), ctx.get("box_d")
     if not (want_w and want_d):
         return None, None
@@ -175,8 +108,8 @@ def check_lid(data, ctx):
 
 
 def duplicate(sha, file, provenance_rows):
-    """'<Game>/<file>' of an already-recorded component with this exact geometry
-    under a DIFFERENT filename, or None. Cross-game on purpose."""
+    """'<Game>/<file>' of a recorded component with this geometry under
+    another filename, or None. Cross-game on purpose."""
     for game, row in provenance_rows:
         if row.get("sha") == sha and row.get("file") != file:
             return f"{game}/{row['file']}"
@@ -184,51 +117,18 @@ def duplicate(sha, file, provenance_rows):
 
 
 # ---------------------------------------------------------------------------
-# Pusher tab support
+# Pusher tab support — PIPELINE.md, "The pusher's second tab"
 # ---------------------------------------------------------------------------
-#
-# A Pusher is a flat plate, 4.5 mm thick, printed FACE DOWN (make_cascade lays
-# every pusher on the bed with an identity rotation). Its leading end carries
-# three interlocking features, all sized in the CAD from the pusher's own depth
-# D — the card-stack dimension, i.e. the width of the leading end the features
-# are cut into:
-#
-#   tab A     3.8 mm wide x 5.0 deep, raised 1.5 mm above the plate's top face,
-#             set 4.0 mm in from the D=0 edge
-#   tab B     the same, set 4.2 mm in from the D edge — so its inner edge lands
-#             at 8.0 mm from that edge, wherever that edge is
-#   notch     a 5.4 x 5.2 mm U cut clean THROUGH the plate from the leading end,
-#             centred 2.5 mm off the plate's mid-line (edges at D/2 - 0.2 and
-#             D/2 + 5.2 from the D=0 edge), with the near edge clamped so it
-#             never runs into tab A
-#
-# Tab A is placed from one edge and the notch from the mid-line, and the CAD
-# clamps the notch to keep those two apart. Tab B gets no such clamp, so as D
-# shrinks the notch walks INTO it: tab B is fully backed only while
-#
-#     D - 8.0  >=  D/2 + 5.2      i.e.   D >= 26.4 mm
-#
-# and below that it loses (13.2 - D/2) mm of its 3.8 mm root, cantilevered over
-# a 3 mm void that the slicer has to start in mid-air. At D = 19.2 mm
-# (Innovation "Single Set" unsleeved, the narrowest two-tab pusher in the
-# catalogue) 0.2 mm of root is left and the tab prints as a loose flag.
-#
-# The check measures rather than recomputes that inequality, so it also holds
-# for pushers whose CAD has moved on: slice the tabs off the top face, slice the
-# plate below them, and ask how much of each tab's footprint has plate under it.
+# Below D = 26.4 mm the end notch walks into tab B and leaves it cantilevered
+# (0.19 mm of root at D = 19.2). MEASURED, not recomputed.
 
-# A tab is meant to be fully backed, so ANY unbacked footprint is a warning.
-# Below this much continuous backing it is not a print artefact to live with —
-# the tab has no root worth the name. The 32 pushers on disk split cleanly
-# either side: the three worst anchor 0.19 / 0.98 / 1.01 mm, the next ones
-# 2.31 / 3.01 / 3.61 / 3.80, and a correctly backed tab anchors its full 5.00.
+# Below this much continuous backing the tab has no root worth the name: the
+# 32 pushers on disk anchor 0.19 / 0.98 / 1.01 at worst, then 2.31 and up.
 TAB_ANCHOR_MIN = 2.0
 
-# Every pusher in the catalogue carries exactly two tabs of this width. Anything
-# else is the same collision one stage further on: at D = 18.00 tab B's whole
-# footprint falls inside the notch and the CAD emits no tab at all (one tab
-# survives, fully backed, so a support check alone reports the pusher clean);
-# at D = 14.04 the two tabs overlap and fuse into a single 5.84 mm boss.
+# Every pusher carries exactly two tabs of this width. Fewer or fused is the
+# same collision one stage on — and a support check alone then reports it
+# clean.
 TABS_EXPECTED = 2
 TAB_W_NOMINAL = 3.80
 TAB_W_TOL = 0.60
@@ -252,9 +152,7 @@ def _meshes(data):
 
 
 def _section(verts, tris, axis, at):
-    """Cross-section of a mesh at `axis` = `at`, as segments in the other two
-    axes. One segment per crossed triangle; the mesh is closed, so the segments
-    close into loops."""
+    """Cross-section at `axis` = `at`; a closed mesh closes into loops."""
     u, w = [a for a in (0, 1, 2) if a != axis]
     segs = []
     for t in tris:
@@ -313,10 +211,7 @@ def _inside(segs, u, w):
 
 
 def _anchor(tab, plate, u0, u1, w0, w1, n=120, across=24):
-    """Widest continuous strip of the tab that is backed by plate along its
-    whole length, measured along whichever in-plane axis gives the larger
-    answer. This is the tab's root: the tab's full 5.00 mm depth when it is
-    properly backed, 0.19 mm on the Innovation Single Set unsleeved."""
+    """Widest continuous strip of the tab backed by plate."""
     best = 0.0
     for along, other in (((w0, w1), (u0, u1)), ((u0, u1), (w0, w1))):
         flip = along == (u0, u1)
@@ -337,18 +232,8 @@ def _anchor(tab, plate, u0, u1, w0, w1, n=120, across=24):
 
 
 def pusher_tabs(data, grid=80):
-    """Per-tab support measurements for a Pusher 3MF:
-    [{'w', 'd', 'fraction', 'anchor'}], one entry per raised tab.
-
-    'fraction' is how much of the tab's footprint has plate directly under it,
-    sampled on a `grid` x `grid` lattice (so it is good to about one cell);
-    'anchor' is the widest continuous fully-backed strip, in mm. A correct tab
-    reads 1.00 and 5.00 — its whole 5 mm depth.
-
-    Orientation-agnostic: the plate normal is the mesh's thinnest axis, and the
-    tabs are whichever face's near-surface section is the smaller of the two, so
-    this reads a Pusher straight out of Onshape and one lifted back out of a
-    built project alike."""
+    """Per-tab support for a Pusher 3MF: [{'w', 'd', 'fraction', 'anchor'}],
+    a correct tab reading 1.00 and 5.00 mm. Orientation-agnostic."""
     verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
     spans = [(max(c) - min(c), a) for a, c in enumerate(zip(*verts))]
     axis = min(spans)[1]
@@ -363,8 +248,7 @@ def pusher_tabs(data, grid=80):
     top = hi if area(hi - 0.2) < area(lo + 0.2) else lo
     sign = 1 if top == hi else -1
     tabs = _loops(_section(verts, tris, axis, top - sign * 0.2))
-    # 3/4 of the way down from the tab face: clear of the 1.5 mm tabs and of
-    # the version string embossed just under the top face.
+    # 3/4 down from the tab face: clear of the tabs and of the version string
     plate = _section(verts, tris, axis, top - sign * 0.75 * span)
 
     out = []
@@ -386,29 +270,11 @@ def pusher_tabs(data, grid=80):
 
 
 # ---------------------------------------------------------------------------
-# The five-design lock catalogue (proposed — see PIPELINE.md)
+# The five-design lock catalogue (proposed — PIPELINE.md, LOCK_STANDARD.md)
 # ---------------------------------------------------------------------------
-#
-# A design is one number: s, the distance from the pusher's centreline to each
-# tab's centre. Tabs and notch keep today's sizes and sit symmetrically about
-# that centreline, so a design is legal on a pusher of depth D when there is at
-# least EDGE_MIN of plate outboard of each tab:
-#
-#     D >= 2 * (s + TAB_W_NOMINAL/2 + EDGE_MIN)
-#
-# and it can carry the notch when the land between tab and notch holds up:
-#
-#     s >= TAB_W_NOMINAL/2 + NOTCH_W/2 + LAND_MIN
-#
-# The five values below were chosen to maximise the WORST hang base (2s) as a
-# fraction of the widest base the plate could give (D - 2*EDGE_MIN - TAB_W).
-# Over the 32 pushers on disk that worst case is 63%, and 15 of the 32 come out
-# with a wider base than they have today, because today's 4.00 mm inset is more
-# generous than the 2.00 the catalogue allows at the bottom of a band.
-#
-# "Today's base" is D - 12.00, not D - 11.80: tab A is 4.00 in from one edge and
-# tab B 4.20 in from the other, so the centres are 6.10 and D - 5.90 and the
-# separation carries tab B's extra 0.20.
+# A design is one number: s, the centreline-to-tab-centre distance. "Today's
+# base" is D - 12.00, not D - 11.80: tab A sits 4.00 in from one edge, tab B
+# 4.20 in from the other.
 NOTCH_W = 5.40
 EDGE_MIN = 2.00
 LAND_MIN = 1.20
@@ -417,14 +283,11 @@ LOCK_CLASSES = [("C1", 3.10), ("C2", 5.10), ("C3", 8.50),
 
 
 def class_min_depth(s):
-    """Narrowest pusher a design with tab offset `s` is legal on."""
     return 2 * (s + TAB_W_NOMINAL / 2 + EDGE_MIN)
 
-
 def lock_class(depth):
-    """(name, s, has_notch) for a pusher of this depth, or None if nothing fits."""
-    # 0.01 of slack: a depth like 18.00 arrives from the mesh as 17.99999 and
-    # must still take the design whose floor is exactly 18.00.
+    """(name, s, has_notch) for a pusher of this depth, or None."""
+    # 0.01 of slack: 18.00 arrives from the mesh as 17.99999.
     fits = [(n, s) for n, s in LOCK_CLASSES if class_min_depth(s) <= depth + 0.01]
     if not fits:
         return None
@@ -433,8 +296,8 @@ def lock_class(depth):
 
 
 def target_lock(depth):
-    """Where the catalogue puts a pusher's features, as distances from its
-    D = 0 plate edge: {'class', 's', 'tabs': [(lo, hi), (lo, hi)], 'notch'}."""
+    """Where the catalogue puts a pusher's features, from the D = 0 plate
+    edge: {'class', 's', 'tabs': [(lo, hi), (lo, hi)], 'notch'}."""
     got = lock_class(depth)
     if not got:
         return None
@@ -447,9 +310,8 @@ def target_lock(depth):
 
 
 def pusher_lock(data):
-    """As-built lock geometry: {'depth', 'tabs', 'notch'} with every position a
-    distance from the pusher's D = 0 plate edge, so it compares directly with
-    target_lock(). `notch` is None when the end carries no through-cut."""
+    """As-built lock geometry: {'depth', 'tabs', 'notch'}, every position from
+    the D = 0 plate edge, so it compares with target_lock()."""
     verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
     spans = [(max(c) - min(c), a) for a, c in enumerate(zip(*verts))]
     axis = min(spans)[1]
@@ -488,75 +350,30 @@ def pusher_lock(data):
 # ---------------------------------------------------------------------------
 # The engraved version stamp
 # ---------------------------------------------------------------------------
+# `CC <version>` cut into every Box, Lid and Pusher is the only thing a person
+# holding a printed part can read, and the 7.0 lock spans all three, so it is
+# what stops a new pusher going into an old lid. Nothing checked it and it
+# went wrong: 36 of 128 parts carry 7.0 geometry under a `CC 6.6` stamp
+# (PIPELINE.md, "The engraved version is not the recorded version").
 #
-# Every Box, Lid and Pusher carries `CC <version>` cut into it, from the
-# Onshape `Version` primary variable (set_variables.build_primary). That string
-# is the ONLY thing a person holding a printed part can read, and the 7.0 lock
-# is a whole-cascade change — "a pusher, a lid and a box must all come from the
-# same version" (LOCK_STANDARD.md) — so the stamp is what stops someone mixing
-# a new pusher into an old lid, where the tabs miss the recesses by 5.6 mm and
-# the part simply will not go in.
+# Reading it is not OCR. The version is a WORD — `<digit> . <digit>` — and
+# Orbitron Bold's digits are told apart by their COUNTERS: 6 one short, low;
+# 0 one tall; 7 none; 4 one short, high; 8 two. A signature several versions
+# share is reported as all of them, which costs nothing.
 #
-# Nothing checked it, and it went wrong: 36 of the 128 boxes, lids and pushers
-# on disk carry 7.0 lock geometry under a `CC 6.6` stamp, because the CAD's lock
-# moved before the `Version` variable was bumped and provenance records
-# expected_version(), not what the bytes say. The two are set in different places and only this reads
-# both. cad/parts/pusher.py already REFUSES to build that part ("a Primary at
-# '6.6' would get 7.0 tabs under a 'CC 6.6' stamp"); this is the same guard for
-# the Onshape path.
+# From 7.1 the counters stop separating releases — `1` and `7` have none, so
+# the whole 7.x family reads ("none", "none") — and no refinement helps, those
+# glyphs differing in their strokes, not their holes. Hence `check_stamp` reads
+# the METADATA too: the glyph is what a person reads off the plastic, the
+# metadata names the build that wrote the file, and a disagreement is the file
+# lying to itself. An ITERATION LETTER reads as its release does, a letter not
+# being a counter — so `_dotted` must accept the trailing mark, or the version
+# is not found on the line at all.
 #
-# Reading it is not OCR. The version is a WORD — `<digit> . <digit>`, with a
-# space either side of it — and Orbitron Bold's digits are told apart by their
-# counters, the enclosed holes:
-#
-#     6   one counter, short (about a quarter of the cap) and low in the glyph
-#     0   one counter, tall (about three fifths of the cap)
-#     7   none
-#     4   one counter, short and high
-#     8   two counters
-#
-# So the pair of digits either side of the period names the version, and the
-# ones that matter here are two low counters (6.6) against none-then-tall
-# (7.0). A signature that several versions share (6.3 and 6.5 both read
-# "low, none") is reported as all of them; the check only ever asks whether the
-# expected version is among them, so the ambiguity costs nothing.
-#
-# 7.1 is where that stops being free. `1` has no counter and neither has `7`,
-# so 7.1 reads ("none", "none") — and so would 7.2, 7.3, 7.5 and 7.7, every
-# one of them a plausible next release. The counters cannot separate them and
-# no refinement of this reader will: the glyphs differ in their strokes, not in
-# their holes. Measured on a real build, not assumed:
-#
-#     build/Innovation/Lid M5.15.15.45-Un.3mf        7.1 -> ("none", "none")
-#     build/v7.0/Innovation/Lid M5.15.15.45-Un.3mf   7.0 -> ("none", "tall")
-#
-# That is why `check_stamp` now reads the METADATA too. The glyph says what a
-# person will read off the plastic — the thing that stops a 7.x pusher going
-# into a 6.6 lid — and the metadata says exactly which release wrote the file.
-# Neither replaces the other, and a disagreement is the file lying to itself.
-# An ITERATION LETTER (`7.1a`, `cad/revisions.py`) reads as its release does:
-# the signature is the two digits' counters and the letter is not one of them.
-# So `7.1a` .. `7.1d` and `7.1` all share ("none", "none") and a part stamped
-# any of them reads back as "7.1/7.1a/7.1b/7.1c/7.1d" — the same benign
-# ambiguity 6.3 and 6.5 already have, and the metadata is what separates them.
-# A letter costs the glyph nothing and buys nothing from it: the check only
-# ever asks whether the expected release is among the names, so a new letter is
-# one more row here. What the letter DOES change is the shape of the word:
-# `_dotted` has to accept the trailing mark, or the version is not found on the
-# line at all.
-#
-# **8.0 is the first release the glyph can name on its own.** `8` is the only
-# digit with TWO counters and `0`'s is tall, so it reads ("two", "tall"), a
-# pair no other version in this table wears — where the whole 7.x family
-# shares ("none", "none"). Measured on the 8.0 build, not assumed:
-#
-#     build/Compile/Lid S4.7.7.32-Sl.3mf          8.0 -> ("two", "tall")
-#     build/Innovation/Box M8.16.10-16.45-Un.3mf  8.0 -> ("two", "tall")
-#
-# That is worth having precisely because 8.0 is the release that stopped
-# fitting its predecessors (`cad/revisions.py`): a person holding a lid can
-# tell an 8.0 one from a 7.x one by its stamp, which is the question the
-# glyph exists to answer, and no 7.x pair can be mistaken for it.
+# 8.0 is the exception, and the reason the glyph is worth reading: `8` is the
+# only digit with TWO counters and `0`'s is tall, so it reads ("two", "tall"),
+# a pair no 7.x wears. It is the release that stopped fitting its predecessors
+# (`cad/revisions.py`), and the one a person can name off the plastic.
 STAMP_SIGNATURES = {
     "8.0": ("two", "tall"),
     "7.2g": ("none", "none"),
@@ -578,22 +395,15 @@ STAMP_SIGNATURES = {
     "6.3": ("low", "none"),
 }
 
-# Metadata that names the release. `CardCascade:Version` is what `cad.build`
-# writes into every component under its own declared namespace
-# (`cad/mesh3mf.VERSION_KEY`); `Title` is where a PROJECT carries it, as
-# `... Sleeved v7.1 (M5.15.15.45-Un)` (`cad.cascade.title`,
-# `refresh_cascades.project_title`). An Onshape component export carries
-# neither, which is not a fault: it is why this is a second witness and not a
-# replacement.
+# `CardCascade:Version` is what `cad.build` writes into every component;
+# `Title` is where a PROJECT carries it. An Onshape export has neither.
 META_VERSION_KEY = "CardCascade:Version"
-# The trailing `[a-z]?` is the iteration letter: a project built while 7.1 is
-# being worked on is titled `... Sleeved v7.1a (...)`, and without it the
-# title witness would read nothing for the whole of an unreleased release.
+# The trailing `[a-z]?` is the iteration letter (`v7.1a`): without it this
+# witness reads nothing for the whole of an unreleased release.
 META_TITLE_VERSION = re.compile(r"\bv(\d+(?:\.\d+)+[a-z]?)\b")
 
-# The three parts the 7.0 lock spans, and so the three whose stamp is a claim
-# about which lock a person is holding. LOCK_STANDARD.md: "a pusher, a lid and a
-# box must all come from the same version. Holders and toppers carry over."
+# The three parts the 7.0 lock spans. LOCK_STANDARD.md: "a pusher, a lid and
+# a box must all come from the same version. Holders and toppers carry over."
 STAMPED = ("Box", "Lid", "Pusher")
 
 MARK_MIN, MARK_MAX = 0.05, 12.0    # a glyph is never outside this, in mm
@@ -604,13 +414,8 @@ DOTS_PER_LINE = 50                 # progress dots before wrapping
 
 
 def _slicer(verts, tris, axis, bins=256):
-    """A `section(at)` that only visits the triangles crossing `at`.
-
-    `_section` walks every triangle, which is fine once and not fifty times: the
-    plane scan below is ~50 planes per axis per component, and over the
-    catalogue that was minutes of Python for the boxes alone. A triangle spans a
-    fraction of a millimetre, so binning them by their extent along the axis
-    puts a few dozen in front of each query instead of sixty thousand."""
+    """A `section(at)` that only visits the triangles crossing `at`: a few
+    dozen in front of each query, not sixty thousand."""
     lo = min(v[axis] for v in verts)
     hi = max(v[axis] for v in verts)
     width = ((hi - lo) or 1.0) / bins
@@ -629,12 +434,8 @@ def _slicer(verts, tris, axis, bins=256):
 
 
 def _axis_order(verts):
-    """Which axis to look for text on first.
-
-    Every engraved string in the catalogue lies in a plane normal to Z — the
-    pusher's face, the lid's underside, the box's floor — so Z first, then the
-    thinnest axis, then the rest. Before this a box scanned Y in full, found
-    nothing, and only then reached Z."""
+    """Which axis to look for text on first: every engraved string lies
+    in a plane normal to Z, so Z, then the thinnest axis."""
     thin = min((max(c) - min(c), a) for a, c in enumerate(zip(*verts)))[1]
     order = []
     for a in (2, thin, 0, 1):
@@ -644,13 +445,8 @@ def _axis_order(verts):
 
 
 def _populated_planes(verts, axis, min_hits=40):
-    """Midpoints between the mesh's populated planes along `axis`.
-
-    Sectioning a box every 0.1 mm to find its text is minutes of Python. But an
-    engraved glyph is a slab bounded by two real planes — the face it is cut
-    into and the 0.4 mm floor of the cut — so the midpoints of the planes the
-    mesh actually populates always include one inside it, and there are a few
-    dozen of those rather than a few thousand."""
+    """Midpoints between the mesh's populated planes along `axis`: a glyph is
+    a slab between two real planes, so one of these always lands inside it."""
     hits = {}
     for p in verts:
         z = round(p[axis], 3)
@@ -664,9 +460,8 @@ def _populated_planes(verts, axis, min_hits=40):
 
 
 def glyph_plane(verts, tris, axis):
-    """(plane, marks) for the section through this mesh carrying the most
-    glyph-sized loops, or (None, []). Not the outer face: on a pusher the text
-    is cut into the face the tabs stand proud of, 1.5 mm inside the bbox."""
+    """(plane, marks) for the section with the most glyph-sized loops: a
+    pusher's text is 1.5 mm inside the bbox, not on the outer face."""
     section = _slicer(verts, tris, axis)
     best = (0, None, [])
     for at in _populated_planes(verts, axis):
@@ -679,16 +474,9 @@ def glyph_plane(verts, tris, axis):
 
 
 def _orientations(marks):
-    """The same marks in each of the four in-plane orientations.
-
-    Onshape runs some of these strings along the part's other axis — the box
-    engraves its floor text reading down the depth — and a reader that knows
-    only one baseline direction misses those. Each orientation puts the line's
-    baseline at `w0` and reading order at increasing `u`.
-
-    All four must be ROTATIONS. A transpose `(u, w) -> (w, u)` looks like it
-    turns the page and is a reflection: it lands the baseline in the right place
-    but reads the line backwards, so `7.0` comes out `0.7`."""
+    """The same marks in each of the four in-plane orientations — Onshape runs
+    some strings along the part's other axis. All four must be ROTATIONS: a
+    transpose is a reflection and reads `7.0` as `0.7`."""
     yield marks
     yield [(-m[1], -m[0], -m[3], -m[2]) for m in marks]           # 180
     yield [(m[2], m[3], -m[1], -m[0]) for m in marks]             # +90
@@ -696,8 +484,8 @@ def _orientations(marks):
 
 
 def _lines(marks):
-    """Marks grouped into text lines by baseline. A version line sits a full cap
-    below the product line, so BASELINE_TOL never merges the two."""
+    """Marks grouped into lines by baseline; a version line sits a cap below
+    the product line, so BASELINE_TOL never merges the two."""
     lines, cluster = [], []
     for m in sorted(marks, key=lambda m: m[2]):
         if cluster and m[2] - cluster[-1][2] > BASELINE_TOL:
@@ -712,56 +500,22 @@ def _lines(marks):
 def _dotted(line):
     """(cap, digit before, digit after) for every `d.d` TOKEN on `line`.
 
-    A period is a small near-square mark sitting ON the baseline — which is what
-    separates it from a digit's counter, since every counter floats above the
-    baseline. The baseline is the level MOST of the line's full-height marks sit
-    on, not the lowest: a rotated neighbouring line (the pusher's detail string
-    runs down the depth) drops one mark 0.15 mm below the rest, and the minimum
-    would move the baseline out from under the period.
+    A period is a small near-square mark sitting ON the baseline, which is
+    what separates it from a counter. The baseline is the level MOST of the
+    line's full-height marks sit on, not the lowest, or a rotated neighbouring
+    line would move it out from under the period.
 
-    The line is then split into WORDS on its spaces, and only a word of exactly
-    `digit period digit` counts. That is what tells `CC 6.6` from a model code,
-    which is nothing but digits around periods — `S5.15.15.62-Sl` offers three
-    pairs and `M6.21.10.62-Sl` another three, and reading either as a version
-    gives a confident wrong answer. A space measures over a quarter of the cap
-    and letter spacing well under a tenth of it, on every string in the
-    catalogue from the 0.535 mm version line on `Pusher 2x18-Sl` to the 5.484 mm
-    model code on `Box S5.15.15.62-Sl`, so the two never have to be guessed at.
+    The line is split into WORDS on its spaces (over a quarter of the cap,
+    against letter spacing under a tenth) and only a word of exactly
+    `digit period digit` counts — which is what tells `CC 6.6` from a model
+    code, itself nothing but digits around periods.
 
-    Reading the version as a word is also what lets the box be read at all: its
-    floor line carries a second word after the number, so a reader that wanted
-    the line to be five marks and nothing else would skip every box.
-
-    A FOURTH mark is allowed at the END of the word, and only there: an
-    unreleased release is iterated by letter (`cad/revisions.py`), so the stamp
-    reads `CC 7.1a` and a reader that demanded exactly three marks would go
-    blind on every part of the release being worked on.
-
-    A four-mark word cannot be admitted on its own SHAPE, and the catalogue
-    says so rather than theory: the merged Dominion codes end `-M.Un`, and
-    with the hyphen off the baseline that trails the line as its own word of
-    `M . U n` — a full-cap mark, a period, a full-cap mark and a 0.81 one,
-    which is `7 . 1 a` exactly. Both readings then stand on one part and
-    `version_stamp` answers None, which is how this was caught: all 128
-    Onshape components read before the letter and eight stopped after it.
-
-    Height cannot separate them either, and that is measured, not assumed. In
-    Orbitron Bold, against a digit's cap: `a`, `c` and `e` are 0.80, `b`, `d`,
-    `f` and `h` are 1.07 and `g` is 1.12. The letters straddle the digits, so a
-    threshold that admitted `7.1a` would refuse `7.1b`, and `n` sits at 0.81
-    right beside `a`. Every lowercase glyph does sit ON the baseline (offset
-    0.000 on all of them), so the letter is always in `on_base`.
-
-    So a four-mark word is admitted by its CONTEXT: the stamp is `CC <version>`
-    and always has been (`derive.calVersion`), so the word before it must be
-    the `CC` — two marks, both reaching the cap, of the same width to a tenth.
-    `M.Un` follows the eleven marks of `M4.21.10.32` and is refused; nothing in
-    the catalogue puts a two-letter word in front of a dotted one. A THREE-mark
-    word is still read wherever it appears, exactly as before, so no part that
-    could be read before can stop being readable.
-
-    The letter itself is not read — the counters of `a`, `b`, `d` and `e` are
-    one apiece and cannot be told apart — which is what the metadata is for."""
+    A FOURTH mark is allowed at the END of the word, for the iteration letter,
+    and only where the preceding word is the `CC`. Neither shape nor height
+    can admit it: the merged Dominion codes trail the line as `M . U n`, which
+    is `7 . 1 a` exactly, and Orbitron's lowercase straddles the digits at
+    0.80 to 1.12 of a cap. The letter itself is not read — that is what the
+    metadata is for."""
     rough = max(m[3] - m[2] for m in line)
     levels = {}
     for m in line:
@@ -784,8 +538,8 @@ def _dotted(line):
     if word:
         words.append(word)
     def is_cc(word):
-        """Is `word` the `CC` a version stamp begins with? Two marks, both at
-        the cap, the same width to a tenth."""
+        """Is `word` the `CC` a stamp begins with? Two marks at the cap, the
+        same width to a tenth."""
         if len(word) != 2:
             return False
         widths = [m[1] - m[0] for m in word]
@@ -808,11 +562,8 @@ def _dotted(line):
 
 def _counter_class(glyph, cap, marks):
     """`none`, `low`, `tall`, `high` or `two` for a digit, from its counters.
-
-    Counters arrive from the tessellation as one loop or as several overlapping
-    ones — a `0` at 2.8 mm cap splits in two — so they are merged into spans
-    along the cap axis first, and it is the count of DISJOINT spans that says
-    whether the glyph is an 8."""
+    A counter can arrive as several overlapping loops, so they are merged
+    first: the count of DISJOINT spans is what says an 8."""
     inner = [m for m in marks if m != glyph
              and glyph[0] < m[0] and m[1] < glyph[1]
              and glyph[2] < m[2] and m[3] < glyph[3]]
@@ -838,12 +589,9 @@ def _counter_class(glyph, cap, marks):
 
 
 def version_stamp(data):
-    """The version engraved on a component, e.g. `7.0`, or None if unreadable.
-
-    A signature shared by several versions comes back as all of them, slash
-    separated (`6.3/6.5`). Two DIFFERENT readings on one part come back as None
-    rather than a guess — a model code carries periods too, and a wrong answer
-    here is worse than no answer."""
+    """The version engraved on a component, e.g. `7.0`, or None. A shared
+    signature comes back as all of them (`6.3/6.5`); two DIFFERENT readings
+    come back as None, not a guess."""
     verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
     found = set()
     for axis in _axis_order(verts):
@@ -865,18 +613,9 @@ def version_stamp(data):
 
 
 def version_metadata(data):
-    """The release a 3MF states in its METADATA, or None if it states none.
-
-    Two places, in order of authority: `CardCascade:Version`, which
-    `cad.build` writes into every component it makes and which is exact; and a
-    project's `Title`, which carries `v7.1` in the middle of a name. An Onshape
-    export has neither and comes back None — the caller then has only the
-    glyph, which is what it always had.
-
-    This is TEXT, so it cannot be confused by tessellation, orientation or a
-    model code that happens to contain a period — and it cannot be read off a
-    printed part, which is why it is a second witness and never the only one.
-    """
+    """The release a 3MF states in its METADATA, or None:
+    `CardCascade:Version`, then a project's `Title`. TEXT, so nothing can
+    confuse it — and unreadable off a printed part, hence a second witness."""
     text = _model_text(data)
     m = re.search(rf'<metadata name="{re.escape(META_VERSION_KEY)}">'
                   r"([^<]*)</metadata>", text)
@@ -894,19 +633,11 @@ def check_stamp(data, want):
     """(fatal message or None, warning or None) for a component that must be
     engraved `want`.
 
-    TWO witnesses, and they answer different questions. The GLYPH is what a
-    person holding the plastic reads, and it is the thing that stops a 7.x
-    pusher being put into a 6.6 lid — but its signature cannot separate 7.1
-    from 7.2 (see STAMP_SIGNATURES). The METADATA names the release exactly,
-    and is written by whatever made the file.
-
-    Fatal on a POSITIVE mismatch from either — the bytes carry a version that
-    is not the one this cascade is being built at, no later step can correct
-    it, and the part would print with a lie on it — and fatal when the two
-    disagree with each other, which means the file is not self-consistent
-    whatever the cascade wanted. Only a warning when NEITHER can be read, so a
-    reader that fails on some new layout never blocks an export already paid
-    for.
+    TWO witnesses: the GLYPH is what a person holding the plastic reads but
+    cannot separate 7.1 from 7.2 (see STAMP_SIGNATURES); the METADATA names
+    the release exactly. Fatal on a POSITIVE mismatch from either and when
+    the two disagree; only a warning when NEITHER can be read, so a reader
+    that fails on a new layout never blocks an export already paid for.
     """
     meta = version_metadata(data)
     if meta is not None and meta != want:
@@ -934,15 +665,9 @@ def check_stamp(data, want):
 
 
 def check_pusher(data, ctx=None):
-    """(None, warning message or None) for an exported Pusher.
-
-    Never fatal. The two checks above refuse an export because the BYTES are
-    wrong — the wrong component under the right name. This one says the bytes
-    are right and the CAD is wrong, and refusing would only block work on
-    everything else in the same assembly. It has to be acted on in Onshape.
-
-    Reports the tab COUNT before tab support, because a pusher that lost a tab
-    to the notch has perfect support on the one that is left."""
+    """(None, warning message or None) for an exported Pusher. Never fatal:
+    the bytes are right and the CAD is wrong. Reports the tab COUNT first,
+    a pusher that lost a tab having perfect support on the one left."""
     try:
         tabs = pusher_tabs(data)
     except (ValueError, KeyError, ZeroDivisionError):
@@ -977,39 +702,22 @@ def check_pusher(data, ctx=None):
 # ---------------------------------------------------------------------------
 # Rise height, and the invariant the holder key rests on
 # ---------------------------------------------------------------------------
-#
-# A Pusher is cut as a staircase: one tread per riser, each dropping the plate's
-# width by D/risers, and the tread LENGTH is how far that riser travels — the
-# rise height. So rise is measurable off any pusher, exactly.
-#
-# The Holder key carries RISERS (see plan_exports.holder) because the holder is
-# genuinely not invariant with riser count: the diagonal edge has to form one
-# line across the open cascade, and rise is capped by box height, so more risers
-# means a shallower diagonal. Riser count stands in for rise because it is the
-# only one of the two available when the filename is computed — and because,
-# measured over all 32 pushers, RISE IS A FUNCTION OF RISER COUNT WITHIN A GAME.
-#
-# That is an assumption about the CAD, not a fact about the world, so it is
-# checked rather than trusted: `verify.py --rises` refuses if any (game, risers)
-# pair ever yields two different rises. If that fires, the holder key needs a
-# real rise axis and the stand-in has stopped working.
+# The tread LENGTH of a pusher's staircase is the rise height. The Holder key
+# carries RISERS instead, that being the only one available when the filename
+# is computed and rise being a function of it within a game — an assumption
+# `--rises` checks rather than trusts.
 
 
 def pusher_rise(data, risers):
-    """(rise, treads) for a Pusher: the distance one riser travels, and every
-    tread length measured. `rise` is their mean — they agree exactly except
-    where a fixed travel does not divide evenly (8 risers alternates
-    10.923/10.827 about 10.875)."""
+    """(rise, treads) for a Pusher; `rise` is the treads' mean."""
     verts, tris = max(_meshes(data), key=lambda m: len(m[0]))
     c = list(zip(*verts))
     zlo, zhi = min(c[2]), max(c[2])
     segs = _section(verts, tris, 2, zlo + 0.5 * (zhi - zlo))   # clear of tabs
     x0, x1 = min(c[0]), max(c[0])
     y0, y1 = min(c[1]), max(c[1])
-    # A step is a DISCONTINUITY in the plate's width along the rise: a riser
-    # face drops it by a whole slider distance (4.800 at the least) between
-    # two adjacent samples 0.1 apart, where a step's corner chamfer moves it
-    # a tenth of that.
+    # A step is a DISCONTINUITY in the plate's width: a riser face drops it by
+    # a whole slider distance (4.800 at the least) between samples 0.1 apart.
     STEP = 2.0
     edges, last = [], None
     for j in range(900):
@@ -1025,8 +733,8 @@ def pusher_rise(data, risers):
 
 
 def audit_rises(root, tol=0.05):
-    """Print rise height per pusher and check it is a function of riser count
-    within each game. Returns the number of (game, risers) pairs that disagree."""
+    """Rise height per pusher, checked to be a function of riser count within
+    each game; returns the number of (game, risers) pairs that disagree."""
     from pathlib import Path
     root = Path(root)
     seen = {}
@@ -1064,18 +772,9 @@ def audit_rises(root, tol=0.05):
 # ---------------------------------------------------------------------------
 # How many pushers a box actually takes — read off the box, not off a table
 # ---------------------------------------------------------------------------
-#
-# A box carries two rim cutouts per pusher, cut into the INNER back wall (the
-# outer wall is uncut, which is why they are invisible from behind). So a
-# section through the cutout band leaves the box's outline plus the back wall
-# broken into pieces: 2N + 1 closed loops for N pusher slots, the two end pieces
-# being part of the outline. Measured on all 48 boxes in individual/, every one
-# reads a clean 5 or 7.
-#
-# `components.pushers_for` is the same fact written down by hand, and the two
-# had drifted: Innovation's per-size map has no XS key, so Single Mini fell
-# through to 3 against a box with 2 slots. This is the check that would have
-# caught it, and that catches the next table to drift.
+# Two rim cutouts per pusher in the INNER back wall, so a section through the
+# band gives 2N + 1 loops for N slots. `components.pushers_for` is the same
+# fact by hand, and the two had drifted — spec/BOX.md.
 
 def box_pusher_slots(data):
     """How many pusher slots a Box 3MF has, from its rim cutouts."""
@@ -1089,8 +788,8 @@ def box_pusher_slots(data):
 
 
 def audit_box_slots(root):
-    """Check every Box on disk against components.pushers_for. Returns the
-    number that disagree."""
+    """Every Box on disk against components.pushers_for; returns the number
+    that disagree."""
     import csv as _csv
     from pathlib import Path
     import components as C
@@ -1135,14 +834,8 @@ def audit_box_slots(root):
 
 
 def audit_pushers(root, verbose=False):
-    """Print a lock line for every exported Pusher under `root`, and return the
-    number that carry a defective lock.
-
-    individual/ only. A built cascade carries copies of these exact files (the
-    2-3 pushers in a project are one component instanced), so walking cascades/
-    as well only re-reports the same meshes under project names — and costs 20x
-    the time to unpack them out of Studio's layout. Which projects a flagged
-    pusher reaches follows from its dedup key: (risers, cards, sleeved)."""
+    """A lock line per exported Pusher under `root`; returns the number with a
+    defective lock. individual/ only — cascades/ holds copies of these."""
     from pathlib import Path
     root = Path(root)
     rows = []
@@ -1182,10 +875,8 @@ def audit_pushers(root, verbose=False):
 
 
 def audit_catalogue(root):
-    """Print the per-pusher worksheet for the five-design catalogue: which class
-    each pusher takes, where its features have to move to, and what that does to
-    the hang base. A conformance test the day the CAD lands; a to-do list until
-    then."""
+    """The five-design catalogue's per-pusher worksheet: class, where the
+    features move to, and the cost in hang base."""
     from pathlib import Path
     root = Path(root)
     print(f"    {'pusher':32s} {'D':>6s} {'cls':>4s} {'inset':>6s} "
@@ -1205,10 +896,8 @@ def audit_catalogue(root):
         tabs = " / ".join(f"{a:.2f}-{b:.2f}" for a, b in want["tabs"])
         notch = (f"{want['notch'][0]:.2f}-{want['notch'][1]:.2f}"
                  if want["notch"] else "none")
-        # today's base is the separation of the two tab CENTRES, and the CAD
-        # sets tab A 4.00 in from one edge and tab B 4.20 in from the other:
-        # centres at 6.10 and D - 5.90, so D - 12.00. Confirmed against the old
-        # boxes' rim-cutout pitch (11.400 at D 23.40, 6.000 at D 18.00).
+        # today's base is the tab CENTRES' separation, 4.00 in from one edge
+        # and 4.20 from the other, so D - 12.00
         base, now = 2 * want["s"], d - 12.00
         print(f"    {path.stem:32s} {d:6.2f} {want['class']:>4s} "
               f"{d / 2 - want['s'] - TAB_W_NOMINAL / 2:6.2f} {tabs:>25s} {notch:>13s} "
@@ -1219,23 +908,10 @@ def audit_catalogue(root):
 
 def audit_stamps(root, verbose=False):
     """Read the engraved version off every Box, Lid and Pusher on disk and
-    compare it with the generation the cascades using it are built at. Returns
-    the number that disagree.
-
-    Only the lock trio: those are the three parts 7.0 moved, so a wrong stamp on
-    one of them is what puts a pusher that cannot go into a lid in someone's
-    hands. Holders and toppers carry the stamp too, but they carry over between
-    generations, so their stamp is a record of when they were last exported
-    rather than a claim about the cascade.
-
-    A component shared by cascades at two different generations has no single
-    right answer; plan_exports already reports that as a conflict, and this
-    skips it rather than reporting it twice.
-
-    A dot per component as it goes: half a second each is quick enough to be
-    worth running and long enough that a silent minute looks like a hang. A
-    finding breaks the run of dots and prints itself where it happened, the way
-    a test runner does, so nothing waits until the end."""
+    compare it with the generation its cascades are built at. Returns the
+    number that disagree. Only the lock trio: a holder or a topper carries
+    over between generations. A component shared by two generations is
+    skipped — plan_exports reports that conflict already."""
     from pathlib import Path
     import components as C
     root = Path(root)
@@ -1293,25 +969,16 @@ def audit_stamps(root, verbose=False):
 
 
 def audit_tree(tree, want=None, verbose=False):
-    """Read both witnesses off every component in a cad BUILD tree and hold
-    them to each other and to one release. Returns the number that disagree.
-
-    `audit_stamps` above audits `individual/`, where the right version comes
-    from the cascades a component is used by. A cad tree is simpler and
-    stricter: everything in it was written by one `cad.build --version`, so
-    every part must state that release and be engraved with it. That is the
-    check to run before publishing a release — nothing else reads a 7.1 part
-    and says so.
-
-    `want` defaults to what the tree itself says, taken from the metadata: a
-    tree with two releases in it is the failure, not an ambiguity to resolve.
+    """Both witnesses off every component in a cad BUILD tree, held to each
+    other and to one release; returns the number that disagree. Stricter than
+    `audit_stamps`: everything in a cad tree came from one `cad.build
+    --version`. Run it before publishing. `want` defaults to what the tree's
+    metadata states — a tree with two releases in it is the failure.
     """
     from pathlib import Path
     tree = Path(tree)
-    # Everything a build tree holds that is not a component of THIS release:
-    # the stamp sidecars, the projects and their published copies, the
-    # assemblies — and `v<version>/`, which is another release's tree living
-    # inside this one (`build.out_for`) and is audited by naming it.
+    # not a component of THIS release: sidecars, projects, published copies,
+    # assemblies, and `v<version>/`
     def mine(f):
         parts = f.relative_to(tree).parts
         return not (any(x in (".stamps", "cascades", "dist", "assemblies",
@@ -1343,12 +1010,8 @@ def audit_tree(tree, want=None, verbose=False):
     for f in files:
         rel = f.relative_to(tree)
         data = f.read_bytes()
-        # BOTH witnesses on the lock trio, because those three are what a wrong
-        # stamp actually costs someone — a pusher that will not enter a lid.
-        # The metadata alone on the rest: a holder or a topper carries over
-        # between releases, so its engraving is a record of when it was last
-        # built rather than a claim about the lock, and reading a glyph off all
-        # 258 files would cost a couple of minutes to say so.
+        # BOTH witnesses on the lock trio, which is what a wrong stamp costs
+        # someone; the metadata alone on the rest, which carry over.
         if f.stem.split()[0] in STAMPED:
             fatal, warn = check_stamp(data, want)
             glyphed += 1

@@ -2,28 +2,14 @@
 """Boolean diff of cad/parts/box.py against a reference STEP — a DEV LOOP,
 not a test. `tests/test_box.py` is what asserts.
 
-    .venv/bin/python tests/box_diff.py Dom246S_raw
-
-Prints what the build is MISSING (in the STEP, not in mine) and what is EXTRA
-(mine, not in the STEP), as lumps with volumes and bounding boxes, largest
-first. Add a feature group, re-run, watch a lump disappear.
-
-The five reference STEPs are in spec/reference/; spec/BOX.md says what each one
-splits. Build against `Dom246S_raw`, which has the final fillet suppressed.
-
-## Why this slices before it subtracts
-
-Once the rear storage landed, `mine` and the STEP shared their ENTIRE outer
-envelope — same walls, same 105.000 height, same 4.500 of added depth — and
-OCCT's boolean then returns an EMPTY intersection for two solids that plainly
-overlap. Both shapes pass BRepCheck_Analyzer, each intersects a large box
-correctly, and a fuzzy tolerance from 1e-7 to 1e-3 changes nothing; `ref - mine`
-comes back as `ref` and `ref & mine` as zero volume.
-
-Slicing both shapes into slabs first and diffing slab by slab works, and the
-totals reconcile with the plain volume difference. So that is what this does. A
-feature straddling a slab boundary is reported as two lumps — the cost of the
-workaround, and the reason SLABS is kept low.
+Takes a reference key (`box_diff.py Dom246S_raw`) and prints what the build is
+MISSING (in the STEP, not mine) and what is EXTRA, as lumps with volumes and
+bounding boxes, largest first. The STEPs are in spec/reference/; spec/BOX.md
+says what each splits; build against `Dom246S_raw`, the one with the final
+fillet suppressed. It SLICES before it subtracts: two solids sharing an entire
+outer envelope return an EMPTY intersection from OCCT at any fuzzy tolerance
+(spec/BOX.md, "build123d cannot subtract two boxes that share an outer
+envelope"), and a feature straddling a slab boundary is then two lumps.
 """
 import sys
 from pathlib import Path
@@ -42,8 +28,8 @@ REFS = {
  "Dom202SM":    ("Box Dominion 202S Merged.step", REF.primary(4,4,21,10,0,10,1,1,"Dominion")),
  "Dom650S":     ("Box Dominion 650S.step",        REF.primary(5,8,50,10,0,10,1,0,"Dominion")),
  "FCM72S":      ("Box FCM 72S.step",              REF.primary(3,3,6,6,0,6,1,0,"FCM")),
- # The build TARGET: same box as Dom246S with `Smooth box edges` suppressed, so
- # the diff is not polluted by the 0.600 fillet.
+ # The build TARGET: Dom246S with `Smooth box edges` suppressed, so the
+ # 0.600 fillet does not pollute the diff.
  "Dom246S_raw": ("Box Dominion 246S without final fillet.step",
                  REF.primary(3,2,40,12,1,30,1,0,"Dominion")),
  "Dom246S":     ("Box Dominion 246S.step",        REF.primary(3,2,40,12,1,30,1,0,"Dominion")),
@@ -95,11 +81,9 @@ def report(key, limit=25, slabs=SLABS):
             print(f"     {v:11.3f}  X {bb.min.X:9.3f}..{bb.max.X:9.3f}"
                   f"  Y {bb.min.Y:8.3f}..{bb.max.Y:8.3f}"
                   f"  Z {bb.min.Z:8.3f}..{bb.max.Z:8.3f}")
-    # A slab whose boolean half-failed shows the SAME lump in both directions,
-    # which inflates both totals while leaving their difference nearly right.
-    # Check them against the plain volume gap, which needs no boolean at all.
-    # Individual lump SIZES are indicative, not exact; their positions are what
-    # this tool is for.
+    # A half-failed slab boolean shows the SAME lump both ways, inflating both
+    # totals while leaving their difference nearly right — hence the check
+    # against the plain volume gap. SIZES are indicative; POSITIONS are exact.
     got = totals["MISSING (in STEP, not mine)"] - totals["EXTRA   (mine, not in STEP)"]
     want = ref.volume - mine.volume
     if abs(got - want) > max(1.0, 0.002 * abs(want)):

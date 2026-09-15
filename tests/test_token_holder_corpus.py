@@ -1,22 +1,13 @@
 #!/usr/bin/env python3
 """Check the TokenHolder's RULES against all 18 cached meshes.
 
-    .venv/bin/python tests/test_token_holder_corpus.py
-
-`tests/test_token_holder.py` holds the part to two exact STEPs, which settle a
-section and cannot tell a rule from a coincidence. This holds it to the whole
-of `individual/Dominion/` — five front capacities, both sleevings, both Mat
-states — which is the other question. Same split as the Lid's two tests.
-
-The cached components are **6.6** and the part is unchanged since (Allan), so
-these are a real regression target rather than a shape reference: the only
-thing 7.0 moves is the version in the engraved string, so the build is run at
-`Version="6.6"` here and compared like for like.
-
-A mesh is not a solid, so what is asserted is what a mesh answers exactly: the
-envelope, the origin, the divider's position and height, and the engraving's
-ink box. Volume is not — Onshape's tessellation of a 7.500 half-disc loses more
-than the thing being measured.
+`tests/test_token_holder.py` holds the part to two exact STEPs, which cannot
+tell a rule from coincidence; this holds it to all of `individual/Dominion/`.
+The cache is **6.6** and 7.0 moves only the engraved version string (Allan),
+so the build is run at `Version="6.6"` and compared like for like. Asserted is
+what a mesh answers exactly: the envelope, the origin, the divider, the ink
+box. NOT volume — Onshape's tessellation of a 7.500 half-disc loses more than
+is being measured.
 """
 import re
 import sys
@@ -32,25 +23,16 @@ from cad.parts import token_holder as TH                   # noqa: E402
 
 CACHE = ROOT / "individual" / "Dominion"
 
-# The size letter each cached file was built with, read off its own engraving
-# rather than looked up: `plan_exports` keys a token holder
-# `(capacity, merged, sleeved)` and that key does NOT carry HorizontalSlots, so
-# `324 Card` (M, 4 slots) and `333 Card` (S, 3 slots) share `TokenHolder
-# 21-Sl.3mf` and it is stamped M for both. The geometry is identical either way
-# — HorizontalSlots cancels out of calTokenHolderSlotWidth — so the only thing
-# the collision costs is a wrong letter on one cascade's tray. `cad.build`
-# splits them; this table is what Onshape actually shipped.
+# The size letter each cached file was built with, read off its own engraving:
+# `plan_exports`' key has no HorizontalSlots, so `324 Card` (M) and `333 Card`
+# (S) share one file, stamped M. This is what Onshape shipped.
 LETTER = {("16", False): "S", ("21", False): "M", ("40", False): "S",
           ("50", False): "L", ("60", False): "M",
           ("21", True): "M", ("40", True): "M"}
 SLOTS = {"XS": 2, "S": 3, "M": 4, "L": 5}
 
-# The three the Onshape rule engraves too big for the part. All are on a MERGED
-# box, which doubles the width the text is fitted to and leaves the depth alone
-# — or, on a half holder, nearly halves it. On each, the ink's Y extent equals
-# the part's OWN, which is an outline clipping a sketch rather than a size that
-# fits. `token_holder.text_size` bounds the depth as well, so the build
-# deliberately differs on these three and nowhere else.
+# The three the Onshape rule engraves too big for the part — an outline
+# clipping a sketch (spec/TOKENHOLDER.md); the build differs here alone.
 CLIPPED = {"HalfTokenHolder 21-Sl merged.3mf",
            "HalfTokenHolder 21-Un merged.3mf",
            "TokenHolder 21-Un merged.3mf"}
@@ -105,9 +87,8 @@ for name in files:
     d = D.derive(p)
     v = mesh(name)
     x0 = min(q[0] for q in v)
-    # Everything in the cavity's height band that is not one of the two side
-    # walls: on every reference that is exactly one 2.000 divider, and on the
-    # eight MERGED ones — twice as wide — it is still exactly one.
+    # All in the cavity height band but the side walls: exactly one 2.000
+    # divider on every reference, the eight MERGED ones included.
     band = [q for q in v if 1.5 < q[2] < 70.0]
     mid = sorted({round(q[0], 3) for q in band
                   if x0 + 3.0 < q[0] < x0 + TH.width(d) - 3.0})
@@ -133,17 +114,15 @@ for name in files:
     lsb = TX.metrics(txt, TX.LOGO_FONT)[1]
 
     if name in CLIPPED:
-        # Assert the DEFECT on the reference and the fix on the build — both
-        # ends, so re-converging fails rather than passing quietly. Nothing
-        # about the reference's own size or anchor is asserted here: the
-        # sketch it came from is not the one that got cut.
+        # The DEFECT on the reference and the fix on the build, so a
+        # re-converge fails rather than passing quietly. Its own size and
+        # anchor are NOT asserted: that sketch is not the one that got cut.
         check(f"{name}: the reference's ink is clipped to the part",
               (round(iy0, 3), round(iy1, 3)), (round(y0, 3), round(y1, 3)))
         check(f"{name}: the build fits inside the part instead",
               TH.cap_reach(txt) * em + TH.CLEARANCE
               <= TH.depth(d, half) / 2 + 1e-9, True)
     else:
-        # The anchor and the size, both against the reference's own ink.
         check(f"{name}: text box origin is TEXT_INSET in",
               round(ix0 - lsb * em - x0, 2), round(TH.TEXT_INSET, 2), 0.02)
         check(f"{name}: ink width", round(ix1 - ix0, 2),

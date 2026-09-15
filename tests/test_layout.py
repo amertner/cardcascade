@@ -2,23 +2,9 @@
 """`cad/layout.py` lays out what make_cascade --auto-plates lays out, and
 every cascade in the catalogue gets a legal layout.
 
-Three tiers:
-
-1. EQUIVALENCE. Dominion 168 Card Unsleeved is laid out by make_cascade
-   `--auto-plates` from the built parts (a donor mutation, into a temp file)
-   and by `layout.layout` from the same parts; the two must agree object for
-   object — plate, position, angle — and tower for tower. Same rules, same
-   result, or the lift changed something.
-2. THE CATALOGUE. Every parts.csv cascade — 50 — is composed (`cad.cascade`)
-   from build/, laid out, written, read back and held to the guards: every
-   object on its plate, clear of its neighbours, the tower inside every
-   nozzle's reach and clear of the parts. Refusals are failures, and so is a
-   missing part.
-3. THE SLICE. Where BambuStudio.app is installed, three are sliced — the P1
-   one above, Dominion 560 Card Sleeved (the H2C, whose two nozzles reach
-   different parts of the bed) and Dominion 650 Card Sleeved (the one whose
-   lid fits the H2C only at 44 degrees with half a millimetre to spare) —
-   and every plate must return 0.
+Three tiers: Dominion 168 Card Unsleeved laid out both ways must agree object
+for object and tower for tower; every cascade must lay out and read back clean;
+four must slice to 0.
 
     .venv/bin/python -m cad.build --part all
     .venv/bin/python tests/test_layout.py         # 2 min; 6 with the slices
@@ -46,9 +32,7 @@ STUDIO = Path("/Applications/BambuStudio.app/Contents/MacOS/BambuStudio")
 
 
 def shipped(folder, model):
-    """The shipped project carrying `model`, whatever named it. The name is not
-    stable — the version went into it on 2026-09-05 — but the model code in the
-    bracket is, and it is unique per cascade (`refresh_cascades.find_project`)."""
+    """The project whose bracket carries `model`; names are not stable."""
     hits = sorted((ROOT / "spec" / "reference" / "shipped-7.0" / folder)
                   .glob(f"*({model}).3mf"))
     assert len(hits) == 1, f"{model}: {len(hits)} shipped projects"
@@ -66,11 +50,8 @@ def check(label, ok, detail=""):
 
 
 def rows(version=None):
-    """Every catalogue row at both sleevings — at the REFERENCE release by
-    default (section 1 compares against a shipped 7.0 project), or at
-    `version`: section 2 lays out what `build/` holds, which is CURRENT's
-    composition — from 7.2a a RearHolder where 7.0 named a Holder or a
-    FirstHolder (`rev.rear_holder`)."""
+    """Every row at both sleevings, at the REFERENCE release (section 1
+    compares against a shipped 7.0 project) or at `version`."""
     for row in params.load_rows(ROOT / "automation" / "parts.csv"):
         if (row.get("Status") or "").strip() == "Parked":
             continue
@@ -113,11 +94,7 @@ def slice_ok(path, tmp):
 
 
 print("=== 0. the tower's preferred spot, on every bed ===")
-# `start_spot` was the constant (15.0, 200.0) — 200 up a 256 mm P1 bed and off
-# the end of a 180 mm A1 mini one. An illegal start is never taken, so the mini
-# fell through to the corner search and put the tower at (0, 0), flush with two
-# bed edges, which Studio will not slice (-104). Needs no build/, so it runs
-# even when the catalogue below cannot.
+# `start_spot` (15.0, 200.0) is off the mini's bed: (0, 0) corner, Studio -104.
 for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
                     ("h2c", (15.0, 264.0))):
     _ps = LY.profile(_bed)
@@ -126,22 +103,16 @@ for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
     check(f"{_bed}: start_spot is {_want}", (_x, _y) == _want, f"{(_x, _y)}")
     _w = float(_ps.get("prime_tower_width", 35))
     _x0, _y0, _x1, _y1 = LY.tower_bounds(_ps)
-    # The H2C's start is deliberately illegal (x 15 is outside its x0 = 25), so
-    # it falls through to the corner its four published projects were verified
-    # at. Everywhere else the start must be a spot the tower can actually use.
+    # The H2C's start is deliberately illegal (x 15 outside its x0 = 25).
     _legal = _x >= _x0 and _y >= _y0 and _x + _w <= _x1 and _y + _w <= _y1
     check(f"{_bed}: start is {'illegal, by design' if _bed == 'h2c' else 'legal'}",
           _legal == (_bed != "h2c"), f"legal={_legal}")
-# and an empty plate takes it, or the H2C's known corner
 for _bed, _want in (("mini", (15.0, 124.0)), ("p1", (15.0, 200.0)),
                     ("h2c", (261.0, 4.0))):
     check(f"{_bed}: an empty plate's tower is {_want}",
           LY.tower(LY.profile(_bed), _bed, [], None) == _want,
           f"{LY.tower(LY.profile(_bed), _bed, [], None)}")
-# The mini's Lid plate: its 152.9 x 52.1 lid, centred, ends 7.95 mm below the
-# preferred spot, inside WIPE_GAP, so the plate takes the corner search — which
-# found (0, 0) first, all four corners tying for distance from the centre, and
-# Studio refuses a tower within 1 mm of the mini's near edges (layout.tower).
+# The mini's centred lid ends inside WIPE_GAP of the spot (layout.tower).
 _lid = LY.rect_obb(90 - 152.9 / 2, 90 - 52.1 / 2, 90 + 152.9 / 2, 90 + 52.1 / 2)
 _at = LY.tower(LY.profile("mini"), "mini", [(0, _lid)], None)
 check(f"mini: the Lid plate's tower is inset, {(LY.TOWER_INSET, LY.TOWER_INSET)}",
@@ -155,7 +126,6 @@ with tempfile.TemporaryDirectory() as tmp:
     objects = CC.objects(row, d)
     bed, plates, placements = LY.layout(objects)
     check("bed p1", bed == "p1", bed)
-    # make_cascade's own regeneration, from the same built files
     by_role = {}
     for name, fn in CC.parts(row, d):
         by_role.setdefault(LY.role(name), fn)
@@ -176,10 +146,8 @@ with tempfile.TemporaryDirectory() as tmp:
         check("same towers", mine[2] == theirs[2], f"{mine[2]} vs {theirs[2]}")
 
     print("\n=== 2. every cascade in the catalogue ===")
-    # Nothing is refused: Dominion 650 Sleeved, whose 343.9 x 111.3 lid
-    # spans 321.9 turned 45 degrees against an H2C's 320, takes the angle
-    # that fits with the margin reduced to what is left (layout.fit_angle) —
-    # Allan: it fits, just, and prints. Its layout is checked by the slice.
+    # Dominion 650 Sleeved fits the H2C only at `layout.fit_angle`
+    # (spec/PROJECT.md).
     AT_THE_LIMIT = set()
     written = {}
     n_ok = 0
@@ -199,13 +167,10 @@ with tempfile.TemporaryDirectory() as tmp:
         problems = []
         if towers.problems(out):
             problems.append(f"tower {towers.problems(out)}")
-        # the tower clears every object on its plate by at least TIGHT_GAP
         ps_w = float(LY.profile(bed).get("prime_tower_width", 35))
         bx0, by0, bx1, by1 = LY.tower_bounds(LY.profile(bed))
         for k, plate in enumerate(back.plates, start=1):
             tx, ty = plate.tower
-            # and it keeps TOWER_INSET inside its rectangle: a flush origin is
-            # where Studio's -104 lives (layout.tower)
             if (tx < bx0 + LY.TOWER_INSET or ty < by0 + LY.TOWER_INSET
                     or tx + ps_w > bx1 - LY.TOWER_INSET or ty + ps_w > by1 - LY.TOWER_INSET):
                 problems.append(f"plate {k} tower ({tx:g}, {ty:g}) on an edge")
@@ -238,8 +203,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
     if STUDIO.exists():
         print("\n=== 3. Studio slices: a P1, two H2Cs and the A1 mini ===")
-        # XS5.15.10.32.Un is the only cascade on the mini bed apart from its
-        # sleeved twin, so it is the bed's only slice coverage.
+        # XS5.15.10.32.Un and its sleeved twin are the only mini-bed cascades.
         for model in ("S4.16.10.32.Un", "L6.40.12.62.Sl", "L8.50.10.62.Sl",
                       "XS5.15.10.32.Un"):
             if model not in written:

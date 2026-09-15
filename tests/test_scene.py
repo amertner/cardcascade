@@ -1,6 +1,6 @@
 """cad.scene builds a poster scene for one cascade per game: the 3MF has a
-label, every planned stack, and no riser stack proud of its topper. Needs
-the parts under build/ (cad.build --part all). No Blender.
+label, every planned stack, and no stack proud of its topper. Needs the parts
+under build/ (cad.build --part all). No Blender.
 
     .venv/bin/python tests/test_scene.py
 """

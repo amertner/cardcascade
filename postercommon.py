@@ -1,13 +1,9 @@
 """The Card Cascade poster chrome, shared by every generated picture.
 
-`make_posters.py` (the per-cascade MakerWorld description PNGs) and
-`make_label_covers.py` (the label-set covers) draw the same wordmark, corner
-banners, footer and card icon in the same palette and faces. They live here
-so that a change to the brand is one edit, and so that neither script has to
-import the other. Nothing here knows the canvas size: every drawing call
-takes its position and scale, and the two scripts pass their own W and H.
-
-Pure Pillow; no build123d, no labelmaker, so importing this is cheap.
+`make_posters.py` and `make_label_covers.py` draw the same wordmark, banners,
+footer and card icon, so a change to the brand is one edit and neither script
+imports the other. Nothing here knows the canvas
+size: every call takes its own position and scale. Pure Pillow.
 """
 import os
 
@@ -64,9 +60,7 @@ INTER_CANDIDATES = [
     "/Library/Fonts/Inter-Regular.ttf",
 ]
 INTER_R = next((p for p in INTER_CANDIDATES if os.path.exists(p)), MONO_R)
-# The expansion captions are a bold humanist sans; Inter Bold is not in
-# fonts/, and OpenSans-Bold is (the engraved detail line's face), which is
-# the closest shipped match.
+# A bold humanist sans for the captions; OpenSans-Bold is the closest shipped.
 INTER_B = next((p for p in (os.path.join(FONTS, "Inter-Bold.ttf"),
                             os.path.join(FONTS, "OpenSans-Bold.ttf"))
                 if os.path.exists(p)), INTER_R)
@@ -91,8 +85,7 @@ def cap_scale(px):
 
 
 def load_logo(path):
-    """A logo as RGBA cropped to its ink: native transparency where the file
-    has it, otherwise a white background knocked out."""
+    """A logo as RGBA cropped to its ink, white knocked out."""
     im = Image.open(path).convert("RGBA")
     alpha = im.getchannel("A")
     if alpha.getextrema()[0] < 250:
@@ -104,7 +97,6 @@ def load_logo(path):
 
 
 def fit(im, w, h):
-    """`im` scaled to fit inside w x h, aspect kept."""
     r = min(w / im.width, h / im.height)
     return im.resize((max(1, int(im.width * r)), max(1, int(im.height * r))),
                      Image.LANCZOS)
@@ -112,8 +104,7 @@ def fit(im, w, h):
 
 # ---------- the marks ----------
 def wordmark(d, x, y, s=1.0):
-    """The three green bars and "Card / Cascade" in Orbitron. `s` scales a
-    90 px block. Returns the block's width."""
+    """The three green bars and "Card / Cascade"; returns its width."""
     bs = int(90 * s)
     step = bs / 3
     for i in range(3):
@@ -130,7 +121,6 @@ def wordmark(d, x, y, s=1.0):
 
 
 def card_icon(d, x, y, s, colour=WHITE):
-    """Two overlapping card outlines, `s` px tall."""
     w = s * 0.62
     lw = max(3, int(s * 0.08))
     d.rounded_rectangle([x, y + s * 0.12, x + w, y + s * 1.02],
@@ -140,11 +130,8 @@ def card_icon(d, x, y, s, colour=WHITE):
 
 
 def corner_banner(d, W, text, colour, y0, bh, x0, slant, font_px, pad_r, icon, img=None):
-    """One slanted banner in the top-right corner: a parallelogram from
-    `x0` to the right edge, `bh` tall at `y0`, its left edge leaning `slant`
-    px outward at the bottom, with `text` right-aligned `pad_r` from the edge and a card icon of
-    `icon` px after it — the `cards` icon file pasted into `img` when there
-    is one, else drawn in lines."""
+    """One slanted banner in the top-right corner, `text` right-aligned with a
+    card icon after it (the `cards` file where there is one, else drawn)."""
     f = F(MONO_B, font_px)
     d.polygon([(x0, y0), (W, y0), (W, y0 + bh), (x0 + slant, y0 + bh)], fill=colour)
     tw = d.textlength(text, font=f)
@@ -157,7 +144,6 @@ def corner_banner(d, W, text, colour, y0, bh, x0, slant, font_px, pad_r, icon, i
 
 
 def corner_banners(d, W):
-    """The label covers' pair: UNSLEEVED over SLEEVED, stacked."""
     bh = 108
     for i, (txt, col) in enumerate(zip(("UNSLEEVED", "SLEEVED"), (GREEN, BLUE))):
         y0 = i * bh
@@ -170,9 +156,7 @@ def corner_banners(d, W):
 
 
 def footer(d, W, H, version, s=1.0, margin=60):
-    """Divider, "Free on MakerWorld", the copyright line, and the mini
-    wordmark with the version at the right. `s` scales the whole strip
-    (1.0 is the 2010-wide cover)."""
+    """Divider, "Free on MakerWorld", the copyright and the mini wordmark."""
     d.rectangle([0, H - int(108 * s), W, H - int(104 * s)], fill=RULE)
     f = F(MONO_R, 30 * s)
     ty = H - int(78 * s)
@@ -200,7 +184,6 @@ ICONS = os.path.join(REPO, "logos", "icons")
 
 
 def _polys(spath, scale):
-    """Each closed subpath of a svgelements Path as a flat polygon."""
     out = []
     for sub in spath.as_subpaths():
         sp = type(spath)(sub)
@@ -213,8 +196,7 @@ def _polys(spath, scale):
 
 
 def _mask(polys, size):
-    """Even-odd fill of `polys` as a 1-bit mask: a hole is a subpath inside a
-    subpath, which for icons is what nonzero gives too."""
+    """Even-odd fill of `polys` as a 1-bit mask (nonzero, for icons)."""
     mask = Image.new("1", size, 0)
     for pts in polys:
         one = Image.new("1", size, 0)
@@ -224,14 +206,10 @@ def _mask(polys, size):
 
 
 def svg_icon(path, size, colour=INK, oversample=4):
-    """A simple SVG icon rasterised to RGBA, `size` px on its longer side.
-
-    No SVG renderer is in the venv; `svgelements` parses it and each shape
-    is painted in document order into a supersampled canvas: its fill (a
-    black fill takes `colour`), then its stroke — for a rect, the ring
-    between the rect grown and shrunk by half the stroke; for any other
-    shape, the outline drawn as a line. The viewBox is the frame; clip
-    paths and defs are ignored."""
+    """A simple SVG icon rasterised to RGBA, `size` px on its longer side. No
+    SVG renderer is in the venv, so `svgelements` parses it and each shape is
+    painted in document order — fill (a black fill takes `colour`), then
+    stroke. Clips and defs are ignored."""
     from svgelements import SVG, Path as SPath, Rect, Shape, Color
     svg = SVG.parse(path)
     vb = svg.viewbox
@@ -277,8 +255,7 @@ def svg_icon(path, size, colour=INK, oversample=4):
 
 
 def png_icon(path, size, colour=INK):
-    """A PNG silhouette icon (any colour, alpha is the shape) as RGBA
-    `size` px on its longer side, painted `colour`."""
+    """A PNG silhouette icon (alpha is the shape) as RGBA in `colour`."""
     im = Image.open(path).convert("RGBA")
     k = size / max(im.size)
     im = im.resize((max(1, int(round(im.width * k))), max(1, int(round(im.height * k)))), Image.LANCZOS)
@@ -288,8 +265,7 @@ def png_icon(path, size, colour=INK):
 
 
 def icon_image(kind, size, colour=INK):
-    """`logos/icons/<kind>.svg` or `.png` rasterised `size` px in `colour`,
-    or None when neither exists."""
+    """`logos/icons/<kind>.svg` or `.png` in `colour`, or None."""
     svg = os.path.join(ICONS, f"{kind}.svg")
     png = os.path.join(ICONS, f"{kind}.png")
     if os.path.exists(svg):

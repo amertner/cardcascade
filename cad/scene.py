@@ -4,24 +4,12 @@
     .venv/bin/python -m cad.scene --model S5.15.15.62-Sl --glb tmp/scene.glb
 
 `cad.assemble --cards` shows the MECHANISM with numbered stacks; a poster
-wants the cascade as Allan photographs it. This module takes the assembly
-`cad.assemble` builds and adds what a photo has (`posters.json`, `render`):
-
-  * a LID COLOUR per row from the game's palette, its logo/text inlays white
-    on a dark lid and black on a light one;
-  * a slide-in LABEL in the front holder (`labelmaker.make_label`, placed by
-    `assembly.label_plate`), white with its detail in the lid's colour;
-  * CARD STACKS that read like the game's cards: Innovation by age, one
-    column per age, the six expansions front to back and the toppers on the
-    risers to match; Compile a protocol a slot, FCM an occupation, Dominion
-    a kingdom card — named on the stack's front, coloured per stack;
-  * stacks under a topper CLIPPED to its underside, so nothing stands
-    through it.
-
-It writes `build/assemblies/<Game>/<stem> poster.3mf` (so the scene can be
-opened) and the `.glb` for `render/cascade.py`, every colour decided here
-(`cad.gltf.write`'s `parts`), so `make_posters.py` runs one subprocess for
-the scene and one for Blender, and imports no build123d itself.
+wants the cascade as Allan photographs it. This takes `cad.assemble`'s
+assembly and adds what a photo has (`posters.json`, `render`): a LID COLOUR
+per row with its inlays contrasting, a slide-in LABEL in the front holder,
+CARD STACKS named and coloured per stack, and stacks under a topper CLIPPED to
+its underside. It writes the poster 3MF and the `.glb` for
+`render/cascade.py`, every colour decided HERE.
 """
 import argparse
 import json
@@ -50,8 +38,6 @@ def load_spec(path=SPEC):
 
 
 def render_spec(spec, row, d):
-    """The `render` sections merged for one cascade: the game's, then the
-    row's (`<Game>/<Short name>` or `<Game>/<Project label>`)."""
     out = dict(spec.get("render", {}).get("games", {}).get(d.GameName, {}))
     rows = spec.get("render", {}).get("rows", {})
     for k in _row_keys(row, d):
@@ -80,9 +66,8 @@ def is_dark(hex_colour):
 
 
 def lid_colour(rs, row, d, rows_in_game):
-    """The row's lid: its own `lid` if the spec says, else the game's
-    palette entry for the row's position among the game's rows, so twins
-    share a lid and no two rows in a game match while the palette lasts."""
+    """The row's lid: its own `lid` if the spec says, else the game's palette
+    entry for its position."""
     if rs.get("lid"):
         return rs["lid"]
     palette = rs["palette"]
@@ -96,7 +81,6 @@ def lid_colour(rs, row, d, rows_in_game):
 
 
 def scene_colours(lid, stacks):
-    """`cad.gltf` `parts`: every object name prefix this scene colours."""
     inlay = WHITE if is_dark(lid) else BLACK
     label_text = BLACK if not is_dark(lid) else lid
     parts = {"Lid": lid, "Lid Part": inlay, "Label": WHITE, "Label Part": label_text,
@@ -108,8 +92,8 @@ def scene_colours(lid, stacks):
 
 
 def slots_row_major(d):
-    """Every card slot front row first, left to right: how a photographed
-    cascade reads. `assembly.card_slots` is column-major."""
+    """Every card slot front row first, left to right, as a photographed
+    cascade reads; `assembly.card_slots` is column-major."""
     columns = [A.card_column(d, k) for k in range(d.HorizontalSlots)]
     depth = max(len(c) for c in columns)
     out = []
@@ -124,17 +108,11 @@ def slots_row_major(d):
 
 
 def card_plan(d, rs):
-    """`[{"slot", "text", "count", "colour"}]` — one entry per filled slot.
-
-    Innovation rows with `columns` (the ages left to right): column k is age
-    `columns[k]`, its slots front to back the expansions in `expansions`
-    order (Base in the pocket), coloured by expansion, a set's cards each
-    (16 for the specials and age 1, 10 after). Any other row: the game's
-    `cards` list of `[name, colour]` fills the slots row by row, front row
-    first, left to right, cycling if it runs short; an Innovation row
-    without `columns` is `assembly.card_fill` as `cad.assemble --cards`
-    draws it. `stacks: false` (top level, game or row) leaves every slot empty.
-    """
+    """`[{"slot", "text", "count", "colour"}]` — one entry per filled slot. An
+    Innovation row with `columns` puts age `columns[k]` in column k, its slots
+    front to back the `expansions` order; any other row fills from the game's
+    `cards` list row by row, cycling if it runs short. `stacks: false` leaves
+    every slot empty."""
     game = d.GameName
     if not rs.get("stacks", True):
         return []                        # render.stacks false: the cascade empty
@@ -172,8 +150,7 @@ def card_plan(d, rs):
 
 def topper_order(d, rs):
     """The expansion per riser, `j = 0` the BACK one, matching `card_plan`'s
-    columns: front riser Unseen ... back riser Cities. A row without
-    `columns` keeps `cad.assemble`'s order."""
+    columns. Without `columns`, `cad.assemble`'s order."""
     if d.GameName != "Innovation" or not rs.get("columns"):
         return AS.TOPPERS
     exps = rs.get("expansions") or ["Innovation", "Unseen", "Echoes", "Figures",
@@ -189,8 +166,6 @@ def topper_order(d, rs):
 
 
 def label_text(rs, row, d):
-    """What the front label says: the row's `label`, else the game's
-    default rule."""
     if rs.get("label") is not None:
         return rs["label"]
     game = d.GameName
@@ -210,7 +185,6 @@ def label_text(rs, row, d):
 
 
 def label_shapes(rs, row, d):
-    """`[(name, shape)]` for the front label, in the cascade frame."""
     import labelmaker as LM
     font = LM.LabelFont(LM.find_font())
     width = A.label_width(d)
@@ -225,7 +199,6 @@ def label_shapes(rs, row, d):
 
 
 def topper_tops(d, parts, instances):
-    """{riser j: the top edge z of the topper on it}, from the placed meshes."""
     import numpy as np
     out = {}
     risers = list(AS.topper_risers(d, True))
@@ -237,17 +210,15 @@ def topper_tops(d, parts, instances):
         placed = np.stack([pl(p) for p in v]) if len(v) < 4 else np.column_stack([
             pl.origin[i] + v[:, 0] * pl.x_dir[i] + v[:, 1] * pl.y_dir[i] + v[:, 2] * pl.z_dir[i]
             for i in range(3)])
-        # A topper is a plate on the upper front of its holder, windowed like
-        # the holder, and the cards stand INSIDE the pocket behind both: what
-        # a photo shows of them is what the windows show. The stack must not
-        # stand proud of the topper's top edge, which is all that hides.
+        # The cards stand INSIDE the pocket behind the topper, so a stack must
+        # not stand proud of the topper's top edge.
         out[j] = float(placed[:, 2].max())
     return out
 
 
 def stack_shapes(d, stacks, undersides):
-    """`[(name, shape)]`: a box per stack and its name standing on the front
-    face, `Cards <i>` / `Cards Label <i>` (`scene_colours` keys on `i`)."""
+    """`[(name, shape)]`: a box per stack and its name on the front face,
+    `Cards <i>` / `Cards Label <i>`, which `scene_colours` keys on."""
     from build123d import Axis, Box, Location
     from . import text as T
     from .geom import text_solid
@@ -261,8 +232,8 @@ def stack_shapes(d, stacks, undersides):
         cap = min(cap0, (z1 - z0) * 0.6)
         if riser is not None and riser in undersides:
             z1 = min(z1, undersides[riser] - CLIP_UNDER_TOPPER)
-            # the numeral starts below this topper's name bar and, as in a
-            # photo, may run a little under the holder in front
+            # the numeral starts below this topper's name bar and may run a
+            # little under the holder in front, as in a photo
             drop += TOPPER_BAR
         if z1 - z0 < 2.0:
             continue
@@ -284,7 +255,6 @@ def stack_shapes(d, stacks, undersides):
 
 
 def build_scene(row, d, spec, rows_in_game, out_dir=ROOT / "build"):
-    """(parts, instances, colours, stacks) for the poster of one cascade."""
     rs = render_spec(spec, row, d)
     toppers = B.ships_toppers(row, d)
     parts, instances = AS.assemble(d, A.PLAY, d.GameName, out_dir, toppers=toppers,
@@ -299,7 +269,6 @@ def build_scene(row, d, spec, rows_in_game, out_dir=ROOT / "build"):
 
 
 def write_scene(row, d, spec, rows_in_game, out_dir=ROOT / "build", glb=None):
-    """Write the poster 3MF and its glb; returns (3mf path, glb path)."""
     parts, instances, colours, _stacks = build_scene(row, d, spec, rows_in_game, out_dir)
     stem = B.model_stem(d.calModelName)
     path = out_dir / "assemblies" / d.GameName / f"{stem} poster.3mf"

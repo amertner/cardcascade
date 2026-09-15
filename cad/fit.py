@@ -4,27 +4,15 @@
     .venv/bin/python -m cad.fit --model S4.16.10.32-Un
     .venv/bin/python -m cad.fit --game Dominion --state all
 
-The point of assembling a cascade. Every clearance in the design is asserted
-one part at a time today, against a reference that only ever shows that part;
-this measures the MECHANISM — plate in channel, tab in cutout, bump in groove,
-holder on rib.
-
-Two tiers, because the parts do not all come from the same place
-(`spec/ASSEMBLY.md`):
-
-* **interference** — exact `common volume` between two placed B-reps, for the
-  parts `cad/` builds from source. That is Box, Lid, Pusher and TokenHolder,
-  which is the whole of the lock. Non-zero is a failure, full stop.
-* **margins** — the named fits, each computed from the placements and reported
-  against what `LOCK_STANDARD.md` and the part modules say it should be. A
-  margin outside its band is a warning with its number, never a pass.
-
-The Holder's rib and tread mates are checked as margins, measured off the
-built holder's mesh — the part an assembly places. Its LIPS are intersected:
-from 7.2e every holder is also built as a B-rep (without its text) and joins
-the interference pass, because the one thing `cad.fit` had never seen was a
-lip landing on the holder behind it (`spec/HOLDER.md`, "Lips that seat"), and
-`lip_margins` says where each lip sits in its rest when the cascade is open.
+This measures the MECHANISM — plate in channel, tab in cutout, bump in groove,
+holder on rib — where every other check asserts one part at a time. Two tiers
+(`spec/ASSEMBLY.md`, "What the fit test measures"): **interference**, the
+exact common volume between two placed B-reps, where non-zero is a failure
+full stop; and **margins**, the named fits reported against what
+`LOCK_STANDARD.md` and the part modules say, where outside the band is a
+warning with its number and never a pass. The Holder's rib and tread mates
+are margins off the built mesh; its LIPS are intersected, and `lip_margins`
+says where each sits in its rest when the cascade is open.
 """
 import argparse
 import sys
@@ -62,7 +50,6 @@ class Margin:
 
 
 def stored_pusher_margins(d):
-    """The pusher in the box's rear storage."""
     out = []
     y0, y1 = box_part.slot_band(d)
     pl = A.pusher_stored(d, 0)
@@ -91,7 +78,6 @@ def stored_pusher_margins(d):
 
 
 def socketed_pusher_margins(d):
-    """The pusher in the lid's socket."""
     out = []
     s_i = A.play_sockets(d)[0]
     x = lid_part.socket_centres(d)[s_i]
@@ -121,17 +107,10 @@ def socketed_pusher_margins(d):
 
 
 def holder_margins(d, holders=None):
-    """The holder on its rib.
-
-    `holders` maps `(first, rear)` to the slot and width measured off the mesh
-    an assembly actually places (`built_holders`), because that is the part
-    in the box. It is keyed on the deep flag and not shared: **a FirstHolder is
-    DEEPER** — its depth is `calFirstSliderDistance - 0.400` — so its side
-    slot, which is centred on its own depth, sits somewhere else entirely.
-    Measuring every riser against the standard holder's slot is what the first
-    version of this did, and the catalogue pass caught it on all six
-    first-riser rows and nowhere else.
-    """
+    """The holder on its rib. `holders` maps `(first, rear)` to the slot and
+    width measured off the mesh an assembly actually places. Keyed on the deep
+    flag and NOT shared: a FirstHolder is DEEPER, so its side slot — centred
+    on its own depth — sits somewhere else entirely."""
     out = []
     for j, first in A.holders(d):
         info = (holders or {}).get((first, A.rear_of(d, j)))
@@ -159,12 +138,9 @@ def holder_margins(d, holders=None):
 
 def tread_margins(d):
     """The holder's footprint on the pusher's tread — the play state's own fit.
-
-    The offset between a tread's centre and its rib's is a CONSTANT `0.150` on
-    every cascade, and it is the finding this whole exercise was built to make:
-    it eats that much of the `0.400` the rib has in the holder's slot. Derived
-    rather than measured — every parameter cancels.
-    """
+    The offset between a tread's centre and its rib's is a CONSTANT 0.150 on
+    every cascade and eats that much of the rib's slack in the holder's slot
+    (`spec/ASSEMBLY.md`, "The finding")."""
     out = []
     drops = pusher_part.slider_drops(d)
     W = d.calPusherTotalDepth
@@ -184,26 +160,16 @@ def tread_margins(d):
 
 def lip_margins(d):
     """Every lip in its rest, in play — the fit 7.2e (`rev.seated_lips`) is
-    for, from the placements and the part rules (`spec/HOLDER.md`, "Lips that
-    seat"). Reported at every release: before the flag the numbers say what
-    was wrong.
-
-    * a rear lip's underside above the rest floor of the holder behind: the
-      band `SLANT_STEP` under the lip's own upper plane against that holder's
-      plane less `rest_depth` — `rest_depth - SLANT_STEP` from 7.2e, which is
-      `REST_CLEARANCE` unless the box lip needed the rest deeper (the tread
-      carries the holder either way);
-    * the lip's tip past that holder's front wall's inner face — 0.000 from
-      7.2e: across the gap, through the wall, no further;
-    * the same two for the Box's lip in the front holder, whose floor may be
-      deeper than the lip needs on a steep cascade (`assembly.box_lip_seat`).
-    """
+    for (`spec/HOLDER.md`, "Lips that seat"). Reported at EVERY release:
+    before the flag the numbers say what was wrong. Three readings — a rear
+    lip's underside above the rest floor of the holder behind, its tip past
+    that holder's front wall, and the same two for the Box's lip."""
     out = []
     hs = A.holders(d)
     rest = (holder_part.rest_depth(d) if d.rev.seated_lips
             else holder_part.SLANT_STEP)
-    # `REST_CLEARANCE`, or more where the box lip made the rest deeper than a
-    # rear lip needs (`holder.rest_depth`): one notch depth per cascade.
+    # `REST_CLEARANCE`, or more where the box lip made the rest deeper
+    # (`holder.rest_depth`): one notch depth per cascade.
     want = rest - holder_part.SLANT_STEP if d.rev.seated_lips else None
     seen = set()
     for (jb, fb), (jf, ff) in zip(hs, hs[1:]):
@@ -248,8 +214,8 @@ def lip_margins(d):
                           box_part.pocket_span(d)[2] + reach - (wall_face + holder_part.WALL),
                           0.0 if d.rev.seated_lips else None))
     # Closed, a holder's rear lips are above the front wall of the holder
-    # behind — `calHeightIncrement - 2.000` above it, whatever the slope —
-    # which is what lets the holders go in back to front down their ribs.
+    # behind, which is what lets the holders go in back to front down their
+    # ribs.
     if len(hs) > 1:
         (jb, fb), (jf, ff2) = hs[0], hs[1]
         pb, pf2 = A.holder_closed(d, jb), A.holder_closed(d, jf)
@@ -264,11 +230,8 @@ def lip_margins(d):
 def insertion(d, built=None, step=0.5, above=30.0):
     """The front holder lowered down its ribs onto its seat, against the box,
     as B-reps: [(shift, worst mm3)] for the holder centred on its rib and at
-    the BACK of its rib slack. The 7.2e box lip, 0.800 into the wall, stopped
-    the holder dead here; from 7.2f it bites LIP_BITE, which the slack
-    absorbs, so the shifted sweep must be clean and the centred one shows
-    the bite (`spec/BOX.md`, "The ribs move forward").
-    """
+    the BACK of its rib slack. From 7.2f the lip bites LIP_BITE, which the
+    slack absorbs, so the SHIFTED sweep must be clean (`spec/BOX.md`)."""
     from .parts import box as bp
     built = {} if built is None else built
     box = _once(built, "Box", lambda: bp.build(d))
@@ -295,8 +258,8 @@ def insertion(d, built=None, step=0.5, above=30.0):
 
 
 def lid_margins(d, holders=None):
-    """The lid over the box, and the box in the lid. `holders` is
-    `built_holders`' reading, for the tallest holder under the sockets."""
+    """The lid over the box, and the box in the lid; `holders` is
+    `built_holders`' reading."""
     out = []
     z0, _z1 = lid_part.groove_span(d)
     pl = A.lid_closed(d)
@@ -304,17 +267,15 @@ def lid_margins(d, holders=None):
                       pl((0, 0, z0))[2], lid_part.BUMP_TOP))
     # What bounds a box's height: the sockets hang from the closed lid's floor
     # over the card compartments, and the tallest thing under them is a card
-    # standing on the holder's pocket floor (2.000 above the base, less the
-    # 0.200 FLOOR_DROP) — 4.200 on a sleeved cascade — or a holder that
-    # stands taller than its cards.
+    # on the holder's pocket floor, or a holder taller than its cards.
     card_floor = (box_part.floor_top(d) + holder_part.half_height(d)
                   + holder_part.pocket_z(d)[0] - holder_part.FLOOR_DROP)
     out.append(Margin("closed: socket underside over the card top",
                       (d.BoxHeight - lid_part.SOCKET_H)
                       - (card_floor + d.CardHeight), None,
                       note=f"CardHeight {d.CardHeight:.0f}; must be > 0"))
-    # ... and over the tallest HOLDER, read off the built meshes: a deep
-    # holder at the back (`holder.deep_at_back`) rises above the card tops.
+    # ... and over the tallest HOLDER, read off the built meshes: a deep holder
+    # at the back rises above the card tops.
     tops = [info["top"] for info in (holders or {}).values() if "top" in info]
     if tops:
         out.append(Margin("closed: socket underside over the tallest holder",
@@ -338,10 +299,9 @@ def lid_margins(d, holders=None):
 
 
 def built_holders(d, folder, out_dir=None):
-    """`{(first, rear): {slot, width, top}}` for the holders an assembly
-    places (`assembly.holder_kinds`), measured off their meshes in `out_dir`
-    — the release's own tree by default, built first where missing. A key is
-    absent when the slot is not found."""
+    """`{(first, rear): {slot, width, top}}` for the holders an assembly places
+    (`assembly.holder_kinds`), measured off their meshes in `out_dir` and
+    built first where missing. A key is absent when the slot is not found."""
     out = {}
     for (first, rear), _js in A.holder_kinds(d):
         info = built_holder(d, folder, first, out_dir, rear)
@@ -351,8 +311,8 @@ def built_holders(d, folder, out_dir=None):
 
 
 def built_holder(d, folder, first=False, out_dir=None, rear=False):
-    """The slot, width and top of one built holder, measured off its mesh.
-    `None` when the slot is not found on it."""
+    """The slot, width and top of one built holder, off its mesh; `None` when
+    the slot is not found."""
     import numpy as np
     from . import assemble, build as B
     _n, verts, _t = assemble.holder_mesh(d, out_dir or B.out_for(d.Version),
@@ -362,9 +322,8 @@ def built_holder(d, folder, first=False, out_dir=None, rear=False):
     end = v[(v[:, 0] <= x_lo + holder_part.END_BLOCK + 1e-6)]
     ys = np.unique(np.round(end[:, 1], 3))
     # The side slot's two walls are the pair `SLOT_W` apart AND centred on the
-    # holder's mid-depth. Both conditions are needed: on `Holder S-16-r4-Un`
-    # the pair (-5.800, -3.908) is 1.892 apart and matches the width alone to
-    # 0.008, and it is the outer face and a lip chamfer, not the slot.
+    # holder's mid-depth. BOTH conditions are needed: an outer face and a lip
+    # chamfer can match the width alone.
     mid = -holder_part.holder_depth(d, first) / 2
     walls = sorted(((abs((a + b) / 2 - mid), (float(a), float(b)))
                     for i, a in enumerate(ys) for b in ys[i + 1:]
@@ -376,22 +335,16 @@ def built_holder(d, folder, first=False, out_dir=None, rear=False):
 
 
 def _once(built, key, make):
-    """`built[key]`, made on first asking. One cascade's parts are the same in
-    every state, so `--state all` builds each once rather than once a state."""
+    """`built[key]`, made on first asking: `--state all` builds each once."""
     if key not in built:
         built[key] = make()
     return built[key]
 
 
 def interference(d, state, tokens=False, built=None):
-    """[(a, b, mm3)] for every pair of SOURCE-built parts, placed.
-
-    Box, Lid, Pusher and — where the row ships one, `tokens` — the
-    TokenHolder: the whole of the lock mechanism; and every Holder, built
-    without its text, on its rib in the state asked. Anything non-zero is a
-    defect. `built` is the cascade's parts from an earlier state, and is
-    filled in for the next.
-    """
+    """[(a, b, mm3)] for every pair of SOURCE-built parts, placed: Box, Lid,
+    Pusher, the TokenHolder where `tokens`, and every Holder built without its
+    text. Anything non-zero is a defect."""
     from .parts import box as bp, lid as lp, pusher as pp, token_holder as tp
     built = {} if built is None else built
     solids = [("Box", _once(built, "Box", lambda: bp.build(d)), A.box(d))]
@@ -428,9 +381,8 @@ def interference(d, state, tokens=False, built=None):
 
 
 def report(d, folder, state, solids=True, tokens=False, built=None):
-    """Print one cascade's fit in one state. True if everything passed.
-    `tokens` says whether the row ships a token holder to check; `built`
-    carries the cascade's parts and holder meshes from state to state."""
+    """Print one cascade's fit in one state; True if everything passed.
+    `built` carries the cascade's parts from state to state."""
     print(f"\n{folder}/{d.calModelName}  [{state}]")
     built = {} if built is None else built
     holders = _once(built, "holders", lambda: built_holders(d, folder))

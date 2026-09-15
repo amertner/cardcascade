@@ -2,19 +2,13 @@
 
 The open-topped tray the cascade lives in: card slots across its width, a front
 pocket, a rear pusher store, and the rim cutouts that hang the pushers.
-Measured in `spec/BOX.md`; the Onshape feature tree it mirrors is transcribed
-there in full, and the group functions below follow it in order.
+Measured in `spec/BOX.md`, which transcribes the Onshape feature tree the
+group functions below follow in order.
 
 Local frame (the part studio's):
     X   width, 0 at the centre, +-BoxWidth/2 at the outer walls
     Y   depth, 0 at the centre, -BoxDepth/2 the FRONT, +BoxDepth/2 the back
-    Z   height, 0 at the bed, BoxHeight at the rim
-
-Complete: `build()` runs the whole tree through `Smooth box edges`, and
-`python -m cad.build --part box` writes the catalogue. See `spec/BOX.md` for
-every measurement and `tests/test_box.py` for what is proven against the nine
-reference STEPs.
-"""
+    Z   height, 0 at the bed, BoxHeight at the rim"""
 import math
 
 from build123d import (Axis, Box, BuildLine, BuildPart, BuildSketch, Cylinder,
@@ -29,39 +23,25 @@ from .. import lock as L
 from .. import tables as TB
 from .. import text as T
 
-WALL = D.WallThickness       # 1.600, confirmed on the STEPs at +-110.550
+WALL = D.WallThickness       # 1.600
 
-# The FLOOR is the one thickness that is not the wall's, from 7.1: the
-# two side floors are what the holders rest on and what carries the engraving,
-# and 2.000 is ten layers at a 0.2 layer height rather than eight. It grows
-# UPWARD (`shell`), so BoxHeight, the rim, the rim cutouts, `Top of back` and
-# every other bed-referenced feature of the lock stay exactly where they are,
-# and the 0.400 comes out of the cavity — which has 12.900 of headroom over
-# the tallest holder on all 50 rows. The Lid keeps its 1.600.
+# The FLOOR is the one thickness that is NOT the wall's, from 7.1, and it
+# grows UPWARD (`shell`), so every bed-referenced feature stays where it is
+# and the 0.400 comes out of the cavity. The Lid keeps its 1.600.
 # `spec/BOX.md`, "The floor is 2.000, and it grows UPWARD".
 THICK_FLOOR = 2.000
 
 
 def floor_top(d):
-    """The floor's top face in Z — which is also its thickness, the box being
-    extruded from the bed.
-
-    The datum for everything that stands on the floor (the holders and the
-    token holder, in `assembly.py`) and everything cut into it (the engraving,
-    the rear storage's empty run, `bottom_slot`). Read this rather than
-    `WALL`: the two are one number through 7.0 and two from 7.1.
-    """
+    """The floor's top face in Z, which is also its thickness. The datum for
+    everything on the floor and everything cut into it — read THIS rather
+    than `WALL`, which is the same number only through 7.0."""
     return THICK_FLOOR if d.rev.thick_floor else WALL
 
 
 def box_width(d):
-    """`#BoxWidth`. Allan's sketch variable, verified on all 48 boxes.
-
-    `derive.py` owns the expression, because `calTokenHolderSlotWidth` is a
-    studio variable written in terms of it and two copies of one formula is
-    what that module exists to prevent. This stays as the name every caller
-    already uses.
-    """
+    """`#BoxWidth`. `derive.py` owns the expression; this is the name every
+    caller uses."""
     return d.BoxWidth
 
 
@@ -73,49 +53,30 @@ def box_depth(d):
 
 
 def pusher_slots(d):
-    """Centreline X of each rear pusher-storage slot, left to right.
-
-    `#dBackSlotWidth` is the pitch, and it is `calPusherTotalDepth + 4.000` —
-    the stored pusher's own depth plus 2.00 of clearance a side. The slots pack
-    from the LEFT INNER WALL, each centred in its own cell, so the first is half
-    a pitch in. Read off the rim cutouts of four STEPs spanning 2 and 3 slots
-    and C2/C3/C5; `tests/test_box.py` holds it to them.
-    """
+    """Centreline X of each rear pusher-storage slot, left to right: they pack
+    from the LEFT INNER WALL at `#dBackSlotWidth` pitch, each centred in its
+    cell, so the first is half a pitch in."""
     pitch = D.back_slot_pitch(d)
     x0 = -box_width(d) / 2 + WALL
     return [x0 + (k + 0.5) * pitch for k in range(storage_slot_count(d))]
 
 
 def pusher_slot_count(d):
-    """`#calPusherSlots` — how many pushers the CASCADE ships. `derive.py`'s,
-    which owns the rule: 2 at every size from 7.1 (`rev.two_pushers`); at 7.0,
-    2 for an S box and for every Innovation box, else 3.
-
-    This is NOT how many the BACK hangs — see `storage_slot_count`. The Lid
-    reads this one (`lid.socket_count`): it cuts a socket per pusher the
-    cascade ships, and a box built with a variant back still takes the
-    cascade's own lid.
-    """
+    """`#calPusherSlots` — how many pushers the CASCADE ships (`derive.py`
+    owns the rule). NOT how many the BACK hangs: that is
+    `storage_slot_count`. The Lid reads THIS one (`lid.socket_count`), so a
+    box with a variant back still takes the cascade's own lid."""
     return d.calPusherSlots
 
 
 def storage_slot_count(d):
     """How many pusher cavities the BACK carries — cavities, dividers and rim
     cutouts alike. The cascade's own count, unless the row ships a variant
-    back (`rev.back_pocket_variants`, `tables.BACK_POCKET_VARIANTS`):
-
-    * `BACK_OPEN` hangs NONE. Nothing is left standing in the slot band, so
-      the pocket is the full inner width — 149.100 on XS, where the ordinary
-      box leaves 71.500 unsleeved and 50.500 sleeved, and Innovation's player
-      aids are 128 wide.
-    * `BACK_NOTCHES` hangs as many as the width TAKES, which is why the count
-      is derived and never stated: the pitch is the stored pusher's own depth
-      plus 4.000, so it is 4 on the widened unsleeved XS (145.600 of 149.100)
-      and 3 on the sleeved, whose pushers are 44.500 deep — four of those need
-      178.000 of bare width before any clearance and cannot fit any XS box.
-
-    A variant is a BOX-only concern. `pusher_slot_count` above is untouched,
-    so the Lid keeps its two sockets and the pair's two boxes share one lid.
+    back (`rev.back_pocket_variants`): `BACK_OPEN` hangs NONE, so the pocket
+    is the full inner width, and `BACK_NOTCHES` hangs as many as the width
+    TAKES, which is why the count is DERIVED. A variant is a BOX-only concern:
+    `pusher_slot_count` is untouched, so the pair's two boxes share one lid.
+    `spec/BOX.md`, "Two back pockets, and no ordinary box".
     """
     if d.BackPocket == TB.BACK_OPEN:
         return 0
@@ -126,33 +87,18 @@ def storage_slot_count(d):
 
 
 def finger_hole_offset(d):
-    """`#calFingerHoleOffset` — where the rear thumb cutout sits.
-
-        (#calPusherSlots - 1 + (#HorizontalSlots - #calPusherSlots)/2)
-        * #calSlotwidth
-
-    Allan's expression, verbatim. It reads as: step right by one slot width per
-    pusher slot after the first, then centre what is left over. Checks out at
-    162.5 on `M4.21.10.45-Sl`, which is the value his feature tree shows.
-    """
+    """`#calFingerHoleOffset` — where the rear thumb cutout sits: step right
+    by one slot width per pusher slot after the first, then centre the
+    rest."""
     n = pusher_slot_count(d)
     return (n - 1 + (d.HorizontalSlots - n) / 2) * d.calSlotwidth
 
 
 def shell(d):
-    """`Create box shape` — Top of box / Extrude solid box / Hollow out box.
-
-    A plain rectangle, extruded the full BoxHeight and hollowed to WALL with
-    the top face removed. The sketch is centred on the origin: the STEPs put
-    the outer walls at exactly +-#BoxWidth/2.
-
-    From 7.1 the floor is thicker than the wall, and the difference is FUSED ON
-    TOP of the hollowed tray rather than passed down to `tray`: it keeps the
-    Lid's tray — the same helper, the same 1.600 — untouched, and the slab
-    reaches WALL/2 into each wall, which is this module's idiom for keeping a
-    fuse off a coincident face. Nothing below the old floor line changes, so
-    the box still sits on the bed on the same footprint.
-    """
+    """`Create box shape`. From 7.1 the floor is thicker than the wall and the
+    difference is FUSED ON TOP of the hollowed tray rather than passed to
+    `tray`, which keeps the Lid's 1.600 untouched. The slab reaches WALL/2
+    into each wall — the idiom for keeping a fuse off a coincident face."""
     part = tray(box_width(d), box_depth(d), d.BoxHeight, WALL)
     if floor_top(d) > WALL:
         bw, bd = box_width(d), box_depth(d)
@@ -162,54 +108,34 @@ def shell(d):
     return part
 
 
-# The front pocket's back wall. Measured 1.000 thick on all five references —
-# a panel at y = -#BoxDepth/2 + WALL + calFrontPocketDepth .. + 1.000. It is
-# a front-pocket feature (`front_pocket`), but the bottom slot starts at its
-# back face, so it is stated up here where both read it.
+# The front pocket's back wall. A front-pocket feature, but the bottom slot
+# starts at its back face, so it is stated here where both read it.
 FRONT_DIVIDER = 1.000
 
 
 def side_floor(d):
-    """How much floor is left standing at each end — `calSlotwidth / 2`.
-
-    This is the point of the cut, and the better way round to state it: the
-    floor is not removed to make room for something, it is removed EXCEPT here,
-    because the **holders rest on these two strips when the box is not in
-    use**. So the width is set by what has to be left, not by what goes.
-    """
+    """How much floor is left standing at each end — `calSlotwidth / 2`. The
+    **holders rest on these two strips when the box is shut**, so the width is
+    set by what has to be LEFT, not by what goes."""
     return d.calSlotwidth / 2
 
 
 def bottom_slot(d):
-    """`Hole in bottom of box` — the rectangle cut clean through the floor,
-    as (width, depth, y centre).
-
-    Everything between the two side floors goes, so the width is
-
-        #BoxWidth - 2*WallThickness - 2*side_floor
-                  = 11.1 + calSlotwidth * (HorizontalSlots - 1)
-
-    and in depth it runs from the back of the front pocket's divider to the
-    inner face of the back wall — exactly the sliding card area.
-
-    One plain rectangular prism, not one slot per pusher: on all six references
-    the removed volume equals its own bounding box exactly, so there is nothing
-    else in it. It is NOT aligned with the rear pusher storage slots, which sit
-    at their own `#dBackSlotWidth` pitch.
-    """
+    """`Hole in bottom of box` — the rectangle cut clean through the floor, as
+    (width, depth, y centre): everything between the two side floors, over
+    exactly the sliding card area. ONE plain prism, not one slot per pusher,
+    and NOT aligned with the rear storage slots, which have their own
+    pitch."""
     width = box_width(d) - 2 * WALL - 2 * side_floor(d)
     y_front = -box_depth(d) / 2 + WALL + d.calFrontPocketDepth + FRONT_DIVIDER
     y_back = box_depth(d) / 2 - WALL
     return width, y_back - y_front, (y_front + y_back) / 2
 
 
-# `Add depth to back`. The rear storage stands 4.500 proud of the sketch box —
-# half of the 6.100 depth offset — and is where the pushers are stowed. In
-# section, as offsets from #BoxDepth/2 (constant on all six references):
-#
-#     -1.600 .. -0.300   the back wall, 1.300: a 1.600 wall with 0.300 eaten
-#     -0.300 .. +2.900   the pusher slot, 3.200 = LOCK_STANDARD's box slot depth
-#     +2.900 .. +4.500   the outer back wall, 1.600
+# `Add depth to back`. The rear storage stands REAR_DEPTH proud of the sketch
+# box and is where the pushers are stowed. In section, from #BoxDepth/2: the
+# back wall 1.300 (a 1.600 wall with SLOT_BITE eaten), then the pusher slot,
+# then the outer back wall (spec/BOX.md, "The back, in section").
 REAR_DEPTH = 4.500
 SLOT_BITE = 0.300        # how far the pusher slot eats into the back wall
 
@@ -220,64 +146,40 @@ PUSHER_REST_CAP = 25.000  # `Remove material, don't let pushers drop through`:
 #                           the cavity floor never sits higher than this
 DIVIDER_W = 1.600        # `Divider` between adjacent pusher slots
 HOLE_W = 10.000          # `Hanging holes` — the lattice through the back
-# From 7.1c the lattice is STOUTER (`stout_lattice`): the window is 9.000, so
-# the PIER between two of them takes the whole 1.000 — the pitch is fixed and
-# the pier absorbs whatever the window does not — and there are four rows
-# rather than three, so a pier is tied back to a bridge after 15.125 instead
-# of 20.833. The piers are what break. `spec/BOX.md`, "A stouter lattice".
+# From 7.1c the lattice is STOUTER (`stout_lattice`): the PIER between two
+# windows is what breaks, so the window narrows (the pitch is fixed) and a
+# fourth row shortens its free run. `spec/BOX.md`, "A stouter lattice".
 HOLE_W_STOUT = 9.000
 HOLE_ROWS_STOUT = 4
 HOLES_PER_SLOT = 5
 HOLE_INSET = 8.300       # first hole, from the left inner wall
 # A hanging hole stops this short of a storage divider's face when its own
-# edge would otherwise land EXACTLY on it. DELIBERATE DIVERGENCE: on the three
-# sleeved Innovation boxes — `M5.10.10.45-Sl`, `S5.10.10.45-Sl` and
-# `XS5.15.10.45-Sl` — the hole pitch puts a hole's -X edge on a divider's -X
-# face, and because the holes here stop at the slot band where Onshape's cut
-# through the dividers, wall material and divider material then touched along
-# that one line, corner to corner: six edges with four triangles on them in
-# the written mesh. It sliced, but it was the one non-manifold thing left in
-# the catalogue. `hole_openings` applies it; `hanging_holes` stays the
-# transcription of the sketch.
+# edge would otherwise land EXACTLY on it, leaving wall and divider touching
+# corner to corner — non-manifold. `hole_openings` applies it;
+# `hanging_holes` stays the transcription of the sketch.
 HOLE_CLEAR = 0.200
 HOLE_ROWS = 3
 HOLE_ROW_BOTTOM = 3.000
 HOLE_ROW_TOP = 69.500
 HOLE_ROW_GAP = 2.000
-# The rim cutouts run from here to the rim: 5.000 tall, NOT the 5.25 that
-# LOCK_STANDARD.md records ("z 99.75 -> 105.00"). Measured 100.000..105.000 on
-# the unfilleted reference, where a cutout's volume is exactly
-# 4.500 x 1.300 x 5.000 = 29.250. See spec/BOX.md.
+# The rim cutouts run from here to the rim: 5.000 tall, NOT the 5.25
+# LOCK_STANDARD.md records (spec/BOX.md).
 RIM_CUTOUT_Z = 100.000
 REAR_THUMB_FILLET = 0.600   # `Fillet rear thumb hole` — NOT the front thumb's
 #                             0.400; the wall it cuts is 1.600, not 1.000
-# From 7.1b the back pocket gets a cutout every REAR_THUMB_PITCH of its width
-# rather than one however wide it is. The pitch is a CEILING and not a target:
-# the cutouts are spread EVENLY over the pocket, so the gap actually cut is
-# the largest one no wider than this — 34.90 to 69.15 across the catalogue.
-# REAR_THUMB_CLEAR is the wall left standing at each end, and it is also what
-# has to stand BETWEEN two cutouts for the second one to be worth cutting.
+# From 7.1b the back pocket gets a cutout every REAR_THUMB_PITCH of its
+# width. The pitch is a CEILING, not a target. REAR_THUMB_CLEAR is the wall
+# left at each end, and also what has to stand BETWEEN two cutouts for the
+# second to be worth cutting.
 REAR_THUMB_PITCH = 70.000
 REAR_THUMB_CLEAR = 10.000
 
 
 def pusher_rest(d):
-    """The cavity floor — how high a stored pusher sits.
-
-        min(25.000, BoxHeight - calPusherTotalHeight - 0.500)
-
-    A pusher is stored on EDGE and upright: `#dBackSlotWidth` is its own
-    `calPusherTotalDepth` plus clearance measured along the box's WIDTH, so its
-    staircase height stands vertically. The rest is then placed to bring the
-    top of that staircase to `0.500` below the rim, where the tabs meet the box
-    rim cutouts — until the cap takes over for a short pusher.
-
-    Read off all 48 cached Boxes in `individual/` by ray-probing the meshes
-    (0 API calls). Three distinct values, two of them below the cap: `25.000`
-    wherever `calPusherTotalHeight <= 79.5`, `24.500` at `80.000`, and `17.500`
-    at `87.000` — which is the ceiling `calHeightIncrement` imposes, and so the
-    lowest rest any cascade can have.
-    """
+    """The cavity floor — how high a stored pusher sits. A pusher is stored on
+    EDGE and upright, so its staircase height stands vertically, and the rest
+    brings its top to 0.500 below the rim, where the tabs meet the rim
+    cutouts, until PUSHER_REST_CAP takes over for a short pusher."""
     return min(PUSHER_REST_CAP, d.BoxHeight - d.calPusherTotalHeight - 0.5)
 
 
@@ -299,11 +201,9 @@ def _interval_minus(lo, hi, blocks):
 
 
 def storage_dividers(d):
-    """(x0, x1) of each `Divider` between rear storage slots.
-
-    `n` dividers for `n` slots: one at every cavity boundary except the left
-    inner wall, which already is one, and the last CLOSING the run on the
-    right."""
+    """(x0, x1) of each `Divider` between rear storage slots: `n` for `n`
+    slots — one at every boundary but the left inner wall, which already is
+    one, and the last CLOSING the run on the right."""
     left = -box_width(d) / 2 + WALL
     pitch = D.back_slot_pitch(d)
     return [(left + k * pitch, left + k * pitch + DIVIDER_W)
@@ -311,31 +211,18 @@ def storage_dividers(d):
 
 
 def rear_thumb_x(d):
-    """Centre X of the `Thumb Cutout in back`.
-
-        -#BoxWidth/2 + WallThickness + #calFingerHoleOffset
-        + #dBackSlotWidth + 1.600
-
-    So `calFingerHoleOffset` is NOT measured from the left inner wall but from
-    the left edge of the SECOND storage cavity — one slot pitch and one divider
-    in. Exact on all five references, whose pitches run 22.000 to 71.200, which
-    is what separates that reading from a plain offset.
-    """
+    """Centre X of the `Thumb Cutout in back`. `calFingerHoleOffset` is NOT
+    measured from the left inner wall but from the left edge of the SECOND
+    storage cavity — one slot pitch and one divider in."""
     return (-box_width(d) / 2 + WALL + finger_hole_offset(d)
             + D.back_slot_pitch(d) + DIVIDER_W)
 
 
 def rear_pocket(d):
-    """(x0, x1) of the back pocket — the empty run right of the last divider.
-
-    `rear_storage` cuts it away from the floor up, so it is the one stretch of
-    the back a thumb cutout can be put through: everything left of it is a
-    pusher cavity with a `Divider` standing at each of its edges.
-
-    With NO cavities (`BACK_OPEN`, from 7.2g) there is no divider to close the
-    run either, so the pocket is the whole inner width and not a `DIVIDER_W`
-    less. That is the number the poster quotes (`make_posters.pocket_w`).
-    """
+    """(x0, x1) of the back pocket — the empty run right of the last divider,
+    and the one stretch of the back a thumb cutout can go through. With NO
+    cavities (`BACK_OPEN`, 7.2g) there is no divider closing the run either,
+    so the pocket is the whole inner width (`make_posters.pocket_w`)."""
     left = -box_width(d) / 2 + WALL
     n = storage_slot_count(d)
     return (left + (n * D.back_slot_pitch(d) + DIVIDER_W if n else 0.0),
@@ -345,28 +232,12 @@ def rear_pocket(d):
 def rear_thumbs_x(d):
     """Centre X of every `Thumb Cutout in back`, left to right.
 
-    Before 7.1b there is exactly one and `rear_thumb_x` places it — Onshape's
-    own expression, which is why that function stays.
-
-    From 7.1b the POCKET places them (`d.rev.rear_thumbs_spread`). The pocket
-    is 45 to 290 mm wide across the catalogue and one cutout in the middle of
-    290 mm is not reachable from its ends, so: keep REAR_THUMB_CLEAR of wall at
-    each end, and spread cutouts evenly over what is left at the largest gap
-    that is no wider than REAR_THUMB_PITCH. `ceil` is what makes the pitch a
-    CEILING and not a target a wide pocket overshoots: it puts the gap in
-    (PITCH/2, PITCH] wherever there are two gaps or more.
-
-    A second cutout has to earn its place: below `2 * r + REAR_THUMB_CLEAR` of
-    usable span the two would leave less wall between them than either leaves
-    at its own end, so such a pocket keeps ONE, centred. Three cascades are in
-    that case, and the narrowest (`S9.21.10.62-Sl`, 45.30 of pocket) is
-    narrower than one cutout plus its clearances — `hi - lo` goes negative
-    there and the guard catches it, so it eats its margin rather than going
-    without the cutout the box has always had.
-
-    A `BACK_NOTCHES` box (7.2g) has NONE: its cavities take all but a few
-    millimetres of the width, so there is no pocket left to reach into and a
-    cutout would open the last one's outer wall instead.
+    Before 7.1b there is exactly one, at `rear_thumb_x`. From 7.1b the POCKET
+    places them (`d.rev.rear_thumbs_spread`): keep REAR_THUMB_CLEAR of wall at
+    each end and spread cutouts evenly over what is left, at the largest gap
+    no wider than REAR_THUMB_PITCH (`ceil` makes the pitch a CEILING, not a
+    target). A second cutout has to EARN its place, so a narrow pocket keeps
+    ONE, centred; a `BACK_NOTCHES` box (7.2g) has NONE.
     """
     if d.BackPocket == TB.BACK_NOTCHES:
         return []
@@ -382,15 +253,10 @@ def rear_thumbs_x(d):
 
 
 def rear_block(d):
-    """`Add depth to back` — the solid the rest of the group carves.
-
-    It reaches WALL/2 INTO the back wall rather than meeting it at
-    y = #BoxDepth/2. Fusing two solids across an exactly coincident planar face
-    leaves that face inside the result as a lamina: the solid still reports
-    valid and still measures the right volume, but every later boolean against
-    it fails — `ref & mine` came back as None. Half a wall of genuine overlap
-    costs nothing (the back wall is solid there) and keeps the fuse honest.
-    """
+    """`Add depth to back` — the solid the rest of the group carves. It
+    reaches WALL/2 INTO the back wall rather than meeting it at #BoxDepth/2:
+    fusing across an exactly coincident planar face leaves a LAMINA inside the
+    result, and every later boolean against it then fails."""
     y0 = box_depth(d) / 2 - WALL / 2
     depth = REAR_DEPTH + WALL / 2
     return Box(box_width(d), depth, d.BoxHeight).moved(
@@ -398,29 +264,22 @@ def rear_block(d):
 
 
 def slot_band(d):
-    """(y0, y1) of the pusher slot itself — `LOCK_STANDARD.md`'s 3.200 box slot
-    depth. It starts 0.300 INSIDE the sketch box, which is why the back wall
-    measures 1.300 rather than WallThickness."""
+    """(y0, y1) of the pusher slot itself. It starts SLOT_BITE INSIDE the
+    sketch box, which is why the back wall measures 1.300, not WALL."""
     y0 = box_depth(d) / 2 - SLOT_BITE
     return y0, y0 + L.BOX_SLOT_DEPTH
 
 
 def hole_w(d):
     """The window's width. `stout_lattice` narrows it to widen the pier; the
-    PITCH does not move, so every 1.000 the window gives up is 1.000 the pier
-    gains, and only a window's +X edge moves."""
+    PITCH does not move, so only a window's +X edge does."""
     return HOLE_W_STOUT if d.rev.stout_lattice else HOLE_W
 
 
 def hanging_holes(d):
-    """(x0, x1) of every opening in the back, left to right.
-
-    Five per horizontal slot, `hole_w` wide, at a pitch of
-    `(calSlotwidth - 2.000) / 5` within a slot; the groups themselves repeat at
-    `calSlotwidth`, so the pier between two slots is 2.000 wider than the piers
-    inside one. First hole `HOLE_INSET` from the left inner wall — a constant on
-    every reference.
-    """
+    """(x0, x1) of every opening in the back, left to right: five per
+    horizontal slot at `(calSlotwidth - 2.000) / 5`, the groups repeating at
+    `calSlotwidth`, so the pier between slots is 2.000 wider than the rest."""
     pitch = (d.calSlotwidth - 2.0) / HOLES_PER_SLOT
     x0 = -box_width(d) / 2 + WALL + HOLE_INSET
     return [(x0 + k * d.calSlotwidth + j * pitch,
@@ -445,14 +304,9 @@ def hole_openings(d):
 
 
 def hole_rows(d):
-    """(z0, z1) of each lattice row.
-
-    The BAND is constant — `HOLE_ROW_BOTTOM` to `HOLE_ROW_TOP` on every
-    reference, so this is not a function of the riser count — and the rows
-    divide it with `HOLE_ROW_GAP` between them. `stout_lattice` puts four rows
-    in the same band instead of three, which shortens the free run of a pier
-    from 20.833 to 15.125 and adds one more bridge to tie it back.
-    """
+    """(z0, z1) of each lattice row. The BAND is constant, NOT a function of
+    the riser count, and the rows divide it with `HOLE_ROW_GAP` between
+    them."""
     rows = HOLE_ROWS_STOUT if d.rev.stout_lattice else HOLE_ROWS
     h = (HOLE_ROW_TOP - HOLE_ROW_BOTTOM - (rows - 1) * HOLE_ROW_GAP) / rows
     return [(HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP),
@@ -461,15 +315,9 @@ def hole_rows(d):
 
 def rear_storage(d, part, lattice=True):
     """The whole `Pusher holder & Rear Storage` group, thumb cutout included.
-
-    Every cut is a PLAIN rectangular box, and they are disjoint. Composing the
-    negative first — empty the slot band, then subtract the rest and the
-    dividers back out of that — produces a tool build123d cannot subtract with:
-    the result measures the right volume and reports valid, but every later
-    boolean against it returns nothing (`ref & mine` came back as None). The
-    cavities are already separated by their dividers, so they can simply be
-    listed.
-    """
+    Every cut is a PLAIN rectangular box, and they are disjoint: composing
+    the negative first produces a tool build123d cannot subtract with
+    (spec/BOX.md, "build123d cannot subtract two boxes with one envelope")."""
     BW, BD = box_width(d), box_depth(d)
     inner = BW / 2 - WALL
     y0, y1 = slot_band(d)
@@ -480,25 +328,20 @@ def rear_storage(d, part, lattice=True):
     part = part + rear_block(d)
     cuts = [
         # `Top of back` — the storage is capped at REAR_TOP between the end
-        # walls; the end walls run the full height and the full added depth.
-        # It starts at the SLOT BAND, not at the sketch box: a divider reaches
-        # SLOT_BITE forward of #BoxDepth/2, and cutting only from there left
-        # that 0.300 sliver of each divider standing all the way to the rim.
+        # walls, which run the full height. It starts at the SLOT BAND, not at
+        # the sketch box: a divider reaches SLOT_BITE forward of #BoxDepth/2,
+        # and cutting from there left a sliver of it standing to the rim.
         slab(-inner, inner, y0, BD / 2 + REAR_DEPTH, REAR_TOP, top),
         # Right of the pusher slots — and of the divider that CLOSES the run —
-        # the slot band is empty from the floor up.
-        # With no cavities at all (`BACK_OPEN`) that is the WHOLE band, and
-        # there is no closing divider to start after.
+        # the slot band is empty from the floor up. With no cavities at all
+        # (`BACK_OPEN`) that is the WHOLE band.
         slab(left + (n * pitch + DIVIDER_W if n else 0.0), inner, y0, y1,
              floor_top(d), top),
     ]
-    # One cavity per pusher slot, open from the rest up — what stands below it
-    # is `Remove material, don't let pushers drop through`, and the hanging
-    # holes cut through that too, so it is a lattice and not a plug. A DIVIDER_W
-    # wall
-    # stands at every boundary EXCEPT the left inner wall, which already is one:
-    # n dividers for n slots, the last closing the run on the right. So cavity k
-    # starts one divider in, and ends at its own boundary.
+    # One cavity per pusher slot, open from the rest up — what stands below is
+    # `Remove material, don't let pushers drop through`, a lattice, not a
+    # plug. A divider stands at every boundary EXCEPT the left inner wall,
+    # which already is one.
     for k in range(n):
         cuts.append(slab(left + k * pitch + (DIVIDER_W if k else 0.0),
                          left + (k + 1) * pitch, y0, y1,
@@ -506,11 +349,10 @@ def rear_storage(d, part, lattice=True):
     # `Hanging holes` — through the back wall in full, and on through the slot
     # band EXCEPT where a divider stands.
     #
-    # DELIBERATE DIVERGENCE FROM ONSHAPE. There the holes are one prism from
-    # the card side to the outer wall, so they cut the dividers too — on `Box
-    # Dominion 244S` all three are severed clean through at every hole row,
-    # and no reference escapes with fewer than one. The openings are wanted;
-    # sawing through the pusher hangers is not. See spec/BOX.md.
+    # DELIBERATE DIVERGENCE: Onshape's holes are one prism from the card side
+    # to the outer wall, so they SEVER the dividers. The openings are wanted;
+    # sawing through the pusher hangers is not (spec/BOX.md, "The hanging
+    # holes do NOT cut the dividers").
     divs = storage_dividers(d)
     for x_lo, x_hi in (hole_openings(d) if lattice else []):
         for z_lo, z_hi in hole_rows(d):
@@ -527,44 +369,29 @@ def rear_storage(d, part, lattice=True):
             cuts.append(slab(x - L.BOX_CUTOUT_W / 2, x + L.BOX_CUTOUT_W / 2,
                              BD / 2 - WALL, y0, RIM_CUTOUT_Z, top))
     # ONE boolean with every tool, not one per tool: the tools are disjoint
-    # rectangles, so the result is the same, and OCCT walks the body once
-    # instead of up to 171 times (this loop was most of a box's build time).
-    # This is not the "compose the negative first" the docstring warns of —
-    # nothing is fused before the cut.
+    # rectangles, so the result is the same and OCCT walks the body once. This
+    # is NOT the "compose the negative first" the docstring warns of — nothing
+    # is fused before the cut.
     part = part.cut(*cuts)
-    # `Thumb Cutout in back` — a THUMB_R hole through the OUTER back wall only,
-    # centred on REAR_TOP so the storage's cap takes its top half off. It falls
-    # in the empty run to the right of the last divider on every reference, so
-    # it never meets a pusher slot, and it does not touch the 1.300 inner back
-    # wall: that reads as one unbroken piece at this height on all five.
-    # `over` is 2.000, not the default: forward of the outer wall is the slot
-    # band, empty at this X, but 5.000 would reach the inner back wall behind it.
-    #
-    # From 7.1b there are several of them, one every REAR_THUMB_PITCH of
-    # pocket (`rear_thumbs_x`); before it there is one, and this is the same
-    # cut either way. They are disjoint — the layout leaves REAR_THUMB_CLEAR
-    # between any two — so they go in ONE boolean, as the cuts above do.
+    # `Thumb Cutout in back` — a THUMB_R hole through the OUTER back wall
+    # only, centred on REAR_TOP so the storage's cap takes its top half off.
+    # `over` is 2.000, not the default: 5.000 would reach the inner back wall
+    # behind it. From 7.1b there are several (`rear_thumbs_x`), disjoint, so
+    # ONE boolean as above.
     return part.cut(*[round_hole(y1, BD / 2 + REAR_DEPTH, D.ThumbCutoutRadius,
                                  REAR_THUMB_FILLET, x, REAR_TOP, over=2.0)
                       for x in rear_thumbs_x(d)])
 
 
-# `Lower the front`. The front wall stops here instead of at BoxHeight, so the
-# cards can be seen and reached. Measured at exactly 68.600 on all five
-# references, and constant: every catalogue box has calPocketHeight 88.5 and
-# calPocketDrop 8.0 (calMaxPocketHeight is CardHeight - 3.5 = 88.5 for every
-# game but Colours), so nothing in the derived set varies
-# here and a formula cannot be told from a constant. Treat it as measured.
+# `Lower the front`, so the cards can be seen and reached. Nothing in the
+# derived set varies here, so a formula cannot be told from a constant —
+# treat it as MEASURED.
 FRONT_TOP = 68.600
 
 
 def lower_front(d, part):
-    """`Lower the front` — take the front wall down to FRONT_TOP.
-
-    Only between the end walls: at z = 69.0 the front band still carries
-    material over x +-(#BoxWidth/2 - WallThickness) .. +-#BoxWidth/2 on every
-    reference, so the end walls run their full height.
-    """
+    """`Lower the front` — the front wall down to FRONT_TOP, between the end
+    walls only, which run their full height."""
     BD = box_depth(d)
     inner = box_width(d) / 2 - WALL
     return part - Box(2 * inner, WALL + 1, d.BoxHeight + 1 - FRONT_TOP).moved(
@@ -572,22 +399,16 @@ def lower_front(d, part):
                   (FRONT_TOP + d.BoxHeight + 1) / 2)))
 
 
-# `Round top box corners`. Above `Lower the front` only the two END WALLS reach
-# the rim, and their top-front and top-back edges carry a big round: measured
-# 4.600 on all six references, front and back alike, the arc starting at
-# z = 105.000 - 4.600. It is the one number in this group.
+# `Round top box corners`. Above `Lower the front` only the two END WALLS
+# reach the rim, and their top-front and top-back edges carry a big round.
 CORNER_R = 4.600
 
 
 def round_top_corners(d, part):
-    """`Round top box corners` — a CORNER_R round on each end wall's top edges.
-
-    Cut with a tool rather than a `fillet()` on picked edges: the two edges are
-    trivially described (the whole rim, front and back) but hard to select
-    stably, and a tool is also what keeps the tree order honest — anything
-    ADDED above z = 100.4 later on, which is what the label holders and closing
-    bumps do lower down, is untouched by a cut that has already happened.
-    """
+    """`Round top box corners` — a CORNER_R round on each end wall's top
+    edges, cut with a TOOL rather than a `fillet()` on picked edges: they are
+    describe but hard to select stably, and a tool keeps the tree order honest
+    — anything ADDED later is untouched by a cut already made."""
     BD, top = box_depth(d), d.BoxHeight
     width = box_width(d) + 20
 
@@ -604,29 +425,18 @@ def round_top_corners(d, part):
 
 
 # `Sliders`. Vertical ribs on both end walls, one per riser, that the holders
-# ride on. Constant section on every reference: 1.500 wide in Y, standing
-# 4.000 proud of the inner end wall, full height from the floor to the rim,
-# with the top rounded.
+# ride on: constant section, full height from the floor to the rim, top
+# rounded.
 SLIDER_W = 1.500
 SLIDER_PROUD = 4.000
 SLIDER_TOP_R = 0.700     # `Round top of slider`, on the two long top edges only
 
 
 def slider_ribs(d):
-    """(y0, y1) of each rib, BACK to front.
-
-    A rib's BACK FACE sits on the centre of its card slot, and the slots are
-    measured from the inner back wall: `calSliderDistance` each, except the
-    last (frontmost) one, which is `calFirstSliderDistance`. So
-
-        rib j back face = #BoxDepth/2 - WallThickness - (j*sd + sd/2)
-        first slider    = #BoxDepth/2 - WallThickness - ((R-1)*sd + fsd/2)
-
-    which is the tree's split exactly: `Replicate sliders` lays down the R-1
-    plain ones at a `calSliderDistance` pitch, and `First Slider` places the
-    odd one out. `Box Dominion 246S` is the only reference that can tell the
-    two distances apart (20.400 against 9.600) and it lands on the nose.
-    """
+    """(y0, y1) of each rib, BACK to front. A rib's BACK FACE sits on the
+    centre of its card slot, and the slots are measured from the inner back
+    wall — `calSliderDistance` each, except the frontmost, which is
+    `calFirstSliderDistance`. That is the tree's own split."""
     back = box_depth(d) / 2 - WALL - rib_shift(d)
     sd, fsd = d.calSliderDistance, d.calFirstSliderDistance
     if d.isDeepSlotAtBack:
@@ -645,15 +455,8 @@ def rib_shift(d):
     """How far FORWARD of the studio's position every rib sits — 0.000 through
     7.2e, and from 7.2f (`rev.ribs_forward`) whatever puts the front holder
     `CardHolderGap` from the divider panel, as every holder is from the one
-    behind it.
-
-    The studio's `#BoxDepth` leaves a constant 1.800 between the last card
-    slot's front edge and the panel's back face (its `6.0` less two walls and
-    the panel). A holder centred on its rib, whose back face is on the slot's
-    centre, overhangs the slot's front edge by `SLIDER_W/2 - DEPTH_GAP/2` =
-    0.550, so the box lip had 1.250 to cross where a holder's lips have
-    0.400. Derived, not 0.850: the slots, the pocket and the panel say it.
-    """
+    behind it. DERIVED from the slots, the pocket and the panel, never a
+    constant (spec/BOX.md, "The ribs move forward")."""
     if not d.rev.ribs_forward:
         return 0.0
     slots = (d.RisingSliders - 1) * d.calSliderDistance + d.calFirstSliderDistance
@@ -663,19 +466,14 @@ def rib_shift(d):
 
 
 def sliders(d, part):
-    """`Sliders` — the ribs, mirrored to both end walls.
-
-    Each rib reaches WALL/2 INTO the wall it stands on. That overlap is free
-    (a union never removes material, and the wall is solid there) and it keeps
-    the fuse off an exactly coincident face — the same trap `rear_block`
-    documents.
-    """
+    """`Sliders` — the ribs, mirrored to both end walls. Each reaches WALL/2
+    INTO the wall it stands on, which keeps the fuse off an exactly coincident
+    face (the trap `rear_block` documents)."""
     inner = box_width(d) / 2 - WALL
     thick = SLIDER_PROUD + WALL / 2
     rib = Box(thick, SLIDER_W, d.BoxHeight)
     # `Round top of slider` rounds ACROSS the rib, not along it: the two top
-    # edges parallel to X, leaving a 0.100 flat between two 0.700 radii. The
-    # rib's front face stays square to the rim.
+    # edges parallel to X. The rib's front face stays square to the rim.
     rib = fillet(rib.faces().sort_by(Axis.Z)[-1].edges().filter_by(Axis.X),
                  SLIDER_TOP_R)
     ribs = [rib.moved(Location((sign * (inner - (SLIDER_PROUD - WALL / 2) / 2),
@@ -684,9 +482,7 @@ def sliders(d, part):
     return part.fuse(*ribs)
 
 
-# `Front pocket`. The fixed pocket across the front of the box, divided into
-# one compartment per horizontal slot. Every number here is measured exact on
-# all six references.
+# `Front pocket`, one compartment per horizontal slot.
 FRONT_PAD = D.FrontPocketSidePaddingWidth   # 5.800, `Pad outermost slots`
 FRONT_DIVIDER_W = 0.800                     # `Divider for front pocket`
 POCKET_CUT_TOP = 87.500                     # where `Angled cutout` lands
@@ -700,15 +496,9 @@ THUMB_FILLET = 0.400              # `Fillet thumb hole`, on BOTH panel faces
 
 
 def thumb_centres(d):
-    """Centre X of each thumb hole, left to right — one per horizontal slot.
-
-        -#BoxWidth/2 + WallThickness + calSliderSpaceLeftRight
-        - 0.800 + calSlotwidth/2 + k*calSlotwidth
-
-    i.e. half a slot in from the left inner wall, shifted by the side spacing
-    less the divider width. Exact on all six references, at HorizontalSlots 3,
-    4 and 5, and `MatPocket` does not move them even though it drops a divider.
-    """
+    """Centre X of each thumb hole, one per horizontal slot: half a slot in
+    from the left inner wall, shifted by the side spacing less the divider
+    width (`MatPocket` does NOT move them)."""
     x0 = (-box_width(d) / 2 + WALL + d.calSliderSpaceLeftRight
           - FRONT_DIVIDER_W + d.calSlotwidth / 2)
     return [x0 + k * d.calSlotwidth for k in range(d.HorizontalSlots)]
@@ -716,16 +506,11 @@ def thumb_centres(d):
 
 def round_hole(y0, y1, r, f, x, z, over=5.0):
     """A radius-`r` hole on Y from `y0` to `y1`, filleted `f` into BOTH faces,
-    centred on (`x`, `z`). Revolved from its profile.
+    centred on (`x`, `z`), revolved from its profile. Both thumbs use it.
 
-    Both thumbs use this — the one through the front pocket's divider panel and
-    the one through the outer back wall — with different radii of fillet.
-
-    `over` is how far the tool runs past each face, at the flared radius `r+f`,
-    so the cut is clean rather than coincident with the face. It has to clear
-    the face and STOP: the rear thumb's default 5.000 reached back through the
-    empty slot band and bored a 12.600 hole in the 1.300 inner back wall, worth
-    about 630 mm³ that the STEP does not remove.
+    `over` is how far the tool runs past each face, so the cut is not
+    coincident with it. It has to clear the face and STOP, or the rear thumb
+    bores on through the empty slot band into the inner back wall.
     """
     m = f * (1 - 2 ** -0.5)          # the arc's midpoint, off its own corner
     with BuildPart() as tool:
@@ -745,17 +530,13 @@ def round_hole(y0, y1, r, f, x, z, over=5.0):
 
 
 def thumb_tool(d):
-    """One thumb hole, centred on x = 0: a THUMB_R cylinder through the panel
-    on Y, filleted THUMB_FILLET into both faces. `front_pocket` moves a copy
-    to each slot.
+    """One thumb hole, centred on x = 0; `front_pocket` moves a copy to each
+    slot.
 
     Revolved from its profile rather than cut-then-`fillet()`: the angled
-    cutout takes the top off the hole, so its edge is an ARC and not a circle,
-    and picking that reliably is harder than stating the section once.
-
-    The quarter arcs are given by three points, not by a radius: `RadiusArc`
-    has four candidates through two points and picked one that left the hole a
-    plain 12.400 cylinder — which the STEP's own profile caught at once.
+    cutout takes the top off the hole, so its edge is an ARC, not a circle.
+    The quarter arcs are given by THREE POINTS — `RadiusArc` has four
+    candidates through two points and picked the wrong one.
     """
     _fw, fb, back = pocket_span(d)
     return round_hole(fb, back, THUMB_R, THUMB_FILLET, 0.0, THUMB_Z)
@@ -769,22 +550,14 @@ LIP_DEPTH = D.LipDepth            # 2.100, along the ramp — 7.0 to 7.2d
 LIP_HEIGHT = D.LipHeight          # 2.000, in Z
 LIP_CHAMFER = D.LipChamfer        # 1.200, 45 degrees in the XY plane
 LIP_Z = 85.500                    # where it leaves the panel's back face — through 7.2e
-# From 7.2f (`rev.ribs_forward`) the lip is a FLAT block that BITES the front
-# holder's wall by LIP_BITE — an overlap of no more than 0.1-0.2, so the
-# holder slides in with a little flex. A holder goes into the box straight
-# down its ribs, so anything of the lip inside its front wall's footprint
-# meets the wall's bottom edge on the way down (the 7.2e lip, 0.800 into the
-# wall, stopped it dead: `cad.fit`'s insertion sweep); 0.150 is inside the
-# 0.200 the holder has on its rib, so it steps back and slides past; its front
-# face slants back (a wedge, below) so the wall's bottom edge rides over.
+# From 7.2f (`rev.ribs_forward`) the lip is a wedge that BITES the front
+# holder's wall by LIP_BITE, so the holder slides in with a little flex. A
+# holder goes into the box STRAIGHT DOWN its ribs, so no fixed lip may fill
+# its wall's footprint; LIP_BITE is inside the 0.200 the holder has on its
+# rib. `cad.fit --state closed` sweeps it.
 LIP_BITE = 0.150
-# The lip's section from 7.2f, off the kit A print: a WEDGE. Its underside
-# lies on the slant and ends at a point `lip_z`, REST_CLEARANCE above the
-# rest floor; its front face rises from that point straight back to the post,
-# so the wall's bottom edge meets a slope wherever it lands on the way in and
-# there is no square corner for the seam to bead on; its flat top is
-# LIP_SINK below the front holder's slant at the wall's face, which ends the
-# lip a little below the next slider.
+# The wedge's flat top is LIP_SINK below the front holder's slant at the
+# wall's face, which ends the lip a little below the next slider.
 LIP_SINK = 0.200
 POST_ROOT = 4.500                 # from 7.2f: how far the lip's post reaches down into the panel
 
@@ -800,15 +573,10 @@ def lip_reach(d):
 
 def lip_z(d):
     """Z of the lip's UNDERSIDE at its tip, where it leaves the panel's back
-    face through 7.2e (`LIP_Z` 85.500).
-
-    From 7.2f (`rev.ribs_forward`) the wedge's point, `SLANT_STEP` below the
-    front holder's slant surface where it bites, LIP_BITE inside that
-    holder's front face, in play (`assembly.box_lip_top`) — REST_CLEARANCE
-    above the rest's floor, exactly as a holder's lips are. That is above
-    the panel's 87.500 top, which is what the post is for
-    (`flat_lip_tool`).
-    """
+    face: `LIP_Z` through 7.2e; from 7.2f (`rev.ribs_forward`) the wedge's
+    point, `SLANT_STEP` below `assembly.box_lip_top` — REST_CLEARANCE above
+    the rest's floor, exactly as a holder's lips are, and above the panel's
+    top, which is what the post is for (`flat_lip_tool`)."""
     if d.rev.ribs_forward:
         from .. import assembly as A
         return A.box_lip_top(d) - holder_part.SLANT_STEP
@@ -824,42 +592,21 @@ def lip_top(d):
 
 
 def lip_slope(d):
-    """tan of the lip's angle from vertical.
-
-        (calFirstSliderDistance - 1.200) / (calHeightIncrement - 1.000)
-
-    **It is the HOLDER's diagonal cutout angle** — the group opens with
-    `Import Holder patterns` and this is what comes across. Confirmed against
-    the diagonal face normal of all 50 cached Holders in `individual/`
-    (0 API calls), over four games, both sleevings, rises from 9.667 to 22.000
-    and slider distances from 4.800 to 20.400; every one agrees.
-
-    It is the FIRST slider distance because the lip meets the front holder.
-    `Box Dominion 246S` is the only reference that can tell them apart —
-    `20.400` against `9.600` — and it reads 1.280, not 0.560.
-
-    One formula with the Holder's `slant_slope`: `derive.cascade_slope`,
-    inverted, at the first slider distance — or at the plain one when the
-    deep slot is at the BACK (`isDeepSlotAtBack`), since the lip then meets
-    a standard holder.
-    """
+    """tan of the lip's angle from vertical. **It is the HOLDER's diagonal
+    cutout angle**, at the FIRST slider distance because the lip meets the
+    front holder — or at the plain one when the deep slot is at the BACK
+    (`isDeepSlotAtBack`). One formula with the Holder's `slant_slope`:
+    `derive.cascade_slope`, inverted."""
     sd = d.calSliderDistance if d.isDeepSlotAtBack else d.calFirstSliderDistance
     return 1.0 / D.cascade_slope(d, sd)
 
 
 def lip_tool(d):
-    """One lip, centred on x = 0; `front_pocket` moves a copy to each.
-
-    In section it is a PARALLELOGRAM: from the panel's back face at LIP_Z, up
-    and back along LIP_DEPTH at `lip_slope`, LIP_HEIGHT tall in Z. Seen from
-    above it is LIP_LENGTH long with a LIP_CHAMFER 45-degree chamfer at each
-    end — which a shallow lip truncates, so the top face measures
-    `LIP_LENGTH + 2*(LIP_CHAMFER - protrusion)` until the protrusion passes
-    1.200.
-
-    Built as the intersection of the section swept across X with the chamfered
-    footprint swept up Z, so each is stated once and neither needs an edge pick.
-    """
+    """One lip, centred on x = 0; `front_pocket` moves a copy to each. In
+    section a PARALLELOGRAM, in plan LIP_LENGTH long with a 45-degree
+    LIP_CHAMFER at each end that a shallow lip TRUNCATES. Built as the section
+    swept across X intersected with the footprint swept up Z, so neither needs
+    an edge pick."""
     _fw, _fb, back = pocket_span(d)
     m = lip_slope(d)
     unit = (1.0 + m * m) ** 0.5
@@ -869,10 +616,8 @@ def lip_tool(d):
     if d.rev.seated_lips:
         # The gap to the front holder plus its front wall, in Y — the same
         # rule as the holder's own lips (`holder.lip_reach_y`): across the
-        # gap, through the rest, and no further. `LIP_DEPTH` along the ramp is
-        # 0.38 to 1.81 in Y, and the holder is 1.250 away, so before 7.2e the
-        # lip reached only six front holders and met the wall under their
-        # notch on each (`spec/HOLDER.md`, "Lips that seat").
+        # gap, through the rest, and no further. Before 7.2e the lip reached
+        # only six front holders (`spec/HOLDER.md`, "Lips that seat").
         from .. import assembly as A
         out = A.front_holder_gap(d) + holder_part.WALL
         rise = out / m
@@ -881,15 +626,11 @@ def lip_tool(d):
     half = LIP_LENGTH / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
-            # The first and last points reach 0.800 INTO the panel, so the fuse
-            # is not across a coincident face. That tab is trimmed with the
-            # panel by the angled cutout, which is why the lip goes into the
-            # composite before the cut rather than after it.
-            # From 7.2f the lip stands above the panel's bevelled top, so the
-            # tab becomes a POST: the panel's back face carried up to the
-            # lip's top over the lip's width, rooted POST_ROOT down into the
-            # panel below its bevel, and fused AFTER the angled cutout so the
-            # cut does not take it (`front_pocket`).
+            # The first and last points reach 0.800 INTO the panel, so the
+            # fuse is not across a coincident face; the angled cutout trims
+            # that tab, which is why the lip joins the composite BEFORE the
+            # cut. From 7.2f it stands above the panel's bevelled top, so the
+            # tab becomes a POST, fused AFTER the cut (`flat_lip_tool`).
             root = lz - (POST_ROOT if d.rev.ribs_forward else 0.0)
             Polygon((back - 0.8, root), (back, root), (back, lz),
                     (back + out, lz + rise),
@@ -911,44 +652,30 @@ def lip_tool(d):
 
 def flat_lip_tool(d):
     """The lip from 7.2f (`rev.ribs_forward`): a WEDGE `lip_reach` proud of
-    the panel's back face.
-
-    Its point is at `lip_z`; its front face rises straight back to a RIDGE at
-    `lip_top` on the panel's back face, LIP_SINK below the front holder's
-    slant at the wall's face, and from the ridge the panel's own bevel runs
-    down to the pocket face. Its UNDERSIDE lies on the slant, through `lip_z`
-    at the tip and falling toward the panel at `lip_slope`: parallel to the
-    rest floor it floats over, so the REST_CLEARANCE is the same along the
-    whole lip and not only at the tip, and the box printing upright it is an
-    overhang at the slant's angle rather than a flat one. `LIP_HEIGHT +
-    reach * slope` tall at the root (2.6 on 333 Sl, 3.9 on Compile).
-
-    On a POST — the panel's back face carried up to the lip's top over the
-    lip's width and rooted POST_ROOT down into the panel below its bevel —
-    with the ramp of its top for the wall's bottom edge to ride over. Fused
-    AFTER the angled cutout (`front_pocket`). The same chamfered footprint as
-    `lip_tool`'s, which the short reach truncates: the tip is
-    `LIP_LENGTH + 2 * (LIP_CHAMFER - reach)` wide, inside the 12.800 rest.
+    the panel's back face. Its point is at `lip_z`; its front face rises
+    straight back to a RIDGE at `lip_top`, from which the panel's own bevel
+    runs down to the pocket face. Its UNDERSIDE lies on the SLANT, parallel to
+    the rest floor it floats over, so the clearance is the same along the
+    whole lip — and, the box printing upright, it overhangs at the slant's
+    angle, not flat. On a POST rooted POST_ROOT into the panel below its
+    bevel, fused AFTER the angled cutout (`front_pocket`).
     """
     fw, fb, back = pocket_span(d)
     lz, out = lip_z(d), lip_reach(d)
     top, root = lip_top(d), lz - POST_ROOT
     under_root = lz - out / lip_slope(d)      # the slant, `1/lip_slope` = dZ/dY
-    # The post's top continues the panel's own bevel (`angled_cutout`), from
-    # the lip's top edge down toward the pocket over the panel's full
-    # thickness: a ridge, no flat and no square corner.
+    # The post's top continues the panel's own bevel (`angled_cutout`): a
+    # ridge, no flat and no square corner.
     bevel = (POCKET_CUT_TOP - FRONT_TOP) / (back - fw)
     front_top = top - bevel * (back - fb)      # the bevel's end at the pocket face
-    # The root stays a millimetre under that end: on FCM's 6-card box the
-    # pocket is 3.3 deep and the bevel 5.8 steep, and it reached below
-    # POST_ROOT, folding the section (an empty lip).
+    # The root stays a millimetre under that end: on a shallow pocket with a
+    # steep bevel it reached below POST_ROOT and FOLDED the section.
     root = min(root, front_top - 1.0)
     half = LIP_LENGTH / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
-            # A wedge: underside on the slant out to the point at the tip,
-            # front face straight back up to the ridge at the panel's back
-            # face, then the bevel down across the panel.
+            # A wedge: underside on the slant to the point at the tip, front
+            # face back up to the ridge, then the bevel across the panel.
             Polygon((fb, root), (back, root), (back, under_root),
                     (back + out, lz), (back, top), (fb, front_top),
                     align=None)
@@ -966,21 +693,11 @@ def flat_lip_tool(d):
 
 
 def front_dividers(d):
-    """Right-edge X of each front-pocket divider, left to right.
-
-        first = -#BoxWidth/2 + WallThickness + #calFirstLeftFrontDividerDist
-        then step by #calSlotwidth
-
-    `calFirstLeftFrontDividerDist` is `calSlotwidth + calFrontDividerLeftSpacing`
-    and the studio's own variable, so the first compartment is one slot wide
-    plus the side spacing and the rest are a slot each. Exact on all six.
-
-    **`MatPocket` drops the RIGHTMOST divider**, merging the last two
-    compartments into one wide slot for the mat — which is what
-    `calFrontSlotsForCards = HorizontalSlots - 2` counts. Confirmed against the
-    pair `Box Dominion 244S` / `Box Dominion 202S Merged`: same box, same
-    envelope, and the only difference across the section is that one divider.
-    """
+    """Right-edge X of each front-pocket divider, left to right: the first at
+    `-#BoxWidth/2 + WallThickness + #calFirstLeftFrontDividerDist`, then a
+    `#calSlotwidth` step. **`MatPocket` drops the RIGHTMOST divider**, merging
+    the last two compartments into one wide slot for the mat — what
+    `calFrontSlotsForCards = HorizontalSlots - 2` counts."""
     x0 = -box_width(d) / 2 + WALL + d.calFirstLeftFrontDividerDist
     n = d.HorizontalSlots - 1 - (1 if d.MatPocket else 0)
     return [x0 + k * d.calSlotwidth for k in range(n)]
@@ -993,21 +710,11 @@ def pocket_span(d):
 
 
 def angled_cutout(d):
-    """`Angled cutout of front holder` — one plane, and it cuts the lot.
-
-    It runs from the TOP OF THE LOWERED FRONT WALL, `(y = -#BoxDepth/2 +
-    WallThickness, z = 68.600)`, back and up to the divider panel's BACK face
-    at `z = 87.500`, and everything in the pocket — padding, dividers and the
-    panel itself — is simply where that plane happens to cross it. Both
-    endpoints are exact on all six references, which is what says it is one
-    plane and not three separately-topped features; the slope varies from
-    `0.349` to `1.323` across them purely because `calFrontPocketDepth` does.
-
-    Cut as a polygon swept along X, so the plane is stated once. It is applied
-    to the pocket's own solids BEFORE they are fused to the box — see
-    `front_pocket` — so it can run the full width without touching the end
-    walls, which the STEP leaves square to the rim.
-    """
+    """`Angled cutout of front holder` — ONE plane, and it cuts the lot: from
+    the TOP OF THE LOWERED FRONT WALL up to the panel's BACK face at
+    POCKET_CUT_TOP, with padding, dividers and panel simply where it crosses
+    them. Applied to the pocket's solids BEFORE they are fused to the box, so
+    it runs the full width without touching the end walls."""
     BD = box_depth(d)
     fw, _fb, back = pocket_span(d)
     top = d.BoxHeight + 5
@@ -1021,18 +728,10 @@ def angled_cutout(d):
 
 
 def front_pocket(d, part, lattice=True):
-    """The whole `Front pocket` group, in the tree's order.
-
-    The floor stays solid under it — `bottom_slot` already starts at the
-    panel's back face — so everything here stands on it.
-
-    Built as ONE composite that is shaped and only then fused. Every piece
-    reaches WALL/2 into the wall it stands on, to keep the fuse off a
-    coincident face, and the angled cutout has to reach those overlaps or they
-    survive it as slivers standing to the rim — which is exactly what happened
-    when the cut was clipped to the inner width, and what the corner-round
-    probe caught, 1.816 mm3 at each end.
-    """
+    """The whole `Front pocket` group, in the tree's order: ONE composite that
+    is shaped and only then fused. Every piece reaches WALL/2 into the wall it
+    stands on, and the angled cutout has to REACH those overlaps or they
+    survive it as slivers standing to the rim."""
     inner = box_width(d) / 2 - WALL
     fw, fb, back = pocket_span(d)
     H = d.BoxHeight
@@ -1041,11 +740,7 @@ def front_pocket(d, part, lattice=True):
     # carrying the same lattice as the back wall (cut below).
     pocket = slab(-inner - WALL / 2, inner + WALL / 2, fb, back, 0.0, H)
     # Each group of features is ONE boolean (see `rear_storage`): the pieces
-    # within a group are disjoint, and the groups keep the tree's order —
-    # dividers and pads fused, slits cut, thumbs cut, lips fused. A slot's
-    # lips sit behind its own thumb and never reach another slot's, so the
-    # per-slot cut-then-add order the tree has is the same as all cuts then
-    # all adds.
+    # within a group are disjoint, and the groups keep the tree's order.
     # `Divider for front pocket` / `Additional dividers`
     solids = [slab(x - FRONT_DIVIDER_W, x, fw - WALL / 2, back, 0.0, H)
               for x in front_dividers(d)]
@@ -1056,18 +751,13 @@ def front_pocket(d, part, lattice=True):
         solids.append(slab(lo, hi, fw - WALL / 2, back, 0.0, H))
     pocket = pocket.fuse(*solids)
     # `Slits in front pocket` — the SAME openings as the back's hanging holes,
-    # at the same X and the same rows, `stout_lattice` and all: they are one
-    # sketch in the tree and stay one here. The padding starts 5.800 in and
-    # the first hole 8.300 in, so no slit ever meets a pad or a divider.
+    # at the same X and rows: one sketch in the tree, one here.
     if lattice:
         pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
                         for x_lo, x_hi in hanging_holes(d)
                         for z_lo, z_hi in hole_rows(d)])
-    # `Thumb and Lip` — the finger hole, one per slot, and two lips behind it.
-    # THUMB_R never reaches a pad (5.800 in) or a divider, and neither does a
-    # lip, so both only ever meet the panel.
-    # Both tools are built ONCE at x = 0 and a copy moved to each slot: the
-    # revolve and the intersection are the same solid every time.
+    # `Thumb and Lip` — neither reaches a pad or a divider, so both only ever
+    # meet the panel. Both tools are built ONCE at x = 0 and a copy moved.
     centres = thumb_centres(d)
     thumb, lip = thumb_tool(d), lip_tool(d)
     pocket = pocket.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
@@ -1082,8 +772,7 @@ def front_pocket(d, part, lattice=True):
 
 
 # `Closing mechanism`. A pad on each end wall that the lid grips. Its position
-# is a CONSTANT in the box frame — identical on references whose #BoxDepth runs
-# 27.600 to 103.200 — so it is not measured from either face.
+# is a CONSTANT in the box frame, not measured from either face.
 BUMP_DEPTH = D.ClosingBumpDepth   # 1.000, how far it stands proud
 BUMP_Y0, BUMP_Y1 = -1.750, 6.250  # 8.000 long
 BUMP_Z0, BUMP_Z1 = 87.000, 90.000
@@ -1091,13 +780,9 @@ BUMP_CHAMFER = 0.500              # `Chamfer 1`, on the outer face's four edges
 
 
 def closing_bumps(d, part):
-    """`Closing mechanism` — `Side bump` / `Extrude 1` / `Chamfer 1` / `Mirror 1`.
-
-    The chamfer is on the OUTER face only, so the pad's sides rise square for
-    the first 0.500 and are cut back over the last 0.500. That is what makes
-    the volume 21.4167 mm³ rather than the 24.000 of a plain pad, and the diff
-    found exactly 21.417.
-    """
+    """`Closing mechanism`. The chamfer is on the OUTER face only, so the
+    pad's sides rise square for the first 0.500 and are cut back over the
+    last."""
     BW = box_width(d)
     thick = BUMP_DEPTH + WALL / 2      # reaches into the wall, so the fuse is
     for sign in (-1, +1):              # not across a coincident face
@@ -1112,9 +797,9 @@ def closing_bumps(d, part):
 
 # `Front Label Holder` and `Side Label Holder`. One section serves both: a pad
 # standing LABEL_PROUD off the wall, chamfered on its bottom and two ends but
-# NOT its top, with a LABEL_GROOVE slot swept behind the rim and the middle cut
-# clean through. Only the length differs — and the front one carries two
-# fasteners the side one does not.
+# NOT its top (the side the label slides in from), with a LABEL_GROOVE slot
+# behind the rim and the middle cut clean through. Only the LENGTH differs,
+# and the fasteners the front one carries.
 LABEL_PROUD = 1.600
 LABEL_Z0, LABEL_Z1 = 40.500, 64.500
 LABEL_CHAMFER = 1.600      # `Chamfer 2` / `Chamfer 3`, on the outer face
@@ -1136,19 +821,12 @@ FASTENER_TALL = 1.000      # z LABEL_Z1 .. LABEL_Z1 + 1.000
 
 def label_holder(length, fasteners=()):
     """One label holder, in a canonical frame: the wall's outer face is y = 0,
-    the holder stands proud in -Y, and it is centred on x = 0.
-
-    Measured off the STEPs' own faces, which give round numbers throughout:
-    the pad spans `z 40.500..64.500`, its chamfer is `1.600`, the slot's rim is
-    `2.100` in (its chamfer starting `1.300` in), and the opening is `4.000` in.
-    The side holder is the same section at `calSideLabelWidth + 3.800` long.
-    """
+    the holder stands proud in -Y, and it is centred on x = 0."""
     half = length / 2
     depth = LABEL_PROUD + LABEL_ROOT
 
     # `Tag holder` + `Chamfer 2`: the chamfer is measured from the OUTER face,
-    # so it reaches the wall exactly. The top edge is left square — that is the
-    # side the label slides in from.
+    # so it reaches the wall exactly; the top edge is left square.
     pad = slab(-half, half, -LABEL_PROUD, LABEL_ROOT, LABEL_Z0, LABEL_Z1)
     outer = pad.faces().sort_by(Axis.Y)[0]
     pad = chamfer([e for e in outer.edges() if e.center().Z < LABEL_Z1 - 1e-6],
@@ -1169,19 +847,10 @@ def label_holder(length, fasteners=()):
         return pad
     # `Fastener` / `Round Fastener` / `Mirror 2` — ridges just above the frame
     # that grip the label's top edge, at `fasteners` (absolute X positions).
-    #
-    # It is the INTERSECTION OF THREE 1.000 CYLINDERS, every axis lying in the
-    # wall face — read straight off the STEP's surfaces, all four of which are
-    # GeomType.CYLINDER of radius exactly 1.000. Two run along X at the ridge's
-    # bottom and top, and their lens-shaped overlap is the section: it peaks
-    # 0.866025 proud, halfway up. The third is the stadium that rounds the ends
-    # — an 8.000 segment dilated by the same 1.000 — and it is a PRISM in Z,
-    # which is why the end faces are cylinders about vertical axes and not
-    # spherical caps.
-    #
-    # A section through the middle looks like a triangular ridge with 60-degree
-    # flanks, and it is not; the flanks are arcs and the peak is an edge, which
-    # is why there are two faces along X and not one.
+    # The INTERSECTION OF THREE 1.000 CYLINDERS: two along X whose lens-shaped
+    # overlap is the section, and a stadium PRISM in Z rounding the ends. It
+    # LOOKS like a 60-degree triangular ridge and is not — the flanks are arcs
+    # (`spec/BOX.md`, "The fastener is three cylinders").
     with BuildPart() as foot:
         with BuildSketch(Plane.XY):
             SlotOverall(FASTENER_LEN, 2 * FASTENER_R)
@@ -1196,18 +865,9 @@ def label_holder(length, fasteners=()):
 
 
 def fastener_centres(d):
-    """Where the front holder's fasteners sit, in X.
-
-    The wide holder carries TWO, at the thirds of its length — `Box Dominion
-    244U` puts them at exactly the same absolute positions as every other wide
-    reference, so they belong to the holder and not to the box.
-
-    **The narrow one carries ONE, in the middle. That is a DELIBERATE
-    DIVERGENCE**: `Box Innovation 130U` has none at all, and a label
-    with nothing gripping its top edge is the thing being fixed. One is what
-    fits — two at the thirds of `65.600` would sit `10.933` out, and each ridge
-    is `10.000` long.
-    """
+    """Where the front holder's fasteners sit, in X. The wide holder carries
+    TWO, at the thirds of its length; **the narrow one carries ONE, in the
+    middle: a DELIBERATE DIVERGENCE**, where Onshape has none at all."""
     length = front_label_len(d)
     if length < FRONT_LABEL_WIDE + LABEL_HOLDER_EXTRA:
         return (0.0,)
@@ -1215,19 +875,10 @@ def fastener_centres(d):
 
 
 def front_label_len(d):
-    """Overall length of the front label holder — the label plus 3.600.
-
-    The wide label does not fit every box. `cc.cfg` has known this all along
-    from the labels' side: "The XS box is only 150.9 mm wide, too narrow for
-    the 156.4 front label, so the 62 is a FRONT there (its pocket is cut for it
-    at 62.4 mm outer)" — and 62.400 is exactly what `Box Innovation 130U`
-    measures. 62 is `calSideLabelWidth`'s widest rung, so the XS box's front
-    takes what is elsewhere a large SIDE label.
-
-    Keyed on whether the wide holder fits rather than on the size letter,
-    because that is the reason. XS is the only row in the catalogue it catches:
-    every S box is at least 209.300 wide.
-    """
+    """Overall length of the front label holder. The wide label does not fit
+    every box: the XS box's front takes what is elsewhere a large SIDE label.
+    Keyed on whether the wide holder FITS rather than on the size letter,
+    because that is the reason."""
     wide = FRONT_LABEL_WIDE + LABEL_HOLDER_EXTRA
     return (wide if box_width(d) >= wide
             else FRONT_LABEL_NARROW + LABEL_HOLDER_EXTRA)
@@ -1235,17 +886,9 @@ def front_label_len(d):
 
 def label_holders(d, part):
     """`Front Label Holder` and `Side Label Holder`, behind
-    `isLabelHoldersOnBox`.
-
-    Every feature in both groups carries Onshape's `fx` marker, which nothing
-    else in the tree does — conditional suppression on that variable. No
-    catalogue row can exercise the `0` branch (it needs Colours or a single
-    horizontal slot), but the option is real, so it is built behind the flag
-    rather than unconditionally.
-
-    The side holder is on the **-X end only**, which is the whole of the box's
-    asymmetric 2.600 width offset: 1.600 here against the closing bump's 1.000.
-    """
+    `isLabelHoldersOnBox` — no catalogue row can exercise the `0` branch, but
+    the option is real in the tree. The side holder is on the **-X end only**,
+    which is the whole of the box's asymmetric 2.600 width offset."""
     if not d.isLabelHoldersOnBox:
         return part
     BW, BD = box_width(d), box_depth(d)
@@ -1258,33 +901,23 @@ def label_holders(d, part):
 
 
 # `Model name` and the `Logo` group — the engraving in the two side floors.
-# Every placement below is one of the four sketches' dimensions, and each is
-# confirmed on all five references.
+# Every placement below is one of the four sketches' dimensions
+# (spec/BOX.md, "The placement, from Allan's four sketches").
 ENGRAVE = 0.400            # the same depth the Pusher's text uses
-TEXT_INSET = 3.000         # cap top, in from the side floor's inner edge —
-#                            `#calSlotwidth/2 - 3mm` on the -X sketch
+TEXT_INSET = 3.000         # cap top, in from the side floor's inner edge
 MODEL_GAP = 3.000          # between the two -X lines, baseline to cap top
 LOGO_FRONT_INSET = 2.500   # the +X text box, off the FRONT of the card area
-MODEL_MARGIN = 6.900       # the -X block measured, total. Its sketch box is
-#                            5.000 like the +X one, but the text does not fill
-#                            it: the size is "a bit arbitrary, I just wanted to
-#                            make it fit" and no formula is hiding behind it.
+MODEL_MARGIN = 6.900       # the -X block, total — no formula behind it
 CAPACITY_GAP = 2 / 3       # x #LogoHeight, ProductName baseline to cap top
 VERSION_GAP = 1 / 2        # x #LogoHeight, capacity baseline to cap top
 VERSION_CAP = 3 / 4        # x #LogoHeight
 
 
 def logo_margin(d):
-    """The +X text box's inset at the BACK of the card area.
-
-        #RisingSliders <= 8 ? 2.5 mm
-                            : 2.5mm + (#RisingSliders - 8) * #calSliderDistance
-
-    Allan's sketch. Past eight risers the extra term is exactly the depth those
-    risers add to the card area, so the logo block STOPS GROWING and holds the
-    size it had at eight. He experimented with ten and twelve; one catalogue row
-    reaches the branch, Dominion's `333 Card` at `S9.21.10`.
-    """
+    """The +X text box's inset at the BACK of the card area,
+    `2.5mm + max(0, #RisingSliders - 8) * #calSliderDistance`: past eight
+    risers the extra term is exactly the depth those risers add, so the logo
+    block STOPS GROWING at the size it had there."""
     return LOGO_FRONT_INSET + max(0, d.RisingSliders - 8) * d.calSliderDistance
 
 
@@ -1297,26 +930,19 @@ def card_area(d):
 
 
 def engrave_line(txt, size, baseline, start, toward, top):
-    """One line of engraved text, as a solid to subtract.
-
-    `baseline` is the line's baseline in X, `start` where its pen begins in Y,
-    `toward` +1 or -1 the reading direction, and `top` the floor's top face —
-    the glyphs are ENGRAVE below it, so at 7.1 the whole block moves up with
-    the face it is cut into and keeps its 0.400 depth. The glyphs are placed by
-    the PEN ORIGIN (`geom.text_solid`), which no measurement of rendered ink
-    can recover.
-    """
+    """One line of engraved text, as a solid to subtract. `baseline` is its
+    baseline in X, `start` where its pen begins in Y, `toward` +1 or -1 the
+    reading direction, and `top` the floor's top face, the glyphs sitting
+    ENGRAVE below it. Placed by the PEN ORIGIN."""
     solid = text_solid(txt, T.LOGO_FONT, size, ENGRAVE, z=top - ENGRAVE)
     solid = solid.rotate(Axis.Z, 90 * (1 if toward > 0 else -1))
     return solid.moved(Location((baseline, start, 0)))
 
 
 def floor_text(d, part):
-    """`Model name` and the `Logo` group, cut ENGRAVE into the floor's top.
-
-    Five lines, all Orbitron Bold, on the two side floors. `#LogoHeight` is the
-    `ProductName` line's cap height and everything on the +X side hangs off it.
-    """
+    """`Model name` and the `Logo` group, cut ENGRAVE into the floor's top:
+    five lines on the two side floors. `#LogoHeight` is the `ProductName`
+    line's cap height, and everything on the +X side hangs off it."""
     inner = box_width(d) / 2 - WALL
     edge = inner - side_floor(d)          # the side floor's INNER edge
     y_front, y_back = card_area(d)
@@ -1324,11 +950,9 @@ def floor_text(d, part):
 
     # --- -X: calModelName, then GameName, one size, reading toward -Y -------
     # Every size here is FLOORED (`cad/text.py`, "floors"): fitted to the
-    # sketch's box, and raised to the 0.200 mm stroke floor where the box is
-    # too short for it — two model lines, one product, one capacity and five
-    # version lines across the catalogue, all on the four shortest boxes and
-    # `S2.40.12-30.32-Un`. A floored line may use the margin the sketch
-    # leaves; it may not overrun the card area, which is what is checked.
+    # sketch's box, and raised to the stroke floor where the box is too short
+    # for it. A floored line may use the margin the sketch leaves; it may not
+    # overrun the card area, which is what `_fits` checks.
     size = T.floored(T.fit_size(d.calModelName, span - MODEL_MARGIN))
     _fits(d.calModelName, size, span)
     cap = T.CAP * size
@@ -1353,10 +977,8 @@ def floor_text(d, part):
     tools.append(engrave_line(d.calCapacityLabel, cap_size, base, start, +1,
                               floor_top(d)))
     # `calVersion` — the Onshape sketch still reads "Rev <version>" where this
-    # says CC, as the Lid does. A DELIBERATE DIVERGENCE, and tests/test_box.py
-    # asserts both sides of it. Three quarters of the logo's cap, and no
-    # smaller than the floor — but never larger than the logo's own cap, which
-    # the floor is always under.
+    # says CC, as the Lid does: a DELIBERATE DIVERGENCE. Three quarters of the
+    # logo's cap, no smaller than the floor and never larger than that cap.
     ver_size = min(logo_size, T.floored(VERSION_CAP * logo_size))
     ver_cap = T.CAP * ver_size
     base = base + VERSION_GAP * logo_cap + ver_cap
@@ -1376,83 +998,30 @@ def _fits(txt, size, span):
 # `Smooth box edges` — a SMOOTH_R fillet on `#SharpEdges`.
 #
 # Onshape's query is CONVEX edges intersected with the edges CREATED BY the
-# shell-level features. build123d carries no feature provenance and none of the
-# ways of recovering it work (spec/BOX.md records three), so the set is STATED
-# here instead, from Allan's own pictures of it. Everything it needs is a model
-# constant, so it generalises across the catalogue.
-#
-# Deliberately conservative for now: this is the part of the set that is certain,
-# and it grows by review. `spec/BOX.md` lists what is still out.
+# shell-level features. build123d carries no feature provenance and no way of
+# recovering it works, so the set is STATED here instead, from model constants
+# (spec/BOX.md, "`#SharpEdges` is a rule"). Deliberately conservative: this is
+# the part of the set that is certain, and it grows by review.
 SMOOTH_R = 0.600
 
 
 def sharp_edges(d, part):
     """The edges `Smooth box edges` rounds, as an explicit geometric set.
 
-    Most of it is the **perimeter of an end wall**, on both of its faces: the
-    footprint at the bed, up the front and back corners, round the CORNER_R
-    arcs and along the rim. Diffing each of the three unfilleted references
-    against its filleted twin gives the same four families every time, so the
-    rule is the reference's own and not a fit to one box.
+    Most of it is the **perimeter of an end wall**, on both faces: the
+    footprint at the bed, the front and back corners, the CORNER_R arcs and
+    the rim. Two exclusions are the reference's own: **the back wall's rim**,
+    notched for the pusher tabs, and **`Lower the front`**, not rounded.
 
-    Two exclusions are the reference's own, and both also happen to be what
-    OCCT will not fillet — which is a good sign the rule is the right one:
-
-    * **the back wall's rim** is notched for the pusher tabs and stays sharp,
-      so only the END WALLS' rim is rounded;
-    * **`Lower the front`** is not rounded AT ALL. Its inner edge is where the
-      pocket's pads and dividers land, and two adjacent segments of it are the
-      minimal pair OCCT refuses; its outer edge survives all three reference
-      fillets untouched, merely growing 1.200 longer as the two vertical
-      corners are cut back beside it.
-
-    One exclusion is OURS, and it is a KERNEL LIMIT, not a design decision.
-    Onshape rounds the end walls' rim on the INNER face too, in the segments
-    the slider ribs break it into — 3 a wall on `246S`, 5 on `244U`, 6 on
-    `130U` — and OCCT will not, at SMOOTH_R or in any order: alone, after the
-    rest, before the rest, one segment at a time. The reason is measurable. A
-    rib runs the full height and is SLIDER_W wide with a SLIDER_TOP_R round on
-    each flank, so where it meets the rim it presents a flat only
-
-        1.500 - 2 * 0.700 = 0.100
-
-    wide, and a 0.600 fillet on either neighbouring segment has to die into a
-    0.700 cylinder across it. That it is a limit and not a shape is plain from
-    the symmetry: the +X wall takes every segment on its own and the -X wall,
-    its mirror, refuses several — the two differ in edge ORIENTATION and
-    nothing else. Parasolid manages; we do not, and a per-edge retry would be
-    neither fast nor deterministic.
-
-    The same limit costs the INNER face's front vertical corner and the arc
-    above it — see `rear_ok` — so of the end wall's inner perimeter we keep the
-    back corner and its arc and leave the front pair and the rim sharp. What is
-    lost is a 0.600 round on interior edges no finger reaches. Everything a
-    hand touches is rounded.
-
-    ## The `Top of back` ledge drops its OUTER face once the pocket has several
-    ## thumb cutouts — a KERNEL LIMIT again, and it costs nothing
-
-    The ledge runs along both faces of the outer back wall and both are listed,
-    which was always redundant: given the INNER face's edge OCCT rounds the
-    outer one too, and the two edge sets fillet to the same solid.
-
-    At 7.1b that redundancy turns fatal. Several thumb cutouts break the OUTER
-    face's ledge into three segments or more, one of them bounded by a cutout
-    at BOTH ends, and OCCT then refuses the chain: every segment on its own is
-    accepted, any two ACROSS a cutout are not, and the whole box dies in
-    `smooth_edges` rather than losing a round. The INNER face's ledge takes
-    five segments without a murmur. So the outer face is listed only while
-    there is one cutout.
-
-    Measured both ways, because "it costs nothing" is a claim and not an
-    assumption. Dropping it leaves the wall's top section identical — rounded
-    0.600 into BOTH faces, `tests/test_revisions.py` probes it between two
-    cutouts — and on all 50 boxes at 7.0 the two edge sets fillet to volumes within 3e-5 mm3 of each other,
-    44 of them to within 1e-10. That last 3e-5 is why the switch is on the
-    cutout count and not simply on the outer face being dropped for good: it
-    is noise in a volume, but it moves enough bytes in the written mesh to
-    break the byte-for-byte 7.0 rebuild on six boxes, and a release that has
-    shipped must keep rebuilding to the byte.
+    Three more are KERNEL LIMITS, not design decisions (spec/BOX.md, "Two of
+    those families are a KERNEL LIMIT"): the end walls' rim on the INNER face,
+    where a slider rib leaves a flat only `SLIDER_W - 2 * SLIDER_TOP_R` wide
+    for a SMOOTH_R fillet to die into; with it that face's front vertical
+    corner and the arc above it (`rear_ok`); and the `Top of back` ledge's
+    OUTER face, which several thumb cutouts break into a chain OCCT refuses,
+    killing the whole box — so it is listed only while there is ONE cutout.
+    Listing it was always redundant and dropping it costs no geometry, but it
+    moves bytes in the written mesh, hence the switch on the cutout count.
     """
     BW, BD = box_width(d), box_depth(d)
     inner, x_out = BW / 2 - WALL, BW / 2
@@ -1464,16 +1033,10 @@ def sharp_edges(d, part):
         return abs(a - b) < tol
 
     def rear_ok(m):
-        """True unless this is the INNER face's front corner or its arc.
-
-        Those two are one tangent chain — the arc's tangent where it leaves
-        z = BoxHeight - CORNER_R is vertical, so it runs straight into the
-        corner below it — and on `S9.21.10` OCCT refuses the whole chain on the
-        -X wall while taking its mirror on +X. Given the whole chain, given one
-        link, given the link reversed, before or after everything else: it
-        refuses. The outer face's front corner and both back corners are fine
-        on all 50 boxes, so only this chain is dropped.
-        """
+        """True unless this is the INNER face's front corner or its arc — one
+        tangent chain OCCT refuses however it is given. The outer face's front
+        corner and both back corners are fine, so only this chain is
+        dropped."""
         return near(abs(m.X), x_out) or abs(m.Y - y_back) < abs(m.Y - y_front)
 
     out = []
@@ -1481,8 +1044,7 @@ def sharp_edges(d, part):
         m, t = e @ 0.5, e.tangent_at(0.5)
         flat, upright = abs(t.Z) < 1e-6, abs(t.Z) > 1 - 1e-6
         along_x, along_y = abs(t.X) > 1 - 1e-6, abs(t.Y) > 1 - 1e-6
-        # Both faces of an end wall: the outer one at BW/2 and the inner one a
-        # WALL in. The perimeter clauses below want either.
+        # Both faces of an end wall; the perimeter clauses below want either.
         end_wall = near(abs(m.X), x_out) or near(abs(m.X), inner)
 
         if flat and near(m.Z, 0.0) and (near(abs(m.X), x_out)
@@ -1492,26 +1054,22 @@ def sharp_edges(d, part):
         elif upright and end_wall and (near(m.Y, y_front)
                                        or near(m.Y, y_back)) and rear_ok(m):
             out.append(e)          # the end walls' vertical corners: all four
-#                                    outside, and inside the BACK pair only,
-#                                    running from REAR_TOP up to where the
-#                                    corner round starts.
+#                                    outside, inside the BACK pair only.
         elif flat and along_y and near(m.Z, d.BoxHeight) and near(abs(m.X), x_out):
             out.append(e)          # the end walls' rim, OUTER edge only
         elif (end_wall and abs(t.X) < 1e-6 and rear_ok(m)
               and e.geom_type == GeomType.CIRCLE and near(e.radius, CORNER_R)):
             out.append(e)          # `Round top box corners` leaves one arc on
 #                                    each face of each end wall; rounding them
-#                                    closes the perimeter chain the clauses
-#                                    above start, so the outline is soft.
+#                                    closes the perimeter chain above.
 
         elif (flat and near(m.Z, REAR_TOP) and along_x
               and (near(m.Y, y_back - WALL)
                    or (one_thumb and near(m.Y, y_back)))):
-            out.append(e)          # the `Top of back` ledge. Both faces of the
-#                                    outer back wall while the pocket has ONE
-#                                    thumb cutout; its inner face alone once it
-#                                    has several, which is a kernel limit and
-#                                    costs no geometry — see below.
+            out.append(e)          # the `Top of back` ledge — both faces of
+#                                    the outer back wall while the pocket has
+#                                    ONE cutout, its inner face alone once it
+#                                    has several (see above).
     return out
 
 
@@ -1522,23 +1080,16 @@ def smooth_edges(d, part):
 
 
 def build(d, lattice=True):
-    """The Box as a build123d Part, from a `derive.Derived`.
-
-    Feature groups in the studio's own order, which is what `spec/BOX.md`
-    transcribes, through to the final `Smooth box edges`. A caller that wants
-    a flag the catalogue cannot set, `isLabelHoldersOnBox = 0`, passes a
-    Derived with it flipped. `lattice=False` leaves the back wall's hanging
-    holes and the front pocket's slits uncut — a test print (`cad.testkit`),
-    never a catalogue box.
-    """
+    """The Box as a build123d Part, from a `derive.Derived`: feature groups
+    in the studio's own order. `lattice=False` leaves the back wall's hanging
+    holes and the front pocket's slits uncut: a test print (`cad.testkit`),
+    never a catalogue box."""
     part = shell(d)
     w, depth, y = bottom_slot(d)
-    # Cut Z from below the floor up to exactly the floor's top face, so the
-    # boolean is clean underneath and nothing above the floor is touched — the
-    # tree cuts this before the sliders and dividers exist, and this keeps that
-    # true whatever order the code ends up in. The cut follows the floor at
-    # 7.1: it is a THROUGH cut, and stopping it at 1.600 would leave a 0.400
-    # membrane across the card area.
+    # Cut Z from below the floor up to exactly the floor's TOP face, so the
+    # boolean is clean underneath and nothing above the floor is touched. It
+    # follows `floor_top`: a THROUGH cut, and stopping it at WALL would leave
+    # a 0.400 membrane across the card area at 7.1.
     fl = floor_top(d)
     part = part - Box(w, depth, fl + 1).moved(Location((0, y, (fl - 1) / 2)))
     part = rear_storage(d, part, lattice)
@@ -1549,9 +1100,8 @@ def build(d, lattice=True):
     part = closing_bumps(d, part)
     part = label_holders(d, part)
     # The floor text stays LAST before the rounds, though it is the most
-    # expensive cut (2 to 3 s of a box's 6). Cutting it into the bare shell
-    # first, the way the Lid takes its logo pocket, gives identical geometry
-    # (symmetric difference 0.000000 on three boxes) and nearly twice the
+    # expensive cut. Cutting it into the bare shell first, the way the Lid
+    # takes its logo pocket, gives identical geometry and nearly TWICE the
     # build time, because every boolean after it then carries the text's
     # hundreds of spline faces. Spline text is the cost, not the order.
     return smooth_edges(d, floor_text(d, part))

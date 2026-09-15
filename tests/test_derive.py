@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Check cad/derive.py against every independently-measured number on record.
 
-The formulae are transcribed from the Onshape variable studio; these anchors
-were measured off exported meshes long before the studio was available, by
-`verify.py` and by hand. Agreement between the two is what says the
-transcription is right.
+The formulae come from the Onshape variable studio; the anchors were measured
+off exported meshes, and agreement says the transcription holds.
 
     python3 tests/test_derive.py        # exits 1 on any mismatch
 """
@@ -33,8 +31,7 @@ def cascade(short_name, sleeved):
 
 
 print("\nverify.audit_rises — rise measured off printed pushers")
-# "8 risers alternates 10.923/10.827 about 10.875" (verify.py). The mean is the
-# formula's value; the alternation is the staircase not dividing evenly.
+# verify.py: "8 risers alternates 10.923/10.827 about 10.875" — mean = formula.
 check("Dominion 400 Card Un rise (8 risers)", cascade("400 Card (Mat)", 0).calHeightIncrement, 10.875)
 check("FCM 144 Card Un rise (5 risers, desired 20)", cascade("144 Card", 0).calHeightIncrement, 17.4)
 check("Innovation Single Set Un rise (3 risers, capped at 22)",
@@ -59,9 +56,7 @@ check("  ... and equals D - 12.00", d.calPusherTotalDepth - d.calTabDistance, 12
 print("\ntopper_split.py — card thickness and topper depth")
 check("Innovation card thickness Un", cascade("3 Ages 5 Expansions", 0).calCardThickness, 0.40)
 check("Innovation card thickness Sl", cascade("3 Ages 5 Expansions", 1).calCardThickness, 0.65)
-# Topper depth = 2.00 + thickness*cards; calHolderDepth is slider distance - 0.5
-# = slotDepth + 1.9. Both are "2 mm plus the cards" to within the 0.1 the
-# studio carries, so this checks the slot depth the topper is cut to.
+# Topper depth = 2.00 + thickness*cards: this checks the slot depth.
 check("Innovation 15-card slot depth Un (topper depth = 2.00 + this = 8.00)",
       cascade("3 Ages 5 Expansions", 0).calSlotDepth, 6.00)
 check("Innovation 10-card slot depth Un (topper 6.00)",
@@ -81,8 +76,7 @@ for r in params.load_rows(CSV):
             bad_d += 1
             print(f"  FAIL lid depth {r['Short name']} {slv}: "
                   f"{dv.calLidDepth:.2f} vs csv {csvd}")
-        # -M (Mat) and the never-built row's placeholder '.0' label width are
-        # known parts.csv transcription gaps, not formula errors.
+        # -M and the placeholder '.0' width are parts.csv transcription gaps.
         want = norm((r[mcol] or "").strip())
         if dv.calModelName != want and want.replace(".0.", f".{dv.calSideLabelWidth}.") \
                 != dv.calModelName.replace("-M", ""):
@@ -94,10 +88,8 @@ print(f"  ({n} cascades checked)")
 
 
 print("\n=== the slant's max(): which term wins, on every row ===")
-# `Top slant angle`'s vertical leg is max(calSlotDepth + 2, calHeightIncrement
-# - 1). The rise term wins on every row today — asserted, with the tightest
-# row named, so a new row that flipped the branch is seen rather than silently
-# given a steeper holder.
+# `Top slant angle`'s leg is max(calSlotDepth + 2, calHeightIncrement - 1); the
+# rise term wins on every row, and a flipped branch would go unseen.
 _worst = None
 for _row in params.load_rows(ROOT / "automation" / "parts.csv"):
     for _sl in (0, 1):
@@ -108,10 +100,8 @@ for _row in params.load_rows(ROOT / "automation" / "parts.csv"):
 check("the rise term wins the slant's max() on every row", _worst[0] > 0, True)
 check("... by 0.667 at the tightest, S9.21.10.62-Sl", (round(_worst[0], 3), _worst[1]),
       (0.667, "S9.21.10.62.Sl"))
-# That max() is the formula up to 7.2d. From 7.2e (`rev.seated_lips`) the
-# slant is the cascade's own diagonal, `calHeightIncrement / sliderDistance`,
-# and the default release carries it (`tests/test_revisions.py` holds both
-# ends; spec/HOLDER.md, "Lips that seat").
+# That max() is the formula up to 7.2d; from 7.2e the slant is the cascade's
+# own diagonal (spec/HOLDER.md, "Lips that seat").
 _bad = 0
 for _row in params.load_rows(ROOT / "automation" / "parts.csv"):
     for _sl in (0, 1):

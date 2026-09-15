@@ -1,13 +1,8 @@
 """Imported 2D artwork — the Lid's logo, and anything else drawn rather than
 computed.
 
-A DXF holds outlines, not regions: the counters of an `o` and the gaps in a
-logo arrive as separate closed loops, and which of them is a hole is a
-question about nesting. `labelmaker.load_art` answers it the same way for the
-printed labels; this is that rule for `cad/`, without dragging in
-`labelmaker`'s 67 KB of label machinery.
-
-The artwork lives in `logos/<Game>/` and is already in the part's own frame —
+A DXF holds OUTLINES, not regions: which closed loop is a hole is a question
+about NESTING. The artwork lives in `logos/<Game>/`, in the part's own frame;
 `spec/LID.md` records where each file came from.
 """
 import os
@@ -18,18 +13,13 @@ from build123d import Compound, Face, Wire, export_brep, import_brep, import_dxf
 
 LOGO_DIR = Path(__file__).resolve().parent.parent / "logos"
 
-# How far apart two ends may be and still be one loop. A DXF's coordinates are
-# text, so a curve exported from CAD comes back rounded: build123d's own
-# exporter needs 0.010 here, where a file of closed polylines needs nothing at
-# all. It is a CHAINING tolerance, not a geometric one — the loops it builds
-# hold their area to 0.003 % and their bounding box exactly.
+# How far apart two ends may be and still be one loop: a DXF's coordinates are
+# text, so a curve comes back rounded. A CHAINING tolerance.
 CHAIN_TOL = 0.010
 
 
 def _inside_point(face):
-    """A point strictly inside `face` — its centre when the shape is convex
-    enough, else the first hit of a coarse grid. Same trick as
-    `labelmaker.load_art`: a logo's outline is rarely convex."""
+    """A point strictly inside `face`: its centre, else a coarse grid's hit."""
     centre = face.center()
     if face.is_inside(centre):
         return centre
@@ -43,18 +33,14 @@ def _inside_point(face):
     raise RuntimeError("cannot find a point inside an outline")
 
 
-# Filling a DXF is slow — Compile's 1885-edge mark takes 3.3 s to chain, nest
-# and cut, FCM's 1.7 — and every build worker did it again for every game it
-# met. The filled faces are kept as a B-rep beside the build, named by the
-# drawing's own digest, so a changed drawing misses the cache by itself; a
-# B-rep round-trips the faces exactly (unlike a DXF, see `load`), and reads
-# back in 0.01 s. `build/` is gitignored, so nothing derived is committed.
+# Filling a DXF is slow. The filled faces are cached as a B-rep named by the
+# drawing's own DIGEST, so a changed drawing misses the cache by itself; a
+# B-rep round-trips the faces exactly, unlike a DXF (`load`).
 CACHE_DIR = Path(__file__).resolve().parent.parent / "build" / ".art"
 CACHE_TAG = "v1"          # bump when the filling below changes
 
 
 def _cached(path, fill):
-    """`fill(path)`'s faces, from the B-rep cache when the drawing is unchanged."""
     import hashlib
     digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
     cache = CACHE_DIR / f"{path.parent.name}.{path.stem}.{digest}.{CACHE_TAG}.brep"
@@ -72,18 +58,9 @@ def _cached(path, fill):
 def load(path):
     """The drawing in `path` (DXF) as filled faces, ready to extrude.
 
-    A loop nested in an odd number of others is a HOLE in the face around it,
-    and one nested in an even number is a face of its own — an island inside a
-    hole, which the Innovation logo's `o` counters need.
-
-    A `.brep` is a drawing too — the faces themselves, as OCCT wrote them,
-    which is how artwork LIFTED FROM A STEP is kept exact: a DXF re-fits a
-    spline hole on the way back and the `o`'s counter came out 0.65 % small,
-    where the B-rep round-trips to the last digit (`spec/LID.md`, "the
-    corrected export"). Its faces are complete, holes included, so the loop
-    nesting below is skipped.
-
-    Cached: one file serves every lid of its game.
+    A loop nested in an ODD number of others is a HOLE in the face around it;
+    one nested in an even number is a face of its own. A `.brep` is a drawing
+    too — OCCT's own faces, how artwork LIFTED FROM A STEP is kept exact.
     """
     if path.suffix == ".brep":
         return tuple(import_brep(str(path)).faces())
@@ -91,7 +68,6 @@ def load(path):
 
 
 def _fill_dxf(path):
-    """The DXF's closed outlines as faces, holes cut — the slow part of `load`."""
     shapes = import_dxf(str(path))
     edges = shapes.edges()
     if not edges:
@@ -101,8 +77,8 @@ def _fill_dxf(path):
         raise ValueError(f"{path}: no closed outlines to fill")
     faces = sorted((Face(w) for w in loops), key=lambda f: -f.area)
     points = [_inside_point(f) for f in faces]
-    # Depth in the nesting, counted against the LARGER faces only — they are
-    # sorted, so anything that contains face i comes before it.
+    # Depth in the nesting, counted against the LARGER faces only: they are
+    # sorted, so anything containing face i comes before it.
     depth = [sum(1 for j in range(i) if faces[j].is_inside(points[i]))
              for i in range(len(faces))]
     out = []
@@ -118,7 +94,6 @@ def _fill_dxf(path):
 
 
 def logo(game, filename="lid_logo.dxf"):
-    """A game's lid artwork, or None where the game has none on file."""
     path = LOGO_DIR / game / filename
     return load(path) if path.exists() else None
 
@@ -133,18 +108,14 @@ def _box(game, filename):
 
 
 def extent(game, filename="lid_logo.dxf"):
-    """(width, height) of a drawing, or None where there is no such file.
-
-    Cached, because `lid.logo_choice` asks it of every variant of every lid
-    just to decide which one fits — that question needs the size and not the
-    geometry.
-    """
+    """(width, height) of a drawing, or None. Cached: `lid.logo_choice` asks it
+    of every variant of every lid."""
     bb = _box(game, filename)
     return None if bb is None else (bb[2] - bb[0], bb[3] - bb[1])
 
 
 def centre(game, filename="lid_logo.dxf"):
     """(x, y) of a drawing's bounding-box centre — what a fit scales about, so
-    that a mark drawn off-centre stays where it was drawn."""
+    a mark drawn off-centre stays put."""
     bb = _box(game, filename)
     return None if bb is None else ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2)

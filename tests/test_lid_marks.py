@@ -1,22 +1,10 @@
 """No lid mark is thinner than the cut floor at any scale the fit picks.
 
-The lid's mark is a second-filament inlay in a pocket cut into the outer
-face, so it takes the CUT floor of `text.FLOOR_CUT` (Allan, 2026-09-04),
-like the topper's lettering. A DRAWN mark scales its strokes with the fit
-(`spec/LID.md`, "Sizing the mark"), so the question is per scale: every
-distinct (game, drawing, nominal factor) the catalogue produces is
-rasterised at RES px/mm and its thinnest stroke read off the distance
-transform along the medial axis — the same instrument `cad/text.STROKE`
-was measured with. The generated Innovation marks hold their 0.600 strokes
-by construction, but their LETTERS scale, so they are rasterised like the
-rest: the thinnest thing in the Ultimate mark on the smallest lid is a
-hairline of the Bold Italic, not a flourish.
-
-Asserted from both ends: the thinnest stroke at n = 1 of each mark is held
-to the value recorded below, so a redrawn mark changes this file, and every
-fitted scale is held to the floor. Compile's is the one that matters —
-0.250 at its drawn size, 0.905 of it on the smallest lid — and the rest
-have twice the margin.
+The mark is an inlay in a cut pocket, so it takes the CUT floor
+`text.FLOOR_CUT`, and a DRAWN mark's strokes scale with the fit
+(`spec/LID.md`, "Sizing the mark"). So the question is per scale: each (game,
+drawing, factor) is rasterised at RES px/mm and read off the medial axis, as
+`cad/text.STROKE` was measured.
 
     .venv/bin/python tests/test_lid_marks.py     # about two minutes
 """
@@ -35,8 +23,7 @@ from cad import build as B, derive as D, marks as MK, text as T  # noqa: E402
 from cad.parts import lid                                       # noqa: E402
 
 RES = 40                     # px per mm: a stroke reads to 0.025
-# The thinnest stroke of each drawing AT ITS DRAWN SIZE, as measured. A new
-# drawing lands here or fails.
+# The thinnest stroke of each drawing AT ITS DRAWN SIZE, as measured.
 DRAWN = {("Compile", "lid_logo.dxf"): 0.250,
          ("Dominion", "lid_logo.dxf"): 0.550,
          ("FCM", "lid_logo.dxf"): 0.492,
@@ -68,8 +55,8 @@ def raster(faces):
 
 
 def thinnest(ink):
-    """The 1st percentile of twice the distance to background along the
-    medial axis, in mm — the corner pixels excluded."""
+    """1st percentile of twice the distance to background, along the medial
+    axis, in mm; corner pixels excluded."""
     dist = ndimage.distance_transform_edt(ink)
     ridge = ink & (dist >= ndimage.maximum_filter(dist, size=3) - 1e-9) & (dist > 0.5)
     return float(np.percentile(2 * dist[ridge] / RES, 1))
@@ -104,13 +91,8 @@ for (game, name), by_n in sorted(scales.items()):
     print(f"      {game} {name}: thinnest in the catalogue {worst[0]:.3f} mm "
           f"at n={worst[1]:.3f} on {worst[2]}")
 
-# The floor again, in ARITHMETIC. A drawn mark's strokes scale with the fit,
-# so its thinnest stroke at `n` is its drawn one times `n` exactly — where the
-# raster above is a 40 px/mm instrument reading the 1st percentile of a medial
-# axis, which quantises to 0.025 and is no longer finer than the margin. From
-# 2026-09-10 Compile's smallest lid is the binding case at both ends at once:
-# LOGO_CLEAR takes it to n = 0.855, so 0.250 x 0.855 = 0.214 against a 0.200
-# floor, and 0.06 more of clearance would put its strokes under it.
+# The floor in ARITHMETIC: the raster quantises to 0.025, no finer than
+# Compile's margin (0.250 x 0.855 = 0.214 vs 0.200, spec/LID.md).
 print("\n=== a drawn mark's thinnest stroke, exactly ===")
 for (game, name), by_n in sorted(scales.items()):
     if name.startswith("@"):

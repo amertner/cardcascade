@@ -1,24 +1,13 @@
 #!/usr/bin/env python3
 """Check cad/parts/pusher.py against the hand-exported Onshape STEPs.
 
-Two references, chosen to exercise different halves of the design:
-
-  Compile 105 Card Sleeved   S4.7.7.32-Sl   4 equal risers, C3, notch
-  Dominion 246 Card Sleeved  S2.40.12-30.45-Sl  2 risers with a first-riser
-                             override (30 cards), C3, notch
-
-The Dominion one is what settles `slider_drops()`: its first riser drops
-20.400 (calFirstSliderDistance) and its second 9.600 (calSliderDistance), so
-the larger drop is at the leading edge.
-
-Both carry engraved text. The build places it by its own rule rather than
-copying Onshape's box fitting (see cad/text.py), so the SOLID is compared
-exactly, the FONTS are compared against the STEP's own glyphs scale-fitted, and
-the placement is checked against its own invariants.
-
-The STEPs live in spec/reference/. They were exported by hand from Onshape,
-which costs 0 API calls, and are committed because they are the only ground
-truth the rebuild can be checked against.
+Two references, hand-exported into spec/reference/ (0 API calls): Compile 105
+Card Sleeved `S4.7.7.32-Sl`, 4 equal risers, C3 with a notch; and Dominion 246
+Card Sleeved `S2.40.12-30.45-Sl`, 2 risers with a first-riser override, which
+settles `slider_drops()` — its first drops calFirstSliderDistance, so the
+larger drop leads. Engraved text is a deliberate divergence (cad/text.py): the
+SOLID is compared exactly, the FONTS scale-fitted, the placement against
+invariants.
 
     .venv/bin/python tests/test_pusher.py
 """
@@ -52,17 +41,14 @@ def check(label, got, want, tol=1e-6):
 for name, path, p in REFS:
     print(f"\n=== {name} ===")
     if not path.exists():
-        # A missing reference is a FAILURE, not a skip: every STEP in
-        # spec/reference is checked in, and a suite that turns green
-        # when one goes missing is not a suite.
+        # A missing reference is a FAILURE, not a skip: STEPs are checked in.
         print(f"  FAIL — reference {path.name} not present")
         fails.append(f"{name}: reference {path.name} missing")
         continue
     ref = import_step(str(path)).solids()[0]
     part = pusher.build(D.derive(p), text=False)
     rb, pb = ref.bounding_box(), part.bounding_box()
-    # The STEPs are in assembly position and their Z origin differs between
-    # parts, so align on the bounding box rather than a fixed offset.
+    # The STEPs' Z origin differs between parts, so align on the bounding box.
     moved = part.moved(Location(Vector(rb.min.X - pb.min.X,
                                        rb.min.Y - pb.min.Y,
                                        rb.min.Z - pb.min.Z)))
@@ -113,8 +99,8 @@ from build123d import Text, Align
 
 
 def step_glyphs(sol, detail):
-    """Glyph ink boxes on the engraved plane, in reading order. `detail` picks
-    the rotated line down the leading edge rather than the two logo rows."""
+    """Glyph ink boxes on the engraved plane, in reading order; `detail` is the
+    rotated line down the leading edge, not the logo rows."""
     z = sol.bounding_box().min.Z + L.PLATE - pusher.ENGRAVE
     g = [f.bounding_box() for f in sol.faces() if abs(f.center().Z - z) < 1e-6]
     edge = min(b.min.X for b in g) + 6
@@ -156,9 +142,7 @@ for name, path, p in REFS:
     (txt, sz, x, base), (ver, sz2, x2, base2) = T.logo_lines(d)
     logo_cap_em, logo_asc_em = T._metrics(T.LOGO_FONT)
     cap = sz * logo_cap_em
-    # Half the product's cap — or the 0.200 mm stroke floor where half is
-    # under it, which `Dominion 246` is (0.885 em fitted, 1.695 floored) and
-    # `Compile 105` is not. Asserted as the rule, from both ends.
+    # Half the product's cap, or the 0.200 floor where half is under it.
     half_under_floor = sz / 2 < T.floor_size(T.LOGO_FONT) - 1e-9
     check(f"{name}: the fitted half-cap is {'under' if half_under_floor else 'over'} the floor",
           half_under_floor, name.startswith("Dominion 246"))
@@ -167,8 +151,6 @@ for name, path, p in REFS:
           round(min(sz, T.floored(sz / 2, T.LOGO_FONT)) * logo_cap_em, 6))
     check(f"{name}: version baseline one cap below",
           round(base - base2, 6), round(cap, 6))
-    # ink spans from `base` up to -margin, so the depth it uses is -base, and
-    # it must leave the same margin below.
     check(f"{name}: product ink clears the front strip",
           round(-base + T.LOGO_MARGIN * d.calSliderDistance, 4)
           <= round(d.calSliderDistance, 4), True)
@@ -209,9 +191,6 @@ for k, q in sorted(seen.items()):
     assert abs(b.size.X - dq.calPusherTotalHeight) < 1e-6
     assert abs(b.size.Y - dq.calPusherTotalDepth) < 1e-6
     assert abs(b.size.Z - L.PUSHER_TOTAL) < 1e-6
-    # The text rule has to hold on EVERY pusher, not just the two references —
-    # it is a fitting rule, and the catalogue spans a 5x range of both the
-    # strip it fits into and the depth it runs along.
     (txt, sz, x, base), (_ver, sz2, x2, _b2) = T.logo_lines(dq)
     cap = sz * T._metrics(T.LOGO_FONT)[0]
     assert -base + T.LOGO_MARGIN * dq.calSliderDistance <= dq.calSliderDistance + 1e-9
