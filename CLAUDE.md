@@ -212,8 +212,10 @@ check cad output.
   measured Z datums follow `derive.rim_drop` / `card_drop` / `lid_drop` /
   `closed_rim_drop`, never a raw constant, and a studio game takes exactly
   its old path (`d.HeightClass` is ""). `tables.GAME_SINCE` keeps a cad-only
-  game (`MiniCards`, a PLACEHOLDER name) out of every older release's
-  catalogue.
+  game out of every older release's catalogue. `MiniCards` is GENERIC
+  (`tables.GENERIC_GAMES`): no game at all, so `(C) Mertner` is engraved
+  where a game name goes (`d.GameText`), only the unmarked lid ships, and its
+  12 mm labels are blank (`labelmaker.GAMES["MiniCards"]["height"]`).
 
 - `parts.csv` W/D is the **assembled, closed cascade** (the lid's outer size);
   the box is lid − 2.00 mm on both axes. `Status` is informational except

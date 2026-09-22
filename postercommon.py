@@ -72,7 +72,9 @@ GAME_LOGOS = {
     "Compile": os.path.join(REPO, "logos", "Compile", "compile_logo.png"),
     "FCM": os.path.join(REPO, "logos", "FCM", "FCM round.png"),
 }
-GAME_DISPLAY = {"FCM": "Food Chain Magnate"}
+# Where a game has no logo image the poster writes this; "\n" breaks a line.
+GAME_DISPLAY = {"FCM": "Food Chain Magnate",
+                "MiniCards": "Mini cards\n41 \u00d7 63 mm"}
 
 
 def F(path, px):

@@ -225,6 +225,9 @@ def derive(p):
     # CraftGutermann (cad/tables.py).
     v["ProductName"] = "Card Cascade"
     v["gameShortName"] = T.GAME_SHORT_NAME[g]
+    # cad/ only: what a part engraves where the game's name goes — CREDIT for
+    # a GENERIC game (`tables.GENERIC_GAMES`), else the name itself.
+    v["GameText"] = T.CREDIT if g in T.GENERIC_GAMES else g
     # The studio's rule, AND the one input Onshape does not have: parts.csv's
     # `Label holders` column can turn them OFF on a box the rule would give
     # them to. It cannot turn them ON where the rule says no.

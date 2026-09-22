@@ -230,7 +230,9 @@ def stack_rows(rec, game_cfg, profile=""):
     rows = names_rows(rec, game_cfg)
     if rows is not None:
         return rows
-    return [(caption, [(text, wmm)])
+    # a game may name its widths itself (labelmaker GAMES[...]["captions"])
+    named = game_cfg.get("captions", {})
+    return [(named.get(wmm, caption), [(text, wmm)])
             for caption, text, wmm in single_rows(rec, game_cfg, profile)]
 
 
@@ -377,6 +379,8 @@ def main():
     ap.add_argument("--version", default="6.5")
     ap.add_argument("--sets", default=None,
                     help="comma-separated set names (default: all)")
+    ap.add_argument("--game", default=None,
+                    help="one game only (default: every game in cc.cfg)")
     args = ap.parse_args()
 
     cfg_file = dl.find_config_file()
@@ -386,7 +390,12 @@ def main():
               if args.sets else None)
 
     n = 0
+    global LABEL_H_MM
     for game, game_cfg in dl.GAMES.items():
+        if args.game and game.lower() != args.game.lower():
+            continue
+        # a game whose holder is shorter draws its labels that tall
+        LABEL_H_MM = game_cfg.get("height", dl.LABEL_HEIGHT)
         records = dl.read_config_file(cfg_file, game)
         if not records:
             continue

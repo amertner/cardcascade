@@ -193,7 +193,8 @@ def label_shapes(rs, row, d):
     art = None
     if rs.get("label_logo"):
         art = LM.load_art(LM.find_art_file(d.GameName, rs["label_logo"]))
-    base, raised = LM.make_label(label_text(rs, row, d), width, font, caps, art)
+    base, raised = LM.make_label(label_text(rs, row, d), width, font, caps, art,
+                                 height=d.LabelHeight)
     loc = A.label_plate(d).location()
     return [("Label", base.moved(loc)), ("Label Part 2", raised.moved(loc))]
 

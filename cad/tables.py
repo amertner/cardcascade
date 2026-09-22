@@ -39,8 +39,8 @@ GAME_SHORT_NAME = {
     "Colours": "Col", "Innovation": "Inn",
 }
 
-# cad/'s own games, which the studio never had: MiniCards, 41 x 63 mm cards.
-# Its name and thicknesses are PLACEHOLDERS until the game is chosen.
+# cad/'s own games, which the studio never had: MiniCards, a GENERIC game of
+# 41 x 63 mm cards (any game with that card), its thicknesses typical ones.
 UNSLEEVED_CARD_WIDTH["MiniCards"] = 41
 TEN_UNSLEEVED_THICKNESS["MiniCards"] = 3.5
 TEN_SLEEVED_THICKNESS["MiniCards"] = 6.0
@@ -51,6 +51,14 @@ GAME_SHORT_NAME["MiniCards"] = "Min"
 # on the catalogue before it (`params.load_rows`), so the 7.0 corpus and every
 # older release's catalogue are what they were.
 GAME_SINCE = {"MiniCards": "8.0"}
+
+# GENERIC games are no game at all: cascades for any game with that size of
+# card, to show what is possible. Where a game's name would be engraved they
+# carry CREDIT, and they ship only the unmarked lid (`build.lid_variants_built`).
+GENERIC_GAMES = frozenset({"MiniCards"})
+# "(C)" spelled out: Orbitron Bold has no `©`, and the full name is too wide
+# to clear the lid's sockets and staircase.
+CREDIT = "(C) Mertner"
 
 # CardHeight is the GAME's: its card plus 3.000 of envelope, as 92 is for an
 # 88-89 card. The studio's 92 wherever a game is not listed.

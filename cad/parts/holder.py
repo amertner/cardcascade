@@ -577,7 +577,7 @@ def lip_rests(d, first, part):
 
 
 # `Bottom Text` — two blocks engraved into the underside, in TWO faces as the
-# Pusher is. The name reads `CC <version> - <GameName>`; the capacity is the
+# Pusher is. The name reads `CC <version> - <GameText>`; the capacity is the
 # holder's OWN card count, so the first-riser holder shows
 # `FirstSlidingSlotCards`. Both are inset TEXT_INSET past the end blocks, the
 # name left-aligned and the capacity right-aligned.
@@ -592,7 +592,7 @@ TEXT_GAP = 4.000           # the least space left between the two blocks
 def text_blocks(d, first):
     """(name, capacity) — the two strings, in reading order."""
     cards = d.FirstSlidingSlotCards if first else d.CardsPerSlidingSlot
-    return (f"{d.calVersion} - {d.GameName}",
+    return (f"{d.calVersion} - {d.GameText}",
             f"{cards} {'Sleeved' if d.isSleeved else 'Unsleeved'}")
 
 

@@ -106,6 +106,8 @@ def lid_variants_built(d):
     """The lids this cascade's release ships, as `tables.LID_VARIANTS` members
     in project order. The ONLY place those two flags are asked — the part
     builds any variant at any release."""
+    if d.GameName in TB.GENERIC_GAMES and d.rev.unmarked_lid:
+        return [TB.LID_UNMARKED]           # no game, so no mark and no name
     out = [TB.LID_OWN]
     if d.rev.both_lid_editions and TB.has_lid_alternate(d.GameName, d.calModelName):
         out.append(TB.LID_ALTERNATE)

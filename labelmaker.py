@@ -64,6 +64,21 @@ GAMES = {
         "split_widths": [],
         "caps": {156.4: 6.5, 45.0: 4.5, 32.0: 3.5, 20.0: 2.8},
     },
+    # The generic 86 mm "mini" cascades (cad/tables.HEIGHT_CLASS): BLANK
+    # labels only, and 12 tall, the class's holder (spec/BOX.md, "Shorter
+    # cards"). Fronts 156.4 (L, M) and 62 (S, XS); sides 32 (Un) and 45 (Sl).
+    "MiniCards": {
+        "front": 156.4,
+        "widths": [156.4, 62.0, 45.0, 32.0],
+        "split_widths": [],
+        "caps": {},
+        "height": 12.0,
+        # what make_label_covers.py calls each width: two of them are fronts
+        "captions": {156.4: "FRONT LABEL · L AND M BOXES",
+                     62.0: "FRONT LABEL · S AND XS BOXES",
+                     45.0: "SIDE LABEL · SLEEVED",
+                     32.0: "SIDE LABEL · UNSLEEVED"},
+    },
     "Innovation": {
         # 32 and 20 are the Single Set box's side widths (50.6/39.3 mm lids)
         "front": 156.4,
@@ -660,10 +675,11 @@ def fit_text(name: str, font: LabelFont, width: float, height: float,
 
 
 def make_label(name: str, width: float, font: LabelFont, caps: dict = None,
-               art: Compound = None, number: str = ""):
+               art: Compound = None, number: str = "", height: float = None):
     """Build one label: (base Solid (white), raised Compound (black)). `caps`
-    maps width -> capital height (mm), else the text fills its box."""
-    height = LABEL_HEIGHT
+    maps width -> capital height (mm), else the text fills its box. `height`
+    is LABEL_HEIGHT unless a game's holder is shorter (`GAMES[...]["height"]`)."""
+    height = LABEL_HEIGHT if height is None else height
     z_top = Vector(0, 0, BASE_THICKNESS)
 
     base = extrude(Rectangle(width, height, align=(Align.MIN, Align.MIN)),
@@ -1208,6 +1224,10 @@ def main():
     if game is None:
         sys.exit(f"unknown game {args.game!r} (known: {', '.join(GAMES)})")
     cfg = GAMES[game]
+    # A game whose holder is shorter makes every label, plate and pitch this
+    # height; the layout functions read the module value.
+    global LABEL_HEIGHT
+    LABEL_HEIGHT = cfg.get("height", LABEL_HEIGHT)
 
     # entries: (front label text, side label text, is_split)
     records = None

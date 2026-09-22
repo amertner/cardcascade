@@ -598,8 +598,18 @@ def draw_poster(row, d, spec, picture, debug=False):
                 lg = PC.fit(PC.load_logo(str(REPO / path)), bw, bh)
                 img.paste(lg, (x, y), lg)
             else:
-                dr.text((x, y), PC.GAME_DISPLAY.get(d.GameName, d.GameName),
-                        font=font("MONO_B", 110), fill=PC.INK, anchor="la")
+                # No logo: the display name, at 110 px or as much smaller as
+                # keeps it inside the logo box.
+                name = PC.GAME_DISPLAY.get(d.GameName, d.GameName)
+                size = 110
+                while size > 40:
+                    l, t_, r_, b_ = dr.multiline_textbbox(
+                        (x, y), name, font=font("MONO_B", size), spacing=size // 5)
+                    if r_ - l <= bw and b_ - t_ <= bh:
+                        break
+                    size -= 4
+                dr.multiline_text((x, y), name, font=font("MONO_B", size),
+                                  fill=PC.INK, spacing=size // 5)
         elif t == "banner":
             PC.corner_banner(dr, W, "SLEEVED" if d.isSleeved else "UNSLEEVED",
                              colour("accent", spec, d), 0, e["h"], e["x0"], e["slant"],

@@ -42,10 +42,8 @@ OUTER_ROUND = 1.000          # every outer edge: 4 vertical, 4 top, 4 bottom
 # `project.py` can name them without loading build123d (`cad/lazy.py`). A
 # lid's GEOMETRY is the same across all three.
 
-# What the unmarked lid says where the others say the game's name. "(C)"
-# spelled out: Orbitron Bold has no `©`, and the full name is too wide to
-# clear the sockets and the staircase.
-CREDIT = "(C) Mertner"
+# What the unmarked lid says where the others say the game's name.
+CREDIT = TB.CREDIT
 
 
 def lid_width(d):
@@ -270,6 +268,12 @@ def text_anchor(d):
     why an XS lid's text sits lower. NEITHER anchor moves with the scale
     (`text_scale`); the block grows away from them, left and down."""
     right = lid_width(d) / 2 - WALL - text_offset(d)
+    if d.HeightClass and d.HorizontalSlots <= 2:
+        # A class XS lid's 44 slot leaves the studio's anchor too far left for
+        # the block to clear the left socket: it hangs off the RIGHT socket
+        # instead, and `text_scale` fits it between the two, which is all the
+        # box's bottom slot leaves it in play (`spec/LID.md`).
+        right = socket_centres(d)[1] - d.calFootTotalWidth / 2 - LINE_GAP
     gap = 2.0 if d.HorizontalSlots > 2 else 15.0
     return right, lid_depth(d) / 2 - WALL - D.FootDistanceFromWall - gap
 
@@ -305,7 +309,10 @@ def text_scale(d):
     if not d.rev.larger_lid_text:
         return 1.0
     (rw, rd), (bw, bd) = text_room(d), text_block_size(d)
-    return max(1.0, min(TEXT_SCALE_MAX, rw / bw, rd / bd))
+    # A class lid may also SHRINK the block to fit: the box stands on this
+    # floor in play, and text outside the room lands under its floor.
+    least = 0.0 if d.HeightClass else 1.0
+    return max(least, min(TEXT_SCALE_MAX, rw / bw, rd / bd))
 
 
 def text_block(d, variant=TB.LID_OWN):

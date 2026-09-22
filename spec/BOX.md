@@ -1796,3 +1796,31 @@ future kernel that manages them fails the suite rather than passing quietly.
   measured, a cap a millimetre low, a cell that clipped a slice of wall, and a
   rebound loop variable. Assert on BOTH shapes; a check that only reads the
   build cannot tell a wrong probe from a wrong model.
+
+## Generic cascades — `MiniCards` is no game (2026-09-22)
+
+`tables.GENERIC_GAMES`: cascades for ANY game with that size of card, to show
+what a height class can do. Four of them, both twins: `86-L6.10.10`,
+`86-M5.12.12`, `86-S5.12.12`, `86-XS5.10.10`.
+
+- Where a game's name is engraved, a generic game carries `tables.CREDIT`
+  `(C) Mertner` (`d.GameText`): the box floor next to the model code and the
+  holder's `CC <version> - ...`. It ships the UNMARKED lid alone
+  (`build.lid_variants_built`), so there is no logo lid to make, and
+  `cad.assemble` places a cascade's FIRST lid, not always its own.
+- **XS is five risers, not six**: two SLEEVED six-riser pushers need 110.4
+  of back storage and the 2-across box has 103.1 (Allan). Beside the five-riser
+  pair the sleeved XS pocket is 9.5 wide, narrower than the rear thumb, so a
+  class box drops the thumb there (`rear_thumbs_x`); centred in that pocket
+  it bit the divider and the end wall and failed the 0.600 fillet.
+- **A class lid's text block may SHRINK** (`lid.text_scale`, down from 1.0):
+  the box stands on this floor in play, and on the XS the long `86-` model
+  line ran under the box's side floor and a pusher's foot (`cad.fit --state
+  play`, 2–10 mm³). On the XS it hangs off the right socket and fits between
+  the two; on the S it had been overrunning the Card Cascade block. Smallest
+  caps 1.98 (model) / 2.31, stroke-floored as ever.
+- Labels are blank and 12 tall: `labelmaker.GAMES["MiniCards"]` (`height`),
+  one of each width on cc.cfg's `Blank labels` plate. Posters:
+  `posters.json` `MiniCards`, titled "Mini cards / 41 × 63 mm"
+  (`postercommon.GAME_DISPLAY`; a name without a logo is fitted to the logo
+  box and may break a line).

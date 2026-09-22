@@ -476,6 +476,92 @@
                 "band"
             ]
         },
+        "MiniCards": {
+            "card_size": {
+                "Sl": "43 x 65",
+                "Un": "41 x 63"
+            },
+            "cells": [
+                [
+                    "size",
+                    "EXTERNAL SIZE",
+                    "{ext_w} x {ext_d} x {ext_h}",
+                    "LxWxH mm"
+                ],
+                [
+                    "cards",
+                    "FITS CARD SIZES",
+                    "{card_size}",
+                    "WxH mm"
+                ],
+                [
+                    "stack",
+                    "SLIDING SET SIZE",
+                    "{slot_cards}",
+                    "cards per slot"
+                ],
+                [
+                    "backbox",
+                    "BACK OF BOX",
+                    "{pocket_w}",
+                    "mm pocket{pocket_note}"
+                ]
+            ],
+            "stats": [
+                [
+                    "{calTotalCards}",
+                    "CARDS"
+                ]
+            ],
+            "layout": {
+                "rules": {
+                    "lines": [
+                        [
+                            0,
+                            1365,
+                            1420
+                        ]
+                    ]
+                },
+                "picture": {
+                    "box": [
+                        1480,
+                        380,
+                        2440,
+                        1620
+                    ],
+                    "crop": true,
+                    "avoid": [
+                        [
+                            0,
+                            1830,
+                            2090,
+                            2100
+                        ]
+                    ]
+                },
+                "stats": {
+                    "box": [
+                        80,
+                        940,
+                        1000,
+                        420
+                    ],
+                    "bands": [
+                        [
+                            930,
+                            1365
+                        ]
+                    ]
+                },
+                "model": {
+                    "xy": [
+                        130,
+                        1440
+                    ]
+                }
+            }
+        },
         "Innovation": {
             "card_size": {
                 "Sl": "63 x 92",
@@ -1225,6 +1311,33 @@
                         "#5E9E6B"
                     ]
                 ]
+            },
+            "MiniCards": {
+                "palette": [
+                    "#0E6BA8",
+                    "#2E7D32",
+                    "#C0392B",
+                    "#F2B705"
+                ],
+                "cards": [
+                    [
+                        "Card",
+                        "#E8DCC0"
+                    ],
+                    [
+                        "Card",
+                        "#9FC5E8"
+                    ],
+                    [
+                        "Card",
+                        "#F4CCCC"
+                    ],
+                    [
+                        "Card",
+                        "#D9EAD3"
+                    ]
+                ],
+                "label": ""
             },
             "Innovation": {
                 "palette": [

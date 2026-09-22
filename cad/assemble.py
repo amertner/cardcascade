@@ -68,7 +68,11 @@ def _built(path, build, d, extra=None):
 
 
 def lid_meshes(d, out_dir, folder):
-    return _all(_built(out_dir / folder / B.lid_file(d), B.build_lid, d))
+    """The cascade's FIRST lid (`build.lid_variants_built`): its own, or the
+    unmarked one for a GENERIC game, which ships no other."""
+    variant = B.lid_variants_built(d)[0]
+    return _all(_built(out_dir / folder / B.lid_file(d, variant), B.build_lid, d,
+                       variant))
 
 
 def token_holder_mesh(d, out_dir, folder, half=False):

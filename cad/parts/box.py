@@ -251,6 +251,11 @@ def rear_thumbs_x(d):
         return [rear_thumb_x(d)]
     x0, x1 = rear_pocket(d)
     r = D.ThumbCutoutRadius
+    # A height class's pocket can be narrower than the thumb itself (9.500 on
+    # the sleeved 86-XS5.10.10, beside two pushers): nothing to reach for, and
+    # a cutout there bites the divider and the end wall and fails the fillet.
+    if d.HeightClass and x1 - x0 < 2 * r:
+        return []
     lo, hi = x0 + r + REAR_THUMB_CLEAR, x1 - r - REAR_THUMB_CLEAR
     if hi - lo < 2 * r + REAR_THUMB_CLEAR:
         return [(x0 + x1) / 2]
@@ -1039,7 +1044,7 @@ def floor_text(d, part):
     y_front, y_back = card_area(d)
     span = y_back - y_front
 
-    # --- -X: calModelName, then GameName, one size, reading toward -Y -------
+    # --- -X: calModelName, then GameText, one size, reading toward -Y -------
     # Every size here is FLOORED (`cad/text.py`, "floors"): fitted to the
     # sketch's box, and raised to the stroke floor where the box is too short
     # for it. A floored line may use the margin the sketch leaves; it may not
@@ -1049,7 +1054,7 @@ def floor_text(d, part):
     cap = T.CAP * size
     x = -edge - TEXT_INSET                # the first line's cap top
     tools = []                            # all five lines, cut at the end
-    for txt in (d.calModelName, d.GameName):
+    for txt in (d.calModelName, d.GameText):
         tools.append(engrave_line(txt, size, x - cap, y_back - MODEL_GAP,
                                   -1, floor_top(d)))
         x = x - cap - MODEL_GAP           # next line, one gap further out
