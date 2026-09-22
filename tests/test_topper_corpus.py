@@ -79,7 +79,7 @@ def mesh_volume(V, Tr):
 def catalogue():
     """{`M10-Un`: Primary} — the topper's key, which is NOT calModelName."""
     out = {}
-    for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for row in REF.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
             p = REF.from_row(row, sleeved)
             if p.GameName != "Innovation":

@@ -11,6 +11,10 @@ import dataclasses
 from . import revisions as REV
 from . import tables as T
 
+STUDIO_BOX_HEIGHT = 105.0          # every studio game but Colours
+STUDIO_LID_HEIGHT = 40.0
+STUDIO_CARD_HEIGHT = 92.0
+STUDIO_LABEL_HEIGHT = 22.2         # `labelmaker.LABEL_HEIGHT`
 PocketHeight = 75.0
 FrontPocketHeight = 75.0
 BoxRearPusherSupportDepth = 1.0     # slot in rear of box supporting the pusher
@@ -84,11 +88,23 @@ def derive(p):
     # The RELEASE, resolved once because `calPusherSlots` below depends on it.
     rev = REV.of(p.Version)
 
-    v["BoxHeight"] = 115.0 if g == "Colours" else 105.0
-    v["LidHeight"] = 55.0 if g == "Colours" else 40.0
-    # 92.0 for every game; the studio's CraftGutermann branch is deprecated
-    # and removed here (cad/tables.py).
-    v["CardHeight"] = 92.0
+    # cad/ adds a HEIGHT CLASS (`tables.HEIGHT_CLASS`): its box and label.
+    cls = T.HEIGHT_CLASS.get(g)
+    # cad/ only: the class a part asks about, "" for a studio game.
+    v["HeightClass"] = cls or ""
+    v["BoxHeight"] = T.BOX_HEIGHT.get(
+        g, T.CLASS_BOX_HEIGHT.get(cls, STUDIO_BOX_HEIGHT))
+    v["LabelHeight"] = T.CLASS_LABEL_HEIGHT.get(cls, STUDIO_LABEL_HEIGHT)
+    # The label holder sits between two lid rims (`lid_drop`), so the lid
+    # takes half of what the box loses and half of what the label gives back.
+    # Written as differences, exactly 40.0 for every studio game.
+    v["LidHeight"] = T.LID_HEIGHT.get(
+        g, STUDIO_LID_HEIGHT + ((v["BoxHeight"] - STUDIO_BOX_HEIGHT)
+                                - (v["LabelHeight"] - STUDIO_LABEL_HEIGHT)) / 2)
+    # 92.0 for every studio game; the studio's CraftGutermann branch is
+    # deprecated and removed here (cad/tables.py). cad/ adds a game of
+    # shorter cards (`tables.CARD_HEIGHT`).
+    v["CardHeight"] = T.CARD_HEIGHT.get(g, STUDIO_CARD_HEIGHT)
     v["gameUnsleevedCardWidth"] = T.UNSLEEVED_CARD_WIDTH[g]
     v["game10UnsleevedCardThickness"] = T.TEN_UNSLEEVED_THICKNESS[g]
     v["game10SleevedCardThickness"] = T.TEN_SLEEVED_THICKNESS.get(g)
@@ -229,11 +245,14 @@ def derive(p):
     v["calSizeLetter"] = T.SIZE_LETTER.get(p.HorizontalSlots, "?")
     slv = ".Un" if p.isSleeved == 0 else ".Sl"
     mat = "-M" if p.MatPocket == 1 else ""
-    v["calHolderModel"] = (f"{v['calSizeLetter']}.{p.CardsPerSlidingSlot}{slv}{mat}")
-    v["calTokenHolderModel"] = (f"{v['calSizeLetter']}{p.FrontPocketCardCapacity}"
+    # cad/ only: a HEIGHT CLASS's box leads its codes with its height,
+    # `86-L6.10.10.32.Un`; a studio box's codes are the studio's.
+    pre = f"{v['BoxHeight']:g}-" if cls else ""
+    v["calHolderModel"] = (f"{pre}{v['calSizeLetter']}.{p.CardsPerSlidingSlot}{slv}{mat}")
+    v["calTokenHolderModel"] = (f"{pre}{v['calSizeLetter']}{p.FrontPocketCardCapacity}"
                                 f"{mat}{slv}")
     v["calModelName"] = (
-        f"{v['calSizeLetter']}{p.RisingSliders}.{p.FrontPocketCardCapacity}"
+        f"{pre}{v['calSizeLetter']}{p.RisingSliders}.{p.FrontPocketCardCapacity}"
         f".{p.CardsPerSlidingSlot}"
         f"{'' if p.isFirstSlidingSlotOverride == 0 else '-' + str(p.FirstSlidingSlotCards)}"
         f".{v['calSideLabelWidth']}{mat}{slv}")
@@ -271,6 +290,36 @@ def cascade_slope(d, slider_distance):
         return d.calHeightIncrement / slider_distance
     rise = max(d.calSlotDepth + 2.0, d.calHeightIncrement - 1.0)
     return rise / (slider_distance - 1.2)
+
+
+# The Box's MEASURED Z datums are the studio's 105 box's. Each follows ONE
+# of three things, and these say how far that thing has moved from the
+# studio's: 0.000 for every studio game (`spec/BOX.md`, "Shorter cards").
+
+def rim_drop(d):
+    """The box's RIM: the bump, the rim cutouts, `REAR_TOP` and the lattice
+    under it."""
+    return d.BoxHeight - STUDIO_BOX_HEIGHT
+
+
+def card_drop(d):
+    """The CARDS: the pocket cut and front thumb (`POCKET_CUT_TOP`), the
+    pre-7.2f box lip. A class box taller than its cards need moves these
+    with the cards, not with the rim."""
+    return d.CardHeight - STUDIO_CARD_HEIGHT
+
+
+def lid_drop(d):
+    """The rim of the lid the box STANDS IN, in play: the label holder's
+    bottom stays 2.100 above it."""
+    return d.LidHeight - STUDIO_LID_HEIGHT
+
+
+def closed_rim_drop(d):
+    """The CLOSED lid's rim: the lowered front stays 2.000 above it, and the
+    label holder's fasteners 1.100 below. With `LidHeight` from `derive`,
+    the label fits between the two rims exactly as on the 105 box."""
+    return (d.BoxHeight - d.LidHeight) - (STUDIO_BOX_HEIGHT - STUDIO_LID_HEIGHT)
 
 
 def back_slot_pitch(d):

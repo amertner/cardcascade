@@ -212,13 +212,15 @@ WINDOW_W_STOUT = 9.000
 ROWS_STOUT = 4
 OUTLINE_INSET = 3.000      # each side of the slot
 OUTLINE_BASE = 2.000       # above the card pocket's bottom
-OUTLINE_TOP_TERM = 76.500  # HoleOutlineHeight = this - calHeightIncrement
+# HoleOutlineHeight = CardHeight - this - calHeightIncrement: the studio's
+# 76.500 at CardHeight 92, a card's height from shorter cards on.
+OUTLINE_TOP_TRIM = 15.500
 
 
 def outline(d):
     """(width, height, bottom Z) of one compartment's `Hole outline`."""
     return (d.calSlotwidth - 2 * OUTLINE_INSET,
-            OUTLINE_TOP_TERM - d.calHeightIncrement,
+            d.CardHeight - OUTLINE_TOP_TRIM - d.calHeightIncrement,
             pocket_z(d)[0] + OUTLINE_BASE)
 
 
@@ -233,17 +235,35 @@ def window_rows(d):
     return ROWS_STOUT if d.rev.stout_lattice else ROWS
 
 
+# A height class's narrower slot takes FEWER windows of the same width, as
+# many as leave a mullion of at least MULLION_MIN — the narrowest the studio
+# prints (Dominion's 2.800) — centred on the compartment. At
+# COLS on a 44 slot the windows OVERLAPPED into one opening per row
+# (`spec/HOLDER.md`, "A class holder's lattice").
+MULLION_MIN = 2.800
+
+
+def window_cols(d):
+    """(count, pitch, x of the first window's left edge) in a compartment."""
+    w, _h, _z0 = outline(d)
+    if not d.HeightClass:
+        return COLS, (w + 2.0) / COLS, -w / 2
+    n = int((w + 2.0 + MULLION_MIN) // (window_w(d) + MULLION_MIN))
+    pitch = (w + 2.0) / n
+    return n, pitch, -((n - 1) * pitch + window_w(d)) / 2
+
+
 def window_grid(d):
     """(x0, x1, z0, z1) of every lattice window in the FIRST compartment."""
     w, h, z0 = outline(d)
     rows = window_rows(d)
     win_h = (h - rows * RAIL) / rows
-    pitch = (w + 2.0) / COLS
+    cols, pitch, left = window_cols(d)
     out = []
     for r in range(rows):
         zr = z0 + r * (win_h + RAIL)
-        for c in range(COLS):
-            xc = -w / 2 + c * pitch
+        for c in range(cols):
+            xc = left + c * pitch
             out.append((xc, xc + window_w(d), zr, zr + win_h))
     return out
 
@@ -370,6 +390,21 @@ def side_slots(d, first, part):
 # truncated where the lip is shorter in Y than the chamfer (spec/HOLDER.md,
 # "`Rear lip`, and what the second slant plane is for").
 LIP_LEN = 10.000           # `#LipLength`
+# A height class's lips are half as long, so the pair stays inside a 44 slot
+# with the R12 scallop kept (Allan, 2026-09-22): 15.400..20.400 from the
+# compartment centre against a 22.000 half-width.
+LIP_LEN_CLASS = 5.000
+
+
+def lip_len(d):
+    """The rear lip's length, and the rest's that takes it."""
+    return LIP_LEN_CLASS if d.HeightClass else LIP_LEN
+
+
+def lip_mid(d):
+    """|x| of a lip's centre from its compartment's: the box's lips are here
+    too, each entering the front holder's rest."""
+    return FINGER_R + FINGER_FILLET + LIP_GAP + lip_len(d) / 2
 LIP_GAP = 3.000            # `#LipDistanceFromFingerHole`, from the scallop edge
 LIP_CHAMFER = 1.200        # `Chamfer lip`, 45 degrees, measured in Y
 # NOT `#LipHeight` — that is SLANT_STEP, the band's VERTICAL thickness. This
@@ -395,7 +430,7 @@ def lip_plan(d, first):
     x is |x| from the compartment centre; the caller mirrors it."""
     y1 = lip_reach_y(d, first)
     lo = FINGER_R + FINGER_FILLET + LIP_GAP
-    hi = lo + LIP_LEN
+    hi = lo + lip_len(d)
     # The base is ALWAYS the full LIP_CHAMFER out: where the lip is shorter in
     # Y than LIP_CHAMFER the chamfer plane runs out of lip, it does not start
     # closer in. (`<=` with a hair of slack: from 7.2e the reach equals the
@@ -512,7 +547,7 @@ def lip_rests(d, first, part):
     dirv = Vector(0.0, -unit, -slope * unit)
     if d.rev.seated_lips:
         t0 = holder_depth(d, first) / 2 / unit          # mid-cavity, along the slant
-        half_w = LIP_LEN / 2 + LIP_CHAMFER + REST_CLEARANCE
+        half_w = lip_len(d) / 2 + LIP_CHAMFER + REST_CLEARANCE
         up, down = 1.0, rest_depth(d)
         with BuildSketch(Plane.XZ) as sk:
             with BuildLine():
@@ -522,15 +557,15 @@ def lip_rests(d, first, part):
         z_at = 0.0
     else:
         t0 = 2.0 * d.calSlotDepth
-        top = LIP_LEN / 2 + REST_CHAMFER
-        bottom = LIP_LEN / 2 + REST_CHAMFER - SLANT_STEP * unit
+        top = lip_len(d) / 2 + REST_CHAMFER
+        bottom = lip_len(d) / 2 + REST_CHAMFER - SLANT_STEP * unit
         h = SLANT_STEP / 2
         with BuildSketch(Plane.XZ) as sk:
             with BuildLine():
                 Polyline((-bottom, -h), (bottom, -h), (top, h), (-top, h), close=True)
             make_face()
         z_at = -SLANT_STEP / 2
-    x_mid = FINGER_R + FINGER_FILLET + LIP_GAP + LIP_LEN / 2
+    x_mid = lip_mid(d)
     tools = []
     for xc in compartment_x(d):
         for sign in (+1, -1):

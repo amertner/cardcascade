@@ -203,6 +203,18 @@ check cad output.
 
 ## Facts that are easy to get wrong
 
+- **A game can be in a HEIGHT CLASS** (from 2026-09-21; `spec/BOX.md`,
+  "Shorter cards"): `tables.HEIGHT_CLASS`. The class sets box and label
+  height (`"mini"` 86 / 12, for 63–68 mm cards). The GAME keeps its own
+  `CardHeight`. Lid and lowered front follow from box and label; a class box
+  leads its codes with its height (`86-L6.10.10.32-Un`), raises its front
+  pocket's floor, and cuts fewer lattice windows and 5 mm lips. The box's
+  measured Z datums follow `derive.rim_drop` / `card_drop` / `lid_drop` /
+  `closed_rim_drop`, never a raw constant, and a studio game takes exactly
+  its old path (`d.HeightClass` is ""). `tables.GAME_SINCE` keeps a cad-only
+  game (`MiniCards`, a PLACEHOLDER name) out of every older release's
+  catalogue.
+
 - `parts.csv` W/D is the **assembled, closed cascade** (the lid's outer size);
   the box is lid − 2.00 mm on both axes. `Status` is informational except
   `Parked`, which skips the row.

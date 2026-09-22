@@ -613,13 +613,13 @@ if not nl_path.exists():
     print(f"  FAIL — reference {nl_path.name} not present")
 else:
     nl_ref = import_step(str(nl_path)).solids()[0]
-    nl_p = next(REF.from_row(r, 1) for r in params.load_rows(ROOT / "automation" / "parts.csv")
+    nl_p = next(REF.from_row(r, 1) for r in REF.load_rows(ROOT / "automation" / "parts.csv")
                 if D.derive(REF.from_row(r, 1)).calModelName.startswith("S5.15.15"))
     nl_d = D.derive(nl_p)
     check("the catalogue row has the flag ON", nl_d.isLabelHoldersOnBox, 1)
     # parts.csv's `Label holders` column becomes `Primary.LabelHolders`, which
     # derive folds into the flag; the file is named apart on disk.
-    nl_row = next(r for r in params.load_rows(ROOT / "automation" / "parts.csv")
+    nl_row = next(r for r in REF.load_rows(ROOT / "automation" / "parts.csv")
                   if D.derive(REF.from_row(r, 1)).calModelName.startswith("S5.15.15"))
     nl_p0 = REF.from_row({**nl_row, "Label holders": "FALSE"}, 1)
     check("`Label holders` FALSE reaches the Primary", nl_p0.LabelHolders, 0)
@@ -671,7 +671,7 @@ else:
 # edge is the first divider's -X face — is HOLE_CLEAR narrower (spec/BOX.md).
 print("\n=== HOLE_CLEAR ===")
 clipped = {}
-for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+for row in REF.load_rows(ROOT / "automation" / "parts.csv"):
     for sleeved in (0, 1):
         q = REF.from_row(row, sleeved)
         e = D.derive(q)

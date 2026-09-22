@@ -166,7 +166,7 @@ BUMP_TOP = 90.000            # `box.BUMP_Z1` — the box's own frame
 
 def groove_span(d):
     """(z0, z1) of the groove. `z0` is the box bump's top, transferred."""
-    z0 = WALL + d.BoxHeight - BUMP_TOP
+    z0 = WALL + d.BoxHeight - (BUMP_TOP + D.rim_drop(d))
     return z0, z0 + GROOVE_HEIGHT
 
 

@@ -174,7 +174,7 @@ for name, path, p in REFS:
           round(-dy0, 4), round(d.calPusherTotalDepth - dwidth, 4) / 2, 1e-4)
 
 print("\n=== every pusher in parts.csv builds and exports ===")
-rows = params.load_rows(Path(__file__).resolve().parent.parent / "automation/parts.csv")
+rows = REF.load_rows(Path(__file__).resolve().parent.parent / "automation/parts.csv")
 seen = {}
 for r in rows:
     for slv in (0, 1):

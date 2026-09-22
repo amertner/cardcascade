@@ -39,6 +39,36 @@ GAME_SHORT_NAME = {
     "Colours": "Col", "Innovation": "Inn",
 }
 
+# cad/'s own games, which the studio never had: MiniCards, 41 x 63 mm cards.
+# Its name and thicknesses are PLACEHOLDERS until the game is chosen.
+UNSLEEVED_CARD_WIDTH["MiniCards"] = 41
+TEN_UNSLEEVED_THICKNESS["MiniCards"] = 3.5
+TEN_SLEEVED_THICKNESS["MiniCards"] = 6.0
+DESIRED_HEIGHT_INCREMENT["MiniCards"] = 14
+GAME_SHORT_NAME["MiniCards"] = "Min"
+
+# The first release that builds each of cad/'s own games: no row of one is
+# on the catalogue before it (`params.load_rows`), so the 7.0 corpus and every
+# older release's catalogue are what they were.
+GAME_SINCE = {"MiniCards": "8.0"}
+
+# CardHeight is the GAME's: its card plus 3.000 of envelope, as 92 is for an
+# 88-89 card. The studio's 92 wherever a game is not listed.
+CARD_HEIGHT = {"MiniCards": 66.0}
+
+# The BOX is a HEIGHT CLASS's, so one class is one look for every game in it:
+# box height and label height, the lid and the lowered front following from
+# them (`derive`, `spec/BOX.md`, "Shorter cards"). A game not in a class has
+# the studio's 105 box and 22.2 label. "mini" is sized for 63..68 mm cards
+# (mini American to mini Euro, sleeved): 13.000 over the tallest's CardHeight,
+# as 105 is over 92.
+HEIGHT_CLASS = {"MiniCards": "mini"}
+CLASS_BOX_HEIGHT = {"mini": 86.0}
+CLASS_LABEL_HEIGHT = {"mini": 12.0}
+# The studio's own exceptions, a game and not a class.
+BOX_HEIGHT = {"Colours": 115.0}
+LID_HEIGHT = {"Colours": 55.0}
+
 # calSizeLetter — from HorizontalSlots
 SIZE_LETTER = {2: "XS", 3: "S", 4: "M", 5: "L"}
 

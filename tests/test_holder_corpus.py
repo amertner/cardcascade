@@ -74,7 +74,7 @@ def catalogue():
     file. Rows sharing a legacy name agree on the geometry; the first is
     taken."""
     out = {}
-    for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for row in REF.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
             p = REF.from_row(row, sleeved)
             d = D.derive(p)

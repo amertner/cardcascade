@@ -323,7 +323,7 @@ def back_section(d, w, h, pad=6):
     on their LEFT, so the pushers hang on the RIGHT here.
     """
     x0, x1 = -BOX.box_width(d) / 2 + BOX.WALL, BOX.box_width(d) / 2 - BOX.WALL
-    z0, z1 = BOX.floor_top(d), BOX.REAR_TOP
+    z0, z1 = BOX.floor_top(d), BOX.rear_top(d)
     s = min((w - 2 * pad) / (x1 - x0), (h - 2 * pad) / (z1 - z0))
     im = Image.new("RGBA", (int((x1 - x0) * s) + 2 * pad, int((z1 - z0) * s) + 2 * pad),
                    (0, 0, 0, 0))

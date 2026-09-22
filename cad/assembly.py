@@ -186,7 +186,7 @@ def label_plate(d):
     y_back = -box_part.box_depth(d) / 2 - box_part.LABEL_PROUD + box_part.LABEL_GROOVE
     return Place(x_dir=(1, 0, 0), z_dir=(0, -1, 0),
                  origin=(-label_width(d) / 2, y_back,
-                         box_part.LABEL_Z0 + box_part.LABEL_GROOVE_IN))
+                         box_part.label_band(d)[0] + box_part.LABEL_GROOVE_IN))
 
 
 LID_Y = 2.250              # the box sits this far back of the lid

@@ -98,7 +98,7 @@ def near(spans_, want, tol=1e-3):
 def catalogue():
     """{(GameName, model as the filename spells it): Primary}."""
     out = {}
-    for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for row in REF.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved in (0, 1):
             p = REF.from_row(row, sleeved)
             d = D.derive(p)

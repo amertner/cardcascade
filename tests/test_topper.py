@@ -568,7 +568,7 @@ print("\n=== `Figures`' descender, which the doubled margin is FOR ===")
 _a, _l, g_lo, _hi = TX.metrics("Figures", T.FONT)
 ONSHAPE_G = g_lo - 0.00459
 worst = None
-for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+for row in REF.load_rows(ROOT / "automation" / "parts.csv"):
     for sleeved in (0, 1):
         pp = REF.from_row(row, sleeved)
         if pp.GameName != "Innovation":

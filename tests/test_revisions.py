@@ -59,7 +59,9 @@ def before(flag):
 
 
 def rows():
-    return params.load_rows(CSV)
+    """The rows EVERY release builds, so a flag's before and after are one
+    set: a game cad/ added later (`tables.GAME_SINCE`) carries no flag."""
+    return params.load_rows(CSV, R.RELEASES[0])
 
 
 def at(row, sleeved, version):

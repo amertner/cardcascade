@@ -47,7 +47,7 @@ def check(label, got, want, tol=1e-6):
 def catalogue():
     """[(game, cached name, built name, Primary)] — one per parts.csv box."""
     out = {}
-    for row in params.load_rows(ROOT / "automation" / "parts.csv"):
+    for row in REF.load_rows(ROOT / "automation" / "parts.csv"):
         for sleeved, col in ((0, "Unsl Model"), (1, "Sleeved model")):
             p = REF.from_row(row, sleeved)
             d = D.derive(p)

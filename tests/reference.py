@@ -46,4 +46,5 @@ def from_row(row, sleeved, version=VERSION):
 
 
 def load_rows(path):
-    return params.load_rows(path)
+    """`params.load_rows`, the rows the reference release builds."""
+    return params.load_rows(path, VERSION)

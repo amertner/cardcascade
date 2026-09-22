@@ -175,6 +175,12 @@ REAR_THUMB_PITCH = 70.000
 REAR_THUMB_CLEAR = 10.000
 
 
+def rear_top(d):
+    """`REAR_TOP` on this box: the 105 box's, down with the rim
+    (`derive.rim_drop`)."""
+    return REAR_TOP + D.rim_drop(d)
+
+
 def pusher_rest(d):
     """The cavity floor — how high a stored pusher sits. A pusher is stored on
     EDGE and upright, so its staircase height stands vertically, and the rest
@@ -280,11 +286,32 @@ def hanging_holes(d):
     """(x0, x1) of every opening in the back, left to right: five per
     horizontal slot at `(calSlotwidth - 2.000) / 5`, the groups repeating at
     `calSlotwidth`, so the pier between slots is 2.000 wider than the rest."""
-    pitch = (d.calSlotwidth - 2.0) / HOLES_PER_SLOT
-    x0 = -box_width(d) / 2 + WALL + HOLE_INSET
+    n, pitch, inset = hole_cols(d)
+    x0 = -box_width(d) / 2 + WALL + inset
     return [(x0 + k * d.calSlotwidth + j * pitch,
              x0 + k * d.calSlotwidth + j * pitch + hole_w(d))
-            for k in range(d.HorizontalSlots) for j in range(HOLES_PER_SLOT)]
+            for k in range(d.HorizontalSlots) for j in range(n)]
+
+
+# A height class's narrower slot takes FEWER holes of the same width, as many
+# as leave a pier of at least PIER_MIN — the narrowest the studio prints
+# (Dominion's 3.200) — centred on the slot's compartment.
+# At five on a 44 slot the holes OVERLAPPED into one opening per row.
+PIER_MIN = 3.200
+
+
+def hole_cols(d):
+    """(holes per slot, pitch, first hole's inset from the left inner wall)."""
+    span = d.calSlotwidth - 2.0
+    if not d.HeightClass:
+        return HOLES_PER_SLOT, span / HOLES_PER_SLOT, HOLE_INSET
+    n = int((span + PIER_MIN) // (hole_w(d) + PIER_MIN))
+    pitch = span / n
+    # The first compartment's centre, from the left inner wall: the holder
+    # stands centred in the box (`assembly.holder_x`).
+    from .. import assembly as A
+    centre = box_width(d) / 2 - WALL + A.holder_x(d)
+    return n, pitch, centre - ((n - 1) * pitch + hole_w(d)) / 2
 
 
 def hole_openings(d):
@@ -303,12 +330,14 @@ def hole_openings(d):
     return out
 
 
-def hole_rows(d):
+def hole_rows(d, drop=None):
     """(z0, z1) of each lattice row. The BAND is constant, NOT a function of
     the riser count, and the rows divide it with `HOLE_ROW_GAP` between
-    them."""
+    them. Its top follows the rim in the back (`derive.rim_drop`); the front
+    panel passes `derive.card_drop`, its thumb following the cards."""
     rows = HOLE_ROWS_STOUT if d.rev.stout_lattice else HOLE_ROWS
-    h = (HOLE_ROW_TOP - HOLE_ROW_BOTTOM - (rows - 1) * HOLE_ROW_GAP) / rows
+    top = HOLE_ROW_TOP + (D.rim_drop(d) if drop is None else drop)
+    h = (top - HOLE_ROW_BOTTOM - (rows - 1) * HOLE_ROW_GAP) / rows
     return [(HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP),
              HOLE_ROW_BOTTOM + i * (h + HOLE_ROW_GAP) + h) for i in range(rows)]
 
@@ -331,7 +360,7 @@ def rear_storage(d, part, lattice=True):
         # walls, which run the full height. It starts at the SLOT BAND, not at
         # the sketch box: a divider reaches SLOT_BITE forward of #BoxDepth/2,
         # and cutting from there left a sliver of it standing to the rim.
-        slab(-inner, inner, y0, BD / 2 + REAR_DEPTH, REAR_TOP, top),
+        slab(-inner, inner, y0, BD / 2 + REAR_DEPTH, rear_top(d), top),
         # Right of the pusher slots — and of the divider that CLOSES the run —
         # the slot band is empty from the floor up. With no cavities at all
         # (`BACK_OPEN`) that is the WHOLE band.
@@ -367,7 +396,8 @@ def rear_storage(d, part, lattice=True):
         for sign in (-1, +1):
             x = centre + sign * sv
             cuts.append(slab(x - L.BOX_CUTOUT_W / 2, x + L.BOX_CUTOUT_W / 2,
-                             BD / 2 - WALL, y0, RIM_CUTOUT_Z, top))
+                             BD / 2 - WALL, y0, RIM_CUTOUT_Z + D.rim_drop(d),
+                             top))
     # ONE boolean with every tool, not one per tool: the tools are disjoint
     # rectangles, so the result is the same and OCCT walks the body once. This
     # is NOT the "compose the negative first" the docstring warns of — nothing
@@ -379,7 +409,7 @@ def rear_storage(d, part, lattice=True):
     # behind it. From 7.1b there are several (`rear_thumbs_x`), disjoint, so
     # ONE boolean as above.
     return part.cut(*[round_hole(y1, BD / 2 + REAR_DEPTH, D.ThumbCutoutRadius,
-                                 REAR_THUMB_FILLET, x, REAR_TOP, over=2.0)
+                                 REAR_THUMB_FILLET, x, rear_top(d), over=2.0)
                       for x in rear_thumbs_x(d)])
 
 
@@ -389,14 +419,21 @@ def rear_storage(d, part, lattice=True):
 FRONT_TOP = 68.600
 
 
+def front_top(d):
+    """`FRONT_TOP` on this box. It is 2.000 above the closed lid's rim, which
+    overlaps it, so it follows that rim (`derive.closed_rim_drop`)."""
+    return FRONT_TOP + D.closed_rim_drop(d)
+
+
 def lower_front(d, part):
     """`Lower the front` — the front wall down to FRONT_TOP, between the end
     walls only, which run their full height."""
     BD = box_depth(d)
     inner = box_width(d) / 2 - WALL
-    return part - Box(2 * inner, WALL + 1, d.BoxHeight + 1 - FRONT_TOP).moved(
+    z = front_top(d)
+    return part - Box(2 * inner, WALL + 1, d.BoxHeight + 1 - z).moved(
         Location((0, -BD / 2 + (WALL - 1) / 2,
-                  (FRONT_TOP + d.BoxHeight + 1) / 2)))
+                  (z + d.BoxHeight + 1) / 2)))
 
 
 # `Round top box corners`. Above `Lower the front` only the two END WALLS
@@ -495,6 +532,31 @@ THUMB_Z = POCKET_CUT_TOP          # the same measured 87.500: the angled cutout'
 THUMB_FILLET = 0.400              # `Fillet thumb hole`, on BOTH panel faces
 
 
+def pocket_cut_top(d):
+    """`POCKET_CUT_TOP` on this box: it and the thumb serve the front holder's
+    cards, so they follow the cards (`derive.card_drop`)."""
+    return POCKET_CUT_TOP + D.card_drop(d)
+
+
+# A short card in a class box stands low behind a front wall the lid sets,
+# so the pocket's floor comes UP until POCKET_SHOW of the card stands clear
+# of the wall — about what an 88-91 card shows over the studio's 68.600.
+# A HEIGHT CLASS's box only: a studio box's pocket is the studio's, and at
+# 7.0's 1.600 floor the rule would have raised it 0.250 (`spec/BOX.md`,
+# "Shorter cards").
+POCKET_SHOW = 0.25
+
+
+def pocket_floor(d):
+    """Z of the front pocket's floor: `floor_top`, or higher (`POCKET_SHOW`)
+    in a height class's box."""
+    if not d.HeightClass:
+        return floor_top(d)
+    from .. import assembly as A
+    return max(floor_top(d),
+               front_top(d) - (1.0 - POCKET_SHOW) * A.card_height(d))
+
+
 def thumb_centres(d):
     """Centre X of each thumb hole, one per horizontal slot: half a slot in
     from the left inner wall, shifted by the side spacing less the divider
@@ -539,13 +601,27 @@ def thumb_tool(d):
     candidates through two points and picked the wrong one.
     """
     _fw, fb, back = pocket_span(d)
-    return round_hole(fb, back, THUMB_R, THUMB_FILLET, 0.0, THUMB_Z)
+    return round_hole(fb, back, THUMB_R, THUMB_FILLET, 0.0,
+                      THUMB_Z + D.card_drop(d))
 
 
 # `Lip`. Two per thumb, symmetric about it, standing proud of the panel's BACK
 # face for the front holder to catch on.
 LIP_OFFSET = 20.400               # lip centre, from the thumb centre
 LIP_LENGTH = D.LipLength          # 10.000, the top face
+
+
+def lip_length(d):
+    """The box lip's length: the holder's rest takes it
+    (`holder.lip_len`)."""
+    return holder_part.lip_len(d)
+
+
+def lip_offset(d):
+    """`LIP_OFFSET` on this box: a class's shorter lip keeps its inner end,
+    so its centre comes in by half the difference, as the holder's rest
+    does (`holder.lip_mid`)."""
+    return LIP_OFFSET + (lip_length(d) - LIP_LENGTH) / 2
 LIP_DEPTH = D.LipDepth            # 2.100, along the ramp — 7.0 to 7.2d
 LIP_HEIGHT = D.LipHeight          # 2.000, in Z
 LIP_CHAMFER = D.LipChamfer        # 1.200, 45 degrees in the XY plane
@@ -580,7 +656,7 @@ def lip_z(d):
     if d.rev.ribs_forward:
         from .. import assembly as A
         return A.box_lip_top(d) - holder_part.SLANT_STEP
-    return LIP_Z
+    return LIP_Z + D.card_drop(d)
 
 
 def lip_top(d):
@@ -623,7 +699,7 @@ def lip_tool(d):
         rise = out / m
     else:
         rise, out = LIP_DEPTH / unit, LIP_DEPTH * m / unit
-    half = LIP_LENGTH / 2 + LIP_CHAMFER
+    half = lip_length(d) / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
             # The first and last points reach 0.800 INTO the panel, so the
@@ -666,18 +742,18 @@ def flat_lip_tool(d):
     under_root = lz - out / lip_slope(d)      # the slant, `1/lip_slope` = dZ/dY
     # The post's top continues the panel's own bevel (`angled_cutout`): a
     # ridge, no flat and no square corner.
-    bevel = (POCKET_CUT_TOP - FRONT_TOP) / (back - fw)
-    front_top = top - bevel * (back - fb)      # the bevel's end at the pocket face
+    bevel = (pocket_cut_top(d) - front_top(d)) / (back - fw)
+    bevel_end = top - bevel * (back - fb)      # the bevel's end at the pocket face
     # The root stays a millimetre under that end: on a shallow pocket with a
     # steep bevel it reached below POST_ROOT and FOLDED the section.
-    root = min(root, front_top - 1.0)
-    half = LIP_LENGTH / 2 + LIP_CHAMFER
+    root = min(root, bevel_end - 1.0)
+    half = lip_length(d) / 2 + LIP_CHAMFER
     with BuildPart() as prism:
         with BuildSketch(Plane.YZ):
             # A wedge: underside on the slant to the point at the tip, front
             # face back up to the ridge, then the bevel across the panel.
             Polygon((fb, root), (back, root), (back, under_root),
-                    (back + out, lz), (back, top), (fb, front_top),
+                    (back + out, lz), (back, top), (fb, bevel_end),
                     align=None)
         extrude(amount=half + 1, both=True)
     with BuildPart() as foot:
@@ -717,12 +793,12 @@ def angled_cutout(d):
     it runs the full width without touching the end walls."""
     BD = box_depth(d)
     fw, _fb, back = pocket_span(d)
-    top = d.BoxHeight + 5
+    top, low, high = d.BoxHeight + 5, front_top(d), pocket_cut_top(d)
     out = -BD / 2 - 5                       # clear of the box, into empty space
     with BuildPart() as tool:
         with BuildSketch(Plane.YZ):
-            Polygon((fw, FRONT_TOP), (back, POCKET_CUT_TOP), (back, top),
-                    (out, top), (out, FRONT_TOP), align=None)
+            Polygon((fw, low), (back, high), (back, top), (out, top),
+                    (out, low), align=None)
         extrude(amount=box_width(d) / 2 + 5, both=True)
     return tool.part
 
@@ -749,19 +825,24 @@ def front_pocket(d, part, lattice=True):
     for sign in (-1, +1):
         lo, hi = sorted((sign * (inner - FRONT_PAD), sign * (inner + WALL / 2)))
         solids.append(slab(lo, hi, fw - WALL / 2, back, 0.0, H))
+    # A class box's raised pocket floor (`pocket_floor`), into the front wall
+    # and the panel so neither fuse is across a coincident face.
+    if pocket_floor(d) > floor_top(d):
+        solids.append(slab(-inner, inner, fw - WALL / 2, fb + FRONT_DIVIDER / 2,
+                           floor_top(d) - WALL / 2, pocket_floor(d)))
     pocket = pocket.fuse(*solids)
     # `Slits in front pocket` — the SAME openings as the back's hanging holes,
     # at the same X and rows: one sketch in the tree, one here.
     if lattice:
         pocket = pocket.cut(*[slab(x_lo, x_hi, fb - 1.0, back + 1.0, z_lo, z_hi)
                         for x_lo, x_hi in hanging_holes(d)
-                        for z_lo, z_hi in hole_rows(d)])
+                        for z_lo, z_hi in hole_rows(d, D.card_drop(d))])
     # `Thumb and Lip` — neither reaches a pad or a divider, so both only ever
     # meet the panel. Both tools are built ONCE at x = 0 and a copy moved.
     centres = thumb_centres(d)
     thumb, lip = thumb_tool(d), lip_tool(d)
     pocket = pocket.cut(*[thumb.moved(Location((x, 0, 0))) for x in centres])
-    lips = [lip.moved(Location((x + sign * LIP_OFFSET, 0, 0)))
+    lips = [lip.moved(Location((x + sign * lip_offset(d), 0, 0)))
             for x in centres for sign in (-1, +1)]
     if d.rev.ribs_forward:
         # The lip stands above the panel's top on its post from 7.2f, so it
@@ -791,7 +872,7 @@ def closing_bumps(d, part):
         pad = chamfer(outer.edges(), BUMP_CHAMFER)
         part = part + pad.moved(Location((
             sign * (BW / 2 + BUMP_DEPTH - thick / 2),
-            (BUMP_Y0 + BUMP_Y1) / 2, (BUMP_Z0 + BUMP_Z1) / 2)))
+            (BUMP_Y0 + BUMP_Y1) / 2, (BUMP_Z0 + BUMP_Z1) / 2 + D.rim_drop(d))))
     return part
 
 
@@ -819,30 +900,39 @@ FASTENER_R = 1.000         # every one of its faces is a 1.000 cylinder
 FASTENER_TALL = 1.000      # z LABEL_Z1 .. LABEL_Z1 + 1.000
 
 
-def label_holder(length, fasteners=()):
+def label_band(d):
+    """(z0, z1) of this box's label holders, the studio's `LABEL_Z0..Z1`
+    moved with the lid the box stands in (`derive.lid_drop`) and as much
+    shorter as its label (`LabelHeight`)."""
+    z0 = LABEL_Z0 + D.lid_drop(d)
+    return z0, LABEL_Z1 + D.lid_drop(d) + (d.LabelHeight - D.STUDIO_LABEL_HEIGHT)
+
+
+def label_holder(length, fasteners=(), z0=LABEL_Z0, z1=LABEL_Z1):
     """One label holder, in a canonical frame: the wall's outer face is y = 0,
-    the holder stands proud in -Y, and it is centred on x = 0."""
+    the holder stands proud in -Y, and it is centred on x = 0; `z0..z1` is
+    `label_band`."""
     half = length / 2
     depth = LABEL_PROUD + LABEL_ROOT
 
     # `Tag holder` + `Chamfer 2`: the chamfer is measured from the OUTER face,
     # so it reaches the wall exactly; the top edge is left square.
-    pad = slab(-half, half, -LABEL_PROUD, LABEL_ROOT, LABEL_Z0, LABEL_Z1)
+    pad = slab(-half, half, -LABEL_PROUD, LABEL_ROOT, z0, z1)
     outer = pad.faces().sort_by(Axis.Y)[0]
-    pad = chamfer([e for e in outer.edges() if e.center().Z < LABEL_Z1 - 1e-6],
+    pad = chamfer([e for e in outer.edges() if e.center().Z < z1 - 1e-6],
                   LABEL_CHAMFER)
     # `Cutout` + `Sweep`: the slot, chamfered the same way off its own deep face.
     cut = slab(-half + LABEL_GROOVE_IN, half - LABEL_GROOVE_IN,
                -LABEL_GROOVE, LABEL_ROOT + 1.0,
-               LABEL_Z0 + LABEL_GROOVE_IN, LABEL_Z1 + 2.0)
+               z0 + LABEL_GROOVE_IN, z1 + 2.0)
     deep = cut.faces().sort_by(Axis.Y)[0]
     cut = chamfer([e for e in deep.edges()
-                   if e.center().Z < LABEL_Z1 + 2.0 - 1e-6], LABEL_GROOVE)
+                   if e.center().Z < z1 + 2.0 - 1e-6], LABEL_GROOVE)
     pad = pad - cut
     # ... and the middle, clean through.
     pad = pad - slab(-half + LABEL_OPEN_IN, half - LABEL_OPEN_IN,
                      -depth - 1.0, LABEL_ROOT + 1.0,
-                     LABEL_Z0 + LABEL_OPEN_IN, LABEL_Z1 + 2.0)
+                     z0 + LABEL_OPEN_IN, z1 + 2.0)
     if not fasteners:
         return pad
     # `Fastener` / `Round Fastener` / `Mirror 2` — ridges just above the frame
@@ -854,9 +944,9 @@ def label_holder(length, fasteners=()):
     with BuildPart() as foot:
         with BuildSketch(Plane.XY):
             SlotOverall(FASTENER_LEN, 2 * FASTENER_R)
-        extrude(amount=LABEL_Z1 + FASTENER_TALL + 2.0)
+        extrude(amount=z1 + FASTENER_TALL + 2.0)
     tab = foot.part
-    for z in (LABEL_Z1, LABEL_Z1 + FASTENER_TALL):
+    for z in (z1, z1 + FASTENER_TALL):
         tab = tab & Cylinder(FASTENER_R, FASTENER_LEN + 2.0,
                              rotation=(0, 90, 0)).moved(Location((0, 0, z)))
     for x in fasteners:
@@ -892,10 +982,11 @@ def label_holders(d, part):
     if not d.isLabelHoldersOnBox:
         return part
     BW, BD = box_width(d), box_depth(d)
+    z0, z1 = label_band(d)
     part = part + label_holder(front_label_len(d),
-                               fastener_centres(d)).moved(
+                               fastener_centres(d), z0, z1).moved(
         Location((0, -BD / 2, 0)))
-    side = label_holder(d.calSideLabelWidth + SIDE_LABEL_EXTRA)
+    side = label_holder(d.calSideLabelWidth + SIDE_LABEL_EXTRA, (), z0, z1)
     return part + side.rotate(Axis.Z, -90).moved(
         Location((-BW / 2, SIDE_LABEL_Y, 0)))
 
@@ -1063,7 +1154,7 @@ def sharp_edges(d, part):
 #                                    each face of each end wall; rounding them
 #                                    closes the perimeter chain above.
 
-        elif (flat and near(m.Z, REAR_TOP) and along_x
+        elif (flat and near(m.Z, rear_top(d)) and along_x
               and (near(m.Y, y_back - WALL)
                    or (one_thumb and near(m.Y, y_back)))):
             out.append(e)          # the `Top of back` ledge — both faces of

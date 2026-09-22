@@ -8,6 +8,8 @@ else is computed in `derive.py`.
 from dataclasses import dataclass
 import csv
 
+from . import revisions as R
+from . import tables as T
 from .refuse import refuse
 from .revisions import CURRENT
 
@@ -18,6 +20,7 @@ GAME_NAME = {
     "Dominion": "Dominion",
     "Food Chain Magnate": "FCM",
     "Innovation": "Innovation",
+    "Mini Cards": "MiniCards",   # cad/ only; a placeholder name
 }
 
 
@@ -116,10 +119,16 @@ def _float(row, col, default=0.0):
     return float(v) if v else default
 
 
-def load_rows(path):
+def load_rows(path, version=None):
+    """Every row not `Parked`; with a `version`, only those whose game that
+    release builds (`tables.GAME_SINCE`)."""
     with open(path, newline="") as f:
-        return [r for r in csv.DictReader(f)
+        rows = [r for r in csv.DictReader(f)
                 if (r.get("Status") or "").strip() != "Parked"]
+    if version is None:
+        return rows
+    return [r for r in rows if R.at_least(version, T.GAME_SINCE.get(
+        GAME_NAME.get((r.get("Game") or "").strip()), R.RELEASES[0]))]
 
 
 def game_code(name):
@@ -136,7 +145,7 @@ def cascades(csv_path, game=None, version=CURRENT):
     one row selector every CLI's --game goes through."""
     code = game_code(game) if game else None
     out = []
-    for row in load_rows(csv_path):
+    for row in load_rows(csv_path, version):
         for sleeved in (0, 1):
             p = from_row(row, sleeved, version)
             if code and p.GameName != code:

@@ -47,7 +47,7 @@ def span(path):
             min(c[0]), max(c[1]), min(c[2]))
 
 
-items = B.pusher_catalogue()
+items = B.pusher_catalogue(version=REF.VERSION)
 # The planner's key collapses only Dominion 6x10 onto one name.
 by_legacy = {}
 for folder, fn, p in items:

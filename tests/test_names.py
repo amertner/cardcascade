@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "automation"))
 
-from cad import cascade as CC, params, revisions as R  # noqa: E402
+from cad import cascade as CC, params, revisions as R, tables as T  # noqa: E402
 import components as C                               # noqa: E402
 import onshape_config as OC                          # noqa: E402
 import plan_exports as P                             # noqa: E402
@@ -127,8 +127,9 @@ check("--publish puts it back, and is the title plus the suffix",
 check(f"so a {NEW} publish is 50 files apart from a 7.0 one",
       {CC.filename(row, d, True) for row, d in at71}
       & {CC.filename(row, d, True) for row, d in at70}, set())
-check("while the two write the SAME 50 names into the repo",
-      {CC.filename(row, d) for row, d in at71},
+check("while the two write the SAME names into the repo, for every game both build",
+      {CC.filename(row, d) for row, d in at71
+       if R.at_least("7.0", T.GAME_SINCE.get(d.GameName, "7.0"))},
       {CC.filename(row, d) for row, d in at70})
 check("cad and refresh_cascades agree on the tracked name",
       CC.filename(*one),

@@ -64,7 +64,8 @@ def stored_pusher_margins(d):
     out.append(Margin("stored: tab fills the rim cutout, top",
                       top, d.BoxHeight))
     out.append(Margin("stored: tab fills the rim cutout, bottom",
-                      pl((L.TAB_L, 0, 0))[2], box_part.RIM_CUTOUT_Z))
+                      pl((L.TAB_L, 0, 0))[2],
+                      box_part.RIM_CUTOUT_Z + D.rim_drop(d)))
     out.append(Margin("stored: rest below the pusher's own bottom",
                       pl((d.calPusherTotalHeight, 0, 0))[2]
                       - box_part.pusher_rest(d), None,
@@ -264,7 +265,13 @@ def lid_margins(d, holders=None):
     z0, _z1 = lid_part.groove_span(d)
     pl = A.lid_closed(d)
     out.append(Margin("closed: groove floor on the box's bump top",
-                      pl((0, 0, z0))[2], lid_part.BUMP_TOP))
+                      pl((0, 0, z0))[2], lid_part.BUMP_TOP + D.rim_drop(d)))
+    # The lid's rim must stay above the label holders' fasteners, or it
+    # covers the label (`spec/BOX.md`, "Shorter cards"): 1.100 on every box.
+    out.append(Margin("closed: lid rim over the label holders",
+                      pl((0, 0, d.LidHeight))[2]
+                      - (box_part.label_band(d)[1] + box_part.FASTENER_TALL),
+                      None, note="must be > 0"))
     # What bounds a box's height: the sockets hang from the closed lid's floor
     # over the card compartments, and the tallest thing under them is a card
     # on the holder's pocket floor, or a holder taller than its cards.
@@ -286,6 +293,22 @@ def lid_margins(d, holders=None):
     out.append(Margin("lid over box: width, each side",
                       inner - box_part.box_width(d) / 2,
                       (lid_part.WIDTH_OVER_BOX - 2 * D.WallThickness) / 2))
+    # The closed lid overlaps the lowered front wall, or the box is open
+    # between them: 2.000 on every box.
+    out.append(Margin("closed: lowered front over the lid's rim",
+                      box_part.front_top(d) - pl((0, 0, d.LidHeight))[2],
+                      None, note="must be > 0"))
+    # ... and, in play, above the rim of the lid the box stands in: 2.100.
+    out.append(Margin("play: label holders over the lid's rim",
+                      box_part.label_band(d)[0]
+                      - A.lid_under(d)((0, 0, d.LidHeight))[2], None,
+                      note="must be > 0"))
+    # ... and what the front pocket's cards show over the front wall: the
+    # studio's 88-91 cards show 21-24 (`box.POCKET_SHOW`).
+    card = A.card_height(d)
+    shows = box_part.pocket_floor(d) + card - box_part.front_top(d)
+    out.append(Margin("front pocket: card over the front wall", shows, None,
+                      note=f"{shows / card:.0%} of a {card:g} card"))
     lid_inner_back = A.lid_under(d)((0, lid_part.lid_depth(d) / 2
                                        - D.WallThickness, 0))[1]
     box_back = box_part.box_depth(d) / 2 + box_part.REAR_DEPTH

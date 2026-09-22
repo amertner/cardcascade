@@ -1073,3 +1073,26 @@ new slope and `1.200`/`2.050` on every row; every margin on every row; zero
 common volume on 333 Sl, 246 Sl, M8.16 Sl and Compile S4 Un placed in play;
 and the built lip's tip and top on the wall's inner face and the slant surface
 behind it.
+
+## A class holder's lattice and lips (2026-09-22)
+
+Every width below was set on slots 63–69 wide. A height class's 44 slot
+(`spec/BOX.md`, "Shorter cards") broke two of them:
+
+- **The lattice**: 5 windows of 9.000 at `(outline + 2) / 5` gave a pitch of
+  8.000 on a 44 slot, so the mullions went to −1.000 and each row fused into
+  ONE opening about 40 wide. No check caught it: `cad.fit` measures the mechanism, not
+  the lattice. A class holder now cuts as many 9.000 windows as leave a
+  mullion of `MULLION_MIN` 2.800 (Dominion's, the narrowest printed),
+  centred on the compartment (`window_cols`): 3 on a 44 slot, mullions
+  4.333. The box's back and front-panel lattice follow the same rule
+  (`box.hole_cols`, `PIER_MIN` 3.200): 3 per slot, piers 5.000.
+- **The lips** ran 15.400..25.400 from the compartment centre against a
+  22.000 half-width, into the next compartment. The R12 scallop stays (a
+  finger is no smaller for small cards, Allan's call), and a class lip is
+  `LIP_LEN_CLASS` 5.000 (`lip_len`), keeping its inner end: 15.400..20.400.
+  The rest and the box's lip follow (`lip_mid`, `box.lip_offset`, 17.900),
+  and `cad.fit --state play` seats them at the studio's 0.200 / 0.150.
+
+A studio holder takes the studio's path through every one of these, byte for
+byte.

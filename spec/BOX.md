@@ -48,6 +48,92 @@ So the `2.00 mm` in CLAUDE.md's "the box is lid − 2.00 mm on both axes" is the
 *measured envelope* — `8.100 - 6.100` — not the sketch, and the two are not
 independent formulas that happen to agree.
 
+## Shorter cards — a HEIGHT CLASS, and three things a height follows
+
+`105.00` is the studio's box for a `CardHeight 92` card (an 88–89 mm card in
+its envelope), with a 40 lid and a 22.2 label. cad/ adds games of SHORTER cards
+(2026-09-21: `MiniCards`, 41 x 63 mm, placeholder name and thicknesses) as a
+GAME property, not a release, and gives them a **height class**: one box for
+every game in it, so a class is one look, as 105 is today.
+
+- **The card is the game's** (`tables.CARD_HEIGHT`): its height plus `3.000`
+  of envelope, as 92 is for an 88–89 card. `MiniCards` is `66`. Everything
+  the studio derives from `CardHeight` follows unaided — holders, pocket,
+  `calPocketHeight` — and the holder's `OUTLINE_TOP_TERM` 76.500 is
+  `CardHeight - 15.500` (`holder.OUTLINE_TOP_TRIM`).
+- **The box and label are the class's** (`tables.HEIGHT_CLASS`,
+  `CLASS_BOX_HEIGHT`, `CLASS_LABEL_HEIGHT`). `"mini"` is **86 / 12**, for
+  63–68 mm cards (mini American to mini Euro, sleeved): 13.000 over the
+  tallest's CardHeight (73), as 105 is over 92. A shorter card in it is just
+  more air under the closed lid (`cad.fit`: "socket underside over the card
+  top" 11.200 for a 63 card, against the studio's 4.200).
+- **A class box leads its codes with its height** (Allan, 2026-09-22):
+  `86-L6.10.10.32.Un`, holder `86-L.10.Un`, and the files follow
+  (`Box 86-L6.10.10.32-Un.3mf`). The size letter still says how many ACROSS;
+  the prefix says how TALL, and a studio box's codes are unchanged. Chosen
+  over a lower-case width letter, which Orbitron engraves as a shorter
+  capital (`s`/`S`, `x`/`X`) and which a case-insensitive file system cannot
+  tell from the studio's. Pushers keep `Pusher 6x10-Un`: a game is in one
+  class, so the name cannot collide in its folder.
+- **The rise is the box's, not the label's**: `(BoxHeight - 18) / risers`.
+  86 gives 11.333 on 6 risers (79 gave 10.167).
+
+### The label sits between two lid rims
+
+The 105 box's own margins, held on every box:
+
+| | 105 box | holds because |
+|---|---|---|
+| play: holder bottom over the rim of the lid the box STANDS IN | `2.100` | `LABEL_Z0 = LidHeight + 0.5` |
+| closed: lid rim over the holder's fasteners | `1.100` | `LABEL_Z1 + 1.0 = BoxHeight − LidHeight + 0.5` |
+| closed: lowered front over the lid rim | `2.000` | `FRONT_TOP = BoxHeight − LidHeight + 3.6` |
+
+A holder is its label plus `2.800` (22.2 → 24.0 of pad and 1.0 of fastener),
+so **`LidHeight = (BoxHeight − label − 2.8) / 2`** and **`FRONT_TOP =
+(BoxHeight + label + 2.8) / 2 + 3.6`**: 105 / 22.2 gives 40 and 68.600
+exactly. A shorter label buys a taller lid and a lower front, half a mm per mm,
+and NO rise. The mini class: lid **35.6**, front **54.000**, holders
+`36.100..49.900`.
+
+Tried and found wrong on the way (2026-09-21): taking the whole box drop off
+the labels put the holders 750 mm³ into the lid in play (`cad.fit --state
+play` found it); keeping the front wall with the rim opened an 11 mm slot
+under the closed lid (a render found it).
+
+### Three drops, 0.000 for every studio game (`derive`)
+
+The Box's MEASURED Z datums stay the 105 box's constants, so the tests that
+read them are unchanged, and each follows one thing:
+
+- `rim_drop` = `BoxHeight − 105`, the RIM: the bump (and the lid's
+  `BUMP_TOP`, so the groove stays `16.600` up the lid), `RIM_CUTOUT_Z`,
+  `REAR_TOP` and the back's lattice (`hole_rows`).
+- `card_drop` = `CardHeight − 92`, the CARDS: `POCKET_CUT_TOP` and the front
+  thumb, the pre-7.2f `LIP_Z`, and the front panel's slits
+  (`hole_rows(d, card_drop)`), which on a class box would otherwise run into
+  the thumb.
+- `lid_drop` / `closed_rim_drop`, the two LID RIMS: the label band
+  (`box.label_band`) and `box.front_top`.
+
+`PUSHER_REST_CAP` and `HOLE_ROW_BOTTOM` are measured off the FLOOR and stay
+put. Every new height is written as the studio's constant plus a difference, so
+floating point cannot move a studio byte.
+
+### The front pocket's floor comes up
+
+A short card in a class box stands low behind a front wall the LID sets:
+86 / 12 puts the wall at 54.000, over a 63 card standing on the floor at
+2.000. So the pocket's floor comes up (`box.pocket_floor`) until
+`POCKET_SHOW` (0.25) of the card clears the wall. That's about what an 88–91
+card shows over the studio's 68.600 (21–24). **A class box only**: at 7.0's
+1.600 floor the rule raised a studio unsleeved box 0.250, and the 7.0
+rebuild caught it. `MiniCards`: floor 6.750 unsleeved, 4.500 sleeved. `cad.fit`: "front
+pocket: card over the front wall", 25%. The pocket's floor is solid
+(`bottom_slot` starts behind the panel), so the raise is a slab on it.
+
+- Nothing here reaches an existing part: `cad.build --part all --force` and
+  `--version 7.0 --force` reported every studio game's part byte-identical.
+
 ## The reference STEPs
 
 Hand-exported from the Onshape UI, 0 API calls, in `spec/reference/`.
