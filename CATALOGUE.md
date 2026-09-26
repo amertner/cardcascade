@@ -1,6 +1,6 @@
 # Card Cascade catalogue
 
-Every Card Cascade there is, at release **8.0**: 30 designs, each in an
+Every Card Cascade there is, at release **8.0**: 26 designs, each in an
 unsleeved and a sleeved version. This page is generated from the CAD
 (`make_catalogue.py`), so the sizes and capacities are the ones the parts are
 built to.
@@ -14,7 +14,7 @@ holder, and slide-in labels as a separate project.
 
 ## Does one fit your game?
 
-The cascades were designed for five card sizes, one family each. A cascade
+The cascades were designed for four card sizes, one family each. A cascade
 fits a game it was never designed for when:
 
 1. **The card is no bigger than the family's card.** The slots are cut for the
@@ -37,7 +37,6 @@ fits a game it was never designed for when:
 | **Food Chain Magnate** | 60 x 89 mm | 62 x 92 mm | 0.38 mm unsleeved, 0.60 mm sleeved | 105 mm | Food Chain Magnate and The Ketchup Mechanism; any game with a 58 x 88 mm card | [MakerWorld](https://makerworld.com/en/models/3053860-food-chain-magnate-card-cascade-system) |
 | **Innovation** | 64 x 89 mm | 66 x 92 mm | 0.40 mm unsleeved, 0.65 mm sleeved | 105 mm | Innovation (Ultimate edition and the older ones); any game with a 63 x 88 mm card | [MakerWorld](https://makerworld.com/en/models/3192197-card-cascade-for-innovation-ultimate) |
 | **Compile** | 65 x 89 mm | 67 x 92 mm | 0.40 mm unsleeved, 0.80 mm sleeved | 105 mm | Compile: Main 1 and its expansions; any game with a 65 x 92 mm card | [MakerWorld](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) |
-| **Mini Cards (generic)** | 41 x 63 mm | 43 x 66 mm | 0.35 mm unsleeved, 0.60 mm sleeved | 86 mm | Any game with 41 x 63 mm cards (mini European) | _not on MakerWorld yet_ |
 
 
 ## Dominion
@@ -93,17 +92,6 @@ The widest slot in the system and the shallowest: seven cards per slot, one prot
 | **105 Card** | 105 | 3 x 5 | 7 / 7 | 223 x 36.3 x 107 | `S4.7.7.20-Un` | 229 x 50.3 x 107 | `S4.7.7.32-Sl` | 256 mm bed (Bambu P1/X1/A1 or similar) | Main and 1 extension | [unsleeved](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) / [sleeved](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) |
 | **126 Card** | 126 | 3 x 6 | 7 / 7 | 223 x 41.5 x 107 | `S5.7.7.20-Un` | 229 x 58.3 x 107 | `S5.7.7.45-Sl` | 256 mm bed (Bambu P1/X1/A1 or similar) | Main 2, Aux 1 and 2 | [unsleeved](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) / [sleeved](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) |
 | **210 Card** | 210 | 5 x 6 | 7 / 7 | 359 x 41.5 x 107 | `L5.7.7.20-Un` | 369 x 58.3 x 107 | `L5.7.7.45-Sl` | 325 x 320 mm bed (Bambu H2 series or similar) | 10 sets, all sets | [unsleeved](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) / [sleeved](https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade) |
-
-## Mini Cards (generic)
-
-No game at all: a shorter box (86 mm instead of 105) for mini cards, to show what the system does at that size. Blank lid and blank 12 mm labels; put your own game's name on with a marker or a label maker.
-
-| Cascade | Cards | Slots (across x deep) | Cards per slot (pocket / sliding) | Unsleeved: W x D x H mm | Model | Sleeved: W x D x H mm | Model | Printer | Made for | Print profile |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **350 Card** | 350 | 5 x 7 | 10 / 10 | 239 x 51.6 x 88 | `86-L6.10.10.32-Un` | 249 x 69.1 x 88 | `86-L6.10.10.45-Sl` | 256 mm bed (Bambu P1/X1/A1 or similar) | 41 x 63 mm cards | _not on MakerWorld yet_ |
-| **288 Card** | 288 | 4 x 6 | 12 / 12 | 195 x 49.9 x 88 | `86-M5.12.12.32-Un` | 203 x 67.9 x 88 | `86-M5.12.12.45-Sl` | 256 mm bed (Bambu P1/X1/A1 or similar) | 41 x 63 mm cards | _not on MakerWorld yet_ |
-| **216 Card** | 216 | 3 x 6 | 12 / 12 | 151 x 49.9 x 88 | `86-S5.12.12.32-Un` | 157 x 67.9 x 88 | `86-S5.12.12.45-Sl` | 256 mm bed (Bambu P1/X1/A1 or similar) | 41 x 63 mm cards | _not on MakerWorld yet_ |
-| **120 Card** | 120 | 2 x 6 | 10 / 10 | 107 x 45.7 x 88 | `86-XS5.10.10.32-Un` | 111 x 60.7 x 88 | `86-XS5.10.10.45-Sl` | 256 mm bed (Bambu P1/X1/A1 or similar) | 41 x 63 mm cards | _not on MakerWorld yet_ |
 
 ## Dominion: which cascade for which expansion
 

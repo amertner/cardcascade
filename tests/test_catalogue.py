@@ -34,14 +34,18 @@ print("=== catalogue.json names real rows ===")
 spec, rows = MC.load()
 keys = {f"{g}/{r['Short name'].strip()}" for g, r, _, _ in rows}
 games = {g for g, *_ in rows}
+built = {params.GAME_NAME[(r.get("Game") or "").strip()]
+         for r in params.load_rows(str(MC.CSV))}
 for fam in spec["families"]:
-    check(f"family {fam} is a game the CAD builds", fam in games)
+    check(f"family {fam} is a game the CAD builds", fam in built)
 for g in games:
     check(f"game {g} has a family entry", g in spec["families"])
+for g in spec.get("hidden", []):
+    check(f"hidden {g} is kept out", g not in games)
 for k in spec.get("made_for", {}):
     check(f"made_for {k} is a row", k in keys)
 for k in spec["makerworld"]:
-    check(f"makerworld {k} is a game or a row", k in games or k in keys)
+    check(f"makerworld {k} is a game or a row", k in built or k in keys)
 for k, v in spec.get("profiles", {}).items():
     check(f"profiles {k} is a row", k in keys)
     check(f"profiles {k} names Un and/or Sl only", set(v) <= {"Un", "Sl"}, str(v))

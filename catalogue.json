@@ -12,7 +12,8 @@
         "dominion_guide: which cascade holds which expansion, by printer and",
         "sleeving, carried over from `Cascade Sizes.docx` (v6.0) unchanged.",
         "made_for: a reader's wording for a row's `Set/Extension`, keyed '<Game>/<Short name>', where parts.csv's is a working note.",
-        "profiles: per '<Game>/<Short name>', {\"Un\": <profileId>, \"Sl\": <profileId>} of that cascade's print profile on the family's MakerWorld model (the number after #profileId- in the profile's URL), or a full URL. A sleeving without one links the model page."
+        "profiles: per '<Game>/<Short name>', {\"Un\": <profileId>, \"Sl\": <profileId>} of that cascade's print profile on the family's MakerWorld model (the number after #profileId- in the profile's URL), or a full URL. A sleeving without one links the model page.",
+        "hidden: families kept out of the catalogue until they are published."
     ],
     "makerworld": {
         "Dominion": "https://makerworld.com/en/models/2957494-card-cascade-dominion-store-play-system",
@@ -255,5 +256,8 @@
         "Innovation/Single Set": "The base set or one expansion",
         "Innovation/Single Mini": "One expansion on a 180 mm bed; two boxes per project, used as a pair"
     },
-    "profiles": {}
+    "profiles": {},
+    "hidden": [
+        "MiniCards"
+    ]
 }

@@ -160,8 +160,9 @@ with the catalogue link.
 
 - The four MakerWorld project URLs, so the catalogue links a family to its
   own page rather than to the collection (`catalogue.json`, `makerworld`).
-- Whether the Mini Cards cascades (41 x 63 mm) go on MakerWorld before the
-  posts. They are the generic offer, the one a stranger with a mini-card
-  game would want, and the catalogue says "not on MakerWorld yet" for them.
+- The Mini Cards cascades (41 x 63 mm) are not published yet and are kept
+  out of the catalogue (`catalogue.json`, `hidden`). They are the generic
+  offer, the one a stranger with a mini-card game would want: when they go
+  on MakerWorld, remove them from `hidden` and add the model URL.
 - r/cardcascade's sidebar: a one-line description, the collection link and
   the catalogue link, so a visitor from a cross-post finds both.

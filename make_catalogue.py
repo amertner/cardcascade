@@ -99,8 +99,11 @@ def load():
     spec = json.loads(SPEC.read_text())
     pairs = {}
     order = []
+    hidden = set(spec.get("hidden", []))
     for row, p in params.cascades(str(CSV), version=CURRENT):
         d = D.derive(p)
+        if d.GameName in hidden:
+            continue
         key = (d.GameName, row["Short name"])
         if key not in pairs:
             pairs[key] = [row, None, None]
@@ -173,7 +176,7 @@ holder, and slide-in labels as a separate project.
 
 ## Does one fit your game?
 
-The cascades were designed for five card sizes, one family each. A cascade
+The cascades were designed for four card sizes, one family each. A cascade
 fits a game it was never designed for when:
 
 1. **The card is no bigger than the family's card.** The slots are cut for the
