@@ -287,30 +287,19 @@ def reddit_width_tables(spec, rows):
         games = sorted({spec["families"][g]["title"] for g, _, _ in entries})
         out.append(f"## Cards up to {fmt(w)} mm wide\n")
         out.append(f"The slot is {fmt(w + 3)} mm; designed for {', '.join(games)}.\n")
-        out.append("| Cascade | Slots across x deep | Pocket depth mm | Sliding slot depth mm | Outside W x D x H mm | Printer | As designed |")
+        out.append("| Cascade | Slots across x deep | Pocket depth mm | Sliding slot depth mm | Outside W x D x H mm | Printer | Designed at mm/card |")
         out.append("|---|---|---|---|---|---|---|")
         for g, row, d in entries:
             short = row["Short name"].strip()
             label = (row.get("Project label") or "").strip()
             name = f"{spec['families'][g]['title']} {short}" + (f" ({label})" if label else "")
-            name += " sleeved" if d.isSleeved else " unsleeved"
             kind = (row.get("3D printer") or "").strip()
             printer = kind_word[kind] or ("H2 (325 mm)" if d.isSleeved else "256 mm bed")
             pocket, slot = depths(d)
             out.append(f"| [{name}]({one_profile_link(spec, g, short, d)}) "
                        f"| {d.HorizontalSlots} x {d.RisingSliders + 1} | {pocket} | {slot} "
-                       f"| {size(d)} | {printer} | {d.calTotalCards} cards as designed |")
+                       f"| {size(d)} | {printer} | {d.calCardThickness:.2f} ({d.calTotalCards} cards) |")
         out.append("")
-    return "\n".join(out)
-
-
-def thickness_table(spec, rows):
-    out = ["| Designed for | Unsleeved card, mm per card | Sleeved card, mm per card |", "|---|---|---|"]
-    for game, fam in spec["families"].items():
-        if not any(g == game for g, *_ in rows):
-            continue
-        out.append(f"| {fam['title']} | {T.TEN_UNSLEEVED_THICKNESS[game] / 10:.2f} "
-                   f"| {T.TEN_SLEEVED_THICKNESS[game] / 10:.2f} |")
     return "\n".join(out)
 
 
@@ -319,6 +308,8 @@ def render_reddit():
     return f"""**Card Cascade is designed for four games. This post is for everyone else:** how to tell whether one of the {2 * len(rows)} cascades fits a game it was never designed for, and which one.
 
 A Card Cascade is a 3D-printed store-and-play box: closed, a labelled box on the shelf; open, the sliding holders rise in a staircase so every pile shows its top card, with the big piles in front pockets. Each is a free, complete Bambu Studio project on MakerWorld ([the collection]({spec["makerworld_collection"]})). The four games' own posts cover which box holds which expansion; none of that is here.
+
+Each cascade comes in two versions, listed on MakerWorld as "unsleeved" and "sleeved". Ignore the words: the sleeved one is the same box with wider, deeper slots, so both are just rows below, under the width they take.
 
 A cascade does not know what game is in it. It knows three things, and they are all in the tables below:
 
@@ -335,11 +326,7 @@ The depths above are stack rooms. To turn one into cards for your game, measure 
 
     cards per slot = slot depth in mm / your card's thickness in mm
 
-rounded DOWN. The counts on MakerWorld assume these thicknesses, which is what the four games' cards measured:
-
-{thickness_table(spec, rows)}
-
-For example, a 12.6 mm pocket holds 21 Dominion cards at 0.60 mm sleeved. Cards that measure 0.75 mm sleeved get 16 in the same pocket (12.6 / 0.75 = 16.8). The mechanism does not care; the slot is a little less full or a little more. A stack that is a few tenths of a millimetre over still goes in, because a slot has clearance in front of the stack for a finger to lift it, but do not count on more than that.
+rounded DOWN. The last column is the thickness each row was designed at, and the card count on MakerWorld is the depths divided by it. For example, the Dominion 324 Card row under 62 mm has a 12.6 mm pocket designed at 0.60 mm per card, so 21 cards. Cards that measure 0.75 mm get 16 in the same pocket (12.6 / 0.75 = 16.8). The mechanism does not care; the slot is a little less full or a little more. A stack that is a few tenths of a millimetre over still goes in, because a slot has clearance in front of the stack for a finger to lift it, but do not count on more than that.
 
 ## Printer
 
