@@ -41,7 +41,7 @@ they get a mention in the r/boardgames post and a row in the catalogue.
 
 ## Post 1: r/cardcascade (pinned)
 
-**Title:** Every Card Cascade in one table, and how to tell if one fits your game
+**Title:** Does a Card Cascade fit your game? Every size by card width and slot depth
 
 **Body:** the whole of `outreach/catalogue-reddit.md`, pasted as a text
 post in Reddit's markdown editor (switch the editor to Markdown first, or
@@ -98,7 +98,7 @@ them, and there is a token holder.
 Which box for which expansion (a 256 mm bed needs a pair for the biggest
 sets):
 
-[paste the two Dominion expansion tables from outreach/catalogue-reddit.md]
+[paste the two Dominion expansion tables from CATALOGUE.md, "Dominion: which cascade for which expansion"]
 
 All free on MakerWorld, with labels for every set as a separate project:
 https://makerworld.com/en/collections/33559137-card-cascades
