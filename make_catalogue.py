@@ -13,8 +13,9 @@ and the links out (MakerWorld, one per game or per cascade).
 The Reddit version is the pinned r/cardcascade post, for a game that is NOT
 one of the four (Allan, 2026-09-26): every project a row, grouped by slot
 width, the pocket and slot DEPTHS in mm (a capacity is a depth divided by
-one game's card thickness) and the arithmetic to rescale; no per-game
-guide, no code spans, no GitHub link.
+one game's card thickness); no code spans, no GitHub link. Its prose is
+Allan's, written in the file: the generator owns what follows the
+`REDDIT_MARK` heading, and `--check` compares only that.
 """
 
 import argparse
@@ -34,6 +35,7 @@ CSV = ROOT / "automation" / "parts.csv"
 SPEC = ROOT / "catalogue.json"
 OUT = ROOT / "CATALOGUE.md"
 REDDIT = ROOT / "outreach" / "catalogue-reddit.md"
+REDDIT_MARK = "## Complete configuration catalogue"
 
 
 def fmt(x, decimals=0):
@@ -60,10 +62,16 @@ def per_slot(d):
     return f"{d.FrontPocketCardCapacity} / {riser}"
 
 
+def height(d):
+    return fmt(D.WallThickness + d.BoxHeight)
+
+
+def footprint(d):
+    return f"{fmt(d.BoxWidth + LID.WIDTH_OVER_BOX)} x {fmt(d.calLidDepth, 1)}"
+
+
 def size(d):
-    w = d.BoxWidth + LID.WIDTH_OVER_BOX
-    h = D.WallThickness + d.BoxHeight
-    return f"{fmt(w)} x {fmt(d.calLidDepth, 1)} x {fmt(h)}"
+    return f"{footprint(d)} x {height(d)}"
 
 
 def model_url(spec, game, short):
@@ -272,9 +280,12 @@ def one_profile_link(spec, game, short, d):
 
 
 def reddit_width_tables(spec, rows):
-    """One table per slot width, every project a row, widest last."""
-    kind_word = {"Standard": "256 mm bed", "Large": "H2 (325 mm)",
-                 "Mixed": None, "Mini": "A1 mini", "": "256 mm bed"}
+    """One table per slot width, every project a row, widest last. The bed is
+    its size and the Bambu range that has it, the height is stated
+    once per width, and the thickness is per TEN cards, the stack a reader
+    measures with a ruler."""
+    bed = {"Standard": "256/P1", "Large": "325/H2", "Mixed": None, "Mini": "180/A1 mini",
+           "": "256/P1"}
     by_width = {}
     for g, row, u, s in rows:
         for d in (u, s):
@@ -285,57 +296,43 @@ def reddit_width_tables(spec, rows):
         entries.sort(key=lambda e: (e[2].HorizontalSlots * (e[2].RisingSliders + 1),
                                     e[2].calFrontPocketDepth, e[2].calSlotDepth))
         games = sorted({spec["families"][g]["title"] for g, _, _ in entries})
-        out.append(f"## Cards up to {fmt(w)} mm wide\n")
-        out.append(f"The slot is {fmt(w + 3)} mm; designed for {', '.join(games)}.\n")
-        out.append("| Cascade | Slots across x deep | Pocket depth mm | Sliding slot depth mm | Outside W x D x H mm | Printer | Designed at mm/card |")
+        heights = sorted({height(d) for _, _, d in entries}, key=float)
+        tall = (f"All Cascades are {heights[0]} mm tall." if len(heights) == 1
+                else f"Cascades are {' or '.join(heights)} mm tall.")
+        out.append(f"### Cards up to {fmt(w)} mm wide\n")
+        out.append(f"The slot is {fmt(w + 3)} mm; designed for {', '.join(games)}. {tall}\n")
+        out.append("| Slots across x deep | Front pocket depth/mm | Sliding slot depth/mm "
+                   "| Closed W × D (mm) | 3D Printer bed width / model | Design thickness: mm/10 cards (capacity) | Cascade download link |")
         out.append("|---|---|---|---|---|---|---|")
         for g, row, d in entries:
             short = row["Short name"].strip()
             label = (row.get("Project label") or "").strip()
             name = f"{spec['families'][g]['title']} {short}" + (f" ({label})" if label else "")
             kind = (row.get("3D printer") or "").strip()
-            printer = kind_word[kind] or ("H2 (325 mm)" if d.isSleeved else "256 mm bed")
+            printer = bed[kind] or ("325/H2" if d.isSleeved else "256/P1")
             pocket, slot = depths(d)
-            out.append(f"| [{name}]({one_profile_link(spec, g, short, d)}) "
-                       f"| {d.HorizontalSlots} x {d.RisingSliders + 1} | {pocket} | {slot} "
-                       f"| {size(d)} | {printer} | {d.calCardThickness:.2f} ({d.calTotalCards} cards) |")
+            out.append(f"| {d.HorizontalSlots} x {d.RisingSliders + 1} | {pocket} | {slot} "
+                       f"| {footprint(d)} | {printer} "
+                       f"| {10 * d.calCardThickness:.1f} ({d.calTotalCards} cards) "
+                       f"| [{name}]({one_profile_link(spec, g, short, d)}) |")
         out.append("")
     return "\n".join(out)
 
 
+def reddit_prose():
+    """Everything above `REDDIT_MARK` in the file as it stands, heading
+    included: hand-written, never generated."""
+    if not REDDIT.exists():
+        sys.exit(f"{REDDIT.relative_to(ROOT)} is missing: its prose is written by hand")
+    head, mark, _ = REDDIT.read_text().partition(REDDIT_MARK + "\n")
+    if not mark:
+        sys.exit(f"{REDDIT.relative_to(ROOT)}: no '{REDDIT_MARK}' heading; the tables go under it")
+    return head + mark
+
+
 def render_reddit():
     spec, rows = load()
-    return f"""**Card Cascade is designed for four games. This post is for everyone else:** how to tell whether one of the {2 * len(rows)} cascades fits a game it was never designed for, and which one.
-
-A Card Cascade is a 3D-printed store-and-play box: closed, a labelled box on the shelf; open, the sliding holders rise in a staircase so every pile shows its top card, with the big piles in front pockets. Each is a free, complete Bambu Studio project on MakerWorld ([the collection]({spec["makerworld_collection"]})). The four games' own posts cover which box holds which expansion; none of that is here.
-
-Each cascade comes in two versions, listed on MakerWorld as "unsleeved" and "sleeved". Ignore the words: the sleeved one is the same box with wider, deeper slots, so both are just rows below, under the width they take.
-
-A cascade does not know what game is in it. It knows three things, and they are all in the tables below:
-
-1. **The slot width.** Every slot is cut 3 mm wider than a card of the width in the heading. A narrower card fits (it just has side play); a wider one does not.
-2. **The slot depth, in mm.** A "324 Card" cascade is not 324 of anything in particular: each front pocket is a stack room of so many mm, each sliding slot another, and the card counts on MakerWorld are those depths divided by one game's card thickness. Your count is the same depth divided by your card (see "Your card count" below).
-3. **The height.** Every cascade takes cards up to 92 mm tall, the sleeved standard; 88 mm cards sit 4 mm lower and are still easy to grip.
-
-The tables are sorted by slot width. Find the first heading your card fits under, then pick the row with enough slots and depth. "Slots across x deep" counts the front pockets across by the rows from front to back; the first row is the pockets, the rest are sliding slots. Outside size is the closed cascade, rounded up.
-
-{reddit_width_tables(spec, rows)}
-## Your card count
-
-The depths above are stack rooms. To turn one into cards for your game, measure a stack of ten of your cards with a ruler and divide by ten (sleeved cards in their sleeves); then
-
-    cards per slot = slot depth in mm / your card's thickness in mm
-
-rounded DOWN. The last column is the thickness each row was designed at, and the card count on MakerWorld is the depths divided by it. For example, the Dominion 324 Card row under 62 mm has a 12.6 mm pocket designed at 0.60 mm per card, so 21 cards. Cards that measure 0.75 mm get 16 in the same pocket (12.6 / 0.75 = 16.8). The mechanism does not care; the slot is a little less full or a little more. A stack that is a few tenths of a millimetre over still goes in, because a slot has clearance in front of the stack for a finger to lift it, but do not count on more than that.
-
-## Printer
-
-"256 mm bed" is a Bambu P1, X1 or A1 class printer, or anything that size; "H2 (325 mm)" needs an H2-series bed or at least 325 x 320 mm; "A1 mini" is a 180 mm bed. A project laid out for a smaller bed prints on a bigger one.
-
-## If nothing fits
-
-Post your card size (width, height, thickness of ten cards) and how many piles of how many cards. The design is parametric: a new size is a line in a spreadsheet, and a game that a lot of people want is worth a cascade of its own.
-"""
+    return reddit_prose() + "\n" + reddit_width_tables(spec, rows)
 
 
 def main():
