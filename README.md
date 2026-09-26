@@ -1,3 +1,19 @@
+# Card Cascade
+
+3D-printed **store-and-play** boxes for card games: closed, a labelled box
+on the shelf; open, the sliding holders rise in a staircase so every pile
+shows its top card. Free Bambu Studio projects for Dominion, Innovation,
+Compile and Food Chain Magnate on
+[MakerWorld](https://makerworld.com/en/collections/33559137-card-cascades).
+
+**Is there one for your game?** [`CATALOGUE.md`](CATALOGUE.md) lists every
+cascade with the card size it is cut for, capacity, outside size and the
+printer bed it needs; most card games use one of those card sizes. Questions,
+prints and requests: [r/cardcascade](https://www.reddit.com/r/cardcascade/).
+
+The rest of this file is about the **labels**; the boxes themselves are
+generated from `cad/` (see `cad/README.md` and `CLAUDE.md`).
+
 # Dominion Expansion Box Labels
 
 Generates the expansion-name labels as **two-colour 3MF files** (white

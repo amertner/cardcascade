@@ -1,0 +1,259 @@
+{
+    "_doc": [
+        "make_catalogue.py's spec: everything in CATALOGUE.md that the CAD does not",
+        "know. Every dimension, capacity and model code comes from parts.csv through",
+        "cad.derive; this file holds the words around them and the links out.",
+        "makerworld: one URL per game (the family's listing), or per '<Game>/<Short",
+        "name>' for a cascade with a listing of its own. An empty string falls back",
+        "to makerworld_collection, the collection every listing is in; null says",
+        "the family is not on MakerWorld yet.",
+        "families: the order the games appear in, and each one's blurb.",
+        "printers: what parts.csv's `3D printer` column means for a reader.",
+        "dominion_guide: which cascade holds which expansion, by printer and",
+        "sleeving, carried over from `Cascade Sizes.docx` (v6.0) unchanged.",
+        "made_for: a reader's wording for a row's `Set/Extension`, keyed '<Game>/<Short name>', where parts.csv's is a working note.",
+        "profiles: per '<Game>/<Short name>', {\"Un\": <profileId>, \"Sl\": <profileId>} of that cascade's print profile on the family's MakerWorld model (the number after #profileId- in the profile's URL), or a full URL. A sleeving without one links the model page."
+    ],
+    "makerworld": {
+        "Dominion": "https://makerworld.com/en/models/2957494-card-cascade-dominion-store-play-system",
+        "Compile": "https://makerworld.com/en/models/3042334-compile-main-aux-system-card-cascade",
+        "FCM": "https://makerworld.com/en/models/3053860-food-chain-magnate-card-cascade-system",
+        "Innovation": "https://makerworld.com/en/models/3192197-card-cascade-for-innovation-ultimate",
+        "MiniCards": null
+    },
+    "github": "https://github.com/amertner/cardcascade",
+    "families": {
+        "Dominion": {
+            "title": "Dominion",
+            "games": "Dominion and every expansion; any game with the same 59 x 91 mm card",
+            "blurb": "The original family, one cascade per expansion. Kingdom cards go ten to a sliding slot and the front pockets take the big piles (Copper, Curses, Estates). Some boxes merge two front pockets for player mats and every box takes a removable token holder."
+        },
+        "FCM": {
+            "title": "Food Chain Magnate",
+            "games": "Food Chain Magnate and The Ketchup Mechanism; any game with a 58 x 88 mm card",
+            "blurb": "Sized for FCM's employee cards: shallow slots (six cards) for the many small piles, and the Milestones box is a separate cascade. The slot is the same width as Dominion's, so any 58-60 mm card fits."
+        },
+        "Innovation": {
+            "title": "Innovation",
+            "games": "Innovation (Ultimate edition and the older ones); any game with a 63 x 88 mm card",
+            "blurb": "Ten or fifteen cards to a slot, one age per column. The Ultimate edition's six expansions split across several cascades in three different ways, and the Single Mini is a narrow box for one expansion that fits a 180 mm bed."
+        },
+        "Compile": {
+            "title": "Compile",
+            "games": "Compile: Main 1 and its expansions; any game with a 65 x 92 mm card",
+            "blurb": "The widest slot in the system and the shallowest: seven cards per slot, one protocol per slot. Ships with a second box without label holders on its last plate."
+        },
+        "MiniCards": {
+            "title": "Mini Cards (generic)",
+            "games": "Any game with 41 x 63 mm cards (mini European)",
+            "blurb": "No game at all: a shorter box (86 mm instead of 105) for mini cards, to show what the system does at that size. Blank lid and blank 12 mm labels; put your own game's name on with a marker or a label maker."
+        }
+    },
+    "printers": {
+        "Standard": "256 mm bed (Bambu P1/X1/A1 or similar)",
+        "Large": "325 x 320 mm bed (Bambu H2 series or similar)",
+        "Mixed": "256 mm bed unsleeved; 325 x 320 mm bed sleeved",
+        "Mini": "180 mm bed (Bambu A1 mini or similar)",
+        "": "256 mm bed (Bambu P1/X1/A1 or similar)"
+    },
+    "dominion_guide": {
+        "columns": [
+            "Expansion",
+            "Large printer",
+            "Standard printer"
+        ],
+        "Un": [
+            [
+                "Base Set",
+                "560 Card",
+                "2 x 300 Card"
+            ],
+            [
+                "Intrigue",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Seaside",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Alchemy",
+                "168 Card",
+                "168 Card"
+            ],
+            [
+                "Prosperity",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Cornucopia",
+                "168 Card",
+                "168 Card"
+            ],
+            [
+                "Hinterlands",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Dark Ages",
+                "650 Card",
+                "324 Card + 168 Card"
+            ],
+            [
+                "Guilds",
+                "168 Card",
+                "168 Card"
+            ],
+            [
+                "Adventures",
+                "400 Card (Mat)",
+                "400 Card (Mat)"
+            ],
+            [
+                "Empires",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Nocturne",
+                "650 Card",
+                "2 x 244 Card"
+            ],
+            [
+                "Renaissance",
+                "400 Card (Mat)",
+                "400 Card (Mat)"
+            ],
+            [
+                "Menagerie",
+                "400 Card (Mat)",
+                "400 Card (Mat)"
+            ],
+            [
+                "Allies",
+                "400 Card (Mat)",
+                "400 Card (Mat)"
+            ],
+            [
+                "Plunder",
+                "650 Card",
+                "324 Card + 244 Card"
+            ],
+            [
+                "Rising Sun",
+                "324 Card",
+                "324 Card"
+            ]
+        ],
+        "Sl": [
+            [
+                "Base Set",
+                "560 Card",
+                "2 x 300 Card"
+            ],
+            [
+                "Intrigue",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Seaside",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Alchemy",
+                "168 Card",
+                "168 Card"
+            ],
+            [
+                "Prosperity",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Cornucopia",
+                "168 Card",
+                "168 Card"
+            ],
+            [
+                "Hinterlands",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Dark Ages",
+                "650 Card",
+                "324 Card + 168 Card"
+            ],
+            [
+                "Guilds",
+                "168 Card",
+                "168 Card"
+            ],
+            [
+                "Adventures",
+                "400 Card (Mat)",
+                "202 Card (Mat) + 244 Card"
+            ],
+            [
+                "Empires",
+                "324 Card",
+                "324 Card"
+            ],
+            [
+                "Nocturne",
+                "650 Card",
+                "2 x 244 Card"
+            ],
+            [
+                "Renaissance",
+                "400 Card (Mat)",
+                "202 Card (Mat) + 244 Card"
+            ],
+            [
+                "Menagerie",
+                "400 Card (Mat)",
+                "202 Card (Mat) + 244 Card"
+            ],
+            [
+                "Allies",
+                "400 Card (Mat)",
+                "202 Card (Mat) + 244 Card"
+            ],
+            [
+                "Plunder",
+                "650 Card",
+                "324 Card + 244 Card"
+            ],
+            [
+                "Rising Sun",
+                "324 Card",
+                "324 Card"
+            ]
+        ]
+    },
+    "makerworld_collection": "https://makerworld.com/en/collections/33559137-card-cascades",
+    "reddit": "https://www.reddit.com/r/cardcascade/",
+    "made_for": {
+        "Dominion/333 Card": "A 324-size expansion in a narrower, deeper box for small printers",
+        "Dominion/202 Card (Mat)": "Half of a mat expansion, with the mat slot (pairs with a 244 Card)",
+        "Dominion/244 Card": "Half of Adventures, Nocturne or Plunder on a 256 mm bed",
+        "Dominion/246 Card": "Just the bulky Base Set cards",
+        "Dominion/290 Card (Mat)": "Speculation, with a mat slot",
+        "Dominion/300 Card": "Half of the Base Set on a 256 mm bed",
+        "Dominion/472 Card": "Base cards for six players",
+        "Innovation/3 Ages 5 Expansions": "Ultimate edition across four boxes, three ages per box",
+        "Innovation/4 Ages 5 Expansions": "Ultimate edition across three boxes, four ages per box",
+        "Innovation/3 Later Ages 5 Expansions": "Ultimate edition across four boxes, ages 2-10 only (ten cards per slot)",
+        "Innovation/4 Later Ages 5 Expansions": "Ultimate edition across three boxes, ages 2-10 only (ten cards per slot)",
+        "Innovation/Three Expansions": "Ultimate edition in two boxes that lie flat in the game box",
+        "Innovation/Single Set": "The base set or one expansion",
+        "Innovation/Single Mini": "One expansion on a 180 mm bed; two boxes per project, used as a pair"
+    },
+    "profiles": {}
+}
