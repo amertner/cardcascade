@@ -256,7 +256,112 @@
         "Innovation/Single Set": "The base set or one expansion",
         "Innovation/Single Mini": "One expansion on a 180 mm bed; two boxes per project, used as a pair"
     },
-    "profiles": {},
+    "profiles": {
+        "Dominion/168 Card": {
+            "Un": "3338100",
+            "Sl": "3319634"
+        },
+        "Dominion/202 Card (Mat)": {
+            "Un": "3408201",
+            "Sl": "3408188"
+        },
+        "Dominion/244 Card": {
+            "Un": "3339013",
+            "Sl": "3319882"
+        },
+        "Dominion/246 Card": {
+            "Un": "3408409",
+            "Sl": "3378738"
+        },
+        "Dominion/290 Card (Mat)": {
+            "Un": "3758638",
+            "Sl": "3758631"
+        },
+        "Dominion/300 Card": {
+            "Un": "3338707",
+            "Sl": "3338690"
+        },
+        "Dominion/324 Card": {
+            "Un": "3338033",
+            "Sl": "3319592"
+        },
+        "Dominion/333 Card": {
+            "Un": "3431683",
+            "Sl": "3431676"
+        },
+        "Dominion/400 Card (Mat)": {
+            "Un": "3339141",
+            "Sl": "3319830"
+        },
+        "Dominion/472 Card": {
+            "Un": "3460482",
+            "Sl": "3460478"
+        },
+        "Dominion/560 Card": {
+            "Un": "3337942",
+            "Sl": "3314508"
+        },
+        "Dominion/650 Card": {
+            "Un": "3337884",
+            "Sl": "3319758"
+        },
+        "FCM/144 Card": {
+            "Un": "3595209",
+            "Sl": "3595208"
+        },
+        "FCM/180 Card": {
+            "Un": "3435829",
+            "Sl": "3435831"
+        },
+        "FCM/264 Card": {
+            "Un": "3435810",
+            "Sl": "3435819"
+        },
+        "FCM/198 Card": {
+            "Un": "3618240",
+            "Sl": "3580884"
+        },
+        "Innovation/3 Ages 5 Expansions": {
+            "Un": "3611650",
+            "Sl": "3611649"
+        },
+        "Innovation/4 Ages 5 Expansions": {
+            "Un": "3611651",
+            "Sl": "3611512"
+        },
+        "Innovation/Single Set": {
+            "Un": "3618751",
+            "Sl": "3618752"
+        },
+        "Innovation/Single Mini": {
+            "Un": "3637548",
+            "Sl": "3637543"
+        },
+        "Innovation/3 Later Ages 5 Expansions": {
+            "Un": "3670764",
+            "Sl": "3670763"
+        },
+        "Innovation/4 Later Ages 5 Expansions": {
+            "Un": "3670754",
+            "Sl": "3670745"
+        },
+        "Innovation/Three Expansions": {
+            "Un": "3758404",
+            "Sl": "3758401"
+        },
+        "Compile/105 Card": {
+            "Un": "3445231",
+            "Sl": "3445229"
+        },
+        "Compile/126 Card": {
+            "Un": "3421380",
+            "Sl": "3421257"
+        },
+        "Compile/210 Card": {
+            "Un": "3445251",
+            "Sl": "3445246"
+        }
+    },
     "hidden": [
         "MiniCards"
     ]
