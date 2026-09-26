@@ -8,6 +8,11 @@ and the links out (MakerWorld, one per game or per cascade).
 
     .venv/bin/python make_catalogue.py            # writes CATALOGUE.md
     .venv/bin/python make_catalogue.py --check    # exits 1 if it is stale
+    .venv/bin/python make_catalogue.py --reddit   # outreach/catalogue-reddit.md too
+
+The Reddit version is the same page for the pinned r/cardcascade post:
+narrower tables (Reddit's width), no code spans, and no GitHub link, since
+the posts point at the subreddit rather than the repo.
 """
 
 import argparse
@@ -26,6 +31,7 @@ from cad.revisions import CURRENT                                   # noqa: E402
 CSV = ROOT / "automation" / "parts.csv"
 SPEC = ROOT / "catalogue.json"
 OUT = ROOT / "CATALOGUE.md"
+REDDIT = ROOT / "outreach" / "catalogue-reddit.md"
 
 
 def fmt(x, decimals=0):
@@ -244,20 +250,105 @@ MakerWorld. Questions, requests for another game, and prints:
     return "\n".join(parts)
 
 
+def reddit_family_table(spec, rows):
+    out = ["| Family | Unsleeved card up to | Sleeved card up to | Thickness assumed (un / sl) | Designed for | Files |",
+           "|---|---|---|---|---|---|"]
+    for game, fam in spec["families"].items():
+        firsts = [(r, u, s) for g, r, u, s in rows if g == game]
+        if not firsts:
+            continue
+        r, u, s = firsts[0]
+        out.append(f"| **{fam['title']}** | {fmt(u.calCardwidth)} x {fmt(A.card_height(u))} mm "
+                   f"| {fmt(s.calCardwidth)} x {fmt(A.card_height(s))} mm "
+                   f"| {T.TEN_UNSLEEVED_THICKNESS[game] / 10:.2f} / {T.TEN_SLEEVED_THICKNESS[game] / 10:.2f} mm "
+                   f"| {fam['games']} | {link(spec, game, '')} |")
+    return "\n".join(out)
+
+
+def reddit_cascade_table(spec, game, rows):
+    out = ["| Cascade | Cards | Slots across x deep | Per slot (pocket / sliding) | Unsleeved W x D x H | Sleeved W x D x H | Printer | Files |",
+           "|---|---|---|---|---|---|---|---|"]
+    short_printer = {v: k for k, v in spec["printers"].items()}
+    for g, row, u, s in rows:
+        if g != game:
+            continue
+        short = row["Short name"].strip()
+        label = (row.get("Project label") or "").strip()
+        name = f"{short} ({label})" if label else short
+        kind = (row.get("3D printer") or "").strip() or "Standard"
+        printer = {"Standard": "256 mm bed", "Large": "H2 (325 mm)",
+                   "Mixed": "256 mm un / H2 sl", "Mini": "A1 mini"}[kind]
+        out.append(f"| **{name}** | {u.calTotalCards} | {u.HorizontalSlots} x {u.RisingSliders + 1} "
+                   f"| {per_slot(u)} | {size(u)} | {size(s)} | {printer} | {profile_links(spec, game, short)} |")
+    return "\n".join(out)
+
+
+def render_reddit():
+    spec, rows = load()
+    games = [g for g in spec["families"] if any(r[0] == g for r in rows)]
+    parts = [f"""**Every Card Cascade there is** (release {CURRENT}), and how to tell whether one fits a game it was not designed for.
+
+A Card Cascade is a 3D-printed store-and-play box for a card game: closed, a labelled box on the shelf; open, the sliding holders rise in a staircase so every pile shows its top card, with the big piles in front pockets. Each cascade is a complete Bambu Studio project (box and pushers, lid with the game's logo, sliding holders, an optional token holder) and the slide-in labels are a separate project. All free: [the Card Cascades collection on MakerWorld]({spec["makerworld_collection"]}).
+
+**Does one fit your game?** The cascades were designed for four card sizes, one family each. One fits a game it was never designed for when:
+
+1. **The card is no bigger than the family's card** (below). The slot is 3 mm wider than the card, so a card up to about 1 mm wider still slides; smaller cards just sit lower.
+2. **The cards are no thicker.** Capacities are counted at the thickness below; thicker cards mean fewer per slot, not a jam.
+3. **The pile count fits the slots.** One pile per slot, a big pile per front pocket.
+4. **It fits your printer.** A cascade for a 256 mm bed prints on anything larger.
+
+Sizes are the closed cascade, W x D x H in mm, rounded up. "Per slot" is the front pocket's capacity / a sliding slot's; "12/30" means the first sliding row is deeper.
+
+# Families by card size
+
+{reddit_family_table(spec, rows)}
+"""]
+    for game in games:
+        fam = spec["families"][game]
+        parts.append(f"# {fam['title']}\n\n{fam['blurb']}\n\n{reddit_cascade_table(spec, game, rows)}\n")
+    g = spec["dominion_guide"]
+    parts.append(f"""# Dominion: which cascade for which expansion
+
+A 256 mm bed needs a pair of cascades for the biggest sets; sleeved cards are thicker, so more sets split.
+
+**Unsleeved**
+
+{guide_table(g, "Un")}
+
+**Sleeved**
+
+{guide_table(g, "Sl")}
+
+The Base Set has 60 Copper and a front pocket takes 40: split the Copper across two pockets. Randomisers fit in every cascade.
+
+# Reading a model code
+
+L8.50.10.62-Sl: **L** width in slots across (XS 2, S 3, M 4, L 5); **8** sliding holders; **50** cards per front pocket; **10** cards per sliding slot (12-30 when the first row is deeper); **62** side-label width in mm; **-M** two pockets merged for player mats; **Sl/Un** sleeved or unsleeved. The code is engraved on every part, so boxes, lids, holders and pushers always match.
+
+If your game fits none of these, post its card size and pile counts here. The design is parametric and a new size is a line in a spreadsheet.
+""")
+    return "\n".join(parts)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true",
-                    help="exit 1 if CATALOGUE.md differs from what would be written")
+                    help="exit 1 if CATALOGUE.md or the Reddit version differs from what would be written")
+    ap.add_argument("--reddit", action="store_true", help="also write the Reddit version")
     args = ap.parse_args()
-    text = render()
+    targets = [(OUT, render())]
+    if args.reddit or args.check:
+        targets.append((REDDIT, render_reddit()))
     if args.check:
-        if not OUT.exists() or OUT.read_text() != text:
-            print(f"{OUT.name} is stale: run make_catalogue.py")
+        stale = [p.name for p, text in targets if not p.exists() or p.read_text() != text]
+        if stale:
+            print(f"stale: {', '.join(stale)}: run make_catalogue.py --reddit")
             return 1
-        print(f"{OUT.name} is current")
+        print("CATALOGUE.md and the Reddit version are current")
         return 0
-    OUT.write_text(text)
-    print(f"wrote {OUT.name}")
+    for p, text in targets:
+        p.write_text(text)
+        print(f"wrote {p.relative_to(ROOT)}")
     return 0
 
 
