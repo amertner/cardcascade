@@ -1,8 +1,11 @@
 # Reddit: the launch post, and where to put it
 
 Drafts for the first round of posts. Nothing here is posted by a script;
-copy, adjust, post. The catalogue the posts point at is `CATALOGUE.md`
-(rendered by GitHub at https://github.com/amertner/cardcascade/blob/main/CATALOGUE.md).
+copy, adjust, post. **No post links GitHub** (Allan, 2026-09-26): the
+catalogue the posts point at is the PINNED POST on r/cardcascade, whose
+text is `outreach/catalogue-reddit.md`, written by `make_catalogue.py
+--reddit` from the same data as `CATALOGUE.md`. Once it is posted, put its
+URL where the drafts say `<pinned post>`.
 
 ## The plan
 
@@ -40,29 +43,11 @@ they get a mention in the r/boardgames post and a row in the catalogue.
 
 **Title:** Every Card Cascade in one table, and how to tell if one fits your game
 
-**Body:**
-
-Card Cascade is a 3D-printed store-and-play box for card games: closed it
-is a labelled box on the shelf; open, the sliding holders rise in a
-staircase so every pile shows its top card. So far there are cascades for
-four games: Dominion (every expansion), Innovation, Compile and Food Chain
-Magnate. They are all free on MakerWorld:
-https://makerworld.com/en/collections/33559137-card-cascades
-
-Most card games use one of a handful of card sizes, so a cascade designed
-for one of these four will very likely fit yours. The catalogue lists every
-cascade with the card size it is cut for, its capacity, its outside
-dimensions and the printer bed it needs:
-
-https://github.com/amertner/cardcascade/blob/main/CATALOGUE.md
-
-How to use it: measure a card, count your piles, check your bed size, pick
-the row. If your game does not fit any of them, post here with the card
-size and the pile counts. The design is parametric and a new size is a
-line in a spreadsheet, so a new cascade is a real possibility.
-
-Things I would love to see in this sub: photos of your prints, the game you
-put in one, and anything that did not fit.
+**Body:** the whole of `outreach/catalogue-reddit.md`, pasted as a text
+post in Reddit's markdown editor (switch the editor to Markdown first, or
+the tables flatten). Regenerate it with `make_catalogue.py --reddit` and
+edit the post whenever a cascade is added. Pin it, and put its URL in the
+subreddit's sidebar.
 
 ## Post 2: r/functionalprint
 
@@ -89,11 +74,10 @@ series.
 Designed so far for Dominion (all expansions), Innovation, Compile and Food
 Chain Magnate, but the slots are cut for the card size, not the game, so if
 your game uses 59x91, 63x88, 65x92 or 41x63 mm cards there is probably a
-box that fits. Table of all of them with sizes and capacities:
-https://github.com/amertner/cardcascade/blob/main/CATALOGUE.md
+box that fits. Table of all of them with sizes, capacities and links:
+<pinned post> on r/cardcascade.
 
 Files: https://makerworld.com/en/collections/33559137-card-cascades
-Discussion and requests: r/cardcascade
 
 ## Post 3: r/dominion
 
@@ -114,12 +98,12 @@ them, and there is a token holder.
 Which box for which expansion (a 256 mm bed needs a pair for the biggest
 sets):
 
-[paste the Dominion table from CATALOGUE.md, unsleeved and sleeved]
+[paste the two Dominion expansion tables from outreach/catalogue-reddit.md]
 
 All free on MakerWorld, with labels for every set as a separate project:
 https://makerworld.com/en/collections/33559137-card-cascades
 
-Everything else, and requests: r/cardcascade
+Every size in one table, and requests: <pinned post> on r/cardcascade
 
 ## Post 4: r/BambuLab
 
@@ -132,8 +116,7 @@ Plates, filaments and process settings are all in the project, so it's
 open, pick the plate, print. White in slot 1 and black in slot 2 for the
 lettering and logo; no supports; the seam sits on a rib so the sliding
 faces stay clean. Four games so far, and a table of every size so you can
-check your own game's cards:
-https://github.com/amertner/cardcascade/blob/main/CATALOGUE.md
+check your own game's cards: <pinned post> on r/cardcascade.
 
 Files: https://makerworld.com/en/collections/33559137-card-cascades
 
@@ -144,7 +127,7 @@ for Dominion, Innovation, Compile and FCM, and made the files free
 
 Image post, links in a comment. Keep the body to the photo and two lines:
 what it is, and that the files are free. Answer the "does it fit X" replies
-with the catalogue link.
+with the pinned post's link.
 
 ## Pictures to use
 
